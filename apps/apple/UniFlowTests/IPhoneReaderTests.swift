@@ -3,6 +3,7 @@ import PencilKit
 import SwiftUI
 import UIKit
 import UniFlowCore
+import WebKit
 import XCTest
 @testable import UniFlow
 
@@ -78,9 +79,10 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         return pdf.pageOverlayViewProvider?.pdfView(pdf, overlayViewFor: p) as? PageInkView
     }
 
-    private func openReader(size: CGSize = IPhoneLearnTestCase.phone, task: Int? = nil)
+    private func openReader(size: CGSize = IPhoneLearnTestCase.phone, task: Int? = nil,
+                            doc: (file: LibFile, api: APIClient, transport: AIViewsAppTests.Transport)? = nil)
         throws -> (env: HostedEnvironment, pdf: PDFView, transport: AIViewsAppTests.Transport) {
-        let d = document()
+        let d = doc ?? document()
         let env = try hostPhone(NavigationStack { PhoneDocumentReader(file: d.file, api: d.api, task: task) }, api: d.api, size: size)
         var found: PDFView?
         XCTAssertTrue(env.wait(timeout: 15) {
@@ -146,6 +148,83 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         XCTAssertEqual(pdf.document?.index(for: try XCTUnwrap(pdf.currentPage)), 1)
     }
 
+    /// Kopf der Leseansicht flach (Auftrag des Inhabers 17.11.2026: "oben Leiste dünner", auch am iPhone): eine Zeile
+    /// statt zwei, jeder Knopf 44 pt antippbar. Vorher (mit diesem Test gemessen, 390, 402 und 440 pt breit): 102 pt.
+    static let headerBefore: CGFloat = 102
+    func testHeaderIsOneFlatRowOnPhone() throws {
+        hintSeenForTesting(true)
+        var lines: [String] = []
+        for (name, size) in [("klein", IPhoneLearnTestCase.phoneSmall), ("iPhone", IPhoneLearnTestCase.phone), ("gross", IPhoneLearnTestCase.phoneMax)] {
+            let (env, pdf, _) = try openReader(size: size, task: 7)
+            env.pump(0.6)
+            let top = pdf.convert(pdf.bounds, to: env.window).minY
+            let bars = top - env.window.safeAreaInsets.top
+            lines.append(String(format: "[Oben] iPhone %@ (%.0f x %.0f): Statuszeile %.0f pt, Dokument beginnt bei %.0f pt, Kopf %.0f pt hoch",
+                                name, size.width, size.height, env.window.safeAreaInsets.top, top, bars))
+            XCTAssertLessThanOrEqual(bars, PhoneDocumentReader.flatHeaderHeight + 2, "\(name): eine flache Zeile")
+            XCTAssertLessThanOrEqual(bars, Self.headerBefore * 2 / 3, "\(name): mindestens ein Drittel flacher als vorher")
+            // nichts fehlt, nichts ragt hinaus, alles in einer Zeile
+            var mids: [CGFloat] = []
+            for id in ["phoneReader.page", "phoneReader.search", "phoneReader.share", "phoneReader.done", "phoneReader.tutor"] {
+                let e = try XCTUnwrap(element(env, id: id), "\(name): \(id) fehlt: \(dump(env))")
+                let f = frame(e)
+                XCTAssertGreaterThanOrEqual(f.minX, -0.5, "\(name): \(id)")
+                XCTAssertLessThanOrEqual(f.maxX, size.width + 0.5, "\(name): \(id) ragt ueber den Rand")
+                XCTAssertGreaterThanOrEqual(f.minY, env.window.safeAreaInsets.top - 0.5, "\(name): \(id) unter der Statuszeile")
+                XCTAssertLessThanOrEqual(f.maxY, top + 0.5, "\(name): \(id) im Kopf")
+                if id == "phoneReader.page" {
+                    XCTAssertGreaterThanOrEqual(f.height, 43.5, "\(name): Titel und Seite 44 pt antippbar")
+                } else {
+                    mids.append(f.midY)
+                }
+            }
+            XCTAssertLessThanOrEqual((mids.max() ?? 0) - (mids.min() ?? 0), 1, "\(name): Knoepfe auf einer Hoehe")
+            XCTAssertTrue(shows(env, "Seite 1 von 3"), dump(env))
+            shoot(env, "iphone-kopf-\(name)")
+            env.window.isHidden = true
+        }
+        print(lines.joined(separator: "\n"))
+    }
+
+    private func hintSeenForTesting(_ seen: Bool) {
+        let before = UserDefaults.standard.object(forKey: "uniflow.phoneReader.hintSeen")
+        UserDefaults.standard.set(seen, forKey: "uniflow.phoneReader.hintSeen")
+        addTeardownBlock { UserDefaults.standard.set(before, forKey: "uniflow.phoneReader.hintSeen") }
+    }
+
+    /// Fueller, feiner Fineliner und durchscheinender Textmarker vom iPad (17.11.2026) erscheinen in der Leseansicht
+    /// mit ihrer Tinte; eine Tintenart, die diese Fassung nicht kennt, als normaler Stift
+    func testReaderShowsFountainFineAndMarkerStrokes() throws {
+        func stroke(_ id: String, tool: String, pkInk: String?, width: Double, opacity: Double, y: Double) -> JSONValue {
+            var o: [String: JSONValue] = ["id": .string(id), "type": "stroke", "tool": .string(tool), "color": "#1d2130", "width": .number(width),
+                                          "opacity": .number(opacity), "points": [80, .number(y), 200, .number(y + 6), 320, .number(y), 440, .number(y + 8)],
+                                          "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1]
+            if let pkInk { o["pkInk"] = .string(pkInk) }
+            return .object(o)
+        }
+        let notes: JSONValue = ["version": 2, "pages": ["p1": ["objects": [
+            stroke("fu", tool: "fountain", pkInk: PKInk.InkType.fountainPen.rawValue, width: 2.8, opacity: 1, y: 200),
+            stroke("fi", tool: "pen", pkInk: PKInk.InkType.monoline.rawValue, width: 2.25, opacity: 1, y: 240),
+            stroke("ma", tool: "marker", pkInk: PKInk.InkType.marker.rawValue, width: 10, opacity: 0.175, y: 280),
+            stroke("un", tool: "kalligrafie", pkInk: "com.apple.ink.reedcalligraphy", width: 3, opacity: 1, y: 320),
+        ]]]]
+        let d = document(notes: notes)
+        let env = try hostPhone(NavigationStack { PhoneDocumentReader(file: d.file, api: d.api) }, api: d.api, size: IPhoneLearnTestCase.phone)
+        var found: PDFView?
+        XCTAssertTrue(env.wait(timeout: 15) {
+            found = self.pdfView(in: env.window)
+            return found?.document?.pageCount == 3
+        }, dump(env))
+        let ink = try XCTUnwrap(overlay(try XCTUnwrap(found), page: 0))
+        XCTAssertTrue(env.wait(timeout: 10) { ink.loaded }, "Notizen nicht geladen")
+        XCTAssertEqual(ink.canvas.drawing.strokes.map { $0.ink.inkType }, [.fountainPen, .monoline, .marker, .pen])
+        var alpha: CGFloat = 0
+        ink.canvas.drawing.strokes[2].ink.color.getRed(nil, green: nil, blue: nil, alpha: &alpha)
+        XCTAssertEqual(alpha, 0.5, accuracy: 0.02, "Textmarker mit 50 % bleibt durchscheinend")
+        XCTAssertEqual(ink.canvas.drawing.strokes[1].path[0].size.width, 2.25, accuracy: 0.01, "feiner Fineliner bleibt fein")
+        env.window.isHidden = true
+    }
+
     func testReaderFitsAllPhoneSizesAndLargeType() throws {
         for size in [IPhoneLearnTestCase.phoneSmall, IPhoneLearnTestCase.phone, IPhoneLearnTestCase.phoneMax] {
             let (env, _, _) = try openReader(size: size)
@@ -188,6 +267,119 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         sheet?.dismiss(animated: false)
         env.pump(0.5)
         _ = transport
+    }
+
+    /// Video, YouTube oder Lernseite auch am iPhone (Auftrag 17.11.2026): Knopf in der Leseansicht, mit Plus die Auswahl
+    /// mit "YouTube öffnen". Danach steht ueber dem Dokument zuerst nur der Hinweis (noch keine Web-Ansicht, nichts geht
+    /// an YouTube); "Abbrechen" schliesst wieder, das Dokument bleibt dasselbe. Ohne Plus die Tarifwahl.
+    /// Seit 18.11.2026 nur mit eingeschaltetem `YouTubeBrowse` (in 1.0.6 aus); den Standard prueft
+    /// `testPhoneReaderWithoutYouTubeBrowse`.
+    func testVideoOrLearningSiteAbovePhoneReader() throws {
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        YouTubeBrowse.enabled = true
+        defer { Entitlements.shared.setPlanForTesting(before); YouTubeBrowse.enabled = YouTubeBrowse.shipped }
+        YouTubeNotice.reset(defaults: YouTubeSidePane.defaults)
+        let (env, pdf, _) = try openReader()
+        let web = try XCTUnwrap(element(env, id: "phoneReader.web"), dump(env))
+        XCTAssertEqual(web.accessibilityLabel, "Video oder Lernseite")
+        // läuft der Test allein, setzt die erste Tarifabfrage der App den Tarif nach dem Start noch einmal (Free):
+        // darum unmittelbar vor dem Antippen erneut
+        Entitlements.shared.setPlanForTesting(.plus)
+        XCTAssertTrue(web.accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 20) { self.element(env, id: "web.youtubeOpen") != nil },
+                      "Auswahl mit „YouTube öffnen“ (Blatt offen: \(sheetOpen(env))): \(dump(env))")
+        XCTAssertNotNil(element(env, id: "web.videoLink"), "Link einfügen bleibt als zweiter Weg")
+        XCTAssertTrue(shows(env, WebSidePickerSection.videoIntro(readerOnly: true)), dump(env))
+        XCTAssertTrue(try XCTUnwrap(element(env, id: "web.youtubeOpen")).accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 8) { self.element(env, id: "youtube.noticeOpen") != nil && !self.sheetOpen(env) },
+                      "Hinweis über dem Dokument: \(dump(env))")
+        XCTAssertTrue(shows(env, "Dienst von Google"), dump(env))
+        func webViews(_ v: UIView) -> Int { (v is WKWebView ? 1 : 0) + v.subviews.map(webViews).reduce(0, +) }
+        XCTAssertEqual(webViews(env.window), 0, "vor „Öffnen“ keine Web-Ansicht")
+        XCTAssertTrue(pdfView(in: env.window) === pdf, "das Dokument bleibt dieselbe Ansicht")
+        for e in elements(env) {
+            guard let id = identifier(e), id.hasPrefix("youtube."), !frame(e).isNull, frame(e).width > 0 else { continue }
+            XCTAssertLessThanOrEqual(frame(e).maxX, IPhoneLearnTestCase.phone.width + 0.5, id)
+        }
+        shoot(env, "iphone-youtube-hinweis")
+        XCTAssertTrue(try XCTUnwrap(element(env, id: "youtube.noticeCancel")).accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 5) { self.element(env, id: "youtube.noticeOpen") == nil }, "Abbrechen schließt")
+        XCTAssertFalse(YouTubeNotice.accepted(defaults: YouTubeSidePane.defaults), "Abbrechen merkt nichts")
+        XCTAssertTrue(pdfView(in: env.window) === pdf)
+
+        // ohne Plus: Tarifwahl statt Auswahl
+        Entitlements.shared.setPlanForTesting(.free)
+        let (free, _, _) = try openReader()
+        XCTAssertTrue(try XCTUnwrap(element(free, id: "phoneReader.web")).accessibilityActivate())
+        XCTAssertTrue(free.wait(timeout: 5) { self.sheetOpen(free) }, "Tarifwahl")
+        XCTAssertNil(element(free, id: "web.youtubeOpen"), dump(free))
+        dismissSheet(free)
+    }
+
+    private struct MemorySecrets: UniversitySecretStoring {
+        final class Box: @unchecked Sendable { var values: [String: String] = [:] }
+        let box = Box()
+        func read(_ account: String) -> String? { box.values[account] }
+        func write(_ value: String, account: String) -> Bool { box.values[account] = value; return true }
+        func remove(_ account: String) { box.values[account] = nil }
+        func accounts() -> [String] { Array(box.values.keys) }
+        func removeAll() -> Bool { box.values = [:]; return true }
+    }
+
+    /// Entscheidung des Inhabers 18.11.2026: "YouTube öffnen" nicht in 1.0.6 (`YouTubeBrowse` aus, Standard). Das Blatt
+    /// "Video oder Lernseite" bleibt, aber ohne "YouTube öffnen": "YouTube-Link einfügen" ist der Haupteinstieg wie in
+    /// 1.0.5, Lernseiten stehen darunter. Ein in der Testfassung auf der YouTube-Seite angesehenes Video ("Zuletzt hier")
+    /// oeffnet im eingebetteten Player - nie die YouTube-Seite, nie der Hinweis "YouTube ist ein Dienst von Google".
+    func testPhoneReaderWithoutYouTubeBrowse() throws {
+        // Weg mit Schalter aus (seit 18.11.2026 nachmittags ist 1.0.6 wieder AN)
+        YouTubeBrowse.enabled = false
+        defer { YouTubeBrowse.enabled = YouTubeBrowse.shipped }
+        let before = Entitlements.shared.plan
+        Entitlements.shared.setPlanForTesting(.plus)
+        defer { Entitlements.shared.setPlanForTesting(before) }
+        // eigener Container, darin der Stand aus der Testfassung: Video auf der YouTube-Seite angesehen
+        let base = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-yt-aus-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
+        let appSuite = "uniflow-yt-aus-app-\(UUID().uuidString)"
+        let appDefaults = try XCTUnwrap(UserDefaults(suiteName: appSuite))
+        let key = DataContainerKey(userID: "001234.erfunden-ada.\(UUID().uuidString.prefix(8))", university: .luh)
+        let container = ActiveContainer(key: key, base: base, keychain: MemorySecrets(), cookieService: "de.uniflow.ai.test.\(UUID().uuidString)",
+                                        appDefaults: appDefaults, clock: .fixed(berlin: "2026-11-18T10:00:00")!, cloud: nil)
+        let suite = container.defaultsSuite
+        let previous = ActiveContainer.current
+        ActiveContainer.current = container
+        addTeardownBlock { @MainActor in
+            ActiveContainer.current = previous
+            UserDefaults().removePersistentDomain(forName: suite)
+            UserDefaults().removePersistentDomain(forName: appSuite)
+            try? FileManager.default.removeItem(at: base)
+        }
+        let d = document()
+        DocumentVideoLinks.save(VideoLink(videoID: "dQw4w9WgXcQ", start: 42), for: d.file.id, defaults: container.defaults, onYouTube: true)
+
+        let (env, pdf, _) = try openReader(doc: d)
+        Entitlements.shared.setPlanForTesting(.plus)
+        let web = try XCTUnwrap(element(env, id: "phoneReader.web"), dump(env))
+        XCTAssertEqual(web.accessibilityLabel, "Video oder Lernseite", "Knopf bleibt")
+        XCTAssertTrue(web.accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 20) { self.element(env, id: "web.videoLink") != nil },
+                      "Auswahl mit „YouTube-Link einfügen“ (Blatt offen: \(sheetOpen(env))): \(dump(env))")
+        XCTAssertNil(element(env, id: "web.youtubeOpen"), "kein „YouTube öffnen“: \(dump(env))")
+        XCTAssertNotNil(element(env, id: "web.videoOpen"))
+        XCTAssertTrue(shows(env, WebSidePickerSection.videoIntro(readerOnly: true)), dump(env))
+        XCTAssertFalse(shows(env, "Such dein Video bei YouTube"), dump(env))
+        XCTAssertTrue(elements(env).contains { identifier($0)?.hasPrefix("web.site.") == true }, "Lernseiten bleiben: \(dump(env))")
+        let last = try XCTUnwrap(element(env, id: "web.lastVideo"), "„Zuletzt hier: YouTube-Video“: \(dump(env))")
+        shoot(env, "iphone-video-ohne-youtube-oeffnen")
+        XCTAssertTrue(last.accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 8) { self.element(env, id: "video.close") != nil && !self.sheetOpen(env) },
+                      "eingebetteter Player über dem Dokument: \(dump(env))")
+        XCTAssertFalse(elements(env).contains { identifier($0)?.hasPrefix("youtube.") == true }, "keine YouTube-Seite: \(dump(env))")
+        XCTAssertFalse(shows(env, "Dienst von Google"), "kein Hinweis vor dem Öffnen: \(dump(env))")
+        XCTAssertTrue(pdfView(in: env.window) === pdf, "das Dokument bleibt dieselbe Ansicht")
+        XCTAssertTrue(try XCTUnwrap(element(env, id: "video.close")).accessibilityActivate())
+        XCTAssertTrue(env.wait(timeout: 5) { self.element(env, id: "video.close") == nil }, "schließt")
     }
 
     /// Dialog "Lösung teilen" aus der Leseansicht: die Notizen vom iPad werden gelesen (Vorschau), "Als Datei teilen"

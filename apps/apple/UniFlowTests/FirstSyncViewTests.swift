@@ -156,6 +156,6 @@ final class FirstSyncViewTests: XCTestCase {
         XCTAssertFalse(FileLoadState.needsLogin.detail(source: "Learnweb").contains("Stud.IP"))
         // Stud.IP wie bisher
         XCTAssertEqual(FileLoadState.needsLogin.headline, "Stud.IP-Anmeldung nötig")
-        XCTAssertTrue(FileLoadState.needsLogin.detail.hasPrefix("Melde dich unter Einstellungen → Stud.IP neu an."))
+        XCTAssertTrue(FileLoadState.needsLogin.detail.hasPrefix("Melde dich unter Einstellungen → Uni-Zugang & Abgleich neu bei Stud.IP an."))
     }
 }

@@ -77,6 +77,19 @@ public enum PageExplain {
         case ai
     }
 
+    /// Antwortstil wie ChatGPT (18.11.2026): Erklaerungen und Loesungen haben Abschnitte ("## …") oder Block-Formeln
+    /// ("$$"). Gemerkte Antworten im alten, flachen Stil gelten in diesen Modi nicht mehr - sonst kaeme nach dem Update
+    /// auf derselben Seite wieder die alte Antwort ("Schon erklärt"). Gleiche Regel: app/explain_local.py `current_style`.
+    public static let styleModes: Set<String> = ["explain", "explain_simple", "steps"]
+
+    public static func isCurrentStyle(_ text: String, mode: String) -> Bool {
+        guard styleModes.contains(mode) else { return true }
+        return text.components(separatedBy: "\n").contains { line in
+            let t = line.drop { $0 == " " || $0 == "\t" }
+            return t.hasPrefix("$$") || t.hasPrefix("## ") || t.hasPrefix("### ") || t.hasPrefix("##\t") || t.hasPrefix("###\t")
+        }
+    }
+
     /// Vorrang lokal -> Dienst -> KI: lokal die juengste Antwort (bei gleichem Zeitpunkt die zuerst genannte; der
     /// Aufrufer gibt die zuletzt gespeicherte zuerst), beim Dienst die niedrigste Variante; sonst live
     public static func choose(local: [LocalEntry], cloud: [Int]) -> Choice {

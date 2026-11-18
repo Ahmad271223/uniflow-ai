@@ -160,3 +160,96 @@ struct SettingsNotice<Actions: View>: View {
         .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(fg.opacity(0.3), lineWidth: 1))
     }
 }
+
+// MARK: - Aufklappen (Auftrag 17.11.2026 "mach Einstellungen übersichtlicher")
+
+/// Lange Erklaerung hinter "Mehr dazu": zu steht hoechstens die Kurzfassung da, offen der ganze Text (unveraendert).
+/// Der Knopf ist 44 pt hoch antippbar, ohne die Zeile hoeher zu machen (`ufHitArea`).
+struct SettingsMore: View {
+    /// ein kurzer Satz, der zu sichtbar bleibt (der Anfang des Textes oder nichts)
+    var summary: String?
+    let text: String
+    /// Kennung des ganzen Textes (wie vorher am Text selbst)
+    var identifier: String?
+    var size: CGFloat = 12.8
+    /// Beschriftung des Knopfs im zugeklappten Zustand; stehen mehrere dicht beieinander, sagt sie, wozu
+    var title = SettingsMore.openTitle
+    @State private var open = false
+
+    static let openTitle = "Mehr dazu"
+    static let closeTitle = "Weniger"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if open {
+                Text(text).ufFont(size).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier(identifier ?? "settings.more.text")
+            } else if let summary {
+                Text(summary).ufFont(size).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button { open.toggle() } label: {
+                HStack(spacing: 4) {
+                    Text(open ? Self.closeTitle : title).ufFont(size, 600)
+                    UFIcon(open ? "chevron-down" : "chevron-right", size: 13)
+                }
+                .foregroundStyle(UF.accentText)
+                .ufHitArea()
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(open ? "aufgeklappt" : "zugeklappt")
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+/// Selten gebrauchter Bereich als zugeklappte Karte: Kopfzeile mit Titel, einem Satz und Pfeil; Antippen klappt den
+/// Inhalt darunter auf (Diagnose, eigener Server, Sync-Protokoll, PDF-Anzeige testen)
+struct SettingsFold<Content: View>: View {
+    let title: String
+    var icon: String?
+    var sub: String?
+    let identifier: String
+    @State private var open: Bool
+    @ViewBuilder let content: Content
+
+    init(_ title: String, icon: String? = nil, sub: String? = nil, identifier: String, open: Bool = false,
+         @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.icon = icon
+        self.sub = sub
+        self.identifier = identifier
+        _open = State(initialValue: open)
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Button { open.toggle() } label: {
+                HStack(alignment: .center, spacing: 9.6) {
+                    if let icon { UFIcon(icon, size: 18).foregroundStyle(UF.text2) }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title).ufFont(15.5, 650).foregroundStyle(UF.text).multilineTextAlignment(.leading)
+                        if let sub {
+                            Text(sub).ufFont(12.8).foregroundStyle(UF.muted).multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Spacer(minLength: 8)
+                    UFIcon(open ? "chevron-down" : "chevron-right", size: 16).foregroundStyle(UF.muted)
+                }
+                .padding(.vertical, 12).padding(.horizontal, 16)
+                .frame(maxWidth: .infinity, minHeight: 52, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
+                .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
+                .contentShape(RoundedRectangle(cornerRadius: UF.r))
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(identifier)
+            .accessibilityValue(open ? "aufgeklappt" : "zugeklappt")
+            if open { content }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}

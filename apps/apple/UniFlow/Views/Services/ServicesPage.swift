@@ -364,7 +364,7 @@ struct ServicesPage: View {
                         Spacer(minLength: 0)
                         HStack(spacing: 5.6) {
                             UFBadge(st.1, tone: st.0)
-                            Button { k == "studip" ? router.go(.settings(tab: "account")) : openCred(k) } label: {
+                            Button { k == "studip" ? router.go(.settings(tab: "uni")) : openCred(k) } label: {
                                 UFIcon("pencil", size: 13)
                             }
                             .buttonStyle(UFButtonStyle(kind: .ghost, size: .small, iconOnly: true))

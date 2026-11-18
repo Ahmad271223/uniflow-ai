@@ -286,6 +286,10 @@ final class AuditPaket353740AppTests: XCTestCase {
         let n = RecordingNotifier()
         let b = BackgroundSyncController(containers: m, account: a, settings: settings, scheduler: NoScheduler(), notifier: n)
         b.allowed = { true }
+        // Regel 8–18 Uhr (17.11.2026): ein Lauf um 10:00 mit faelligem Stud.IP (unabhaengig von der Uhrzeit des Testlaufs)
+        b.now = { Date(timeIntervalSince1970: 1_794_387_600) }   // 11.11.2026, 10:00 Berlin
+        b.timeZone = { TimeZone(identifier: "Europe/Berlin")! }
+        b.autoDue = { _, _, _, _ in [OpenSync.studIP] }
         let fake = HoldingSync()
         fake.report = BackgroundSyncReport(newFiles: 3)
         b.target = { _ in fake }

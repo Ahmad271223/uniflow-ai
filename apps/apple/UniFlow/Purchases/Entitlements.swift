@@ -40,8 +40,6 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // veroeffentlichen, Pseudonym, Lerngruppen anlegen
     case splitView           // Uebung und Skript nebeneinander, Skriptsuche zur Aufgabe
     case flashcards          // eigene Karteikarten mit Wiederholung
-    case dueReminders        // Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen; can_use_due_reminders, ab Plus
-                             // seit 11.11.2026, vorher Free). Die Fristen-Liste bleibt in jedem Tarif
     case autoPlan            // Lernplan automatisch erstellen (GeneratePlanDialog, POST /api/calendar/generate, auch
                              // "Lerneinheit automatisch einplanen", KI-Lernplan POST /api/calendar/ai-suggest): Plus
                              // (Inhaber 07.11.2026); Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel arbeitet,
@@ -58,6 +56,10 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // iPad die StudiNow-KI, darum Pro AI (07.11.2026; vorher Plus mit dem eigenen ChatGPT, das aus
                              // ist). Wird das eigene ChatGPT freigegeben, hier neu entscheiden.
     case deviceSync          // Notizen auf allen Geraeten (DeviceSync G2 mit StudiNow-Konto, can_sync_annotations)
+    case dueReminders        // Erinnerungen an Abgaben, Tests und Klausuren samt "Neuer Klausurtermin erkannt" (Mitteilungen;
+                             // can_use_due_reminders): ab Pro AI seit 18.11.2026 (Inhaber woertlich "Alles ab Pro AI"),
+                             // 11.-17.11.2026 ab Plus, vorher Free. Geht ohne StudiNow-Konto (auf dem Geraet). Fristen- und
+                             // Terminlisten und die Karte "Klausuren und Tests: bald und neu erkannt" bleiben in jedem Tarif
     // ab V2
     case uniflowEditor
 
@@ -71,9 +73,9 @@ enum UFFeature: String, CaseIterable, Identifiable {
              .uniGrades, .ownChatGPT:
             return .free
         case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor,
-             .dueReminders, .aiChat:
+             .aiChat:
             return .plus
-        case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync:
+        case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders:
             return .proAI
         }
     }
@@ -83,6 +85,10 @@ enum UFFeature: String, CaseIterable, Identifiable {
 
     /// erst ab V2 vorhanden (UniFlow-Editor)
     var isV2: Bool { self == .uniflowEditor }
+
+    /// Teil des Lernkalenders (ansehen, Lernbloecke planen, automatisch planen): mit `LearnCalendar.enabled == false`
+    /// (17.11.2026) auf keiner Tarifkarte und in keinem Vergleich genannt; Produkte, Preise und Kaeufe bleiben
+    var isLearnCalendar: Bool { self == .studyCalendar || self == .studyPlanning || self == .autoPlan }
 
     /// Bezeichnung auf der Abo-Seite und in der Sperrkarte
     var title: String {
@@ -118,13 +124,13 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
         case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App"
-        case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen und Lernplan-Vorschläge – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
+        case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen\(LearnCalendar.text(" und Lernplan-Vorschläge", off: "")) – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
         case .communityRead: return "Lösungen anderer finden, laden und \(UFEditorAvailability.available ? "im Editor" : "auf leeren Seiten") ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
-        case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren"
+        case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren und bei neu erkannten Klausurterminen"
         case .autoPlan: return "Lernslots in deinen freien Zeiten"
         case .aiChat: return "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI"
         case .aiHelp: return "Erklären zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“ – mit 100 Credits im Monat, weitere Credits zum Nachkaufen"
@@ -225,7 +231,7 @@ enum UFFeatureMatrix {
     /// Funktionen, die ein Tarif mehr bietet als der naechstkleinere (Inhalt der Tarifkarten)
     static func added(in plan: UFPlan) -> [UFFeature] {
         UFFeature.allCases.filter { $0.minimumPlan == plan && ($0 != .timer || StudyTimer.isEnabled)
-            && ($0 != .ownChatGPT || OpenAIKeyLink.isOffered) }
+            && ($0 != .ownChatGPT || OpenAIKeyLink.isOffered) && (LearnCalendar.enabled || !$0.isLearnCalendar) }
     }
 
     /// Herabstufen (Abschnitt 4, "Regeln"): Notizen bleiben vollstaendig erhalten, lesbar und exportierbar;
@@ -365,6 +371,9 @@ final class Entitlements: ObservableObject {
     private var serviceTrial: UFPlan?
     /// bezahlter Tarif des Kontos laut Dienst (`paid_plan`, ohne Probe); nur fuer die Anzeige der Probe (`shownTrial`)
     private var servicePaid: UFPlan?
+    /// geschenkter Tarif des Kontos laut Dienst bzw. zuletzt bestaetigt (`UFServiceGift`, 18.11.2026): schaltet frei wie
+    /// die Probe des Dienstes; nil ohne Geschenk
+    @Published private(set) var serviceGift: UFServiceGift?
     /// Resttage und Ende der Probe des Kontos laut Dienst (nur Anzeige, `UFShownTrial`)
     @Published private(set) var serviceTrialDaysLeft = 0
     @Published private(set) var serviceTrialEndsAt: Date?
@@ -447,7 +456,14 @@ final class Entitlements: ObservableObject {
 
     /// Stand des Kontos beim Dienst (`StudoraAccountLink.planStatus`): dessen laufende Probe fuer Freischaltung und Anzeige
     func useServiceStatus(_ s: StudoraAccount.PlanStatus?) {
+        useServiceStatus(s, gift: UFServiceGift(status: s))
+    }
+
+    /// dasselbe mit dem Geschenk von aussen: ohne Antwort des Dienstes (`s` nil) der zuletzt bestaetigte Stand
+    /// (`UFGiftMemory`), sonst das Geschenk aus der Antwort
+    func useServiceStatus(_ s: StudoraAccount.PlanStatus?, gift: UFServiceGift?) {
         servicePaid = s?.paidPlan.flatMap(UFPlan.init(rawValue:))
+        serviceGift = gift
         useServiceTrial(s?.trialPlan.flatMap(UFPlan.init(rawValue:)), daysLeft: s?.trialDaysLeft ?? 0, endsAt: s?.trialEndsAt)
     }
 
@@ -492,6 +508,22 @@ final class Entitlements: ObservableObject {
         if let scope = localTrialScope { localTrialRecords?.markChoice(scope) }
     }
 
+    /// Geschenk, das gerade gilt (nicht abgelaufen, nicht mit -UFPlan); nil sonst
+    func activeGift(now: Date = Date()) -> UFServiceGift? {
+        guard !planIsForced, let g = serviceGift, g.isActive(now: now) else { return nil }
+        return g
+    }
+
+    /// Geschenk, das ueber den Kauf hinaus traegt (geschenkter Tarif hoeher als der gekaufte): dann ist es der aktuelle
+    /// Tarif auf der Tarifseite, ohne Kaufknopf fuer ihn und darunter; nil sonst (dann zaehlt der Kauf)
+    var carryingGift: UFServiceGift? {
+        guard let g = activeGift(), g.plan > purchasedPlan else { return nil }
+        return g
+    }
+
+    /// Tarif, den das Konto hat, ohne Probe: gekauft oder geschenkt, der hoehere (Tarifseite "Aktueller Tarif")
+    var ownedPlan: UFPlan { max(purchasedPlan, carryingGift?.plan ?? .free) }
+
     /// laufende Probe auf dem iPad ohne Kauf (die Tarifseite markiert dann keinen Tarif als "Aktueller Tarif"); nil mit
     /// gekauftem Abo, vor der Anmeldung, nach der Probe und waehrend des ersten Abrufs
     var runningLocalTrial: UFLocalTrial.State? {
@@ -503,8 +535,10 @@ final class Entitlements: ObservableObject {
     /// Einstellungen, Probe-Karte und Tarifseite zeigen sie. Mit -UFPlan zaehlen Proben nicht, dann keine.
     var shownTrial: UFShownTrial? {
         guard !planIsForced else { return nil }
+        // ein geschenkter Tarif zaehlt fuer die Anzeige wie ein Kauf (auch ohne Netz, aus dem Merker): Pro AI deckt jede
+        // Probe ab, geschenktes Plus blendet die iPad-Probe aus (wie gekauftes Plus), die Probe des Kontos bleibt sichtbar
         return UFShownTrial.make(service: serviceTrial, serviceDaysLeft: serviceTrialDaysLeft, serviceEndsAt: serviceTrialEndsAt,
-                          local: localTrial, purchased: purchasedPlan, servicePaid: servicePaid)
+                          local: localTrial, purchased: max(purchasedPlan, activeGift()?.plan ?? .free), servicePaid: servicePaid)
     }
 
     /// Tarifseite: die angezeigte Probe, erst nach dem ersten Abruf
@@ -513,14 +547,17 @@ final class Entitlements: ObservableObject {
     /// Beschriftung fuer den Tarif in den Einstellungen: waehrend der angezeigten Probe (Konto, sonst iPad ohne Kauf)
     /// deren Resttage, sonst der Tarif
     var statusLabel: String {
-        shownTrial.map { UFTrialTexts.running($0.daysLeft) } ?? plan.name
+        if let t = shownTrial { return UFTrialTexts.running(t.daysLeft) }
+        // geschenkter Tarif (18.11.2026): sein Name, befristet mit "bis …" - keine Probe, kein Ablauf eines Abos
+        if let g = carryingGift, g.plan == plan { return g.label }
+        return plan.name
     }
 
     /// wirksamen Tarif aus den Quellen bestimmen (UFPlanPrecedence); mit -UFPlan nur der feste Tarif. Danach den
     /// Wecker fuer das naechste Ende stellen (`now` = Uhr des Aufrufers, in Tests fest)
     private func recompute(now: Date = Date()) {
         plan = planIsForced ? purchasedPlan
-            : UFPlanPrecedence.effective(service: serviceTrial, purchased: purchasedPlan, localTrial: localTrial)
+            : UFPlanPrecedence.effective(service: serviceTrial, gift: activeGift(now: now)?.plan, purchased: purchasedPlan, localTrial: localTrial)
         scheduleExpiryCheck(now: now)
     }
 
@@ -529,7 +566,7 @@ final class Entitlements: ObservableObject {
     private func scheduleExpiryCheck(now: Date) {
         expiryCheck?.cancel()
         expiryCheck = nil
-        guard !planIsForced, let at = UFPlanExpiry.next(localTrial: localTrial, rightsEnd: rightsEnd, now: now) else { return }
+        guard !planIsForced, let at = UFPlanExpiry.next(localTrial: localTrial, rightsEnd: rightsEnd, giftEnd: serviceGift?.endsAt, now: now) else { return }
         let wait = min(at.timeIntervalSince(now) + 1, 7 * 86_400)
         expiryCheck = Task { @MainActor [weak self] in
             try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000))

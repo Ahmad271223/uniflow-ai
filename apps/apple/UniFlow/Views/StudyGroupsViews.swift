@@ -19,7 +19,7 @@ enum StudyGroupsText {
         (n == 1 ? "Du bist bei Stud.IP in einer Studiengruppe." : "Du bist bei Stud.IP in \(n) Studiengruppen.")
             + " Was soll StudiNow damit tun? Alles bleibt aus, bis du es einschaltest."
     }
-    static let note = UFDevice.adapt("Ändern kannst du das jederzeit unter Einstellungen → Stud.IP. StudiNow liest Stud.IP nur und ändert dort nichts.")
+    static let note = UFDevice.adapt("Ändern kannst du das jederzeit unter Einstellungen → Uni-Zugang & Abgleich. StudiNow liest Stud.IP nur und ändert dort nichts.")
     static let files = "Dateien durchsuchen und zu Dokumente & Notizen hinzufügen"
     static let module = "Einem Modul zuordnen"
     static let timetable = "Termine in den Stundenplan"
@@ -347,8 +347,10 @@ struct StudIPQuestionsHost: ViewModifier {
     }
 
     /// Lernkalender-Frage zeigen? Noch nicht gefragt und mindestens ein aktuelles Modul
-    static func shouldAskPlan(_ overview: JSONValue) -> Bool {
-        overview["asked"]?.bool != true && !(overview["modules"]?.array ?? []).isEmpty
+    /// Ohne Lernkalender (`LearnCalendar`, 17.11.2026) nie; die Frage gilt dann auch nicht als gestellt und kommt,
+    /// sobald er wieder eingeschaltet ist
+    static func shouldAskPlan(_ overview: JSONValue, planner: Bool = LearnCalendar.enabled) -> Bool {
+        planner && overview["asked"]?.bool != true && !(overview["modules"]?.array ?? []).isEmpty
     }
 
     /// Jetzt nicht stoeren? (Schreiben, anderer Dialog offen, Abgleich laeuft)
@@ -363,8 +365,8 @@ struct StudIPQuestionsHost: ViewModifier {
         defer { checking = false }
         guard let api = session.api, api.isLocal, studip.lastRun != nil else { return }
         let groupsDue = studip.groupsQuestionDue
-        let overview = try? await api.value("/api/calendar/modules")
-        let planDue = overview.map(Self.shouldAskPlan) ?? false
+        let overview = LearnCalendar.enabled ? try? await api.value("/api/calendar/modules") : nil
+        let planDue = overview.map { Self.shouldAskPlan($0) } ?? false
         guard groupsDue || planDue else { return }
         if Self.busy(overlay: overlay, studip: studip) {
             later()

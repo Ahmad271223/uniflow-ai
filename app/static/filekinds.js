@@ -37,3 +37,12 @@ export function pagesHtml(pages, kind, esc) {
   const label = kind === "pptx" ? "Folie" : "Seite";
   return pages.map((t, i) => `<section class="textpage" data-page="${i + 1}"><h4 class="muted small">${label} ${i + 1}</h4>${t ? esc(t) : `<span class="muted">(ohne Text)</span>`}</section>`).join("");
 }
+
+/** "Neu" wie auf der Uebersicht, den Modulkarten und in der iPad-App (study.new_file_sql, UFNewFiles): noch nicht
+ * angesehen UND vor hoechstens 24 Stunden eingetragen (Auftrag des Inhabers 17.11.2026). Das rechnet der Server aus
+ * (`is_new` 1/0 je Datei), hier wird nicht mit Zeiten gerechnet. Aeltere Antworten ohne `is_new`: nicht angesehen
+ * (`seen_by_user` 0), noch aeltere ohne beides: Lernstand "neu". */
+export function isNewFile(f) {
+  if (f.is_new != null) return f.is_new === true || Number(f.is_new) === 1;
+  return f.seen_by_user != null ? Number(f.seen_by_user) === 0 : f.status === "neu";
+}

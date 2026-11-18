@@ -79,10 +79,15 @@ public actor StudoraAccount {
         public var paidPlan: String?
         /// Geraete-Regel (`device`, DeviceRule.swift): Auskunft zu diesem Geraet; nil, wenn der Dienst sie nicht schickt
         public var device: DeviceRule.Status?
+        /// geschenkter Tarif des Kontos (Quelle `gift`, app/tarif_schenken.py, 18.11.2026), solange er gilt: `plus` oder
+        /// `pro_ai`; nil ohne Geschenk. Anders als ein Stripe-Abo uebernimmt die App ihn wie die Probe des Dienstes.
+        public var giftPlan: String?
+        /// Ende des Geschenks; nil = unbefristet (bzw. kein Geschenk)
+        public var giftEndsAt: Date?
 
         public init(plan: String, trialActive: Bool = false, trialDaysLeft: Int = 0, trialPlan: String? = nil, trialEndsAt: Date? = nil,
                     needsPlanChoice: Bool = false, appleAccountToken: String? = nil, paidPlan: String? = nil,
-                    device: DeviceRule.Status? = nil) {
+                    device: DeviceRule.Status? = nil, giftPlan: String? = nil, giftEndsAt: Date? = nil) {
             self.plan = plan
             self.trialActive = trialActive
             self.trialDaysLeft = trialDaysLeft
@@ -92,6 +97,24 @@ public actor StudoraAccount {
             self.appleAccountToken = appleAccountToken
             self.paidPlan = paidPlan
             self.device = device
+            self.giftPlan = giftPlan
+            self.giftEndsAt = giftEndsAt
+        }
+
+        /// Geschenk aus `GET /api/entitlements`: das Feld `gift` ({active, plan, ends_at}; `null` = keines). Ein Dienst
+        /// ohne dieses Feld meldet ein Geschenk nur, wenn es den Tarif traegt (`source` "gift", `plan`, `expires_at`).
+        /// Nur `plus` und `pro_ai` (alt `pro_connect`) zaehlen; alles andere ist kein Geschenk.
+        public static func gift(from j: JSONValue) -> (plan: String, endsAt: Date?)? {
+            let plan: String?, ends: String?
+            if let g = j["gift"] {
+                guard g["active"]?.bool == true else { return nil }
+                (plan, ends) = (g["plan"]?.string, g["ends_at"]?.string)
+            } else {
+                guard j["source"]?.string == "gift" else { return nil }
+                (plan, ends) = (j["plan"]?.string, j["expires_at"]?.string)
+            }
+            guard let plan, ["plus", "pro_ai", "pro_connect"].contains(plan) else { return nil }
+            return (plan, StudoraAccount.serviceDate(ends))
         }
     }
 
@@ -118,17 +141,22 @@ public actor StudoraAccount {
     // MARK: Anfragen
 
     func request(_ method: String, _ path: String, body: JSONValue? = nil, auth: Bool = true) async throws -> ServiceHTTPResponse {
+        try await request(method, path, raw: body?.serialized(), contentType: body == nil ? nil : "application/json", auth: auth)
+    }
+
+    /// Anfrage mit fertigem Koerper (z. B. multipart fuer den Datei-Eingang); Fehler wie bei JSON
+    func request(_ method: String, _ path: String, raw: Data?, contentType: String?, auth: Bool = true) async throws -> ServiceHTTPResponse {
         // Faehigkeiten dieser App: nur damit schickt der Dienst die Geraete-Regel (`device`) und nennt im Abgleich, was
         // einem anderen Uni-Konto gehoert; aeltere Apps ohne die Kopfzeile bekommen die Antworten wie bisher
         var headers = ["Accept": "application/json", DeviceRule.capabilityHeader: Self.capabilities]
-        if body != nil { headers["Content-Type"] = "application/json" }
+        if let contentType { headers["Content-Type"] = contentType }
         if auth {
             guard let t = tokens.load() else { throw AccountError(status: 401, code: "unauthenticated", message: "Anmeldung erforderlich.", retryAfter: nil) }
             headers["Authorization"] = "Bearer \(t)"
         }
         let r: ServiceHTTPResponse
         do {
-            r = try await http.send(AIHTTPRequest(method: method, url: base + path, headers: headers, body: body?.serialized()))
+            r = try await http.send(AIHTTPRequest(method: method, url: base + path, headers: headers, body: raw))
         } catch {
             throw AccountError(status: 0, code: "service_unreachable", message: "Der StudiNow-Dienst ist nicht erreichbar.", retryAfter: nil)
         }
@@ -226,7 +254,8 @@ public actor StudoraAccount {
         return PlanStatus(plan: j["plan"]?.string ?? "free", trialActive: active, trialDaysLeft: Int(t?["days_left"]?.double ?? 0),
                           trialPlan: active ? t?["plan"]?.string : nil, trialEndsAt: active ? Self.serviceDate(t?["ends_at"]?.string) : nil,
                           needsPlanChoice: j["needs_plan_choice"]?.bool ?? false, appleAccountToken: j["apple_account_token"]?.string,
-                          paidPlan: j["paid_plan"]?.string, device: DeviceRule.Status.parse(j["device"]))
+                          paidPlan: j["paid_plan"]?.string, device: DeviceRule.Status.parse(j["device"]),
+                          giftPlan: PlanStatus.gift(from: j)?.plan, giftEndsAt: PlanStatus.gift(from: j)?.endsAt)
     }
 
     /// Geraete-Regel: "Dieses Gerät stattdessen nutzen" (`POST /api/account/device/primary`). Danach ist dieses Geraet

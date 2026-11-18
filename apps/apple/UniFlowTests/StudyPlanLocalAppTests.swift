@@ -11,6 +11,20 @@ import UniFlowCore
 @MainActor
 final class StudyPlanLocalAppTests: XCTestCase {
 
+    /// Diese Klasse prueft den Lernkalender selbst: Schalter an (ausgeliefert ist er aus, `LearnCalendar`, 17.11.2026)
+    private var learnCalendarBefore = false
+
+    override func setUp() async throws {
+        try await super.setUp()
+        learnCalendarBefore = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+    }
+
+    override func tearDown() async throws {
+        LearnCalendar.enabled = learnCalendarBefore
+        try await super.tearDown()
+    }
+
     /// Merkt sich Methode, Pfad, Status und Rumpf jeder Anfrage an das lokale Backend
     final class RecordingTransport: APITransport, @unchecked Sendable {
         let inner: LocalTransport

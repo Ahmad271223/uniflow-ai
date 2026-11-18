@@ -174,7 +174,12 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
         assert must in r[44]["status"], must
     for must in ("Stand der Store-Version 1.0.4 (Build 42, `fc66fba4`) plus genau zwei Korrekturen", "`Views.swift`", "`SyncEngine.swift`", "iPadOS 26.2"):
         assert must in r[44]["content"], must
-    assert r[45]["commit"] is None and r[45]["status"] == "noch nicht hochgeladen; develop nach Build 44" and project_build() == 45
+    # Build 45 (18.11.2026): Version 1.0.6 vorbereitet (Texte, Bilder), aber weder gebaut noch hochgeladen
+    assert r[45]["commit"] is None and project_build() == 45
+    assert r[45]["status"].startswith("vorbereitet, noch nicht hochgeladen: Version 1.0.6") and r[45]["date"] == "18.11.2026"
+    assert "kein Archiv, kein Upload, nichts bei Apple" in r[45]["status"] and "eingereicht" not in r[45]["status"]
+    for must in ("Lernkalender aus", "Erinnerungen ab Pro AI", "KI-Credits", "YouTube öffnen"):
+        assert must in r[45]["content"], must
     doc = DOC.read_text(encoding="utf-8")
     assert submitted() == 44
     assert "Im App Store: 1.0.4 mit Build 42 seit 16.11.2026 10:49 (von Apple genehmigt, vom Inhaber freigegeben)." in doc

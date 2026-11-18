@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Stand 14.11.2026.**
+**Stand 18.11.2026.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -22,7 +22,8 @@ nötig ist oder was du eingeschaltet hast.
   liegen sie nur auf deinem Gerät (iPad, PC). **Auf unseren Servern speichern wir Hochschul-Passwörter nie** – auch
   nicht für die Web-Version (seit 06.11.2026; Abschnitt 6). Den Abgleich mit deiner Hochschule erledigt die iPad-App
   oder die Windows-App auf deinem Gerät; in der Web-Version lädst du Unterlagen selbst hoch.
-- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** KI gibt es nur für
+- **Kein Tracking, keine Werbung, kein Verkauf von Daten, keine Analyse-Werkzeuge Dritter.** (Öffnest du neben einem
+  Dokument die Seite von YouTube, zeigt YouTube dort eigene Werbung; Abschnitt 4a.) KI gibt es nur für
   KI-Funktionen, die du nutzt. Es gibt zwei Wege:
   - Du verbindest **dein eigenes ChatGPT** (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.
     Diese Verbindung ist in den Apps noch ausgeschaltet („bald verfügbar“).
@@ -139,6 +140,32 @@ Für diese Systeme ist deine Hochschule verantwortlich; es gelten ihre Datenschu
 sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). StudiNow ist kein
 Angebot der Hochschulen und nicht mit ihnen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die
 Hochschulsysteme selbst.
+
+## 4a. Video, YouTube und Lernseiten neben einem Dokument (Plus)
+
+In der App für iPhone, iPad und Mac kannst du neben einem Dokument (am iPhone darüber) ein Video oder eine Lernseite
+öffnen. Die App ruft die gewählte Seite dann direkt von deinem Gerät ab; an unseren Dienst geht dabei nichts.
+
+- **YouTube öffnen:** Die App lädt die Seite von YouTube (`m.youtube.com`) in einer eigenen Ansicht ohne Adresszeile;
+  dort kannst du auf YouTube suchen und Videos ansehen. Anbieter ist Google Ireland Limited, Gordon House, Barrow
+  Street, Dublin 4, Irland. YouTube erhält dabei deine IP-Adresse, Angaben zu deinem Gerät, was du suchst und ansiehst,
+  setzt Cookies nach seiner eigenen Einwilligungsabfrage und zeigt eigene Werbung. Vor dem ersten Öffnen weist die App
+  darauf hin; erst mit „Öffnen“ wird YouTube geladen. Anmelden bei Google ist in dieser Ansicht nicht möglich; andere
+  Seiten (etwa Links in Videobeschreibungen) öffnen außerhalb der App.
+- **YouTube-Link einfügen:** Ein einzelnes Video spielt im eingebetteten Player von YouTube im erweiterten
+  Datenschutzmodus (`youtube-nocookie.com`). YouTube erhält deine IP-Adresse, Angaben zu deinem Gerät und das gewählte
+  Video; Cookies setzt YouTube erst beim Abspielen.
+- **Lernseiten:** Seiten aus einer festen Liste (die Webseite und die Bibliothek deiner Hochschule, Wikipedia, Duden,
+  LEO, GeoGebra, Serlo). Der jeweilige Betreiber erhält die bei jedem Seitenaufruf üblichen Angaben.
+- **Aufzeichnungen deiner Kurse** spielen aus den Systemen deiner Hochschule (Abschnitt 4).
+
+Cookies und gespeicherte Daten von YouTube und den Lernseiten liegen nur auf deinem Gerät, in einem eigenen Speicher
+getrennt von deinen Hochschul-Anmeldungen; in der YouTube-Ansicht löschst du sie unter „…“ → „YouTube-Daten löschen“.
+Welches Video du an einem Dokument zuletzt angesehen hast, merkt die App nur auf dem Gerät. Für die Verarbeitung durch
+YouTube bzw. Google und durch die Betreiber der Lernseiten sind diese selbst verantwortlich; es gelten deren
+Datenschutzhinweise (für YouTube die Datenschutzerklärung von Google). Google kann Daten auch in den USA verarbeiten
+(EU-US Data Privacy Framework). Rechtsgrundlage für das Öffnen ist die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1
+lit. b DSGVO); über Cookies von YouTube entscheidest du in der Einwilligungsabfrage von YouTube.
 
 ## 5. StudiNow-Konto und Anmeldung (gehosteter Dienst)
 
@@ -470,6 +497,8 @@ nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
   Privacy Framework bzw. die Standardvertragsklauseln von Stripe.
 - **Deine Hochschule** erhält die Verbindungsdaten des Abrufs (Abschnitt 4); der Standortfinder der Leibniz Universität
   Hannover nur den Suchtext des Raumfinders (Abschnitt 4).
+- **Google (YouTube)** erhält Daten nur, wenn du neben einem Dokument YouTube öffnest oder ein YouTube-Video abspielst;
+  eigener Verantwortlicher (Abschnitt 4a).
 - **Google bzw. Apple** (Karten) erhalten einen Ort erst, wenn du im Raumfinder auf einen Karten-Link tippst; dann als
   eigene Verantwortliche (Abschnitt 4).
 - **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
@@ -484,7 +513,8 @@ nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
 
 ## 13. Was wir nicht tun
 
-Kein Tracking über Apps oder Websites hinweg, keine Werbung, keine Profilbildung, keine automatisierten
+Kein Tracking über Apps oder Websites hinweg, keine Werbung von uns (auf der Seite von YouTube zeigt YouTube eigene
+Werbung, Abschnitt 4a), keine Profilbildung, keine automatisierten
 Entscheidungen mit rechtlicher Wirkung (Art. 22 DSGVO), keine Analyse- oder Absturz-SDKs von Dritten, keine
 Verwendung deiner Notizen und Dateien für Werbung, Profile oder das Training von KI-Modellen. KI verarbeitet deine
 Inhalte nur für die KI-Funktionen, die du nutzt: über dein eigenes ChatGPT (Abschnitt 8a) oder die StudiNow-KI im

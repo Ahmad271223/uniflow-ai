@@ -191,9 +191,11 @@ final class StudyGroupsAppTests: XCTestCase {
     // MARK: Fragen
 
     func testQuestionRulesAndSaveBody() {
-        XCTAssertTrue(StudIPQuestionsHost.shouldAskPlan(["asked": false, "modules": [["name": "A"]]]))
-        XCTAssertFalse(StudIPQuestionsHost.shouldAskPlan(["asked": true, "modules": [["name": "A"]]]))
-        XCTAssertFalse(StudIPQuestionsHost.shouldAskPlan(["asked": false, "modules": []]), "ohne Module nichts zu fragen")
+        // mit Lernkalender (`planner`); ausgeliefert ist er aus (17.11.2026), dann fragt die App nie
+        XCTAssertTrue(StudIPQuestionsHost.shouldAskPlan(["asked": false, "modules": [["name": "A"]]], planner: true))
+        XCTAssertFalse(StudIPQuestionsHost.shouldAskPlan(["asked": true, "modules": [["name": "A"]]], planner: true))
+        XCTAssertFalse(StudIPQuestionsHost.shouldAskPlan(["asked": false, "modules": []], planner: true), "ohne Module nichts zu fragen")
+        XCTAssertFalse(StudIPQuestionsHost.shouldAskPlan(["asked": false, "modules": [["name": "A"]]]), "Lernkalender aus: keine Frage")
         // nie waehrend eines anderen Dialogs (und nie beim Schreiben, `OpenDocuments.writing`)
         let overlay = UFOverlay(), sync = StudIPSync()
         XCTAssertFalse(OpenDocuments.shared.writing)

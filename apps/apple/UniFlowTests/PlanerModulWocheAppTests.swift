@@ -22,13 +22,19 @@ final class PlanerModulWocheAppTests: XCTestCase {
     private let clock = UniFlowClock.fixed(berlin: "2026-11-12T10:00:00")!
     private let names = ["Einführung", "Folgen", "Reihen", "Stetigkeit", "Ableitung"]
 
+    /// Diese Klasse prueft den Lernkalender selbst: Schalter an (ausgeliefert ist er aus, `LearnCalendar`, 17.11.2026)
+    private var learnCalendarBefore = false
+
     override func setUp() async throws {
         try await super.setUp()
+        learnCalendarBefore = LearnCalendar.enabled
+        LearnCalendar.enabled = true
         XCTAssertTrue(Self.accessibilityAutomation(true))
     }
 
     override func tearDown() async throws {
         Self.accessibilityAutomation(false)
+        LearnCalendar.enabled = learnCalendarBefore
         try await super.tearDown()
     }
 

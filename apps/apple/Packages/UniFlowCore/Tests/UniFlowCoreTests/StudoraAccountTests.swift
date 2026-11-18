@@ -70,6 +70,38 @@ final class StudoraAccountTests: XCTestCase {
         XCTAssertEqual(try JSONValue.parse(XCTUnwrap(sent?.body))["plan"]?.string, "free")
     }
 
+    /// Geschenkter Tarif (18.11.2026, app/tarif_schenken.py): Feld `gift` des Dienstes, sonst `source` "gift"
+    func testPlanStatusReadsGift() async throws {
+        let (acc, fake, _) = make("token")
+        await fake.on("GET", "/api/entitlements", 200, ["plan": "pro_ai", "source": "gift", "expires_at": .null, "paid_plan": "pro_ai",
+                                                        "gift": ["active": true, "plan": "pro_ai", "ends_at": .null]])
+        var s = try await acc.planStatus()
+        XCTAssertEqual(s.giftPlan, "pro_ai")
+        XCTAssertNil(s.giftEndsAt, "unbefristet")
+        XCTAssertFalse(s.trialActive)
+        // geschenktes Plus unter einem Stripe-Abo: `source` stripe, das Feld nennt das Geschenk trotzdem
+        await fake.on("GET", "/api/entitlements", 200, ["plan": "pro_ai", "source": "stripe", "paid_plan": "pro_ai",
+                                                        "gift": ["active": true, "plan": "plus", "ends_at": "2027-12-31T22:59:59+00:00"]])
+        s = try await acc.planStatus()
+        XCTAssertEqual(s.giftPlan, "plus")
+        XCTAssertEqual(s.giftEndsAt, StudoraAccount.serviceDate("2027-12-31T22:59:59+00:00"))
+        // aelterer Dienst ohne Feld: nur `source` "gift"
+        await fake.on("GET", "/api/entitlements", 200, ["plan": "pro_ai", "source": "gift", "expires_at": "2027-06-30T21:59:59+00:00"])
+        s = try await acc.planStatus()
+        XCTAssertEqual(s.giftPlan, "pro_ai")
+        XCTAssertNotNil(s.giftEndsAt)
+        // kein Geschenk: `gift` null (auch wenn `source` noch "gift" hiesse), Stripe-Abo, inaktiv, Free
+        let bodies: [JSONValue] = [["plan": "pro_ai", "source": "gift", "gift": .null],
+                                   ["plan": "pro_ai", "source": "stripe", "paid_plan": "pro_ai"],
+                                   ["plan": "pro_ai", "source": "app_store", "gift": ["active": false, "plan": "pro_ai"]],
+                                   ["plan": "free", "source": "gift", "gift": ["active": true, "plan": "free"]]]
+        for body in bodies {
+            await fake.on("GET", "/api/entitlements", 200, body)
+            let none = try await acc.planStatus()
+            XCTAssertNil(none.giftPlan, "\(body)")
+        }
+    }
+
     func testEmailLoginStoresOnlyTheTokenAndReadsTheUser() async throws {
         let (acc, fake, store) = make()
         let f = try flow("Anmelden auf zweitem Geraet")

@@ -258,6 +258,8 @@ final class ContainerManager: ObservableObject {
         UniversityPasswordCleanup.run(secrets: keychain, defaults: defaults)
         studip = Self.idleSync()
         DataContainerLayout.purgeTrash(base: base)
+        // Datei-Eingang (18.11.2026): nur der Container der App, nicht der von Tests
+        if publishesCurrent { CourseFileIntakeRunner.link = account }
     }
 
     var key: DataContainerKey? { active?.key }

@@ -186,8 +186,13 @@ def build(app=None) -> dict:
 
         accounts.set_plan(pro["id"], "plus")
         call("Wechsel zu Plus: die gekauften Credits bleiben, gelten aber nur noch fuer den KI-Chat", "GET", "/api/entitlements", token=tok)
+        # gleiche Kosten je Aufruf (120 x 200 + 40 x 800 = 56.000 Millionstel EUR = 9 Credits), aber billigere Eingabe: die
+        # Vorab-Reservierung rechnet die Eingabe nach Bytes, und der System-Prompt der KI-Hilfe ist seit 18.11.2026
+        # (Antwortstil wie ChatGPT) laenger - mit 350 passte er bei 200 gekauften Credits nicht mehr in die Reservierung
+        os.environ["LERNAPP_AI_PRICE_IN_EUR"], os.environ["LERNAPP_AI_PRICE_OUT_EUR"] = "200", "800"
         call("Plus: der KI-Chat (freie Frage) laeuft aus gekauften Credits", "POST", "/api/ai/tutor",
              {"mode": "ask", "page_text": "Matrizen", "question": "Was ist eine Matrix?", "request_id": "plus-chat-1"}, token=tok)
+        os.environ["LERNAPP_AI_PRICE_IN_EUR"], os.environ["LERNAPP_AI_PRICE_OUT_EUR"] = "350", "350"
         call("Plus: Erklaeren ist KI-Lernhilfe und bleibt Pro AI (403, nichts abgebucht)", "POST", "/api/ai/tutor",
              {"mode": "explain", "page_text": "Matrizen", "request_id": "plus-lernhilfe-1"}, token=tok)
         accounts.set_plan(pro["id"], "free")

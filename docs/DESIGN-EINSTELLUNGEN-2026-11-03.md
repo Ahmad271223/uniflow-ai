@@ -81,3 +81,33 @@ Foto: die Seite öffnet nur als Blatt per Tippen, ohne Startargument.)
   das Seitenende (-UFScroll bottom) teilweise fotografiert; ein Startargument für eine Scrollposition fehlt.
 - Karten anderer Bereiche auf derselben Seite (Stud.IP & QIS, Erinnerungen, Community, Demo-Inhalte) gehören anderen
   Agents und sind unverändert.
+
+## Nachtrag 17.11.2026: Bereiche statt eines langen Reiters
+
+Auftrag des Inhabers: „mach Einstellungen übersichtlicher“ (dazu: auch am iPhone und am Mac). Die Gliederung oben
+(vier Abschnitte in einem Reiter „Zugang & Darstellung“) ist damit überholt; die Bausteine (`SettingsSection`,
+`SettingsRow`, …) bleiben. Neu: `Views/Settings/SettingsAreas.swift` (`SettingsArea`), dazu `SettingsMore` und
+`SettingsFold` in `SettingsParts.swift`.
+
+| Bereich (Kennung) | Inhalt | vorher |
+| --- | --- | --- |
+| Konto & Tarif (`account`) | Tarif mit Credits, Konto (Apple-ID, Rufname, StudiNow-Konto, Konto löschen), Freunde einladen | Zugang & Darstellung, Abschnitt „Konto & Tarif“ |
+| Uni-Zugang & Abgleich (`uni`) | Uni-Zugang, Stud.IP & QIS, Uni-Mail (bzw. Learnweb/LSF, HsH), Im Hintergrund abgleichen, Semester, Studiengang, Erinnerungen, Hochschule | Abschnitte „Studium“, „Auf diesem iPad“ und die Karte „Hochschule“ |
+| Darstellung & Stift (`look`; iPhone „Darstellung“, Mac „Darstellung & Schreiben“) | Darstellung; Stift bzw. Maus, Schreibhand, Glättung, Formen, Werkzeugleiste | Abschnitt „Auf diesem iPad“ |
+| Module (`modules`) | unverändert | Reiter „Module“ |
+| Lernzeit & Verfügbarkeit (`plan`) | unverändert, nur mit `LearnCalendar.enabled` | Reiter „Lernzeit & Verfügbarkeit“ |
+| Austausch (`community`) | Community-Karte | Abschnitt „Austausch“ |
+| Hilfe & Rechtliches (`help`) | Rechtliches & Support (Texte und Ziele unverändert) | Karte zwischen „Hochschule“ und „Freunde einladen“ |
+| Erweitert (`advanced`) | Vorab einordnen (und die KI-Karten), zugeklappt: Eigener Server (Entwicklung, nur Debug); am eigenen Server zugeklappt Sync-Protokoll, Diagnose, PDF-Anzeige testen | Reiter „Erweitert“ und „Entwicklung“ |
+
+- Breit (iPad, Mac-Fenster über 820 pt): Liste der Bereiche links, Inhalt rechts. Schmal (iPhone hoch und quer,
+  Fenster bis 820 pt, Bedienungshilfen-Schrift): Startseite ist die Liste der Bereiche, Antippen öffnet die Unterseite,
+  „Einstellungen“ und der Pfeil der Kopfzeile (`ufLocalBack`) führen zurück.
+- Sprungziele `UFRoute.settings(tab:)`: „account“, „modules“, „plan“, „advanced“ wie bisher, „dev“ und „diag“ öffnen
+  „Erweitert“ (mit aufgeklapptem Teil), neu „uni“, „look“, „community“, „help“. Unbekannt oder ausgeblendet: Startseite.
+  Ein Sprung wirkt jetzt auch, während die Einstellungen offen sind.
+- Lange Erklärungen stehen hinter „Mehr dazu“ (erster Satz bleibt sichtbar, der ganze Text unverändert): Abgleich im
+  Hintergrund, Konto, StudiNow-Konto, Module. Rechts-, Kauf- und Abo-Texte sind unverändert sichtbar.
+- Solange Stud.IP nicht verbunden ist, zeigt „Konto & Tarif“ oben einen Hinweis mit dem Knopf „Uni-Zugang öffnen“
+  (viele Stellen springen mit „account“ dorthin und meinen die Anmeldung an der Hochschule).
+- Bilder: `~/Studora-Builds/aufraeumen-17-11/einstellungen/{vorher,nachher}/` (`EinstellungenBilderTests`).

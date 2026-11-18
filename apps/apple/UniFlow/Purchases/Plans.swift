@@ -216,7 +216,9 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canGenerateStudoraAITests = "can_generate_studora_ai_tests"
     /// eigene Karteikarten anlegen, bearbeiten, ueben, teilen, uebernehmen (04.11.2026); Lesen bleibt in jedem Tarif
     case canUseFlashcards = "can_use_flashcards"
-    /// Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen) ab Plus (Entscheidung 11.11.2026)
+    /// Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen, auch "Neuer Klausurtermin erkannt") ab Pro AI
+    /// (Entscheidung des Inhabers 18.11.2026 "Alles ab Pro AI"; 11.-17.11.2026 ab Plus). Steht hier wegen der
+    /// Reihenfolge im Vertrag (app/plans.py)
     case canUseDueReminders = "can_use_due_reminders"
     /// KI-Chat (Entscheidung des Inhabers 15.11.2026): die freie Frage an die KI ab Plus, bezahlt allein aus gekauften
     /// Credits; die KI-Lernhilfe (Erklaeren, Karteikarten, Tests) bleibt Pro AI
@@ -246,11 +248,12 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
              .chatgptConnectionPremium:
             return .free
         case .canReadCommunity, .canAnnotatePDF, .canUsePencilKit, .canWriteCommunityComments, .canShareSolutions,
-             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards, .canUseDueReminders, .canUseAIChat:
+             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards, .canUseAIChat:
             return .plus
         case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
              .canGetRecommendations, .canUseAIExplanations, .canUseAIGeneratedQuestions,
-             .canUseAISummaries, .canUseAIRecommendations, .canSyncAnnotations, .canUsePreparedWeekSets:
+             .canUseAISummaries, .canUseAIRecommendations, .canSyncAnnotations, .canUsePreparedWeekSets,
+             .canUseDueReminders:
             return .proAI
         }
     }
@@ -336,7 +339,8 @@ extension UFEntitlement {
         case .canShareSolutions: return .onDevice([.shareSolutions])
         // eigene Karteikarten: CardsPage, "Als Karteikarte", FlashcardComposer; ohne Plus nur lesen (UFFlashcardAccess)
         case .canUseFlashcards: return .onDevice([.flashcards])
-        // Mitteilungen 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren (DueReminderScheduler)
+        // Mitteilungen 7 Tage (Klausuren), 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren und "Neuer
+        // Klausurtermin erkannt" (DueReminderScheduler), ab Pro AI (18.11.2026), auf dem Geraet ohne StudiNow-Konto
         case .canUseDueReminders: return .onDevice([.dueReminders])
         // KI-Chat ab Plus (15.11.2026): die freie Frage an die StudiNow-KI, mit StudiNow-Konto und gekauften Credits
         case .canUseAIChat: return .withAccount([.aiChat])

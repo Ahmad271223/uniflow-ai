@@ -31,7 +31,7 @@ import uuid
 from collections import Counter, defaultdict
 from datetime import date, datetime, timedelta
 
-from . import ai, config, db, entitlements, pageocr, scriptsearch, study
+from . import ai, config, db, entitlements, exam_pairs, pageocr, scriptsearch, study
 from .math_style import MATH_STYLE_JSON
 
 LOCAL_USER = "local"
@@ -577,16 +577,8 @@ def _nr_key(nr: str):
     return (int(m.group(1)), int(m.group(2) or 0), m.group(3)) if m else (999, 0, nr)
 
 
-def _solution_key(name: str) -> str:
-    s = re.sub(r"\.[a-z0-9]+$", "", (name or "").lower())
-    s = re.sub(r"musterl(ö|oe)sung(en)?|l(ö|oe)sung(en)?|l(ö|oe)s\b|lsg|solutions?|mit|und|_|-|\s|\(|\)", "", s)
-    return s
-
-
-def _numbers(key: str) -> list[int]:
-    """Nummern im Schluessel ("übungsblatt10" -> [10]): der Teilwort-Rueckfall darf "Blatt 1" nie mit "Blatt 10"
-    verbinden (Audit P49-06, 08.11.2026)"""
-    return [int(x) for x in re.findall(r"\d+", key)]
+# Schluessel fuer Aufgabe und Loesung: app/exam_pairs.py (eine Regel fuer Moduldetail und Aufgabenindex)
+_solution_key, _plain_key, _numbers, ID_TAIL = exam_pairs.solution_key, exam_pairs.plain_key, exam_pairs.numbers, exam_pairs.ID_TAIL
 
 
 def _difficulty(text: str, points: float | None, source: str) -> int:
@@ -640,12 +632,14 @@ def index_module(conn, module_id: int, now: datetime | None = None, log=lambda *
     done = skipped = 0
     for f in files:
         ver = f"{doc_version(conn, f['id'])}:{lec}"
-        cached = db.row(conn, "SELECT version FROM doc_index WHERE file_id=?", (f["id"],))
-        if cached and cached["version"] == ver:
+        src = task_source(f)
+        cached = db.row(conn, "SELECT version, role FROM doc_index WHERE file_id=?", (f["id"],))
+        # auch bei neuer Einordnung neu lesen (17.11.2026): "sol1b.pdf" stand als Altklausur im Index und waere mit
+        # unveraenderter Datei nie zur Loesung geworden
+        if cached and cached["version"] == ver and cached["role"] == src:
             skipped += 1
             continue
         pages = page_texts(conn, f["id"])
-        src = task_source(f)
         term = TERM.search(f"{f.get('studip_folder') or ''} {f.get('name') or ''}")
         old = {r["nr"]: r for r in db.rows(conn, "SELECT nr, content_hash, indexed_at FROM task_index WHERE file_id=?", (f["id"],))}
         conn.execute("DELETE FROM task_index WHERE file_id=?", (f["id"],))
@@ -671,19 +665,34 @@ def index_module(conn, module_id: int, now: datetime | None = None, log=lambda *
 
 
 def _link_solutions(conn, module_id: int) -> None:
-    sols = db.rows(conn, """SELECT t.file_id, t.nr, t.text, f.name FROM task_index t JOIN files f ON f.id=t.file_id
-                            WHERE t.module_id=? AND t.source='loesung'""", (module_id,))
+    """Musterloesung je Aufgabe: erst die Loesungsdatei zur Aufgabendatei (exam_pairs.links: gleicher Ordner und Name,
+    Kennung, Sammeldatei, sonst das ganze Modul; dieselbe Paarung zeigt das Moduldetail im Block "Klausuren &
+    Altklausuren"), dann die Aufgabe mit derselben Nummer.
+    Sammeldatei ("Lösungen.pdf" neben "KK1" bis "KK4"): in task_index steht je Datei jede Nummer nur einmal; haben
+    alle Klausuren eine "Aufgabe 1", ist nicht zu erkennen, zu welcher die "Aufgabe 1" der Sammeldatei gehoert. Darum
+    nur Aufgabennummern, die im Ordner in genau einer Klausur vorkommen; sonst bleibt die Aufgabe ohne Loesung (lieber
+    keine als eine falsche)."""
+    sols = db.rows(conn, "SELECT t.file_id, t.nr, t.text FROM task_index t WHERE t.module_id=? AND t.source='loesung' ORDER BY t.id", (module_id,))
     if not sols:
         return
-    by_key = defaultdict(dict)
-    for s in sols:
-        by_key[_solution_key(s["name"])][s["nr"]] = s
-    for t in db.rows(conn, """SELECT t.id, t.nr, f.name FROM task_index t JOIN files f ON f.id=t.file_id
-                              WHERE t.module_id=? AND t.source!='loesung'""", (module_id,)):
-        k = _solution_key(t["name"])
-        cand = by_key.get(k) or next((v for kk, v in by_key.items() if kk and k and (kk in k or k in kk) and min(len(kk), len(k)) >= 4
-                                      and _numbers(kk) == _numbers(k)), None)
-        s = (cand or {}).get(t["nr"])
+    tasks = db.rows(conn, "SELECT t.id, t.nr, t.file_id, t.source FROM task_index t WHERE t.module_id=? AND t.source!='loesung' ORDER BY t.id", (module_id,))
+    files = study.pair_files(study._file_rows(conn, module_id))
+    found = exam_pairs.links(files)
+    folder = {f["id"]: exam_pairs.folder_of(f) for f in files}
+    exam_nrs = defaultdict(set)                              # (Ordner, Nummer) -> Klausuren mit dieser Aufgabennummer
+    for t in tasks:
+        if t["source"] == "altklausur":
+            exam_nrs[(folder.get(t["file_id"]), t["nr"])].add(t["file_id"])
+    by_task_file = {}
+    for t in tasks:
+        fid = t["file_id"]
+        if fid not in by_task_file:
+            kind, ids = found.get(fid, ("", []))
+            cand = {s["nr"]: s for s in sols if s["file_id"] in ids}
+            if kind == exam_pairs.WHOLE:
+                cand = {nr: s for nr, s in cand.items() if len(exam_nrs[(folder.get(fid), nr)]) == 1}
+            by_task_file[fid] = cand
+        s = by_task_file[fid].get(t["nr"])
         conn.execute("UPDATE task_index SET solution_file_id=?, solution_text=? WHERE id=?",
                      (s["file_id"] if s else None, s["text"][:5000] if s else None, t["id"]))
 

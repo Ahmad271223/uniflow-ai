@@ -49,6 +49,10 @@ struct PhoneDocumentReader: View {
     /// "Lösung teilen" wie am iPad (Wunsch des Inhabers 11.11.2026): fertige Notizen vom iPad am iPhone teilen
     @State private var choosingShare = false
     @State private var solutionSheet: SolutionSheet?
+    /// Video, YouTube oder Lernseite ueber dem Dokument (am iPhone statt der Spalte daneben; Auftrag 17.11.2026)
+    @State private var webSide: WebSideItem?
+    @State private var choosingWeb = false
+    @State private var lockedFeature: UFFeature?
     @ObservedObject private var entitlements = Entitlements.shared
     @AppStorage("uniflow.phoneReader.hintSeen") private var hintSeen = false
     @EnvironmentObject private var router: UFRouter
@@ -66,7 +70,7 @@ struct PhoneDocumentReader: View {
         VStack(spacing: 0) {
             header
             if !hintSeen { hint }
-            content
+            WebSideOverReader(item: webSide, onClose: { webSide = nil }) { content }
         }
         .background(UF.bg)
         .toolbar(.hidden, for: .navigationBar)
@@ -90,6 +94,10 @@ struct PhoneDocumentReader: View {
             Button("Abbrechen", role: .cancel) {}
         } message: { Text(SolutionTexts.ownNotesOnly) }
         .ufSheet(item: $solutionSheet) { sheet in solutionSheetView(sheet) }
+        .ufSheet(isPresented: $choosingWeb) {
+            WebSidePickerSheet(documentID: store.file.id, moduleID: store.file.module_id) { item in webSide = item }
+        }
+        .ufSheet(item: $lockedFeature) { f in UFPlanSheet(required: f.minimumPlan) { lockedFeature = nil } }
         .alert("Zu Seite", isPresented: $goingToPage) {
             TextField("Seite", text: $goToText).keyboardType(.numberPad)
             Button("Abbrechen", role: .cancel) {}
@@ -119,7 +127,55 @@ struct PhoneDocumentReader: View {
 
     // MARK: Kopf
 
+    /// Kopf der Leseansicht. Seit 17.11.2026 eine flache Zeile (Auftrag des Inhabers: "oben Leiste dünner machen, damit
+    /// man mehr Platz ... hat", auch am iPhone): Zurueck, Titel mit der Seite darunter (antippen: andere Seite), rechts
+    /// Suchen, Teilen, Erledigt und KI-Hilfe als Symbole - jedes 44 pt antippbar. Vorher zwei Zeilen (Titel ueber der
+    /// Knopfreihe, `tallHeader`); die bleiben fuer Fenster, in die die eine Zeile nicht passt (sehr schmal).
     private var header: some View {
+        ViewThatFits(in: .horizontal) {
+            flatHeader
+            tallHeader
+        }
+        .background(UF.surface)
+        .ufBorderBottom()
+    }
+
+    /// Hoehe der flachen Zeile: eine Trefferflaeche
+    static let flatHeaderHeight: CGFloat = 44
+
+    private var flatHeader: some View {
+        HStack(spacing: 14) {
+            UFBackButton(compact: true)
+            // Titel und Seite sind zusammen ein Knopf, so hoch wie die Zeile (44 pt): antippen oeffnet "Zu Seite"
+            Button { goToText = ""; goingToPage = true } label: {
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(store.file.displayTitle).ufFont(14.5, 650, lh: 1.2).foregroundStyle(UF.text).lineLimit(1)
+                    if reader.pageCount > 0 {
+                        Text("Seite \(reader.pageIndex + 1) von \(reader.pageCount)")
+                            .ufFont(12, 600, lh: 1.25).foregroundStyle(UF.text2).monospacedDigit().lineLimit(1)
+                    } else if let subject = store.file.subject, !subject.isEmpty {
+                        Text(subject).ufFont(12, lh: 1.25).foregroundStyle(UF.muted).lineLimit(1)
+                    }
+                }
+                // der Titel gibt nach (kuerzt mit "…"), die Knoepfe nie
+                .frame(minWidth: 70, idealWidth: 110, maxWidth: .infinity, minHeight: Self.flatHeaderHeight, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .disabled(reader.pageCount == 0)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(reader.pageCount > 0 ? "\(store.file.displayTitle), Seite \(reader.pageIndex + 1) von \(reader.pageCount)"
+                                                     : store.file.displayTitle)
+            .accessibilityHint("Andere Seite öffnen")
+            .accessibilityIdentifier("phoneReader.page")
+            headerButtons(textOnAI: false)
+        }
+        .padding(.leading, 10).padding(.trailing, 14)
+        .frame(minHeight: Self.flatHeaderHeight)
+    }
+
+    /// Zwei Zeilen wie bis 17.11.2026: Titel (bis zwei Zeilen) und Fach, darunter Seite und Knoepfe
+    private var tallHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
                 UFBackButton(compact: true)
@@ -135,28 +191,43 @@ struct PhoneDocumentReader: View {
             HStack(spacing: 6) {
                 pageLabel
                 Spacer(minLength: 4)
-                UFButton(nil, icon: "search", kind: .ghost, size: .small) { showSearch = true }
-                    .disabled(store.layout == nil)
-                    .accessibilityLabel("Suchen").accessibilityIdentifier("phoneReader.search")
-                UFButton(nil, icon: "users", kind: .ghost, size: .small) { choosingShare = true }
-                    .disabled(store.layout == nil || store.pdf == nil)
-                    .accessibilityLabel("Lösung teilen").accessibilityIdentifier("phoneReader.share")
-                if task != nil {
-                    UFButton(nil, icon: "check", kind: taskDone ? .primary : .ghost, size: .small) {
-                        Task { await markTaskDone() }
-                    }
-                    .disabled(taskDone)
-                    .accessibilityLabel(taskDone ? "Erledigt" : "Aufgabe als erledigt markieren")
-                    .accessibilityIdentifier("phoneReader.done")
-                }
-                UFButton("KI-Hilfe", icon: "sparkles", kind: showTutor ? .primary : .normal, size: .small) { showTutor = true }
-                    .disabled(store.layout == nil)
-                    .accessibilityIdentifier("phoneReader.tutor")
+                headerButtons(textOnAI: true)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)
-        .background(UF.surface)
-        .ufBorderBottom()
+    }
+
+    /// Suchen, Loesung teilen, Video oder Lernseite, Erledigt (nur aus dem Lernplan) und KI-Hilfe; in der flachen Zeile alle als Symbol
+    @ViewBuilder private func headerButtons(textOnAI: Bool) -> some View {
+        HStack(spacing: textOnAI ? 6 : 14) {
+            UFButton(nil, icon: "search", kind: .ghost, size: .small) { showSearch = true }
+                .disabled(store.layout == nil)
+                .accessibilityLabel("Suchen").accessibilityIdentifier("phoneReader.search")
+            UFButton(nil, icon: "users", kind: .ghost, size: .small) { choosingShare = true }
+                .disabled(store.layout == nil || store.pdf == nil)
+                .accessibilityLabel("Lösung teilen").accessibilityIdentifier("phoneReader.share")
+            // Video oder Lernseite ueber dem Dokument (Plus wie am iPad "daneben"; ohne Plus die Tarifwahl)
+            UFButton(nil, icon: "play", kind: webSide != nil ? .primary : .ghost, size: .small) { openWebPicker() }
+                .accessibilityLabel("Video oder Lernseite").accessibilityIdentifier("phoneReader.web")
+            if task != nil {
+                UFButton(nil, icon: "check", kind: taskDone ? .primary : .ghost, size: .small) {
+                    Task { await markTaskDone() }
+                }
+                .disabled(taskDone)
+                .accessibilityLabel(taskDone ? "Erledigt" : "Aufgabe als erledigt markieren")
+                .accessibilityIdentifier("phoneReader.done")
+            }
+            UFButton(textOnAI ? "KI-Hilfe" : nil, icon: "sparkles", kind: showTutor ? .primary : .normal, size: .small) { showTutor = true }
+                .disabled(store.layout == nil)
+                .accessibilityLabel("KI-Hilfe")
+                .accessibilityIdentifier("phoneReader.tutor")
+        }
+    }
+
+    /// Wie am iPad "Video oder Lernseite daneben": mit Plus die Auswahl, sonst die Tarifwahl
+    func openWebPicker() {
+        guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
+        choosingWeb = true
     }
 
     /// Wie am iPad: Teilen braucht Plus, "Meine geteilten Lösungen" (Zurueckziehen) steht allen offen

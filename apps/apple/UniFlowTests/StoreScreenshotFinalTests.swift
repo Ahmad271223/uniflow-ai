@@ -70,6 +70,10 @@ final class StoreScreenshotFinalTests: XCTestCase {
         XCTAssertTrue(manager.demoActive)
         try await StoreScreenshotTests.installStoreExtras(container.host)
         lectureID = try await StoreScreenshotV11Tests.installV11Extras(container, now: bed.clock.nowISO)
+        // 1.0.6: in den Folien erkannter Kurztest und Klausur (Karte oben auf der Uebersicht), ohne den Hinweis zu
+        // fehlenden Mitteilungen (im Simulator sind Mitteilungen nie erlaubt)
+        try await StoreScreenshotTests.installDetectedExams(container.host)
+        UserDefaults.standard.set(true, forKey: DueSoon.hintKey)
         Rufname.write(Self.demoName, container.defaults)
         MessagesInbox.shared.defaultsOverride = container.defaults
         await MessagesInbox.shared.refresh(api: container.api)
@@ -107,6 +111,7 @@ final class StoreScreenshotFinalTests: XCTestCase {
         UniMailConnection.readsDemoForScreenshots = false
         UFFmt.todayOverride = nil
         UFGreeting.hourOverride = nil
+        UserDefaults.standard.removeObject(forKey: DueSoon.hintKey)
         CommunityRoute.shared.service = nil
         Entitlements.shared.setPlanForTesting(.free)
         MessagesInbox.shared.defaultsOverride = nil
@@ -227,6 +232,9 @@ final class StoreScreenshotFinalTests: XCTestCase {
 
     /// Ganze App-Huelle mit Demo-Inhalten, Uni-Mail und Pro AI; die KI antwortet ueber die StudiNow-KI (Credits)
     private func host<V: View>(_ view: V, api: APIClient? = nil) throws -> HostedEnvironment {
+        // Tarif erneut setzen: der erste Abruf von StoreKit beim Start des Test-Wirts kann unter Last erst nach setUp
+        // fertig werden und setzt sonst Free (Lauf 18.11.2026: "Tobi, Tarif Free" in Bild 1)
+        Entitlements.shared.setPlanForTesting(.proAI)
         let root = view
             .environment(\.ufDemoActive, true)
             .environment(\.ufDemoBarHidden, true)
@@ -251,6 +259,7 @@ final class StoreScreenshotFinalTests: XCTestCase {
     /// eine Datei `<name>-<tone>.png` im Hochformat
     private func shoot(_ env: HostedEnvironment, _ name: String, tone: String, ink: Bool = false, settle: Double = 1.0,
                        shell: Bool = true, present: (() -> Void)? = nil, sheetReady: @escaping () -> Bool = { true }) {
+        if Entitlements.shared.plan != .proAI { Entitlements.shared.setPlanForTesting(.proAI); env.pump(1.0) }
         check(env, name, shell: shell)
         guard let outDir else { return }
         StoreScreenshotTests.shoot(env, name, folder: outDir, sizes: [(Self.portrait, "portrait")], scale: 2, ink: ink, settle: settle,
@@ -350,10 +359,16 @@ final class StoreScreenshotFinalTests: XCTestCase {
 
     // MARK: - Endgueltiger Satz (01-10)
 
-    /// 1 Uebersicht hell: "Hallo Tobi – lass uns gemeinsam lernen.", Pruefungsanmeldung, Lernpaket, Seitenleiste Pro AI
+    /// 1 Uebersicht hell: "Hallo Tobi – lass uns gemeinsam lernen.", oben die Karte "Klausuren und Tests: bald und neu
+    /// erkannt" (Kurztest morgen, Klausur aus den Folien), Pruefungsanmeldung, Seitenleiste Pro AI. Seit 1.0.6 ohne
+    /// Lernkalender ("Heute für dich geplant", "Diese Woche" und der Menuepunkt sind aus, `LearnCalendar.enabled`)
     func test01Uebersicht() throws {
         let env = try host(MainView())
         expect(env, "Hallo " + Self.demoName + " – lass uns gemeinsam lernen.")
+        expect(env, "Klausuren und Tests: bald und neu erkannt")
+        for word in ["Lernkalender", "Heute für dich geplant", "Diese Woche"] {
+            XCTAssertFalse(shows(env, word), "„\(word)“ im Bild (Lernkalender ist in 1.0.6 aus):\n" + dump(env))
+        }
         expect(env, "Grundlagen der Informatik")
         expect(env, "Uni-Mail")
         XCTAssertFalse(shows(env, DemoTexts.barTitle), "ohne Demo-Leiste")
@@ -437,7 +452,8 @@ final class StoreScreenshotFinalTests: XCTestCase {
         env.router.go(.uniMail)
         expect(env, "8 E-Mails")
         env.pump(1.5)
-        XCTAssertTrue(tap("Ungelesen, Prof. Dr. Anna Beispiel", in: env, exact: false), dump(env))
+        // ungelesen oder (seit 1.0.6 je nach Stand der Nachbildung) schon gelesen
+        XCTAssertTrue(tap("Ungelesen, Prof. Dr. Anna Beispiel", in: env, exact: false) || tap("Prof. Dr. Anna Beispiel", in: env, exact: false), dump(env))
         expect(env, "Anhang Probeklausur_GdI.pdf öffnen oder teilen")
         expect(env, "Antworten")
         env.pump(2.5)

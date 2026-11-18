@@ -152,6 +152,10 @@ public enum Exams {
         var titleName: String?
         var word = "Klausur"
         var url: String?
+        /// nur "erkannt": Dokument und Seite der Fundstelle, Kennung des erkannten Termins (`DueStore`)
+        var fileID: String?
+        var page: Int?
+        var dueID: String?
     }
 
     private static func nonEmpty(_ s: String?) -> String? { (s ?? "").isEmpty ? nil : s }
@@ -262,7 +266,8 @@ public enum Exams {
             if lower.contains("kurz") || lower.contains("probe") { continue }
             out.append(Candidate(kind: "erkannt", label: x["origin"]?.string ?? "erkannt", date: g.date, time: x["time"]?.string,
                                  moduleID: x["module_id"]?.int, courseID: x["course_id"]?.string, courseTitle: x["course_title"]?.string,
-                                 name: x["course_title"]?.string ?? title, word: word(title), url: nil))
+                                 name: x["course_title"]?.string ?? title, word: word(title), url: nil,
+                                 fileID: x["file_id"]?.string, page: x["page"]?.int, dueID: g.id))
         }
         return out
     }
@@ -312,7 +317,16 @@ public enum Exams {
             }
             let n = (BerlinClock.parseISODate(day) ?? t) - t
             func opt(_ s: String?) -> JSONValue { s.map(JSONValue.string) ?? .null }
-            out.append([
+            // nur auf dem Geraet: in einem Dokument erkannt -> Fundstelle zum Oeffnen; `detected_only`, wenn keine andere
+            // Quelle den Tag nennt ("erkannt – bitte prüfen")
+            var detected: [String: JSONValue] = [:]
+            if let d = cs.first(where: { $0.kind == "erkannt" }) {
+                detected["due_id"] = opt(d.dueID)
+                detected["file_id"] = opt(d.fileID)
+                detected["page"] = d.page.map { JSONValue.number(Double($0)) } ?? .null
+                detected["detected_only"] = .bool(cs.allSatisfy { $0.kind == "erkannt" })
+            }
+            var entry: [String: JSONValue] = [
                 "id": .string("exam-\(sc)-\(day)"), "date": .string(day), "time": opt(timed?.time), "end": opt(timed?.end),
                 "days_left": .number(Double(n)), "in_days": .string(inDays(n)),
                 "title": .string(name.map { "\(first.word) \($0)" } ?? first.word), "kind_label": .string(first.word),
@@ -321,13 +335,16 @@ public enum Exams {
                 "room": rooms.isEmpty ? .null : .string(rooms.joined(separator: " · ")), "sources": .array(sources),
                 "source_label": .string(sources.compactMap { $0["label"]?.string }.joined(separator: " · ")),
                 "user_set": .bool(cs.contains { $0.kind == "modul" }),
-            ])
+            ]
+            for (k, v) in detected { entry[k] = v }
+            out.append(entry)
         }
         return out.enumerated().sorted { a, b in
             let x = a.element, y = b.element
-            for (p, q) in [(x["date"]?.string ?? "", y["date"]?.string ?? ""), (x["time"]?.string ?? "", y["time"]?.string ?? ""),
-                           (x["title"]?.string ?? "", y["title"]?.string ?? "")] where p != q {
-                return PyText.less(p, q)
+            // Schluessel einzeln (sonst brechen aeltere Swift-Compiler die Typpruefung ab)
+            for key in ["date", "time", "title"] {
+                let p: String = x[key]?.string ?? "", q: String = y[key]?.string ?? ""
+                if p != q { return PyText.less(p, q) }
             }
             return a.offset < b.offset
         }.map(\.element)

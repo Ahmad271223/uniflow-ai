@@ -334,17 +334,28 @@ final class HsHConnection: ObservableObject {
 
     /// Unsichtbar mit dem gespeicherten SSO-Account anmelden (Moodle-Formular bzw. IdP der HsH); gelingt es, ist die
     /// Quelle wieder verbunden und gleicht genau einmal neu ab (`signedIn`). Falsches Passwort: "Anmeldung nötig" bleibt.
+    /// `background` (Hintergrundlauf, Auftrag 17.11.2026): Webansicht ohne Fenster, gleicht danach nicht selbst ab (das
+    /// macht der Hintergrundlauf in seinem Zeitlimit); alle Regeln von `UniAutoLogin.handleExpiry` bleiben.
     @discardableResult
-    func autoLogin(_ s: Source, userAction: Bool = false) async -> Bool {
+    func autoLogin(_ s: Source, userAction: Bool = false, background: Bool = false) async -> Bool {
         guard isConnected(s), state(s) == .needsLogin, !stopped else { return false }
         let before = signOuts
         if s == .campus { await Self.resetCampusLogin(websiteDataStore) }    // nie im Zustand einer alten SAML-Anfrage
         let d = await UniAutoLogin.handleExpiry(portal: s.loginService, store: websiteDataStore, entry: UniversityProfile.hsh.loginService(s.loginService)?.entryURLs.first ?? UniversityProfile.hshMoodle,
-                                                userAction: userAction) { url, html in HsHConnection.isSignedIn(s, html: html, url: url) }
+                                                userAction: userAction, background: background) { url, html in HsHConnection.isSignedIn(s, html: html, url: url) }
         guard d == .retryOnce, signOuts == before, isConnected(s), !stopped else { return false }
-        for _ in 0..<300 where isRunning { try? await Task.sleep(nanoseconds: 200_000_000) }   // Lauf von eben zu Ende
+        if !background {
+            for _ in 0..<300 where isRunning { try? await Task.sleep(nanoseconds: 200_000_000) }   // Lauf von eben zu Ende
+        }
         guard signOuts == before, isConnected(s), !stopped else { return false }
-        signedIn(s)
+        if background {
+            let syncs = syncsAfterSignIn
+            syncsAfterSignIn = false
+            signedIn(s)
+            syncsAfterSignIn = syncs
+        } else {
+            signedIn(s)
+        }
         return true
     }
 
@@ -432,6 +443,7 @@ extension HsHConnection: ContainerSync {}
 
 extension HsHConnection: BackgroundSyncable {
     var fileSource: String { "Moodle" }
+    var autoPortals: [String] { Source.allCases.map(\.rawValue) }
     var usableSources: [String] { sources(background: true).map(\.rawValue).sorted() }
     var loginNeededSources: [String] { Source.allCases.filter { isConnected($0) && state($0) == .needsLogin }.map(\.rawValue) }
 

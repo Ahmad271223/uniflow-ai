@@ -1219,6 +1219,11 @@ final class StudIPSync: ObservableObject {
                         try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: Self.base)
                         // Liste gelesen: das Modul zeigt ab jetzt seine Dateien statt "werden noch geladen" (`SyncPending`)
                         if complete { try SyncPending.markListed($0, courseID: c.id, now: started) }
+                        // "Neu" erst nach dem ersten Einlesen (17.11.2026): der Kurs merkt sich einmal, wann seine Liste
+                        // zum ersten Mal gelesen und (in dieser Transaktion ganz) gespeichert wurde - auch wenn Stud.IP
+                        // einzelne Unterordner nicht zeigt (403/404, meist dauerhaft): sonst waere in solchen Kursen nie
+                        // etwas neu. Eine nicht lesbare Liste kommt hier nicht an (der Kurs bleibt ohne Zeitpunkt).
+                        try UniStore.markFirstListing($0, courseID: c.id, now: started)
                         return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
                     }
                 }
@@ -1363,7 +1368,8 @@ final class StudIPSync: ObservableObject {
             await refreshEntries()                            // Dateien schon zeigen, waehrend Ergaenzungen laden
             if !olderOnly { stagesReady += 1 }
             /// ehrlicher Stand fuer die weiteren Schritte ("3 neue Dateien · Aufzeichnungen …")
-            let note = Self.filesNote(loaded: loaded)
+            // nicht 'note': aeltere Compiler (Xcode 26) verwechseln sonst weiter oben den Aufruf note(...) mit dieser Konstante
+            let filesText = Self.filesNote(loaded: loaded)
             // Kurse frueherer Semester mit vollstaendiger Liste und allen Dateien: der naechste Abgleich fragt sie nicht
             // erneut ab (alte Semester aendern sich kaum; "Dateien laden" holt sie wieder)
             let olderDone = scope == .full
@@ -1385,7 +1391,7 @@ final class StudIPSync: ObservableObject {
             let readyAt = clock.nowISO
             _ = try? await db.transaction { try SyncOrder.markCurrentReady($0, now: readyAt) }
             // Semester, Stud.IP-weite Ankuendigungen, Nachrichten (nur Liste), Aenderungen, Sprechstunden, Brett, Blubber (StudIPExtrasSync)
-            phase = .running(note + " · Neuigkeiten werden geladen …")
+            phase = .running(filesText + " · Neuigkeiten werden geladen …")
             let extrasExpired = timetable.sessionExpired ? false : await StudIPExtrasSync(host: host).run(client: client, userID: uid, courses: contentCourses)
             try Task.checkCancellation()
             // Lehrende und Kontakte (StudIPLecturers, 06.11.2026): erst nach Stufe (a), nur im vollen Lauf, je Kurs hoechstens
@@ -1571,6 +1577,10 @@ final class StudIPSync: ObservableObject {
         // Dokument-Index der laufenden Woche vorwaermen (erst Bibliothek, dann sparsames Modell): nur WLAN + Laden
         guard !Task.isCancelled else { return }
         await DocIndexPrewarm.run(backend.context)
+        // Datei-Eingang (18.11.2026): neue Kurs-PDFs einmal an StudiNow, nur im Test-Build (UF_INTAKE_OFFERED=YES),
+        // nur mit Zustimmung und im WLAN
+        guard !Task.isCancelled else { return }
+        await CourseFileIntakeRunner.afterSync(host: host)
     }
 
     /// Beim Oeffnen der App: Dokumente, die ein Hintergrundabgleich gebracht hat, in den bestehenden Lernplan

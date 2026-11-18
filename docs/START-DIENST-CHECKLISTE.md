@@ -287,6 +287,10 @@ Löschfristen (Abschnitt 1). Seit 06.11.2026 legt `LERNAPP_SYNC_TIMES` nur noch 
 Hochschul-Abgleich im Dienst gibt es nicht mehr (Abschnitt 0), `LERNAPP_UNI_PARALLEL`/`LERNAPP_UNI_GAP_S` sind damit
 ohne Wirkung.
 
+Weck-Signal (seit 17.11.2026): stille Push-Nachricht, mit der die Apple-Apps tagsüber selbst abgleichen. Standard
+**aus**. Einschalten erst, wenn der APNs-Schlüssel von Apple da ist: `STUDINOW_WAKE_PUSH=1`, `APNS_KEY_PATH`,
+`APNS_KEY_ID`, `APNS_TEAM_ID`. Schritt für Schritt in `docs/WECK-SIGNAL-2026-11-17.md`, Abschnitt 5.
+
 ---
 
 ## 6. Starten

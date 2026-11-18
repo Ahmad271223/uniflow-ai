@@ -322,8 +322,11 @@ def _clear_fails(conn, *keys: str) -> None:
         conn.execute("DELETE FROM login_attempts WHERE key=?", (k,))
 
 
-def _limit(name: str) -> tuple[int, int]:
+def _limit(name: str, default: tuple[int, int] | None = None) -> tuple[int, int]:
+    """Grenze (Anzahl, Minuten) aus LIMITS; `default` fuer Grenzen, die ein anderes Modul selbst festlegt und die nicht
+    in LIMITS stehen (LIMITS ist Teil des Konto-Vertrags, contract.json). LERNAPP_LIMIT_<NAME> ueberschreibt beides."""
     import os
+    std = default if default is not None else LIMITS[name]
     raw = (os.environ.get(f"LERNAPP_LIMIT_{name.upper()}") or "").strip()
     if raw:
         try:
@@ -332,14 +335,14 @@ def _limit(name: str) -> tuple[int, int]:
                 return n, m
         except ValueError:
             pass
-        _warn_env(f"LERNAPP_LIMIT_{name.upper()}", raw, "/".join(map(str, LIMITS[name])))
-    return LIMITS[name]
+        _warn_env(f"LERNAPP_LIMIT_{name.upper()}", raw, "/".join(map(str, std)))
+    return std
 
 
-def _hit(conn, name: str, ident: str) -> None:
+def _hit(conn, name: str, ident: str, default: tuple[int, int] | None = None) -> None:
     """Versuch zaehlen; ueber der Grenze 429 rate_limited mit Wartezeit. Der Zaehler wird sofort gespeichert, auch wenn
     der Aufruf danach mit einem Fehler endet (z. B. email_taken), sonst liesse sich die Grenze umgehen."""
-    limit, minutes = _limit(name)
+    limit, minutes = _limit(name, default)
     key, t = f"{name}:{ident}", now()
     r = conn.execute("SELECT count, window_start FROM rate_limits WHERE key=?", (key,)).fetchone()
     start = _parse_ts(r["window_start"]) if r else None
@@ -354,10 +357,10 @@ def _hit(conn, name: str, ident: str) -> None:
     conn.commit()
 
 
-def hit_limit(name: str, ident: str) -> None:
-    """Grenze von aussen pruefen (z. B. Datenexport); wirft AccountError rate_limited."""
+def hit_limit(name: str, ident: str, default: tuple[int, int] | None = None) -> None:
+    """Grenze von aussen pruefen (z. B. Datenexport); wirft AccountError rate_limited. `default`: siehe _limit."""
     with cursor() as conn:
-        _hit(conn, name, ident)
+        _hit(conn, name, ident, default)
 
 
 # ---------------------------------------------------------------- Konto anlegen, anmelden, Sitzungen
@@ -528,24 +531,48 @@ def authenticate(token: str | None) -> dict | None:
 
 
 def logout(token: str | None) -> bool:
+    """Abmelden. Das Geraet dieser Sitzung bekommt danach kein Weck-Signal mehr (app/wake_push.py)."""
     if not token:
         return False
+    from . import wake_push
     with cursor() as conn:
-        return conn.execute("UPDATE sessions SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL",
+        s = conn.execute("SELECT user_id, device_id FROM sessions WHERE token_hash=? AND revoked_at IS NULL",
+                         (_token_hash(token),)).fetchone()
+        done = conn.execute("UPDATE sessions SET revoked_at=? WHERE token_hash=? AND revoked_at IS NULL",
                             (iso(now()), _token_hash(token))).rowcount > 0
+        if done and s:
+            wake_push.forget_device(conn, s["user_id"], s["device_id"])
+        return done
 
 
 def logout_all(user_id: str, keep_token: str | None = None) -> int:
+    """Alle Sitzungen des Kontos beenden, ausser der mit `keep_token`. Die abgemeldeten Geraete bekommen kein
+    Weck-Signal mehr; das Geraet, das angemeldet bleibt, behaelt seines."""
+    from . import wake_push
     with cursor() as conn:
-        return conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND token_hash<>?",
-                            (iso(now()), user_id, _token_hash(keep_token) if keep_token else "")).rowcount
+        kept = conn.execute("SELECT device_id FROM sessions WHERE token_hash=? AND user_id=? AND revoked_at IS NULL",
+                            (_token_hash(keep_token), user_id)).fetchone() if keep_token else None
+        n = conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL AND token_hash<>?",
+                         (iso(now()), user_id, _token_hash(keep_token) if keep_token else "")).rowcount
+        if kept:
+            wake_push.forget_other_devices(conn, user_id, kept["device_id"])
+        else:
+            wake_push.forget_user(conn, user_id)
+        return n
 
 
 def revoke_session(user_id: str, session_id: int) -> bool:
-    """Ein Geraet des Kontos abmelden (Liste unter Konto -> Angemeldete Geraete); nur eigene Sitzungen."""
+    """Ein Geraet des Kontos abmelden (Liste unter Konto -> Angemeldete Geraete); nur eigene Sitzungen. Das Geraet
+    bekommt kein Weck-Signal mehr, ausser das Konto ist dort noch mit einer weiteren Sitzung angemeldet."""
+    from . import wake_push
     with cursor() as conn:
-        return conn.execute("UPDATE sessions SET revoked_at=? WHERE id=? AND user_id=? AND revoked_at IS NULL",
+        s = conn.execute("SELECT device_id FROM sessions WHERE id=? AND user_id=? AND revoked_at IS NULL",
+                         (int(session_id), user_id)).fetchone()
+        done = conn.execute("UPDATE sessions SET revoked_at=? WHERE id=? AND user_id=? AND revoked_at IS NULL",
                             (iso(now()), int(session_id), user_id)).rowcount > 0
+        if done and s:
+            wake_push.forget_device(conn, user_id, s["device_id"], unless_signed_in=True)
+        return done
 
 
 def sessions(user_id: str, current_token: str | None = None) -> list[dict]:
@@ -618,6 +645,8 @@ def reset_password(token: str, new_password: str) -> None:
         # der Link kam per Mail an genau diese Adresse: damit ist sie auch bestaetigt
         conn.execute("UPDATE users SET pw_hash=?, email_verified=1 WHERE id=?", (hash_password(new_password), r["user_id"]))
         conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (iso(now()), r["user_id"]))
+        from . import wake_push
+        wake_push.forget_user(conn, r["user_id"])            # alle Geraete abgemeldet: kein Weck-Signal mehr
         # Nachweis ueber das Postfach: die Sperre der Adresse endet (Audit P19-11; vorher 429 mit dem NEUEN Passwort)
         _clear_fails(conn, f"email:{u['email']}")
         # Anmeldewege (Google/Apple), die vor diesem Nachweis verknuepft wurden, gelten nicht weiter; wer die Adresse
@@ -911,14 +940,16 @@ def revoke_apple(user_id: str, tokens: list[tuple[str | None, str | None]]) -> i
 
 
 def _mark_deleted(conn, user_id: str, t: str) -> None:
-    """Sperren, abmelden, Adresse freigeben (umbenannt), Passwort-Hash, Anmeldewege, Reset-Token und das Hauptgeraet
-    (Geraete-Regel, app/device_limit.py) sofort weg."""
+    """Sperren, abmelden, Adresse freigeben (umbenannt), Passwort-Hash, Anmeldewege, Reset-Token, das Hauptgeraet
+    (Geraete-Regel, app/device_limit.py) und die fuer das Weck-Signal gemeldeten Geraete (app/wake_push.py) sofort weg."""
     conn.execute("UPDATE users SET status='deleted', deleted_at=?, email=?, pw_hash=NULL, primary_device_id=NULL, "
                  "primary_device_name=NULL, primary_device_set_at=NULL WHERE id=?",
                  (t, f"deleted-{user_id}@invalid", user_id))
     conn.execute("UPDATE sessions SET revoked_at=? WHERE user_id=? AND revoked_at IS NULL", (t, user_id))
     conn.execute("DELETE FROM identities WHERE user_id=?", (user_id,))
     conn.execute("DELETE FROM reset_tokens WHERE user_id=?", (user_id,))
+    from . import wake_push
+    wake_push.forget_user(conn, user_id)                     # sofort kein Weck-Signal mehr, nicht erst nach 30 Tagen
     if _has_table(conn, "sync_jobs"):                        # wartende Abgleiche laufen nicht mehr
         conn.execute("UPDATE sync_jobs SET status='failed', finished_at=?, message='Konto gelöscht' "
                      "WHERE user_id=? AND status='queued'", (t, user_id))
@@ -967,7 +998,8 @@ def _after_delete(user_id: str) -> bool:
 ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests", "ai_inflight", "apple_transactions",
                   "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months", "credit_wallets",
                   "invites", "invite_redemptions", "invite_rewards",
-                  "plan_choices", "stripe_customers", "stripe_subscription_state", "app_login_codes", "ai_usage_user_month")
+                  "plan_choices", "stripe_customers", "stripe_subscription_state", "app_login_codes", "ai_usage_user_month",
+                  "push_tokens")
 
 
 def _has_table(conn, name: str) -> bool:

@@ -663,12 +663,14 @@ public enum Announcements {
                 }
                 for i in cand {
                     let confirmed = out[i]["exception"]?.string == "cancelled"
-                    out[i]["cancel_hint"] = [
-                        "announcement_id": r["id"] ?? .null, "title": r["title"] ?? .null, "snippet": d["snippet"] ?? .null,
-                        "url": r["url"] ?? .null, "source": r["source"] ?? .null, "course_title": r["course_title"] ?? .null,
-                        "posted_at": r["posted_at"] ?? .null, "confirmed": .bool(confirmed),
-                        "label": .string(confirmed ? cancelConfirmedLabel : cancelLabel),
-                    ]
+                    // mit Typangabe (sonst brechen aeltere Swift-Compiler die Typpruefung ab)
+                    var hint: [String: JSONValue] = [:]
+                    for k in ["title", "url", "source", "course_title", "posted_at"] { hint[k] = r[k] ?? .null }
+                    hint["announcement_id"] = r["id"] ?? .null
+                    hint["snippet"] = d["snippet"] ?? .null
+                    hint["confirmed"] = .bool(confirmed)
+                    hint["label"] = .string(confirmed ? cancelConfirmedLabel : cancelLabel)
+                    out[i]["cancel_hint"] = .object(hint)
                 }
             }
         }

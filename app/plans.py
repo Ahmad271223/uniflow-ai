@@ -89,9 +89,12 @@ ENTITLEMENTS: dict[str, dict] = {
     # Wochenstapel uebernehmen ab Plus. Lesen (GET /api/flashcards, /api/flashcard-stacks) bleibt in jedem Tarif frei:
     # nach der Probe sind die eigenen Karten in Free weiter sichtbar, nur nicht mehr bearbeit- oder uebbar.
     "can_use_flashcards": {"from": "plus", "label": "Eigene Karteikarten mit Wiederholung", "status": "available"},
-    # Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen 3 Tage, 1 Tag und am Morgen vorher) ab Plus
-    # (Entscheidung des Inhabers 11.11.2026, vorher in jedem Tarif). Die Fristen-Liste selbst bleibt in Free sichtbar.
-    "can_use_due_reminders": {"from": "plus", "label": "Erinnerungen an Abgaben und Klausuren", "status": "available"},
+    # Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen 7 Tage, 3 Tage, 1 Tag und am Morgen vorher, dazu
+    # "Neuer Klausurtermin erkannt") ab Pro AI: Entscheidung des Inhabers 18.11.2026, woertlich "Alles ab Pro AI"
+    # (vorher ab Plus seit 11.11.2026, davor in jedem Tarif). Steht hier, damit die Reihenfolge des Vertrags gleich
+    # bleibt. Die Fristen- und Terminlisten und die Karte "Klausuren und Tests: bald und neu erkannt" bleiben in jedem
+    # Tarif sichtbar, gesperrt sind nur die Mitteilungen.
+    "can_use_due_reminders": {"from": "pro_ai", "label": "Erinnerungen an Abgaben und Klausuren", "status": "available"},
     # KI-Chat (Entscheidung des Inhabers 15.11.2026: "pro ai und plus können kaufen aber plus sollen ki nur chat benutzen
     # können ohne ki lernhilfe"): die freie Frage an die KI in der KI-Hilfe (Aufgabe `tutor:ask`, CREDIT_PACKS
     # `chat_purposes`). Plus hat keine Monats-Credits: der Chat laeuft dort allein aus gekauften Credits. Alles andere

@@ -131,7 +131,32 @@ docker compose exec app python -m app.accounts plan <email> plus 2027-03-31   # 
 docker compose exec app python -m app.accounts reset-token <email>        # Reset-Token, solange kein Mailversand läuft
 docker compose exec app python -m app.accounts purge                      # Konten >30 Tage nach Löschung entfernen (macht der Retention-Job täglich)
 docker compose exec app python -m app.tester_freischalten --email <email> --tage 14 --ausfuehren   # Probe des Kontos verlängern (TestFlight-Tester, docs/release/TESTFLIGHT-500-2026-11-08.md); ohne --ausfuehren Probelauf
+docker compose exec app python -m app.tarif_schenken --email <email> --plan pro_ai --unbefristet --ausfuehren   # Tarif schenken (siehe unten); ohne --ausfuehren Probelauf
 ```
+
+**Tarif schenken** (seit 18.11.2026, `app/tarif_schenken.py`): Ein Konto bekommt Plus oder Pro AI geschenkt – ohne
+Abo, ohne Zahlung, ohne Verlängerung. Es wirkt wie der bezahlte Tarif: alle Rechte, Kontingente und bei Pro AI die
+100 Monats-Credits. Credit-Pakete kauft die Person weiter selbst (kostenpflichtig, kommen zu den Monats-Credits dazu).
+Ein Abo aus dem App Store oder von Stripe bleibt daneben bestehen, es gilt der höhere Tarif; Erstattung oder Ablauf
+eines solchen Abos ändert am Geschenk nichts. Beim endgültigen Löschen des Kontos verschwindet das Geschenk.
+
+```bash
+# 1. Probelauf: zeigt nur, was geschähe (Konto gefunden? Tarif vorher?)
+docker compose exec app python -m app.tarif_schenken --email tester@beispiel.de --plan pro_ai --unbefristet
+# 2. Wirklich schenken (unbefristet)
+docker compose exec app python -m app.tarif_schenken --email tester@beispiel.de --plan pro_ai --unbefristet --ausfuehren
+# befristet: bis einschließlich diesem Tag (Berlin)
+docker compose exec app python -m app.tarif_schenken --email tester@beispiel.de --plan pro_ai --bis 2027-12-31 --ausfuehren
+# zurücknehmen (sofort)
+docker compose exec app python -m app.tarif_schenken --email tester@beispiel.de --zuruecknehmen --ausfuehren
+```
+
+`--email` geht mehrfach. Unbekannte oder gelöschte Konten werden genannt und übersprungen. Die Zeilen je Konto zeigen
+die Adresse nur gekürzt, die volle Adresse steht nur in der Bestätigung am Ende. Die Person muss sich in der App mit
+demselben StudiNow-Konto anmelden. Die Apple-App (iPad, iPhone, Mac) übernimmt nur einen **geschenkten** Tarif vom
+Dienst (Feld `gift` in `GET /api/entitlements`), kein Stripe-/Web-Abo; sie zeigt „StudiNow Pro AI“ (befristet „… bis
+TT.MM.JJJJ“), keine Probe und keinen Kaufknopf für den geschenkten Tarif. Ohne Netz gilt der zuletzt bestätigte Stand
+bis zu 30 Tage weiter; Zurücknehmen wirkt beim nächsten Kontakt der App mit dem Dienst.
 
 Den Reset-Token gibt man dem Nutzer als Link `https://app.example.de/login?reset=<TOKEN>` (gültig wie in
 `accounts.RESET_MINUTES`).

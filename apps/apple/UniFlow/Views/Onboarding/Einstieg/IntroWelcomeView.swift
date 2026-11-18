@@ -10,7 +10,8 @@ import SwiftUI
 enum IntroWelcomeText {
     static let title = "Willkommen bei StudiNow"
     static let lead = "Dein Studium an einem Ort:"
-    static let words = ["Stud.IP-Dateien", "Lernplan", "Prüfungstermine", "Karteikarten", "Notizen"]
+    /// ohne Lernkalender (`LearnCalendar`, 17.11.2026) "Stundenplan" statt "Lernplan"
+    static var words: [String] { ["Stud.IP-Dateien", LearnCalendar.text("Lernplan", off: "Stundenplan"), "Prüfungstermine", "Karteikarten", "Notizen"] }
     static let accountQuestion = "Wofür brauchst du ein Konto?"
     static let stageCaption = UFDevice.adapt("Kurse, Dateien, Stundenplan und Noten deiner Hochschule – direkt auf dein iPad.")
 }
@@ -126,10 +127,12 @@ struct IntroWelcomeCollage: View {
 struct IntroTileToday: View {
     var body: some View {
         IntroTile {
-            IntroTileHead(icon: "calendar", title: "Heute im Lernplan")
-            IntroTodayRow(color: Color(hex: 0x4f5bd5), title: "Analysis I", detail: "Übungsblatt 4 · 45 min", done: true)
-            IntroTodayRow(color: Color(hex: 0x0ea5e9), title: "Technische Mechanik", detail: "Kapitel 3 · 30 min", done: false)
-            IntroTodayRow(color: Color(hex: 0x16a34a), title: "Programmieren", detail: "Karteikarten · 20 min", done: false)
+            // ohne Lernkalender (17.11.2026): die Uni-Termine von heute statt der Lernbloecke
+            let plan = LearnCalendar.enabled
+            IntroTileHead(icon: "calendar", title: plan ? "Heute im Lernplan" : "Heute an der Uni")
+            IntroTodayRow(color: Color(hex: 0x4f5bd5), title: "Analysis I", detail: plan ? "Übungsblatt 4 · 45 min" : "Vorlesung · 08:15", done: true)
+            IntroTodayRow(color: Color(hex: 0x0ea5e9), title: "Technische Mechanik", detail: plan ? "Kapitel 3 · 30 min" : "Übung · 12:15", done: false)
+            IntroTodayRow(color: Color(hex: 0x16a34a), title: "Programmieren", detail: plan ? "Karteikarten · 20 min" : "Tutorium · 14:15", done: false)
         }
     }
 }
@@ -163,8 +166,12 @@ struct IntroTileExam: View {
                 Text("12").ufFont(30, 700, em: -0.02).foregroundStyle(UF.text)
                 Text("Tage").ufFont(13.12).foregroundStyle(UF.muted)
             }
-            UFProgress(value: 0.62)
-            Text("62 % der Lernzeit geschafft").ufFont(11.2).foregroundStyle(UF.muted)
+            if LearnCalendar.enabled {
+                UFProgress(value: 0.62)
+                Text("62 % der Lernzeit geschafft").ufFont(11.2).foregroundStyle(UF.muted)
+            } else {
+                Text("Termin aus QIS · 10:00 Uhr").ufFont(11.2).foregroundStyle(UF.muted)
+            }
         }
     }
 }

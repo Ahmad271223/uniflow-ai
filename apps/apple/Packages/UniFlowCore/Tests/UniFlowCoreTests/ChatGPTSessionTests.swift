@@ -1,9 +1,9 @@
-#if canImport(Security) && canImport(CryptoKit)
-import CryptoKit
 import Foundation
-import Security
 import XCTest
 @testable import UniFlowCore
+// Die Anmelde-Tests brauchen Security und CryptoKit (nur auf Apple-Geraeten) und stehen im #if weiter unten.
+// Ausserhalb davon und damit auch unter Linux: MemoryChatGPTStore und FakeOpenAI (die OpenAIKey-Tests nutzen sie)
+// sowie ChatGPTPreferredModelTests am Ende der Datei.
 
 // Sign in with ChatGPT auf dem Geraet wie app/chatgpt_login.py (tests/test_chatgpt_login.py): Anmeldung mit
 // Erstregistrierung, ID-Token (Signatur, Aussteller, Empfaenger, Ablauf, Nonce), Erneuerung, Anfragen an die
@@ -37,6 +37,10 @@ actor FakeOpenAI: AIHTTPTransport {
         return h(request)
     }
 }
+
+#if canImport(Security) && canImport(CryptoKit)
+import CryptoKit
+import Security
 
 private func json(_ v: JSONValue) -> Data { v.serialized() }
 /// Ereignisstrom der Responses API (`stream: true`), wie OpenAI ihn sendet: `event:` und `data:` je Ereignis

@@ -730,6 +730,21 @@ EFFECTIVE_TYPE_CASES = [
     ("vl5.pdf", None, None), ("2vl3.pdf", None, None), ("Lecture 6.pdf", None, None), ("Vorlesung 02A.pdf", "Vorlesung", None),
     ("VL01.pdf", "Übungen", None), ("BLATT 3.PDF", None, None), ("datei.pdf", None, None), ("datei.pdf", None, "skript"),
     ("datei.pdf", "", "test"), ("datei.pdf", None, ""), (None, "Vorlesung", None), (None, None, None),
+    # Altklausur-Loesungen (17.11.2026): "sol" und "lsg" als eigenes Wortstueck, "Prüfung"/"Exam" statt "Klausur"
+    ("sol0b.pdf", "Alte Klausuren/WS 21/22", None), ("sol3a.pdf", "Alte Klausuren/WS 21/22", None), ("kk3a.pdf", "Alte Klausuren/WS 21/22", None),
+    ("kk3a_sol.pdf", "Kurzklausuren", None), ("sol.pdf", "Probeklausur", None), ("SOL 2.PDF", "Klausur", None), ("sol-4.pdf", None, None),
+    ("sol", "Klausur", None), ("blatt3.sol.pdf", None, None), ("Solar.pdf", "Vorlesung", None), ("Konsole.pdf", "Vorlesung", None),
+    ("Sol-Gel-Verfahren.pdf", "Vorlesung", None), ("sol gel.pdf", None, None), ("äsol1.pdf", None, None), ("ßsol_1.pdf", None, None),
+    ("1sol2.pdf", None, None), ("sols.pdf", None, None), ("Lsg_SS21.pdf", "", None), ("Lsg_SS21.pdf", "Klausuren", None),
+    ("lsg2.pdf", "Übung 2", None), ("2lsg3.pdf", None, None), ("xlsgy.pdf", None, None), ("ölsg.pdf", None, None), ("lsgü.pdf", None, None),
+    ("Loesung.pdf", "Alte Prüfungen/SS 21", None), ("Musterlösung.pdf", "Pruefung WS 20", None), ("Probeprüfung Lösung.pdf", "", None),
+    ("solution.pdf", "Exam 2021", None), ("Solutions.pdf", "Old Exams", None), ("Loesung.pdf", "Examination", None),
+    ("Lösung.pdf", "Examen", None), ("Example_solution.pdf", "Übung", None), ("Lösung.pdf", "Examples", None),
+    ("Pruefung_SS21.pdf", "Alte Prüfungen/SS 21", None), ("Aufgaben.pdf", "Prüfung", None), ("Altprüfung.pdf", None, None),
+    ("Prüfungsaufgaben.pdf", None, None), ("Prüfungsaufgabe 3.pdf", None, None), ("Prüfungsordnung.pdf", "", None),
+    ("Lösung.pdf", "Prüfungsvorleistung", None), ("Lösung Selbstüberprüfung.pdf", "Übung", None), ("Ueberpruefung.pdf", None, None),
+    ("Blatt3.pdf", "Prüfungsvorleistungen", None), ("Pru\u0308fung.pdf", None, None), ("Prüfungß.pdf", None, None), ("Prüfung2.pdf", None, None),
+    ("Lösung Blatt 3.pdf", "Übungen", None), ("Blatt3_lsg.pdf", "Übungsblätter", None),
 ]
 
 # (Dateiname, Stud.IP-Ordner) fuer study.week_hint
@@ -805,8 +820,10 @@ def _module_seed() -> list[list]:
                ("k-pt-u", "Übung zu Grundlagen der Pru\u0308fungstechnik", None, "WiSe 2026/27")]
     for cid, title, number, sem in courses:
         subject, kind = classify(title)
-        out.append(["INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at) VALUES (?,?,?,?,?,?,?,?)",
-                    [cid, title, number, sem, subject, kind, 0 if cid == "k-inaktiv" else 1, "2026-10-01T08:00:00"]])
+        # first_listed_at: Dateiliste zum ersten Mal eingelesen am 20.10. um 8 Uhr (wie first_seen der meisten Dateien:
+        # sie waren "schon da"); neu ist nur, was danach kam (study.new_file_sql)
+        out.append(["INSERT INTO courses(id, title, number, semester, subject, kind, active, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                    [cid, title, number, sem, subject, kind, 0 if cid == "k-inaktiv" else 1, "2026-10-01T08:00:00", "2026-10-20T08:00:00"]])
     # ohne Fach (z. B. vom Nutzer geleert): nur die automatische Zuordnung ordnet sie zu
     out.append(["INSERT INTO courses(id, title, subject, kind, created_at) VALUES ('k-ohne', 'Testmathematik I Zusatzaufgaben', NULL, 'uebung', '2026-10-01T08:00:00')", []])
     out.append(["INSERT INTO courses(id, title, subject, kind, created_at) VALUES ('k-fremd', 'Völlig anderes Seminar', NULL, 'vorlesung', '2026-10-01T08:00:00')", []])
@@ -846,9 +863,13 @@ def _module_seed() -> list[list]:
         ("f-in-01", "k-inaktiv", "VL01.pdf", "Vorlesung", "2026-10-13T08:30", "neu"),
         ("f-erst-01", "k-erst", "Willkommen.pdf", None, "2026-10-05T10:00", "neu"),
     ]
+    # "Neu" (study.new_file_sql: nie geoeffnet und vor hoechstens 24 Stunden eingetragen), Uhr der Szenarien
+    # 20.11.2026 10 Uhr: f-ma-07 kam gestern Mittag (neu), f-ma-06 vorgestern (nicht mehr neu), f-in-01 heute im
+    # inaktiven Kurs (zaehlt nicht), alle anderen vor Wochen
+    first_seen = {"f-ma-07": "2026-11-19T12:00:00", "f-ma-06": "2026-11-18T23:59:59", "f-in-01": "2026-11-20T08:00:00"}
     for fid, cid, name, folder, when, status in files:
         out.append(["INSERT INTO files(id, course_id, name, size, chdate, status, studip_folder, kind, first_seen) VALUES (?,?,?,?,?,?,?,?,?)",
-                    [fid, cid, name, 1000, _berlin_ts(when) if when else None, status, folder, "pdf", "2026-10-20T08:00:00"]])
+                    [fid, cid, name, 1000, _berlin_ts(when) if when else None, status, folder, "pdf", first_seen.get(fid, "2026-10-20T08:00:00")]])
     for fid, typ, title, topics in [("f-bt-06", "vorlesung", "Einführung in Beispielsignale", '["Beispielsignale", "Faltung"]'),
                                     ("f-bt-07", "vorlesung", "Zweite Analyse", "kein json"),
                                     ("f-ma-05", "uebung", None, '[42, "x"]'),
@@ -978,6 +999,7 @@ def study_modules(src: SchemaSource, app) -> dict:
         materials = []
         for today in EVENT_TODAYS:
             study.today = lambda d=date.fromisoformat(today): d
+            db.now_iso = lambda n=f"{today}T00:00:00": n         # "Neu" je Datei (study.mark_new) rechnet mit der Uhr
             with db.cursor() as conn:
                 start = study.semester_start(conn)
                 for mid in module_ids + [99, 0, None]:
@@ -987,6 +1009,7 @@ def study_modules(src: SchemaSource, app) -> dict:
                     materials.append({"today": today, "module_id": mid, "days": days})
         # eine Antwort vollstaendig (Werte der Dateien wie im Moduldetail)
         study.today = lambda: date(2026, 11, 20)
+        db.now_iso = lambda: "2026-11-20T00:00:00"
         with db.cursor() as conn:
             material_sample = {"today": "2026-11-20", "module_id": 1, "day": "2026-10-21",
                                "response": timetable.materials_for_event(conn, {"module_id": 1}, date(2026, 10, 21))}
@@ -1152,9 +1175,12 @@ LIB_ANN_U1 = {"version": 2, "zoom": 1.2, "pages": {"b1": {"objects": []}},
               "pageOrder": [{"key": "b1", "type": "blank", "template": "grid", "w": 595, "h": 842}], "bookmarks": [], "outline": []}
 
 
-def _course(cid, title, *, number=None, semester="WiSe 2026/27", subject=None, kind=None, active=1):
+def _course(cid, title, *, number=None, semester="WiSe 2026/27", subject=None, kind=None, active=1,
+            first_listed_at="2026-10-20T09:30:00"):
+    """`first_listed_at`: Dateiliste zum ersten Mal vollstaendig eingelesen (study.new_file_sql: neu ist nur, was
+    danach kam); ohne Angabe am 20.10. um 9:30 Uhr, also vor allen Dateien der Seed-Datenbank."""
     return {"id": cid, "title": title, "number": number, "semester": semester, "subject": subject, "kind": kind,
-            "active": active, "test_minutes": 90, "created_at": "2026-10-20T09:00:00"}
+            "active": active, "test_minutes": 90, "created_at": "2026-10-20T09:00:00", "first_listed_at": first_listed_at}
 
 
 def _file(fid, cid, name, chdate, *, mime="application/pdf", local=True, kind="pdf", status="neu", seen=0, folder="", **extra):
@@ -1168,15 +1194,21 @@ def _file(fid, cid, name, chdate, *, mime="application/pdf", local=True, kind="p
     return row
 
 
-# Erfundene Datenbank: Kurse wie nach dem Abgleich (ohne Fach, S3) und wie vom PC (mit Fach, fuer ensure_modules)
+# Erfundene Datenbank: Kurse wie nach dem Abgleich (ohne Fach, S3) und wie vom PC (mit Fach, fuer ensure_modules).
+# "Neu" (study.new_file_sql: nie geoeffnet und vor hoechstens 24 Stunden eingetragen): die Uhr steht am Tag der
+# Zeitumstellung (25.10.2026, 14:30:05 Winterzeit), die Grenze sind wirkliche 24 Stunden, also 24.10. 15:30:05
+# Sommerzeit. f1 kam heute frueh (neu), f9 genau an der Grenze (neu), f10 eine Sekunde frueher (nicht mehr neu), f7
+# heute im inaktiven Kurs (zaehlt nicht), alle anderen vor Tagen (nicht mehr neu). Dazu "erst nach dem ersten Einlesen":
+# k2 wurde heute um 10 Uhr zum ersten Mal eingelesen, f3 kam dabei (nicht neu, obwohl frisch); die Liste von k6 wurde
+# noch nie fertig gelesen (first_listed_at NULL), f11 von heute ist nicht neu.
 LIB_SEED = {
     "courses": [
         _course("k1", "Testkurs Algebra", number="T-101"),
-        _course("k2", "Übung zu Testkurs Physik"),
+        _course("k2", "Übung zu Testkurs Physik", first_listed_at="2026-10-25T10:00:00"),
         _course("k3", "Testkurs Alt", semester="SoSe 2026", active=0),
         _course("k4", "Testfach Mechanik Vorlesung", subject="Testfach Mechanik", kind="vorlesung"),
         _course("k5", "Testfach Mechanik Übung", subject="Testfach Mechanik", kind="uebung"),
-        _course("k6", "Testbegrüßung", subject="Testbegrüßung", kind="sonstiges"),
+        _course("k6", "Testbegrüßung", subject="Testbegrüßung", kind="sonstiges", first_listed_at=None),
     ],
     "folders": [
         {"id": 1, "name": "Testordner B", "parent_id": None, "module_id": None, "color": "#336699", "created_at": "2026-10-21T10:00:00"},
@@ -1184,18 +1216,18 @@ LIB_SEED = {
         {"id": 3, "name": "Unterordner", "parent_id": 2, "module_id": None, "color": None, "created_at": "2026-10-21T10:02:00"},
     ],
     "files": [
-        _file("f1", "k1", "Folien 1.pdf", 1792400011),
+        _file("f1", "k1", "Folien 1.pdf", 1792400011, first_seen="2026-10-25T09:00:00"),
         _file("f2", "k1", "Blatt 2.pdf", 1792500012, status="gelesen", seen=1, folder="Übungen", favorite=1,
               last_opened="2026-10-22T08:00:00", folder_id=2),
-        _file("f3", "k2", "notizen.txt", 1792300013, mime=None, kind="file"),
+        _file("f3", "k2", "notizen.txt", 1792300013, mime=None, kind="file", first_seen="2026-10-25T10:00:00"),
         _file("f4", "k2", "seite.html", 1792200014, mime="text/html", kind="file"),
         _file("f5", "k1", "Grafik ä.png", 1792100015, mime="image/png", kind="image"),
         _file("f6", "k1", "Nicht geladen.pdf", 1792000016, local=False),
-        _file("f7", "k3", "Alt.pdf", 1791900017),
+        _file("f7", "k3", "Alt.pdf", 1791900017, first_seen="2026-10-25T09:30:00"),
         _file("f8", "k2", "Fehlt.pdf", 1791800018),
-        _file("f9", "k4", "Mechanik VL01.pdf", 1791700019, folder="Vorlesung"),
-        _file("f10", "k5", "Mechanik Blatt 1.pdf", 1791600020, folder="Übung"),
-        _file("f11", "k6", "Begrüßung.pdf", 1791500021),
+        _file("f9", "k4", "Mechanik VL01.pdf", 1791700019, folder="Vorlesung", first_seen="2026-10-24T15:30:05"),
+        _file("f10", "k5", "Mechanik Blatt 1.pdf", 1791600020, folder="Übung", first_seen="2026-10-24T15:30:04"),
+        _file("f11", "k6", "Begrüßung.pdf", 1791500021, first_seen="2026-10-25T11:00:00"),
         {"id": "u1", "course_id": "__user__", "name": "Mein Heft", "size": 0, "mime": None, "author": "Ich", "chdate": 1791400022,
          "download_url": "", "local_path": None, "downloaded_at": "2026-10-21T11:00:00", "first_seen": "2026-10-21T11:00:00",
          "status": "gelesen", "seen_by_user": 1, "kind": "notebook", "title": "Mein Heft", "folder_id": 1},

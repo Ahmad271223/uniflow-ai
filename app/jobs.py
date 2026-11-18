@@ -22,6 +22,9 @@ Seit 06.11.2026 (Entscheidung "Ja, abschalten"): der Dienst speichert keine Hoch
 (app/vault.py). Der Zeitplan legt nur noch `weekly` an; Jobs `sync`/`grades` (auch alte aus der Warteschlange) werden
 ohne Browser und ohne Anmeldung bei der Hochschule uebersprungen (`HOSTED_UNI_SYNC`). Der Abgleich laeuft auf dem iPad
 oder in der Windows-App.
+
+Seit 17.11.2026: der Runner startet zusaetzlich die Schleife des Weck-Signals (app/wake_push.py), wenn
+`STUDINOW_WAKE_PUSH=1` gesetzt ist: stille Push-Nachrichten, mit denen die Apple-Apps tagsueber selbst abgleichen.
 """
 from __future__ import annotations
 
@@ -398,6 +401,7 @@ class Runner:
         self._threads: list[threading.Thread] = []
         self._running: dict[str, int] = {}             # Thread-Name -> Job-ID, die dieser Arbeiter gerade ausfuehrt
         self._lock = threading.Lock()
+        self._wake: threading.Thread | None = None     # Weck-Signal (app/wake_push.py); zaehlt nicht zum Lebenszeichen
 
     def _worker(self) -> None:
         name = threading.current_thread().name
@@ -448,6 +452,15 @@ class Runner:
         s = threading.Thread(target=self._scheduler, name="uniflow-schedule", daemon=True)
         s.start()
         self._threads.append(s)
+        # Weck-Signal (17.11.2026, app/wake_push.py): stille Push-Nachricht an die Apple-Apps, 08-18 Uhr Ortszeit des
+        # Geraets alle 30 Minuten. Laeuft hier, weil es diesen Zeitplan im Dienst genau einmal gibt. Eigener Thread
+        # (der Versand an Apple darf Abgleich und Loeschfristen nie aufhalten), Standard AUS (STUDINOW_WAKE_PUSH=1
+        # schaltet ein). Ein Fehler beim Einhaengen haelt den Start der Jobs nicht auf.
+        try:
+            from . import wake_push
+            self._wake = wake_push.start_background(self._stop)
+        except Exception as e:  # noqa: BLE001
+            print(f"[jobs] Weck-Signal nicht gestartet: {type(e).__name__}: {e}")
 
     def stop(self, grace_seconds: float = 0) -> list[int]:
         """Keine neuen Jobs mehr; bis `grace_seconds` auf laufende warten, danach die noch laufenden Jobs dieses
@@ -457,6 +470,8 @@ class Runner:
         deadline = time.monotonic() + max(0.0, grace_seconds)
         for t in self._threads:
             t.join(max(0.0, deadline - time.monotonic()))
+        if self._wake is not None:                     # wartet nur zwischen zwei Durchlaeufen; ein laufender endet von selbst
+            self._wake.join(max(0.0, min(2.0, deadline - time.monotonic())))
         aborted = self.running_jobs()
         for job_id in aborted:
             try:

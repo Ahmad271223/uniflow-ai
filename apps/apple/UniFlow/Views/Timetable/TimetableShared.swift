@@ -302,9 +302,12 @@ struct EventDrawer: View {
             }
         } foot: {
             UFButton("Bearbeiten", icon: "pencil", size: .small) { actions.eventDialog(e, preset: ["date": .string(date)]) }
-            UFButton("Lernblock danach", icon: "plus", size: .small) {
-                let end = UFTime.hm(occ.s("end"))
-                actions.useFreeWindow(date: date, start: end, end: min(end + 90, 22 * 60), materials: mats, moduleID: e.i("module_id"))
+            // ohne Lernkalender (`LearnCalendar`, 17.11.2026) kein Lernblock aus dem Termin heraus
+            if LearnCalendar.enabled {
+                UFButton("Lernblock danach", icon: "plus", size: .small) {
+                    let end = UFTime.hm(occ.s("end"))
+                    actions.useFreeWindow(date: date, start: end, end: min(end + 90, 22 * 60), materials: mats, moduleID: e.i("module_id"))
+                }
             }
             UFFlexSpacer()
             UFButton(icon: "trash", kind: .danger, size: .small) {
@@ -361,7 +364,8 @@ struct EventDrawer: View {
                                     body: ["event_id": .number(Double(eventID)), "date": .string(date), "mode": .string(mode)])
         } catch { toast.show("Teilnahme speichern fehlgeschlagen: \(error.localizedDescription)", seconds: 4); return }
         let freed = r.i("freed_minutes") ?? 0
-        if ["today_skip", "permanent_skip", "cancelled"].contains(mode) && freed >= 30 {
+        // "Du hast jetzt … frei – Zeit nutzen" legt einen Lernblock an: nur mit Lernkalender
+        if LearnCalendar.enabled && ["today_skip", "permanent_skip", "cancelled"].contains(mode) && freed >= 30 {
             let w = r.list("windows").first
             let start = w?.i("start") ?? UFTime.hm(occ.s("start")), end = w?.i("end") ?? UFTime.hm(occ.s("end"))
             let materials = r.list("materials"), module = e.i("module_id")
@@ -396,7 +400,8 @@ struct FreedTimeDialog: View {
     }
 }
 
-/// a.doc-row im Termin-Panel: Icon, Titel (500) und direkt dahinter Typ · Minuten (inline wie im Web)
+/// a.doc-row im Termin-Panel: Icon, Titel (500) und direkt dahinter Typ · Minuten (inline wie im Web). "Neu" nach der
+/// einen Regel (`UFNewFiles`: nie geoeffnet und hoechstens 24 Stunden in der App), nicht mehr am Lernstand.
 struct UFEventDocRow: View {
     let f: JSONValue
     let open: () -> Void
@@ -408,7 +413,7 @@ struct UFEventDocRow: View {
                 UFIcon(f.s("doc_type") == "uebung" ? "pencil" : "book", size: 16).foregroundStyle(UF.accentText).frame(width: 24)
                 (Text(f.s("ai_title") ?? f.s("name") ?? "").font(.uf(14.5, 500)).foregroundColor(st == "erledigt" ? UF.muted : UF.accentText)
                     .strikethrough(st == "erledigt")
-                 + Text(st == "neu" ? "  Neu  " : "").font(.uf(10.88, 600)).foregroundColor(UF.accentText)
+                 + Text(UFNewFiles.isNew(f) ? "  Neu  " : "").font(.uf(10.88, 600)).foregroundColor(UF.accentText)
                  + Text("\(f.s("doc_type") ?? "")\(f.i("est_minutes").map { " · ca. \($0) min" } ?? "")").font(.uf(12.48)).foregroundColor(UF.muted))
                     .lineSpacing(4)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -726,6 +731,10 @@ struct UFDayExtraChips: View {
         _ = overlay.modal { UFHintDialog(hint: h, events: events) }
     }
 
+    /// Erkannte Kurzklausur, Probeklausur oder erkannter Test (17.11.2026): als Klausur-Pin gezeigt, nicht in der
+    /// Modulfarbe (eine gruene "Kurzklausur" sah aus wie "vorlesungsfrei")
+    static func isDetectedExam(_ h: UFHint) -> Bool { h.category == .detected && (h.kind == "klausur" || h.kind == "test") }
+
     /// Text des Chips: kompakt Uhrzeit und Art, sonst mit Titel
     static func text(_ h: UFHint, compact: Bool) -> String {
         let what: String
@@ -740,7 +749,7 @@ struct UFDayExtraChips: View {
     }
 
     private func chip(_ h: UFHint) -> some View {
-        if h.category == .exam { return AnyView(examChip(h)) }
+        if h.category == .exam || Self.isDetectedExam(h) { return AnyView(examChip(h)) }
         return AnyView(plainChip(h))
     }
 

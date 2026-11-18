@@ -81,16 +81,20 @@ final class AuditRunde0910AppTests: XCTestCase {
         return dir
     }
 
-    /// Lokales Backend mit einem Kurs und einer neuen Datei (fuer "Neu aus Stud.IP" mit Knopf "Gesehen")
+    /// Lokales Backend mit einem Kurs und einer neuen Datei (fuer "Neu aus Stud.IP" mit Knopf "Gesehen"); "neu" heisst
+    /// seit 17.11.2026 auch: vor hoechstens 24 Stunden eingetragen (`first_seen`) und nach dem ersten Einlesen des
+    /// Kurses dazugekommen (`first_listed_at`)
     private func seededHost(now: String = "2026-10-26T07:30:00") async throws -> LocalBackendHost {
         let host = LocalBackendHost(directory: try tempDir().appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: now)!)
         let backend = try await host.backend()
         try await backend.context.database.transaction { c in
-            try c.execute("INSERT INTO courses(id, title, semester, subject, kind, created_at) VALUES (?,?,?,?,?,?)",
-                          [.text("k-ma"), .text("Testmathematik I"), .text("WiSe 2026/27"), .text("Testmathematik I"), .text("vorlesung"), .text("2026-10-01T08:00:00")])
-            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind) VALUES (?,?,?,?,?, 'neu', 'pdf')",
+            try c.execute("INSERT INTO courses(id, title, semester, subject, kind, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?)",
+                          [.text("k-ma"), .text("Testmathematik I"), .text("WiSe 2026/27"), .text("Testmathematik I"), .text("vorlesung"),
+                           .text("2026-10-01T08:00:00"), .text("2026-10-01T08:00:00")])
+            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind, first_seen) VALUES (?,?,?,?,?, 'neu', 'pdf', ?)",
                           [.text("f-v1"), .text("k-ma"), .text("VL01.pdf"), .text("Vorlesung"),
-                           .integer(Int64(UniFlowClock.fixed(berlin: "2026-10-12T10:00:00")!.now.timeIntervalSince1970))])
+                           .integer(Int64(UniFlowClock.fixed(berlin: "2026-10-12T10:00:00")!.now.timeIntervalSince1970)),
+                           .text(UniFlowClock.fixed(berlin: now)!.nowISO)])
         }
         return host
     }
@@ -272,7 +276,9 @@ final class AuditRunde0910AppTests: XCTestCase {
         t.fail("/api/dashboard", 500)
         NotificationCenter.default.post(name: .NSCalendarDayChanged, object: nil)
         XCTAssertTrue(pump { self.shows(page.view, "Neu laden fehlgeschlagen") }, texts(page.view).joined(separator: "\n"))
-        XCTAssertTrue(shows(page.view, "Heute für dich geplant"), "letzter Stand bleibt sichtbar")
+        // ohne Lernkalender (17.11.2026) keine Karte "Heute für dich geplant": der Stand der neuen Dateien bleibt
+        XCTAssertTrue(shows(page.view, "Gesehen"), "letzter Stand bleibt sichtbar")
+        XCTAssertFalse(shows(page.view, "Heute für dich geplant"), "Karte des Lernkalenders ausgeblendet")
         XCTAssertFalse(shows(page.view, "Jetzt neu laden"), "keine Fehlerkarte anstelle des Inhalts")
     }
 
@@ -296,10 +302,35 @@ final class AuditRunde0910AppTests: XCTestCase {
         XCTAssertTrue(shows(page.view, "Termin") && shows(page.view, "Stundenplan importieren"), texts(page.view).joined(separator: "\n"))
     }
 
+    /// Ohne Lernkalender (ausgeliefert, 17.11.2026): nach dem Import nur die Zusammenfassung, kein Hinweis auf
+    /// Lernslots und kein Wechsel der Seite
+    func testImportConflictsWithoutLearnCalendar() throws {
+        XCTAssertFalse(LearnCalendar.enabled)
+        XCTAssertTrue(Self.accessibilityAutomation(true))
+        defer { Self.accessibilityAutomation(false) }
+        let t = FakeTransport()
+        t.answer("/api/timetable/import/confirm", ["new": 1, "updated": 0, "removed": 0,
+                                                   "conflicts": [["date": "2026-10-26", "subject": "Testmathematik I", "slot": "10:00–11:30", "event": "Testphysik", "event_time": "10:00–11:30"]]])
+        let api = APIClient(base: APIClient.localBase, transport: t)
+        let preview: JSONValue = ["import_id": .null, "modules": [],
+                                  "entries": [["title": "Testphysik", "kind": "vorlesung", "weekday": 0, "start_time": "10:00", "end_time": "11:30", "room": "", "module_id": .null]],
+                                  "diff": ["new": [["title": "Testphysik", "weekday": 0]], "changed": [], "same": [], "removed": []]]
+        let page = try show(TimetablePreviewDialog(r: preview, source: "ics"), api: api)
+        XCTAssertTrue(pump { self.shows(page.view, "Übernehmen") }, texts(page.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Übernehmen", in: page.view), texts(page.view).joined(separator: "\n"))
+        XCTAssertTrue(pump { t.count("/api/timetable/import/confirm") == 1 && page.toast.message != nil }, page.toast.message ?? "keine Meldung")
+        XCTAssertEqual(page.toast.message, "1 neu, 0 aktualisiert")
+        XCTAssertEqual(page.router.route, .dashboard, "die Seite bleibt")
+    }
+
     /// 03.11.2026: faellt nach einem Import ein Lernslot mit einem neuen Termin zusammen, meldet der Stundenplan das in
     /// einer Zeile und wechselt in den Lernkalender (dort "Uhrzeiten vergeben"); der Dialog "Lernslots kollidieren" mit
     /// "Lernslots neu legen" (POST /api/timetable/reslot aus dem Stundenplan) ist weg
     func testImportConflictsBecomeOneLineAndOpenPlanner() throws {
+        // prueft den Lernkalender: mit Schalter an (ausgeliefert aus, siehe testImportConflictsWithoutLearnCalendar)
+        let before = LearnCalendar.enabled
+        LearnCalendar.enabled = true
+        defer { LearnCalendar.enabled = before }
         XCTAssertTrue(Self.accessibilityAutomation(true))
         defer { Self.accessibilityAutomation(false) }
         let t = FakeTransport()

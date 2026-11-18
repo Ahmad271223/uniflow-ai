@@ -136,6 +136,9 @@ public enum MathText {
 
     // MARK: - LaTeX
 
+    /// Zeichen eines LaTeX-Befehls (\\alpha -> α, \\cdot -> ·, \\sin -> sin); nil, wenn unbekannt (MathLayout)
+    static func symbol(_ name: String) -> String? { symbols[name] }
+
     private static let symbols: [String: String] = [
         // griechisch
         "alpha": "α", "beta": "β", "gamma": "γ", "delta": "δ", "epsilon": "ε", "varepsilon": "ε", "zeta": "ζ", "eta": "η",
@@ -308,7 +311,8 @@ public enum MathText {
         case "dot": return accent("\u{0307}", arg(j), j)
         case "ddot": return accent("\u{0308}", arg(j), j)
         case "vec", "overrightarrow": return accent("\u{20D7}", arg(j), j)
-        case "underline":
+        case "underline", "boxed", "fbox", "framebox":
+            // \boxed{…} (Ergebnis im Kasten, 18.11.2026): als Text nur der Inhalt; den Kasten zeichnet MathLayout
             guard let a = arg(j) else { return ("", j) }
             return (inner(a.0), a.1)
         case "begin", "end":

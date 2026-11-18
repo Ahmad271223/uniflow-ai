@@ -267,6 +267,21 @@ html.ed-inking .ed-pageinfo { opacity: .2; pointer-events: none; }
 .ai-bot-h { display: flex; align-items: center; gap: .35rem; font-size: .8rem; font-weight: 550; color: var(--muted); } .ai-bot-h .ic { color: var(--accent); }
 .ai-md h3 { font-size: 1.1rem; margin: .9rem 0 .3rem; } .ai-md h4 { font-size: 1rem; margin: .7rem 0 .2rem; } .ai-md p { margin: .35rem 0; } .ai-md ul, .ai-md ol { margin: .3rem 0 .3rem 1.2rem; padding: 0; }
 .ai-md pre, .ai-md code { background: var(--surface-2); border-radius: 6px; font-size: .85rem; } .ai-md pre { padding: .6rem; overflow: auto; white-space: pre-wrap; }
+/* Antworten wie ChatGPT (18.11.2026, app/static/ai-answer.js): gesetzte Formeln (MathML), Ergebnis im Kasten, Merke-Kasten,
+   Tabelle, Trennlinie; lange Formeln lassen sich seitlich wischen */
+.ai-math { margin: .35rem 0; overflow-x: auto; overflow-y: hidden; text-align: center; max-width: 100%; }
+.ai-math math { font-size: 1.12em; }
+math { font-family: "STIX Two Math", "Cambria Math", "Latin Modern Math", math, serif; }
+math .ai-boxed { border: 1px solid currentColor; padding: .3em .5em; }
+.ai-merke { background: var(--accent-soft, var(--surface-2)); border: 1px solid var(--line); border-radius: 12px; padding: .7rem .9rem; margin: .4rem 0; }
+.ai-merke > :first-child { margin-top: 0; } .ai-merke > :last-child { margin-bottom: 0; }
+.ai-table { overflow-x: auto; margin: .4rem 0; }
+.ai-table table { border-collapse: collapse; border: 1px solid var(--line); min-width: 50%; }
+.ai-table th, .ai-table td { border-top: 1px solid var(--line); padding: .45rem .8rem; text-align: left; vertical-align: middle; }
+.ai-table th { background: var(--surface-2); font-weight: 700; }
+.ed-ai-bot hr, .ai-md hr { border: 0; border-top: 1px solid var(--line); margin: .7rem 0; width: 100%; }
+.ed-ai-src { color: var(--muted); }
+.ed-ai-bot > p, .ed-ai-bot > ul, .ed-ai-bot > ol, .ai-merke p, .ai-merke ol { margin: .15rem 0; } .ed-ai-bot > h3, .ed-ai-bot > h4 { margin: .5rem 0 0; }
 .ai-chips { display: flex; flex-wrap: wrap; gap: .4rem; }
 .ai-bottom { display: flex; flex-direction: column; gap: .7rem; }
 .ai-start[data-layout="chat"] .ai-bottom { position: sticky; bottom: 0; background: var(--bg); padding: .6rem 0 .8rem; z-index: 2; }

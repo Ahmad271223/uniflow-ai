@@ -29,6 +29,17 @@ MAX_ANSWER_CHARS = 60000
 
 _MARKS = re.compile(r"[ \t]*\[\d{1,2}\]")
 
+# Antwortstil wie ChatGPT (18.11.2026): Erklaerungen und Loesungen haben jetzt Abschnitte ("## ...") und Block-Formeln
+# ("$$"). Gemerkte Antworten im alten, flachen Stil (ein Absatz) gelten in diesen Modi nicht mehr: sonst kaeme nach dem
+# Update auf derselben Seite wieder die alte Antwort ("Schon erklaert"). Gleiche Regel: PageExplain.isCurrentStyle (iPad).
+STYLE_MODES = ("explain", "explain_simple", "steps")
+_STYLE = re.compile(r"(?m)^[ \t]*(#{2,3}[ \t]|\$\$)")
+
+
+def current_style(mode: str, answer: str) -> bool:
+    """Gemerkte Antwort im aktuellen Stil? In STYLE_MODES nur mit Abschnitt oder Block-Formel, sonst immer."""
+    return mode not in STYLE_MODES or bool(_STYLE.search(str(answer or "")))
+
 
 def ensure_table(conn: sqlite3.Connection) -> None:
     conn.execute("""CREATE TABLE IF NOT EXISTS page_explain_local (
@@ -55,11 +66,13 @@ def strip_marks(answer: str) -> str:
 
 
 def lookup(conn: sqlite3.Connection, page_text: str, page: int, mode: str) -> dict | None:
-    """Niedrigste vorhandene Variante: {answer, source, variant, created_at} oder None"""
+    """Niedrigste vorhandene Variante im aktuellen Stil (`current_style`): {answer, source, variant, created_at} oder None"""
     ensure_table(conn)
-    r = conn.execute("SELECT answer, source, variant, created_at FROM page_explain_local WHERE text_hash=? AND page=? AND mode=? "
-                     "ORDER BY variant LIMIT 1", (text_hash(page_text), int(page), mode)).fetchone()
-    return {"answer": r[0], "source": r[1], "variant": r[2], "created_at": r[3]} if r else None
+    for r in conn.execute("SELECT answer, source, variant, created_at FROM page_explain_local WHERE text_hash=? AND page=? AND mode=? "
+                          "ORDER BY variant", (text_hash(page_text), int(page), mode)):
+        if current_style(mode, r[0]):
+            return {"answer": r[0], "source": r[1], "variant": r[2], "created_at": r[3]}
+    return None
 
 
 def store(conn: sqlite3.Connection, page_text: str, page: int, mode: str, answer: str, source: str = "ai") -> int:

@@ -17,6 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Resp
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from . import intake_api
 from . import account_api, accounts, billing_api, colors, community_api, community_cards_api, config, db, demo, desktop_windows, doc_index, entitlements, filestream, jobs, legal, library_api, mail, module_layout, pageocr, planner, progress, retention, social_login, study, timetable, universities, vault, weekly
 from .config import DATA_DIR, STATIC_DIR
 from .studip_sync import run_sync
@@ -63,11 +64,14 @@ async def _lifespan(_app):
 
 app = FastAPI(title="Stud.IP Lern-App", lifespan=_lifespan)
 app.include_router(account_api.router)
+from . import wake_push_api  # noqa: E402 - Weck-Signal: Apple-App meldet ihr Push-Token (/api/account/push-token, app/wake_push.py)
+app.include_router(wake_push_api.router)
 app.include_router(community_api.router)
 app.include_router(community_cards_api.router)
 app.include_router(billing_api.router)
 app.include_router(library_api.router)
 app.include_router(doc_index.router)
+app.include_router(intake_api.router)     # Datei-Eingang: Weitergabe an den Eingang im privaten Netz (18.11.2026)
 from . import exam_shop_api  # noqa: E402 - Klausur-Generator: einmal erzeugen, an alle verkaufen (18.11.2026)
 app.include_router(exam_shop_api.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
@@ -602,6 +606,8 @@ _UPLOAD_LIMITS = ((re.compile(r"^/api/files/[^/]+/assets$"), MAX_ASSET_BYTES),
                   (re.compile(r"^/api/sync/push$"), MAX_SYNC_BYTES),
                   # KI-Index (app/doc_index.py bricht nach 60 MB ab - Starlette haette vorher bis 320 MB zwischengespeichert)
                   (re.compile(r"^/api/index/file$"), doc_index.MAX_UPLOAD_BYTES),
+                  # Datei-Eingang (app/intake_api.py): eine Kurs-PDF, weitergereicht an den Eingang
+                  (re.compile(r"^/api/intake/file$"), intake_api.intake_server.MAX_FILE_BYTES + (1 << 20)),
                   # Klausur-Generator: Seitentexte des ersten Kaeufers (app/exam_shop.py, hoechstens 1,2 Mio. Zeichen)
                   (re.compile(r"^/api/exam-shop/(buy|offer)$"), 12 << 20),
                   # Stundenplan als PDF/Bild (nur PC; Audit P34-02: vorher ohne Grenze ganz in den Speicher)
@@ -1023,11 +1029,11 @@ def _sync_without_ai():
 @app.get("/api/overview")
 def overview():
     with db.cursor() as conn:
-        new_files = db.rows(conn, """
+        new_files = db.rows(conn, f"""
             SELECT f.id, f.name, f.first_seen, f.chdate, f.status, c.title AS course_title, c.subject,
                    a.doc_type, a.difficulty, a.est_minutes, a.title AS ai_title
             FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id
-            WHERE f.seen_by_user=0 AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC LIMIT 100""")
+            WHERE {study.new_file_sql()} AND c.active=1 ORDER BY f.first_seen DESC, f.chdate DESC LIMIT 100""")
         recent = db.rows(conn, """
             SELECT f.id, f.name, f.first_seen, f.chdate, f.status, c.title AS course_title, c.subject,
                    a.doc_type, a.difficulty, a.est_minutes, a.title AS ai_title
@@ -1179,7 +1185,7 @@ def courses():
     with db.cursor() as conn:
         return db.rows(conn, f"""
             SELECT c.*, (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id) AS file_count,
-                   (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND {study.NEW_FILE_SQL}) AS new_count
+                   (SELECT COUNT(*) FROM files f WHERE f.course_id=c.id AND {study.new_file_sql()}) AS new_count
             FROM courses c ORDER BY c.subject, c.kind, c.title""")
 
 
@@ -4394,8 +4400,8 @@ def api_library():
     with db.cursor() as conn:
         study.ensure_modules(conn)
         folders = db.rows(conn, "SELECT * FROM folders ORDER BY name")
-        files = db.rows(conn, """SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
-                                        f.download_url, f.content_sha256, f.seen_by_user,
+        files = db.rows(conn, f"""SELECT f.id, f.name, COALESCE(f.title, f.name) AS title, f.chdate, f.status, f.favorite, f.last_opened, f.folder_id, f.kind, f.page_count, f.size, f.downloaded_at, f.course_id, f.studip_folder,
+                                        f.download_url, f.content_sha256, f.seen_by_user, {study.is_new_column()},
                                         c.module_id, c.subject, c.kind AS course_kind, a.doc_type, a.title AS ai_title, a.difficulty,
                                         (SELECT 1 FROM annotations an WHERE an.file_id=f.id) AS has_notes, (SELECT updated_at FROM annotations an WHERE an.file_id=f.id) AS edited_at
                                  FROM files f JOIN courses c ON c.id=f.course_id LEFT JOIN analysis a ON a.file_id=f.id

@@ -7,7 +7,12 @@ import UniFlowCore
 /// (packages/shared-contracts/fixtures/mastery/cases.json, LernstandAppTests).
 enum LernstandText {
     /// Hinweis ohne Lernstand: was ihn hebt
-    static let hint = "Steigt mit Wochentests, bewerteten Karteikarten und erledigten Aufgaben."
+    /// Ohne Lernkalender (`LearnCalendar`, 17.11.2026) gibt es keine Lernaufgaben zum Erledigen: dann nennt der
+    /// Hinweis sie nicht
+    static var hint: String { hint(planner: LearnCalendar.enabled) }
+    static func hint(planner: Bool) -> String {
+        planner ? "Steigt mit Wochentests, bewerteten Karteikarten und erledigten Aufgaben." : "Steigt mit Wochentests und bewerteten Karteikarten."
+    }
 
     /// 0…100 oder nil (null, fehlendes Feld, alter Server)
     static func score(_ m: JSONValue?) -> Int? {

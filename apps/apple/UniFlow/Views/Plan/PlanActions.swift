@@ -794,18 +794,21 @@ struct DatedEventDialog: View {
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var router: UFRouter
 
-    static func text(_ date: String, source: String? = nil, cancelled: Bool = false) -> String {
+    /// `planner`: mit Lernkalender nennt der Text, was der Termin fuer den Lernplan heisst ("zählt als belegte Zeit",
+    /// "die Zeit ist frei für deinen Lernplan"); ohne ihn (ausgeliefert, 17.11.2026) nur, woher der Termin kommt
+    static func text(_ date: String, source: String? = nil, cancelled: Bool = false, planner: Bool = LearnCalendar.enabled) -> String {
+        func plan(_ on: String) -> String { planner ? on : "." }
         if source == SOGo.source {                                   // Uni-Kalender (SOGo der LUH/Uni Hildesheim), nur lesend
             return cancelled
-                ? "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))), dort abgesagt: die Zeit ist frei für deinen Lernplan."
-                : "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))). Ändern kannst du ihn nur im Uni-Kalender (SOGo); er zählt als belegte Zeit."
+                ? "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))), dort abgesagt" + plan(": die Zeit ist frei für deinen Lernplan.")
+                : "Termin aus deinem Uni-Kalender (\(UFFmt.date(date))). Ändern kannst du ihn nur im Uni-Kalender (SOGo)" + plan("; er zählt als belegte Zeit.")
         }
         if source == "studip-sprechstunde" {                         // eigene Buchung (StudIPExtras), nur lesend
-            return "Deine gebuchte Sprechstunde aus Stud.IP (\(UFFmt.date(date))). Ändern oder absagen kannst du sie nur in Stud.IP; sie zählt als belegte Zeit."
+            return "Deine gebuchte Sprechstunde aus Stud.IP (\(UFFmt.date(date))). Ändern oder absagen kannst du sie nur in Stud.IP" + plan("; sie zählt als belegte Zeit.")
         }
         return cancelled
-            ? "Termin aus deinem Stud.IP-Kalender (\(UFFmt.date(date))). In Stud.IP abgesagt: die Zeit ist frei für deinen Lernplan."
-            : "Termin aus deinem Stud.IP-Kalender (\(UFFmt.date(date))). Teilnahme und Notizen gibt es für Serien im Stundenplan; dieser Termin zählt als belegte Zeit."
+            ? "Termin aus deinem Stud.IP-Kalender (\(UFFmt.date(date))). In Stud.IP abgesagt" + plan(": die Zeit ist frei für deinen Lernplan.")
+            : "Termin aus deinem Stud.IP-Kalender (\(UFFmt.date(date))). Teilnahme und Notizen gibt es für Serien im Stundenplan" + plan("; dieser Termin zählt als belegte Zeit.")
     }
 
     var body: some View {

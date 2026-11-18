@@ -6,8 +6,8 @@ import UniFlowCore
 // Bewusst anders (WEB-IPAD-PARITAET.md, W.B.11.3): kein Passwortfeld fuer Stud.IP; statt "Auf dem iPad benutzen"
 // (verbindet ein iPad mit dem PC) zeigt die Karte die Verbindung dieses iPads, Stud.IP direkt und den Tarif.
 // V1 (docs/AUFTRAG-APPSTORE-V1.md 2a): Die Seite funktioniert auch ohne Server. Oben stehen "Konto" (Mit Apple
-// angemeldet, Konto loeschen) und "Tarif"; die Verbindung zum eigenen PC-Server liegt unter "Entwicklung" (nur in
-// Debug-Builds). Lokal kommen Lernzeit und Semester vom lokalen Backend (/api/settings, /api/terms), ebenso der
+// angemeldet, Konto loeschen) und "Tarif"; die Verbindung zum eigenen PC-Server liegt unter "Erweitert" -> "Eigener
+// Server (Entwicklung)" (nur in Debug-Builds). Gliederung in Bereiche seit 17.11.2026: `SettingsArea` (SettingsAreas.swift). Lokal kommen Lernzeit und Semester vom lokalen Backend (/api/settings, /api/terms), ebenso der
 // Reiter "Module" (Anlegen, Zuordnen, automatische Zuordnung; /api/modules, /api/courses) ohne die Wochentests (KI).
 // Ist ein gespeicherter Server nicht erreichbar (PC aus, PIN gewechselt), zeigt die Seite dieselben Bereiche wie
 // ohne Server mit einem Hinweis oben, damit "Verbindung trennen" und "Konto loeschen" erreichbar bleiben.
@@ -21,16 +21,24 @@ struct SettingsPage: View {
     @EnvironmentObject private var shell: ShellState
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.dynamicTypeSize) private var typeSize
-    @State private var tab = "modules"
-    /// Navigation waagerecht ueber dem Inhalt: bis 820 pt und bei Bedienungshilfen-Schriftgroessen (Audit 03.11.2026:
-    /// die 232 pt breite Spalte liess dem Inhalt so wenig Platz, dass Modulnamen buchstabenweise umbrachen)
-    private var horizontalNav: Bool { windowWidth <= 820 || typeSize.isAccessibilitySize }
+    @Environment(\.ufCompact) private var compact
+    /// Sprungziel bzw. gewaehlter Bereich als Rohwert (`SettingsArea.resolve`); nil = Startseite der Einstellungen
+    @State private var tab: String?
+    /// Schmal (iPhone hoch und quer, Fenster bis 820 pt, Bedienungshilfen-Schriftgroessen): Liste der Bereiche mit
+    /// Unterseiten statt Liste neben dem Inhalt (Audit 03.11.2026: die 232 pt breite Spalte liess dem Inhalt bei
+    /// grosser Schrift so wenig Platz, dass Modulnamen buchstabenweise umbrachen)
+    private var narrow: Bool { compact || windowWidth <= 820 || typeSize.isAccessibilitySize }
     /// Laden mit Fehlermeldung und nur dem zuletzt begonnenen Ergebnis (Pruefbericht 561-566, `SettingsLoader`)
     @StateObject private var loader = SettingsLoader()
     private var data: Loaded? { loader.data }
     private var error: String? { loader.error }
     /// lokal: Einstellungen und Semester aus dem lokalen Backend
     private var local: LocalLoaded? { loader.local }
+
+    init(initialTab: String?) {
+        self.initialTab = initialTab
+        _tab = State(initialValue: initialTab)
+    }
 
     struct LocalLoaded {
         var s: JSONValue
@@ -52,60 +60,97 @@ struct SettingsPage: View {
 
     var body: some View {
         Group {
-            if !session.isOwnServer { localContent(error: nil) } else if let data { content(data) } else if let error {
-                localContent(error: error)
+            if !session.isOwnServer { page(server: nil, error: nil) } else if let data { page(server: data, error: nil) } else if let error {
+                page(server: nil, error: error)
             } else {
                 UFContent(maxWidth: 1180) { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 300) }
             }
         }
-        .task { tab = initialTab == "diag" ? "advanced" : (initialTab ?? (session.isOwnServer ? "modules" : "account")) }
-        .task(id: session.api?.base) { await load() }                      // nach Verbinden/Trennen unter "Entwicklung"
+        .onChange(of: initialTab) { _, t in tab = t }                      // Sprung, waehrend die Einstellungen offen sind
+        .task(id: session.api?.base) { await load() }                      // nach Verbinden/Trennen unter "Erweitert"
         .ufReload { await load() }
     }
 
     private func load() async { await loader.load(api: session.api, ownServer: session.isOwnServer) }
 
-    @ViewBuilder private func content(_ d: Loaded) -> some View {
+    /// Die Seite in beiden Fassungen. `d`: Daten vom eigenen Server (nur Entwicklung); sonst der V1-Normalfall ohne
+    /// Server mit Konto, Tarif, Hochschule und den Einstellungen dieses Geraets. Mit `error` ist ein gespeicherter
+    /// Server nicht erreichbar: Hinweis oben, alles andere bleibt nutzbar ("Verbindung trennen", "Konto löschen").
+    @ViewBuilder private func page(server d: Loaded?, error: String?) -> some View {
+        let areas = SettingsArea.visible(hasData: d != nil || local != nil)
+        let wanted = SettingsArea.resolve(tab, visible: areas, ownServer: Session.ownServerAvailable)
+        // breit steht immer ein Bereich neben der Liste; schmal ist die Startseite die Liste selbst
+        let shown = wanted ?? (narrow ? nil : areas.first)
+        let editor = UFEditorAvailability.available
         UFContent(maxWidth: 1180) {
-            UFPageHead("Einstellungen")
-            if let stale = loader.stale { staleBanner(stale, loaded: true) }
-            layout(SettingsNav(tab: $tab, horizontal: horizontalNav), SettingsBody(tab: tab, d: d, reload: { await load() }))
-        }
-    }
-
-    /// ohne Server (V1-Normalfall): Konto, Tarif, Stud.IP direkt, Darstellung auf dem Geraet und "Entwicklung".
-    /// Mit `error` ist ein gespeicherter Server nicht erreichbar: Hinweis oben, Navigation bleibt nutzbar.
-    @ViewBuilder private func localContent(error: String?) -> some View {
-        let keys = SettingsNav.localKeys(withPlan: local != nil)
-        let current = keys.contains(tab) ? tab : "account"
-        UFContent(maxWidth: 1180) {
-            UFPageHead("Einstellungen")
+            if narrow, let shown {
+                SettingsBackLink { tab = nil }
+                UFPageHead(shown.title(editor: editor, withTests: d != nil), sub: shown.sub(editor: editor))
+            } else {
+                UFPageHead("Einstellungen")
+            }
             if let error { unreachableBanner(error) }
-            if let stale = loader.stale { staleBanner(stale, loaded: local != nil) }
-            layout(SettingsNav(tab: Binding(get: { current }, set: { tab = $0 }), horizontal: horizontalNav, keys: keys),
-                   Group {
-                       switch current {
-                       case "dev": DevelopmentTab(error: error)
-                       case "advanced": LocalAdvancedTab()
-                       case "plan": if let local { PlanTab(s: local.s) }
-                       case "modules":
-                           if let local {
-                               ModulesTab(d: Loaded(s: local.s, courses: local.courses, mods: local.mods, log: [], cred: .null, term: local.term),
-                                          reload: { await load() }, withTests: false)
-                           }
-                       default: LocalAccountTab(term: local?.term, reload: { await load() })
-                       }
-                   })
+            if let stale = loader.stale { staleBanner(stale, loaded: d != nil || local != nil) }
+            if narrow {
+                if let shown {
+                    pane(shown, server: d, error: error)
+                } else {
+                    SettingsAreaList(areas: areas, withTests: d != nil) { tab = $0.rawValue }
+                }
+            } else if let shown {
+                // .set-layout: Liste der Bereiche | Inhalt; etwas Luft dazwischen, die Spalten lesen sich als zwei Ebenen
+                HStack(alignment: .top, spacing: 28.8) {
+                    SettingsAreaNav(areas: areas, current: shown, withTests: d != nil) { tab = $0.rawValue }.frame(width: 232)
+                    SettingsSection(shown.title(editor: editor, withTests: d != nil), sub: shown.sub(editor: editor)) {
+                        pane(shown, server: d, error: error)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
+            }
+        }
+        // schmal auf einer Unterseite: der Pfeil der Kopfzeile fuehrt zuerst zur Liste der Bereiche
+        .ufLocalBack(id: "settings.area", active: narrow && shown != nil) { tab = nil }
+    }
+
+    /// Inhalt eines Bereichs
+    @ViewBuilder private func pane(_ area: SettingsArea, server d: Loaded?, error: String?) -> some View {
+        switch area {
+        case .account:
+            SettingsAccountArea(invites: d == nil) { tab = SettingsArea.uni.rawValue }
+        case .uni:
+            if let d { ServerAccountArea(d: d, part: .uni) } else { LocalUniArea(term: local?.term, reload: { await load() }) }
+        case .look:
+            if let d { ServerAccountArea(d: d, part: .look) } else { LocalLookArea() }
+        case .modules:
+            if let d {
+                ModulesTab(d: d, reload: { await load() })
+            } else if let local {
+                ModulesTab(d: Loaded(s: local.s, courses: local.courses, mods: local.mods, log: [], cred: .null, term: local.term),
+                           reload: { await load() }, withTests: false)
+            }
+        case .plan:
+            if let s = d?.s ?? local?.s { PlanTab(s: s) }
+        case .community:
+            CommunitySettingsCard()                                      // Pseudonym, Lerngruppen, Sperrliste (Plus)
+        case .help:
+            LegalSupportCard().frame(maxWidth: 720, alignment: .leading)
+        case .advanced:
+            // "dev" und "diag" klappen ihren Teil gleich auf
+            if let d {
+                SettingsServerAdvancedTab(d: d, openDev: tab == "dev", openDiag: tab == "diag").id(tab)
+            } else {
+                LocalAdvancedTab(error: error, openDev: tab == "dev").id(tab == "dev")
+            }
         }
     }
 
-    /// Hinweis "Server nicht erreichbar" mit Weg zu "Erneut versuchen" und "Entwicklung" (Verbindung trennen)
+    /// Hinweis "Server nicht erreichbar" mit Weg zu "Erneut versuchen" und zum eigenen Server (Verbindung trennen)
     private func unreachableBanner(_ error: String) -> some View {
         // Hinweis in Warnfarbe statt einer weissen Karte mit farbiger Ueberschrift: Zustand auf einen Blick
         SettingsNotice("Eigener StudiNow-Server nicht erreichbar",
-                       text: UFDevice.adapt("\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Entwicklung“ trennst du die Verbindung.")) {
+                       text: UFDevice.adapt("\(error)\nDie Einstellungen dieses iPads kannst du trotzdem ändern. Unter „Erweitert“ → „Eigener Server“ trennst du die Verbindung.")) {
             UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
-            UFButton("Entwicklung", icon: "layers", size: .small) { tab = "dev" }
+            UFButton("Eigener Server", icon: "layers", size: .small) { tab = "dev" }
         }
         .padding(.bottom, 19.2)
     }
@@ -118,100 +163,6 @@ struct SettingsPage: View {
             UFButton("Erneut versuchen", icon: "refresh", kind: .primary, size: .small) { Task { await load() } }
         }
         .padding(.bottom, 19.2)
-    }
-
-    /// .set-layout: 240 px Navigation | Inhalt, gap 1.2rem; bis 820 px untereinander, Navigation waagerecht
-    @ViewBuilder private func layout<N: View, P: View>(_ nav: N, _ pane: P) -> some View {
-        if horizontalNav {
-            VStack(alignment: .leading, spacing: 19.2) { nav; pane }
-        } else {
-            // etwas mehr Luft zwischen Navigation und Inhalt: die Spalten lesen sich als zwei Ebenen
-            HStack(alignment: .top, spacing: 28.8) { nav.frame(width: 232); pane.frame(maxWidth: .infinity, alignment: .leading) }
-        }
-    }
-}
-
-/// .set-nav: Knoepfe mit Icon 16, min. 44 pt hoch; aktiv --accent-soft / --accent-text
-struct SettingsNav: View {
-    @Binding var tab: String
-    let horizontal: Bool
-    /// nur diese Bereiche zeigen (ohne Server: Zugang & Darstellung, Entwicklung)
-    var keys: [String]?
-    @State private var contentWidth: CGFloat = 0
-    @State private var frameWidth: CGFloat = 0
-    /// waagerechte Reiter breiter als der Platz
-    private var overflows: Bool { frameWidth > 0 && contentWidth > frameWidth + 1 }
-    static let items: [(String, String, String)] = [("modules", "Module & Wochentests", "book"), ("plan", "Lernzeit & Verfügbarkeit", "clock"),
-                                                    ("account", "Zugang & Darstellung", "user"), ("advanced", "Erweitert", "settings"),
-                                                    ("dev", "Entwicklung", "layers")]
-    /// ohne eigenen Server: Zugang & Darstellung, Module und Lernzeit (lokales Backend), Erweitert (KI ueber ChatGPT,
-    /// "Vorab einordnen"), Entwicklung (nur Debug). Keine Demo-Inhalte mehr (Entscheidung 04.11.2026 "Nur fuer
-    /// Pruefer": einziger Weg ist der Link auf der Anmeldeseite der Hochschule, Views/DemoViews.swift)
-    @MainActor static func localKeys(withPlan: Bool) -> [String] { localKeys(withPlan: withPlan, ownServer: Session.ownServerAvailable) }
-
-    static func localKeys(withPlan: Bool, ownServer: Bool) -> [String] {
-        ["account"] + (withPlan ? ["modules", "plan"] : []) + ["advanced"] + (ownServer ? ["dev"] : [])
-    }
-
-    /// Beschriftung eines Bereichs; ohne eigenen Server gibt es keine Wochentests (keine KI)
-    static func label(_ key: String, _ label: String, local: Bool) -> String {
-        local && key == "modules" ? "Module" : label
-    }
-
-    var body: some View {
-        // "Entwicklung" (eigener Server) gibt es im Release-Build nicht
-        let shown = Self.items.filter { (keys?.contains($0.0) ?? true) && ($0.0 != "dev" || Session.ownServerAvailable) }
-        let buttons = ForEach(shown, id: \.0) { item in
-            let (k, i) = (item.0, item.2)
-            let l = Self.label(k, item.1, local: keys != nil)
-            Button { tab = k } label: {
-                HStack(spacing: 9.6) {
-                    UFIcon(i, size: 16)
-                    Text(l).ufFont(14.5, 500).fixedSize(horizontal: horizontal, vertical: false).multilineTextAlignment(.leading)
-                }
-                .foregroundStyle(tab == k ? UF.accentText : UF.text2)
-                .padding(.vertical, 10.4).padding(.horizontal, 12.8)
-                .frame(maxWidth: horizontal ? nil : .infinity, minHeight: 44, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: UF.rSm).fill(tab == k ? UF.accentSoft : .clear))
-                .contentShape(RoundedRectangle(cornerRadius: UF.rSm))
-            }
-            .buttonStyle(.plain)
-        }
-        if horizontal {
-            // schmal: Reiter wischen; ragen sie ueber den Rand, blendet der rechte Rand aus und zeigt so, dass es weiter
-            // geht (Audit 03.11.2026: "En…" endete hart ohne Hinweis); am Ende steht der letzte Reiter frei
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 3.2) { buttons }
-                    .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { contentWidth = $0 }
-            }
-            .contentMargins(.trailing, overflows ? 28 : 0, for: .scrollContent)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { frameWidth = $0 }
-            .mask {
-                HStack(spacing: 0) {
-                    Color.black
-                    if overflows { LinearGradient(colors: [.black, .black.opacity(0)], startPoint: .leading, endPoint: .trailing).frame(width: 28) }
-                }
-            }
-            .accessibilityIdentifier("settings.nav.scroll")
-        } else {
-            VStack(alignment: .leading, spacing: 3.2) { buttons }
-        }
-    }
-}
-
-private struct SettingsBody: View {
-    let tab: String
-    let d: SettingsPage.Loaded
-    let reload: () async -> Void
-
-    var body: some View {
-        switch tab {
-        case "account": AccountTab(d: d)
-        case "advanced": AdvancedTab(d: d)
-        case "dev": DevelopmentTab()
-        case "plan": PlanTab(s: d.s)
-        default: ModulesTab(d: d, reload: reload)
-        }
     }
 }
 
@@ -291,8 +242,10 @@ private struct ModulesTab: View {
                 }
                 .padding(.vertical, 9.6 - 5.6)
             } else {
-                Text("Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …). Beim Abgleich ordnet StudiNow neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)")
-                    .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true).padding(.bottom, 5.6)
+                // zu steht der erste Satz da, offen der ganze Text (17.11.2026)
+                SettingsMore(summary: Self.localIntroShort, text: "\(Self.localIntroShort) Beim Abgleich ordnet StudiNow neue Kurse nach ihrem Titel einem Fach zu; hier legst du Module an und änderst die Zuordnung. \(Self.olderSemesters)",
+                             identifier: "settings.modules.intro", size: 13.12)
+                    .padding(.bottom, 5.6)
             }
 
             if let mode = olderMode {
@@ -436,6 +389,8 @@ private struct ModulesTab: View {
         }
     }
 
+    /// Erster Satz der Erklaerung ohne eigenen Server
+    static let localIntroShort = "Ein Modul fasst die Stud.IP-Kurse eines Fachs zusammen (Vorlesung, Übung, Gruppenübung …)."
     /// Hinweis wie in der Web-App (c0721da): Semesterregel `Semesters`, Schalter je Kurs in der Kurstabelle
     static let olderSemesters = "Kurse aus früheren Semestern erkennt die App am Semester in Stud.IP und plant sie nicht ein; ihre Unterlagen bleiben in der Bibliothek."
     /// Hinweis unter "Dateien früherer Semester mitladen"
@@ -595,6 +550,8 @@ private struct UncertainDialog: View {
 
 // MARK: - Lernzeit & Verfuegbarkeit
 
+/// Nur mit Lernkalender (`LearnCalendar.enabled`, `SettingsArea.visible`): ohne ihn gibt es den Bereich nicht, also
+/// auch nicht "Lernkombination", "Verfügbarkeit & Sperrzeiten" und "Fächer im Lernkalender".
 private struct PlanTab: View {
     let s: JSONValue
     @EnvironmentObject private var session: Session
@@ -638,10 +595,15 @@ private struct PlanTab: View {
     }
 }
 
-// MARK: - Zugang & Darstellung
+// MARK: - Uni-Zugang und Darstellung am eigenen Server (nur Entwicklung)
 
-private struct AccountTab: View {
+/// Mit eigenem Server: die Teile der frueheren Seite "Zugang & Darstellung", die ueber den Server laufen.
+/// `.uni`: Stud.IP-Zugang, Semester, Hochschule; `.look`: Anzeigename, Darstellung, Stift.
+private struct ServerAccountArea: View {
+    enum Part { case uni, look }
+
     let d: SettingsPage.Loaded
+    let part: Part
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var toast: UFToastCenter
@@ -661,20 +623,21 @@ private struct AccountTab: View {
     private var api: SettingsAPI { SettingsAPI(api: session.api, toast: toast, router: router) }
 
     var body: some View {
-        // .set-body .grid.cols-2: auto-fit, minmax(340px, 1fr); .span-2 ueber die ganze Zeile
-        // Gruppen mit Abschnittskopf statt einer langen Folge gleichrangiger Karten
-        VStack(alignment: .leading, spacing: 32) {
-            SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) { AppAccountCards() }
-            SettingsSection("Studium", sub: UFEditorAvailability.available ? "Stud.IP-Zugang, Semester, Anzeigename, Darstellung und Stift."
-                                                                           : "Stud.IP-Zugang, Semester, Anzeigename und Darstellung.") {
+        Group {
+            switch part {
+            case .uni:
                 UFGridLayout(spacing: 16, minWidth: 340) {
                     credCard
-                    looksCard
+                    termCard
+                    UniversitySettingsCard()
                 }
                 .environment(\.ufFillsCell, true)
-            }
-            SettingsSection("Austausch", sub: SettingsSections.communitySub) {
-                CommunitySettingsCard()                                      // Pseudonym, Lerngruppen, Sperrliste
+            case .look:
+                VStack(alignment: .leading, spacing: 16) {
+                    looksCard
+                    if UFEditorAvailability.available { penCard }
+                }
+                .frame(maxWidth: 720, alignment: .leading)
             }
         }
             .onAppear {
@@ -716,22 +679,24 @@ private struct AccountTab: View {
         }
     }
 
-    private var looksCard: some View {
-        // eine Karte, darin Zeilen mit Titel und Bedienelement, getrennt durch Linien (vorher fuenf gleich grosse
-        // Kartenkoepfe untereinander); der Abschnittskopf darueber benennt die Gruppe
+    /// Semester (Name, Beginn, Ende) wie im Web
+    private var termCard: some View {
         UFCard {
-            SettingsRow("Semester", icon: "calendar") {
-                HStack(alignment: .top, spacing: 9.6) {                           // .row, label.field { flex: 1 }
-                    UFField("Name") { UFTextInput(text: $termName) }
-                    UFField("Beginn") { UFDateField(iso: $termStart) }
-                    UFField("Ende") { UFDateField(iso: $termEnd) }
-                }
-                UFButton("Speichern", kind: .primary, size: .small) {
-                    Task { _ = await api.send("/api/terms", method: "PUT", body: ["name": .string(termName), "start": .string(termStart), "end": .string(termEnd)], toast: "Semester gespeichert", reload: false) }
-                }
+            UFCardHead("Semester", icon: "calendar")
+            HStack(alignment: .top, spacing: 9.6) {                           // .row, label.field { flex: 1 }
+                UFField("Name") { UFTextInput(text: $termName) }
+                UFField("Beginn") { UFDateField(iso: $termStart) }
+                UFField("Ende") { UFDateField(iso: $termEnd) }
             }
-            .padding(.top, -12)
-            SettingsDivider()
+            UFButton("Speichern", kind: .primary, size: .small) {
+                Task { _ = await api.send("/api/terms", method: "PUT", body: ["name": .string(termName), "start": .string(termStart), "end": .string(termEnd)], toast: "Semester gespeichert", reload: false) }
+            }
+        }
+    }
+
+    /// eine Karte, darin Zeilen mit Titel und Bedienelement, getrennt durch Linien
+    private var looksCard: some View {
+        UFCard {
             SettingsRow("Anzeigename", icon: "user") {
                 HStack(spacing: 9.6) {
                     UFTextInput("z. B. Alex M.", text: $userName).frame(maxWidth: 260)
@@ -743,18 +708,18 @@ private struct AccountTab: View {
                     }
                 }
             }
+            .padding(.top, -12)
             SettingsDivider()
             SettingsRow("Darstellung", icon: "sun") {
                 UFSegmented(options: [("auto", "Wie \(UFDevice.textName)"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
             }
-            .padding(.bottom, UFEditorAvailability.available ? 0 : -12)
-            // Stift und Schreibhand nur mit Editor (am iPhone keiner, Vorgabe 11.11.2026)
-            if UFEditorAvailability.available { penRows }
+            .padding(.bottom, -12)
         }
     }
 
-    @ViewBuilder private var penRows: some View {
-            SettingsDivider()
+    /// Stift und Schreibhand nur mit Editor (am iPhone keiner, Vorgabe 11.11.2026)
+    private var penCard: some View {
+        UFCard {
             SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
                 UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                          selection: Binding(get: { pen }, set: { v in
@@ -763,6 +728,7 @@ private struct AccountTab: View {
                              Task { await api.put(["pen_input": .string(v)]) }
                          }))
             }
+            .padding(.top, -12)
             SettingsDivider()
             SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
                 UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")],
@@ -777,6 +743,7 @@ private struct AccountTab: View {
             SettingsDivider()
             EditorToolbarPlacementRow()                                  // Werkzeugleiste oben/unten/schwebend (12.11.2026)
             .padding(.bottom, -12)
+        }
     }
 }
 
@@ -795,13 +762,33 @@ extension EnvironmentValues {
     }
 }
 
-/// Karten "Konto" (Mit Apple angemeldet, Konto loeschen), "Tarif" und "Hochschule" (Wechsel, Daten loeschen)
+/// Bereich "Konto & Tarif": Tarif und Konto, ohne eigenen Server dazu "Freunde einladen". Oben der Hinweis mit dem
+/// Weg zum Uni-Zugang, solange Stud.IP nicht verbunden ist (`SettingsUniAccessHint`).
+private struct SettingsAccountArea: View {
+    /// "Freunde einladen" (docs/EINLADUNGEN.md) und der Hinweis nur ohne eigenen Server
+    var invites = true
+    let openUni: () -> Void
+    @Environment(\.ufStudoraAccount) private var studoraAccount
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            if invites { SettingsUniAccessHint(open: openUni) }
+            AppAccountCards()                                            // "Konto": Apple-ID und StudiNow-Konto in einer Karte
+            if invites, StudoraAccountLink.available, let studoraAccount {
+                InviteCard(link: studoraAccount)                         // Freunde einladen (docs/EINLADUNGEN.md)
+            }
+        }
+    }
+}
+
+/// Karten "Tarif" und "Konto" (Mit Apple angemeldet, StudiNow-Konto, Konto loeschen). Der Tarif steht vorn: er wird
+/// oefter gebraucht, und die Konto-Karte ist lang. "Hochschule" steht seit 17.11.2026 unter "Uni-Zugang & Abgleich",
+/// "Rechtliches & Support" unter "Hilfe & Rechtliches" (`LegalSupportCard`).
 private struct AppAccountCards: View {
     @EnvironmentObject private var account: AccountStore
     @EnvironmentObject private var overlay: UFOverlay
     @Environment(\.ufSwitchPlan) private var switchPlan
     @Environment(\.ufStudoraAccount) private var studoraAccount
-    @Environment(\.openURL) private var openURL
     @ObservedObject private var ent = Entitlements.shared
     @State private var plans = false
 
@@ -813,10 +800,8 @@ private struct AppAccountCards: View {
 
     var body: some View {
         UFGridLayout(spacing: 16, minWidth: 340) {
-            accountCard
             planCard
-            UniversitySettingsCard()
-            legalCard
+            accountCard
         }
         .environment(\.ufFillsCell, true)
         #if DEBUG
@@ -844,14 +829,13 @@ private struct AppAccountCards: View {
                 // Rufname fuer "Hallo Ahmad – lass uns gemeinsam lernen." auf der Uebersicht (je Container, nur auf dem
                 // iPad; leer: der Vorname aus der Anmeldung, `UFGreeting`)
                 RufnameField().padding(.top, 4.8)
-                Text(Self.accountText)
-                    .ufFont(13.12).foregroundStyle(UF.muted)
-                    .fixedSize(horizontal: false, vertical: true)
+                // was das Konto ist: hinter "Mehr dazu" (Text unveraendert)
+                SettingsMore(text: Self.accountText, identifier: "settings.account.about", size: 13.12, title: "Mehr zum Konto")
                     .padding(.top, 2.4)
             }
             // eine Karte "Konto" (12.11.2026): darunter das StudiNow-Konto beim Dienst mit derselben Apple-ID
             if StudoraAccountLink.available, let studoraAccount {
-                SettingsDivider()
+                SettingsDivider().padding(.vertical, 12)
                 StudoraAccountCard(link: studoraAccount)
             }
             // Loeschen abgesetzt am Kartenende wie bei "Hochschule"
@@ -906,10 +890,15 @@ private struct AppAccountCards: View {
             .padding(.top, 9.6)
         }
     }
+}
 
-    /// Rechtliches und Support: die oeffentlichen Seiten auf studinow.app (UFLegalLinks) oeffnen in Safari, die
-    /// Support-Adresse in Mail; dieselben Adressen wie in App Store Connect
-    private var legalCard: some View {
+/// Bereich "Hilfe & Rechtliches". Rechtliches und Support: die oeffentlichen Seiten auf studinow.app (UFLegalLinks)
+/// oeffnen in Safari, die Support-Adresse in Mail; dieselben Adressen wie in App Store Connect. Texte und Ziele
+/// unveraendert, nur der Ort (vorher zwischen "Hochschule" und "Freunde einladen").
+struct LegalSupportCard: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
         UFCard {
             UFCardHead("Rechtliches & Support", icon: "life-buoy")
             Text(UFLegalLinks.settingsIntro).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -1069,90 +1058,80 @@ private struct ServiceDeletionProblem: View {
     }
 }
 
-/// "Zugang & Darstellung" ohne Server: Konto, Tarif, Stud.IP und QIS (LUH) bzw. Learnweb und LSF (Uni Hildesheim),
-/// Semester (lokales Backend) und die
-/// Einstellungen dieses Geraets
-private struct LocalAccountTab: View {
+/// Bereich "Uni-Zugang & Abgleich" ohne Server: Uni-Zugang, Stud.IP und QIS (LUH) bzw. Learnweb und LSF (Uni
+/// Hildesheim), Abgleich im Hintergrund, Semester (lokales Backend), Erinnerungen und zuletzt die Hochschule
+/// (Wechsel, Daten loeschen: selten gebraucht)
+private struct LocalUniArea: View {
     /// aktives Semester aus /api/terms; nil, solange nicht geladen
     var term: JSONValue?
     var reload: () async -> Void = {}
     @EnvironmentObject private var studip: StudIPSync
-    @AppStorage("theme") private var theme = UFThemeMode.standardRaw
-    @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
-    @AppStorage("uniflow.hand") private var hand = "right"
-    @Environment(\.ufStudoraAccount) private var studoraAccount
     @Environment(\.hildesheim) private var hildesheim
 
     var body: some View {
-        // vier Gruppen mit Abschnittskopf (Konto, Studium, dieses iPad, Austausch) statt einer langen Kartenfolge
-        VStack(alignment: .leading, spacing: 32) {
-            SettingsSection("Konto & Tarif", sub: SettingsSections.accountSub) {
-                AppAccountCards()                                        // "Konto": Apple-ID und StudiNow-Konto in einer Karte
-                if StudoraAccountLink.available, let studoraAccount {
-                    InviteCard(link: studoraAccount)                     // Freunde einladen (docs/EINLADUNGEN.md)
-                }
+        UFGridLayout(spacing: 16, minWidth: 340) {
+            UniAutoLoginCard()                                       // Uni-Zugang speichern (gemeinsam oder je Portal), automatisch anmelden
+            if studip.offersStudIP {
+                LUHSourcesCard()                                     // Stud.IP und QIS der LUH (Views/QISViews.swift)
+                UniMailSourcesCard()                                 // Uni-Mail und Uni-Kalender (SOGo der LUH)
+            } else {
+                HildesheimSourcesCard()                              // Learnweb und LSF der Uni Hildesheim
+                HsHSourcesCard()                                     // Moodle und Campusmanagement der HsH
             }
-            SettingsSection("Studium", sub: studip.offersStudIP ? SettingsSections.studyLUH : SettingsSections.studyHildesheim) {
-                UFGridLayout(spacing: 16, minWidth: 340) {
-                    UniAutoLoginCard()                                       // Uni-Zugang speichern (gemeinsam oder je Portal), automatisch anmelden
-                    if studip.offersStudIP {
-                        LUHSourcesCard()                                     // Stud.IP und QIS der LUH (Views/QISViews.swift)
-                        UniMailSourcesCard()                                 // Uni-Mail und Uni-Kalender (SOGo der LUH)
-                    } else {
-                        HildesheimSourcesCard()                              // Learnweb und LSF der Uni Hildesheim
-                        HsHSourcesCard()                                     // Moodle und Campusmanagement der HsH
-                    }
-                    if let term { UFCard { SemesterFields(term: term, reload: reload) } }
-                    if !studip.offersStudIP && hildesheim != nil {
-                        StudyProgramSettingsCard(university: "Universität Hildesheim")   // Studiengang (14.11.2026)
-                    }
-                    DueReminderCard()                                        // Erinnerungen an Abgaben und Prüfungen
-                }
-                .environment(\.ufFillsCell, true)
+            BackgroundSyncCard()                                     // Abgleich im Hintergrund (S8)
+            SyncNotificationsCard()                                  // Mitteilungen bei Neuem (17.11.2026)
+            CourseFileIntakeCard()                                   // Datei-Eingang: nur Test-Build (UF_INTAKE_OFFERED), mit Konto
+            if let term { UFCard { SemesterFields(term: term, reload: reload) } }
+            if !studip.offersStudIP && hildesheim != nil {
+                StudyProgramSettingsCard(university: "Universität Hildesheim")   // Studiengang (14.11.2026)
             }
-            SettingsSection(UFDevice.adapt("Auf diesem iPad"), sub: UFEditorAvailability.available ? "Darstellung, Schreiben mit dem Stift und der Abgleich im Hintergrund."
-                                                                                                 : "Darstellung und der Abgleich im Hintergrund.") {
-                UFGridLayout(spacing: 16, minWidth: 340) {
-                    UFCard {
-                        SettingsRow("Darstellung", icon: "sun") {
-                            UFSegmented(options: [("auto", "Wie \(UFDevice.textName)"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
-                        }
-                        .padding(.top, -12)
-                        .padding(.bottom, UFEditorAvailability.available ? 0 : -12)
-                        if UFEditorAvailability.available {
-                            SettingsDivider()
-                            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
-                                UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
-                                         selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
-                            }
-                            SettingsDivider()
-                            SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
-                                UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
-                            }
-                            SettingsDivider()
-                            PencilFeelSettingsRows()                         // Glättung, Formen erkennen (13.11.2026)
-                            SettingsDivider()
-                            EditorToolbarPlacementRow()                      // Werkzeugleiste oben/unten/schwebend (12.11.2026)
-                            .padding(.bottom, -12)
-                        }
-                    }
-                    BackgroundSyncCard()                                     // Abgleich im Hintergrund (S8)
-                }
-                .environment(\.ufFillsCell, true)
-            }
-            SettingsSection("Austausch", sub: SettingsSections.communitySub) {
-                CommunitySettingsCard()                                      // Pseudonym, Lerngruppen, Sperrliste (Plus)
-            }
+            DueReminderCard()                                        // Erinnerungen an Abgaben und Prüfungen
+            UniversitySettingsCard()                                 // Hochschule: Wechsel, Daten loeschen
         }
+        .environment(\.ufFillsCell, true)
     }
 }
 
-/// Texte der Abschnittskoepfe in den Einstellungen
+/// Bereich "Darstellung & Stift" ohne Server (Einstellungen dieses Geraets): Darstellung; mit Editor (iPad, Mac) dazu
+/// die Karte mit Stift bzw. Zeiger, Schreibhand, Glättung, Formen und Werkzeugleiste
+private struct LocalLookArea: View {
+    @AppStorage("theme") private var theme = UFThemeMode.standardRaw
+    @AppStorage("uniflow.pencilOnly") private var pencilOnly = true
+    @AppStorage("uniflow.hand") private var hand = "right"
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            UFCard {
+                SettingsRow("Darstellung", icon: "sun") {
+                    UFSegmented(options: [("auto", "Wie \(UFDevice.textName)"), ("light", "Hell"), ("dark", "Dunkel")], selection: $theme)
+                }
+                .padding(.vertical, -12)
+            }
+            if UFEditorAvailability.available {
+                UFCard {
+                    SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+                        UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
+                                 selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
+                    }
+                    .padding(.top, -12)
+                    SettingsDivider()
+                    SettingsRow("Schreibhand", icon: "hand", note: SettingsSections.handNote) {
+                        UFSegmented(options: [("right", "Rechtshänder"), ("left", "Linkshänder")], selection: $hand)
+                    }
+                    SettingsDivider()
+                    PencilFeelSettingsRows()                         // Glättung, Formen erkennen (13.11.2026)
+                    SettingsDivider()
+                    EditorToolbarPlacementRow()                      // Werkzeugleiste oben/unten/schwebend (12.11.2026)
+                    .padding(.bottom, -12)
+                }
+            }
+        }
+        .frame(maxWidth: 720, alignment: .leading)
+    }
+}
+
+/// Texte in den Einstellungen (die Namen und Saetze der Bereiche stehen bei `SettingsArea`)
 enum SettingsSections {
-    static let accountSub = "Anmeldung, Tarif und die Hochschule, mit der StudiNow gerade arbeitet."
-    static let studyLUH = "Stud.IP und QIS der Leibniz Universität, Semester und Erinnerungen."
-    static let studyHildesheim = "Learnweb und LSF der Universität Hildesheim, Semester und Erinnerungen."
-    static let communitySub = "Pseudonym, Lerngruppen und Sperrliste für geteilte Lösungen."
     /// Erklaerung unter "Schreibhand" (unveraendert)
     static let handNote = "Seitenleiste und Skript in der geteilten Ansicht liegen auf der Seite der freien Hand; die Stiftpalette lässt sich an jeden Rand ziehen."
 }
@@ -1293,6 +1272,10 @@ struct ConnectView: View {
 /// versprechen, Richtlinie 2.1) und der Schalter "Vorab einordnen" (Erklaerungsspeicher); keine Demo-Inhalte (nur fuer
 /// Pruefer, Views/DemoViews.swift)
 private struct LocalAdvancedTab: View {
+    /// gespeicherter Server antwortet nicht (fuer "Eigener Server")
+    var error: String?
+    /// Sprungziel "dev": "Eigener Server" gleich aufgeklappt
+    var openDev = false
     @Environment(\.ufChatGPTLink) private var chatgpt
 
     var body: some View {
@@ -1304,8 +1287,27 @@ private struct LocalAdvancedTab: View {
                 if ChatGPTLink.isEnabled { ChatGPTCard(link: chatgpt) }
                 DocIndexPrewarmCard()
             }
+            DevelopmentFold(error: error, open: openDev)
         }
         .frame(maxWidth: 720, alignment: .leading)
+    }
+}
+
+/// "Eigener Server (Entwicklung)" zugeklappt am Ende von "Erweitert" (vorher ein eigener Reiter "Entwicklung"
+/// zwischen den Alltagseinstellungen); nur in Debug-Builds (`Session.ownServerAvailable`)
+private struct DevelopmentFold: View {
+    var error: String?
+    var open = false
+
+    static let title = "Eigener Server (Entwicklung)"
+    static let sub = UFDevice.adapt("Nur für die Entwicklung: dieses iPad mit dem eigenen StudiNow-Server verbinden.")
+
+    var body: some View {
+        if Session.ownServerAvailable {
+            SettingsFold(Self.title, icon: "layers", sub: Self.sub, identifier: "settings.fold.dev", open: open) {
+                DevelopmentTab(error: error)
+            }
+        }
     }
 }
 
@@ -1335,8 +1337,13 @@ struct DocIndexPrewarmCard: View {
     }
 }
 
-private struct AdvancedTab: View {
+/// "Erweitert" am eigenen Server (nur Entwicklung): Sync-Protokoll, Diagnose, PDF-Anzeige testen und der eigene
+/// Server, alles zugeklappt. Nicht privat, damit ein Test den Schalter "Lernkalender … auffüllen" pruefen kann.
+struct SettingsServerAdvancedTab: View {
     let d: SettingsPage.Loaded
+    /// Sprungziele "dev" und "diag": der Teil ist gleich aufgeklappt
+    var openDev = false
+    var openDiag = false
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var toast: UFToastCenter
     @EnvironmentObject private var router: UFRouter
@@ -1358,9 +1365,13 @@ private struct AdvancedTab: View {
     }()
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {                                    // .stack
+        // selten Gebrauchtes zugeklappt (17.11.2026): Sync-Protokoll, Diagnose, PDF-Anzeige testen, eigener Server
+        VStack(alignment: .leading, spacing: 12) {
+            SettingsFold("Sync-Protokoll", icon: "sync", sub: "Die letzten Abgleiche mit Zeit und Ergebnis.", identifier: "settings.fold.synclog") {
             UFCard {
                 UFCardHead("Sync-Protokoll", icon: "sync") {
+                    // nur mit Lernkalender (`LearnCalendar.enabled`); der gespeicherte Wert bleibt unberuehrt
+                    if LearnCalendar.enabled {
                     Button {
                         autoPlan.toggle()
                         let v = autoPlan
@@ -1373,6 +1384,8 @@ private struct AdvancedTab: View {
                         .ufHitArea()
                     }
                     .buttonStyle(.plain)
+                    .accessibilityIdentifier("settings.autoPlan")
+                    }
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
@@ -1392,6 +1405,9 @@ private struct AdvancedTab: View {
                 .frame(maxHeight: 200)
                 .fixedSize(horizontal: false, vertical: true)
             }
+            }
+            SettingsFold("Diagnose", icon: "info", sub: "Gerät, Fenster, App-Version und Zustand der Daten – zum Kopieren für den Support.",
+                         identifier: "settings.fold.diag", open: openDiag) {
             UFCard {
                 UFCardHead("Diagnose", icon: "info") {
                     UFButton("Kopieren", icon: "copy", size: .small) {
@@ -1405,13 +1421,16 @@ private struct AdvancedTab: View {
                     .padding(11.2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
-                    .padding(.vertical, 13.12)
+                    .padding(.top, 13.12)
                     .textSelection(.enabled)
-
+            }
+            }
+            SettingsFold("PDF-Anzeige testen", icon: "file-text", sub: "Prüft, ob dieses Gerät eine PDF aus der Bibliothek zeichnen kann.",
+                         identifier: "settings.fold.pdftest") {
+            UFCard {
                 UFCardHead("PDF-Anzeige testen", icon: "file-text") {
                     UFButton("Test starten", kind: .primary, size: .small) { Task { await runPDFTest() } }.disabled(testing)
                 }
-                .padding(.top, 16 - 13.12)
                 Text(UFDevice.adapt("Lädt eine PDF aus deiner Bibliothek, liest sie mit PDFKit und zeichnet Seite 1 – genau wie der Editor. Wenn hier ein Bild erscheint, funktioniert die Anzeige auf diesem iPad."))
                     .ufFont(13.12).foregroundStyle(UF.muted).padding(.bottom, 5.6)
                 if testing { Text("Prüfe…").ufFont(13.12).foregroundStyle(UF.text) }
@@ -1425,6 +1444,8 @@ private struct AdvancedTab: View {
                     }
                 }
             }
+            }
+            DevelopmentFold(open: openDev)
         }
         .task {
             autoPlan = d.s["auto_plan"]?.bool ?? ((d.s.i("auto_plan") ?? 0) != 0)

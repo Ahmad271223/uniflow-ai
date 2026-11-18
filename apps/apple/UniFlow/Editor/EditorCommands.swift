@@ -9,7 +9,8 @@ import UniFlowCore
 
 /// Werkzeuge, die sich ueber Menue und Tastatur waehlen lassen
 enum EditorTool: String, CaseIterable, Identifiable {
-    case pen, marker, eraser, lasso, text, sticky, shape, select
+    /// `fountain` (Fueller, 17.11.2026) steht am Ende: die Kuerzel Cmd-1 bis Cmd-8 bleiben, wie sie waren
+    case pen, marker, eraser, lasso, text, sticky, shape, select, fountain
 
     var id: String { rawValue }
 
@@ -23,6 +24,7 @@ enum EditorTool: String, CaseIterable, Identifiable {
         case .sticky: return "Haftnotiz"
         case .shape: return "Form"
         case .select: return "Objekte auswählen"
+        case .fountain: return "Füller"
         }
     }
 
@@ -36,14 +38,15 @@ enum EditorTool: String, CaseIterable, Identifiable {
         case .sticky: return "note.text"
         case .shape: return "square.on.circle"
         case .select: return "rectangle.and.hand.point.up.left"
+        case .fountain: return EditorToolState.Tool.fountain.icon
         }
     }
 
-    /// Cmd + Ziffer (Cmd-1 Stift … Cmd-8 Auswaehlen)
+    /// Cmd + Ziffer (Cmd-1 Stift … Cmd-8 Auswaehlen, Cmd-9 Fueller)
     var shortcut: KeyEquivalent { KeyEquivalent(Character(String((Self.allCases.firstIndex(of: self) ?? 0) + 1))) }
 
     /// Werkzeug der Zeichenflaeche (PencilKit)
-    var isInk: Bool { [.pen, .marker, .eraser, .lasso].contains(self) }
+    var isInk: Bool { [.pen, .marker, .eraser, .lasso, .fountain].contains(self) }
 
     /// Eintrag der festen Leiste
     var barTool: EditorToolState.Tool {
@@ -56,6 +59,7 @@ enum EditorTool: String, CaseIterable, Identifiable {
         case .sticky: return .sticky
         case .shape: return .shape
         case .select: return .select
+        case .fountain: return .fountain
         }
     }
 
@@ -94,6 +98,7 @@ extension PDFEditorController {
         }
         switch tools.tool {
         case .pen, .fineliner: return .pen
+        case .fountain: return .fountain
         case .marker: return .marker
         case .eraser: return .eraser
         case .lasso: return .lasso

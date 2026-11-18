@@ -8,7 +8,10 @@ Regeln:
 - Die Berechtigung entscheidet der Server, nie die App allein. Kein Endpunkt nimmt einen Tarif aus der Anfrage an.
 - Quellen eines Tarifs: `app_store` (gepruefte Transaktion, app/apple_store.py), `stripe` (Web und Windows,
   app/stripe_billing.py), `trial` (7 Tage Probe je neues Konto, plans.TRIAL), `manual` (Betrieb, CLI
-  `python -m app.accounts plan ...`, steht wie bisher in users.plan/plan_until). Es gilt der hoechste aktive.
+  `python -m app.accounts plan ...`, steht wie bisher in users.plan/plan_until), `gift` (geschenkter Tarif, Betrieb,
+  `python -m app.tarif_schenken`, 18.11.2026: ohne Zahlung, ohne Verlaengerung, unbefristet oder bis zu einem Tag;
+  keine App-Store- oder Stripe-Meldung beruehrt ihn, denn die schreiben nur ihre eigene Quelle). Es gilt der hoechste
+  aktive.
 - Hochzaehlen und Grenze pruefen geschieht in einem UPDATE innerhalb einer Schreibtransaktion (BEGIN IMMEDIATE):
   zwei gleichzeitige Anfragen koennen nicht beide den letzten freien Test bekommen.
 - Jede Anfrage traegt eine Anfrage-ID; dieselbe ID zaehlt hoechstens einmal (Wiederholung nach Netzfehler).
@@ -33,7 +36,7 @@ LEGACY = {"pro": "pro_ai", **plans.LEGACY_PLANS}      # fruehere Tarifnamen (pro
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS entitlements (
     user_id TEXT NOT NULL,
-    source TEXT NOT NULL,                 -- app_store | manual
+    source TEXT NOT NULL,                 -- app_store | stripe | trial | gift | manual
     plan TEXT NOT NULL,                   -- free | plus | pro_ai (alte Zeilen: pro_connect, gilt wie pro_ai)
     original_transaction_id TEXT,
     expires_at TEXT,                      -- ISO-8601 UTC, NULL = unbefristet
@@ -409,6 +412,59 @@ def trial_info(conn: sqlite3.Connection, user_id, now: datetime | None = None) -
             "expired": not active}
 
 
+# ---------------------------------------------------------------- Geschenkter Tarif (Betrieb)
+
+GIFT_SOURCE = "gift"
+
+
+def grant_gift(conn: sqlite3.Connection, user_id, plan: str, until: datetime | None = None,
+               now: datetime | None = None) -> dict:
+    """Einem Konto einen Tarif schenken (Betrieb, app/tarif_schenken.py; Auftrag des Inhabers 18.11.2026): eigene Quelle
+    `gift`, ohne Zahlung, ohne Transaktion, `will_renew` aus, unbefristet (`until` None) oder bis `until`. Wirkt wie ein
+    bezahlter Tarif derselben Stufe: Rechte, Kontingente und Monats-Credits (Pro AI 100, nicht die der Probe, weil
+    ai_backend.is_trial_account jede aktive Nicht-Probe-Quelle mit KI als bezahlt zaehlt); Credit-Pakete kauft das
+    Konto weiter selbst. Ein Abo aus dem App Store oder von Stripe bleibt unberuehrt und beruehrt das Geschenk nicht
+    (jede Quelle hat ihre eigene Zeile); es gilt der hoechste aktive Tarif. Ein zweiter Aufruf ersetzt das Geschenk
+    (anderer Tarif, anderes Ende) bzw. holt ein zurueckgenommenes zurueck. Beim Loeschen des Kontos verschwindet die
+    Zeile mit allen anderen (accounts.ACCOUNT_TABLES)."""
+    p = normalize_plan(plan)
+    if not p or not plans.is_sellable(p):
+        raise ValueError(f"Nur ein Tarif aus {', '.join(k for k in plans.ORDER if plans.is_sellable(k))} laesst sich schenken.")
+    t = _now(now)
+    ends = None
+    if until is not None:
+        e = _now(until).replace(microsecond=0)
+        if e <= t:
+            raise ValueError("Das Ende des Geschenks muss in der Zukunft liegen.")
+        ends = e.isoformat()
+    uid = str(user_id)
+    before = gift_info(conn, uid, t)
+    set_entitlement(conn, uid, GIFT_SOURCE, p, expires_at=ends, status="active", will_renew=False, now=t)
+    return {"user_id": uid, "plan": p, "ends_at": ends, "previous": before}
+
+
+def revoke_gift(conn: sqlite3.Connection, user_id, now: datetime | None = None) -> bool:
+    """Geschenk zuruecknehmen: die Zeile bleibt als `revoked` stehen (nachvollziehbar, im Konto-Export sichtbar), gilt
+    aber nicht mehr. Bezahlte Abos und die Probe bleiben, wie sie sind. True, wenn ein geltendes Geschenk endete."""
+    t = _now(now)
+    uid = str(user_id)
+    active = gift_info(conn, uid, t)["active"]
+    conn.execute("UPDATE entitlements SET status='revoked', will_renew=0, updated_at=? WHERE user_id=? AND source=? "
+                 "AND status<>'revoked'", (t.isoformat(), uid, GIFT_SOURCE))
+    return active
+
+
+def gift_info(conn: sqlite3.Connection, user_id, now: datetime | None = None) -> dict:
+    """Stand des Geschenks: granted (es gab je eines), active, plan, ends_at (None = unbefristet), status."""
+    t = _now(now)
+    row = conn.execute("SELECT plan, expires_at, status FROM entitlements WHERE user_id=? AND source=?",
+                       (str(user_id), GIFT_SOURCE)).fetchone()
+    if not row:
+        return {"granted": False, "active": False, "plan": None, "ends_at": None, "status": None}
+    return {"granted": True, "active": _row_active(row[2], row[1], t.isoformat()), "plan": normalize_plan(row[0]),
+            "ends_at": row[1], "status": row[2]}
+
+
 def record_plan_choice(conn: sqlite3.Connection, user_id, plan: str, now: datetime | None = None) -> str:
     """Antwort auf die Aufforderung nach der Probe merken (einmal; eine spaetere Wahl ersetzt die erste)."""
     p = normalize_plan(plan)
@@ -480,7 +536,15 @@ def _status(conn: sqlite3.Connection, user: dict, t: datetime) -> dict:
         "paid_plan": _paid_plan(rows, legacy, t),
         "subscriptions": {s: any(r["source"] == s and normalize_plan(r["plan"]) and _row_active(r["status"], r["expires_at"], t.isoformat())
                                  for r in rows) for s in ("app_store", "stripe")},
+        # geschenkter Tarif (18.11.2026, grant_gift): die Apple-App uebernimmt ihn wie die Probe des Dienstes, auch wenn
+        # ein anderer Eintrag den Tarif traegt (z. B. geschenktes Plus neben Stripe-Pro-AI); null ohne geltendes Geschenk
+        "gift": _gift_field(conn, user["id"], t),
     }
+
+
+def _gift_field(conn: sqlite3.Connection, user_id, t: datetime) -> dict | None:
+    g = gift_info(conn, user_id, t)
+    return {"active": True, "plan": g["plan"], "ends_at": g["ends_at"]} if g["active"] and g["plan"] else None
 
 
 class read_snapshot:
@@ -503,7 +567,7 @@ class read_snapshot:
 
 
 def _paid_plan(rows: list[dict], legacy: dict, t: datetime) -> str:
-    """Hoechster aktiver Tarif ohne die Probe (App Store, Stripe, Betrieb, Feld users.plan); sonst free."""
+    """Hoechster aktiver Tarif ohne die Probe (App Store, Stripe, Geschenk, Betrieb, Feld users.plan); sonst free."""
     best = "free"
     for r in rows:
         p = normalize_plan(r["plan"])

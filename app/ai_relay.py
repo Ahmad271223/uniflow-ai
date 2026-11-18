@@ -161,6 +161,10 @@ def _relay_prepare(request: Request, body: dict) -> dict:
         raise _err(400, "prompt_missing", "Es fehlt der Inhalt der Anfrage.")
     if len(prompt) > task.max_chars:
         raise _err(413, "prompt_too_large", "Die Anfrage ist zu groß. Bitte weniger Seiten oder weniger Text wählen.")
+    # Antwortstil wie ChatGPT (18.11.2026): Apps bis 1.0.5 schicken noch die alten Modus-Texte; der Dienst setzt die
+    # neuen ein, damit der Stil mit dem Server-Update fuer alle gilt (ai.upgrade_tutor_prompt)
+    if name.startswith("tutor:"):
+        prompt = ai.upgrade_tutor_prompt(name, prompt)
     # Bild ("Bereich an KI", 05.11.2026): nur bei tutor:*, Grenzen wie /api/ai/tutor (ai.tutor_image); die Schaetzung
     # der Credits zaehlt die Bild-Tokens je Modell mit (ai_backend.complete -> ai_prices)
     image = None

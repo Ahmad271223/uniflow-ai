@@ -71,7 +71,9 @@ final class ZipArchiveTests: XCTestCase {
         ]
         let zip = try ZipArchive.pack(items)
         XCTAssertTrue(ZipArchive.looksLikeZip(zip))
-        XCTAssertLessThan(zip.count, big.count, "Text wird mit DEFLATE kleiner")
+        #if canImport(Compression)
+        XCTAssertLessThan(zip.count, big.count, "Text wird mit DEFLATE kleiner")   // Linux: ungepackt (storedBlocks)
+        #endif
         let entries = try ZipArchive.entries(zip)
         XCTAssertEqual(entries.compactMap(\.path), ["Blatt 03", "Blatt 03/lösung.txt", "Blatt 03/leer", "Blatt 03/Bilder/skizze.bin", "Übung.md", "leer.txt"])
         XCTAssertEqual(entries.filter(\.isDirectory).count, 2)

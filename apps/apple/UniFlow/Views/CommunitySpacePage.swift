@@ -38,6 +38,10 @@ enum CommunitySpaceTexts {
 
     static func documents(_ n: Int) -> String { "Dokumente (\(n))" }
     static func replies(_ n: Int) -> String { n == 1 ? "1 Antwort" : "\(n) Antworten" }
+    /// Antwort kam nicht an, nachdem das Blatt der Frage schon zu war
+    static func replyNotSent(_ message: String) -> String {
+        "Deine Antwort wurde nicht gesendet. \(message) Öffne die Frage noch einmal: Dein Text steht im Antwortfeld."
+    }
     static func likes(_ n: Int) -> String { n == 1 ? "1 Like" : "\(n) Likes" }
     static func comments(_ n: Int) -> String { n == 1 ? "1 Kommentar" : "\(n) Kommentare" }
 
@@ -494,6 +498,10 @@ struct CommunitySpaceDiscussion: View {
     @State private var thread: CommunityPost?
     /// eigene Fragen, die schon in der Liste stehen und noch zum Dienst gehen (Kennung -> Zustand), 08.11.2026
     @State private var pending: [String: CommunitySendState] = [:]
+    /// Antworten, die nach dem Schliessen des Blatts nicht ankamen (Fragen-ID -> Text): beim naechsten Oeffnen im Feld
+    @State private var replyDrafts: [String: String] = [:]
+    /// Text im Antwortfeld des Blatts, das gerade aufgeht
+    @State private var threadDraft = ""
 
     init(space: CommunitySpace, service: CommunityService, tint: Color = UF.accent, draft: String = "") {
         self.space = space
@@ -531,6 +539,18 @@ struct CommunitySpaceDiscussion: View {
                     }
                     UFTextArea(placeholder: "Frage stellen …", text: $draft, minHeight: 44)
                         .accessibilityIdentifier("community.discussion.field")
+                        // iPhone (17.11.2026): die Bildschirmtastatur verdeckt den Knopf unter dem Feld. Derselbe Knopf
+                        // steht darum, sobald etwas getippt ist, auch in der Leiste ueber der Tastatur.
+                        .toolbar {
+                            if compact, !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                                ToolbarItemGroup(placement: .keyboard) {
+                                    Spacer()
+                                    Button("Frage stellen") { ask() }
+                                        .fontWeight(.semibold)
+                                        .accessibilityIdentifier("community.discussion.ask.keyboard")
+                                }
+                            }
+                        }
                 }
                 let foot = compact ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
                 foot {
@@ -540,6 +560,7 @@ struct CommunitySpaceDiscussion: View {
                     // die Frage steht sofort in der Liste (siehe `CommunityPendingSend`), der Knopf bleibt frei fuer die naechste
                     UFButton("Frage stellen", icon: "check", kind: .primary, size: .small) { ask() }
                         .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .keyboardShortcut(.return, modifiers: .command)          // Tastatur (Mac, iPad): Befehl-Eingabe sendet
                         .accessibilityIdentifier("community.discussion.ask")
                 }
                 .padding(.top, 10).padding(.leading, compact ? 0 : 48)
@@ -559,7 +580,7 @@ struct CommunitySpaceDiscussion: View {
                     // je Frage eine eigene Karte: luftiger als eine lange Liste, erscheint beim ersten Mal leicht gestaffelt
                     VStack(spacing: 10) {
                         ForEach(Array(shown.enumerated()), id: \.element.id) { i, p in
-                            CommunityPostRow(post: p, busy: busy, pending: pending[p.id], open: { thread = p }, like: { like(p) },
+                            CommunityPostRow(post: p, busy: busy, pending: pending[p.id], open: { openThread(p) }, like: { like(p) },
                                              retry: { resend(p) }, discard: { discard(p) })
                                 .ufAppear("community-posts", index: i)
                         }
@@ -576,8 +597,33 @@ struct CommunitySpaceDiscussion: View {
                                  changed: { fresh in
                                      if let i = posts?.firstIndex(where: { $0.id == fresh.id }) { posts?[i] = fresh }
                                  },
-                                 removed: { id in posts?.removeAll { $0.id == id } })
+                                 removed: { id in posts?.removeAll { $0.id == id } },
+                                 settled: { local, saved, failure in replySettled(postID: p.id, localID: local, saved: saved, failure: failure) },
+                                 draft: threadDraft)
         }
+    }
+
+    private func openThread(_ p: CommunityPost) {
+        threadDraft = replyDrafts.removeValue(forKey: p.id) ?? ""
+        thread = p
+    }
+
+    /// Eine Antwort aus dem Blatt ist beim Dienst angekommen oder gescheitert – auch wenn das Blatt schon zu ist
+    /// (17.11.2026: dann blieb der Platzhalter in der Liste stehen; eine gescheiterte Antwort zaehlte dort weiter als
+    /// "1 Antwort · Beantwortet", obwohl sie nie gesendet wurde). Angekommen: der Platzhalter wird der Datensatz des
+    /// Dienstes. Gescheitert: die Antwort zaehlt nicht; ist das Blatt zu, steht hier die Meldung und der Text wartet im
+    /// Antwortfeld der Frage.
+    private func replySettled(postID: String, localID: String, saved: CommunityComment?, failure: String?) {
+        guard let i = posts?.firstIndex(where: { $0.id == postID }) else { return }
+        if let saved {
+            if let j = posts?[i].replies.firstIndex(where: { $0.id == localID }) { posts?[i].replies[j] = saved }
+            return
+        }
+        let text = posts?[i].replies.first { $0.id == localID }?.text
+        posts?[i].replies.removeAll { $0.id == localID }
+        guard thread?.id != postID, let failure else { return }
+        if let text { replyDrafts[postID] = text }
+        error = CommunitySpaceTexts.replyNotSent(failure)
     }
 
     @ViewBuilder private var filterChips: some View {
@@ -765,6 +811,9 @@ struct CommunityThreadSheet: View {
     var changed: (CommunityPost) -> Void = { _ in }
     /// die Frage gibt es nicht mehr (ohne Antworten geloescht)
     var removed: (String) -> Void = { _ in }
+    /// eine eigene Antwort ist angekommen (Datensatz) oder gescheitert (Meldung), mit der Kennung ihres Platzhalters –
+    /// kommt auch an, wenn das Blatt schon zu ist
+    var settled: (String, CommunityComment?, String?) -> Void = { _, _, _ in }
     @State private var draft: String
     @State private var busy = false
     @State private var error: String?
@@ -773,13 +822,15 @@ struct CommunityThreadSheet: View {
     @State private var pending: [String: CommunitySendState] = [:]
 
     init(space: CommunitySpace, service: CommunityService, post: CommunityPost, close: @escaping () -> Void,
-         changed: @escaping (CommunityPost) -> Void = { _ in }, removed: @escaping (String) -> Void = { _ in }, draft: String = "") {
+         changed: @escaping (CommunityPost) -> Void = { _ in }, removed: @escaping (String) -> Void = { _ in },
+         settled: @escaping (String, CommunityComment?, String?) -> Void = { _, _, _ in }, draft: String = "") {
         self.space = space
         self.service = service
         _post = State(initialValue: post)
         self.close = close
         self.changed = changed
         self.removed = removed
+        self.settled = settled
         _draft = State(initialValue: draft)
     }
     @Environment(\.horizontalSizeClass) private var sizeClass
@@ -846,7 +897,15 @@ struct CommunityThreadSheet: View {
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig", action: close) } }
         }
         .accessibilityIdentifier("community.thread")
-        .onChange(of: post) { _, p in changed(p) }
+        .onChange(of: post) { _, p in changed(outward(p)) }
+        .onChange(of: pending) { _, _ in changed(outward(post)) }
+    }
+
+    /// Stand der Frage fuer die Liste: ohne Antworten, die nicht gesendet wurden (dort zaehlen sie nicht als Antwort)
+    private func outward(_ p: CommunityPost) -> CommunityPost {
+        var p = p
+        p.replies.removeAll { if case .failed = pending[$0.id] { return true } else { return false } }
+        return p
     }
 
     /// Antwortfeld: breit unter den Antworten, schmal unten fest (Feld und Senden in einer Reihe)
@@ -854,6 +913,7 @@ struct CommunityThreadSheet: View {
         // die Antwort steht sofort unter der Frage (`CommunityPendingSend`), der Knopf bleibt frei
         let send = UFButton("Antworten", icon: "check", kind: .primary, size: .small) { reply() }
             .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            .keyboardShortcut(.return, modifiers: .command)          // Tastatur (Mac, iPad): Befehl-Eingabe sendet
             .accessibilityIdentifier("community.thread.send")
         if compact {
             HStack(alignment: .bottom, spacing: 8) {
@@ -882,7 +942,7 @@ struct CommunityThreadSheet: View {
                         Button {
                             act {
                                 try await service.reportComment(id: c.id, reason: .other)
-                                notice = "Danke – der Beitrag wurde gemeldet."
+                                notice = CommunityTexts.commentReported
                             }
                         } label: { Label("Melden …", systemImage: "flag") }
                     }
@@ -935,8 +995,11 @@ struct CommunityThreadSheet: View {
                 let saved = try await service.addPost(in: space, text: local.text, parentID: post.id)
                 CommunityPendingSend.replace(&post.replies, localID: local.id, with: saved)
                 pending[local.id] = nil
+                settled(local.id, saved, nil)
             } catch {
-                pending[local.id] = .failed(CommunityTexts.message(error))
+                let message = CommunityTexts.message(error)
+                pending[local.id] = .failed(message)
+                settled(local.id, nil, message)
             }
         }
     }

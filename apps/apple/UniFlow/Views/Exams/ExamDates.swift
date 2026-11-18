@@ -39,6 +39,23 @@ enum UFExam {
         return .object(o)
     }
 
+    /// Ziel beim Antippen: eine nur in einem Dokument erkannte Klausur oeffnet die Fundstelle (Seite der Folie,
+    /// 17.11.2026), sonst das Modul, sonst der Tag im Stundenplan (der Lernkalender ist ausgeblendet)
+    static func target(_ e: JSONValue) -> UFRoute {
+        if e["detected_only"]?.bool == true, let f = e.s("file_id"), !f.isEmpty {
+            let p = e.i("page") ?? 1
+            return .doc(f, page: p > 1 ? p : nil)
+        }
+        if let m = e.i("module_id") { return .module(m) }
+        return LearnCalendar.enabled ? .plan(view: "day", date: e.s("date")) : .timetable(date: e.s("date"))
+    }
+
+    /// Quelle einer Klausur fuer die Anzeige: nur erkannt -> "… – bitte prüfen"
+    static func sourceText(_ e: JSONValue) -> String? {
+        guard let s = e.s("source_label"), !s.isEmpty else { return nil }
+        return e["detected_only"]?.bool == true ? "\(s) – bitte prüfen" : s
+    }
+
     /// "in 12 Tagen", "morgen", "heute"
     static func countdown(_ e: JSONValue) -> String {
         if let s = e.s("in_days"), !s.isEmpty { return s }
@@ -65,7 +82,7 @@ enum UFExam {
 
     /// Text fuer VoiceOver: "Klausur Analysis I, Freitag, 12.02.2027, in 100 Tagen, 09:00 Uhr, Hörsaal F 303, aus Stud.IP-Terminen"
     static func accessibility(_ e: JSONValue) -> String {
-        [e.s("title") ?? "Klausur", dateText(e), countdown(e), placeText(e), e.s("source_label")].compactMap { $0 }.filter { !$0.isEmpty }
+        [e.s("title") ?? "Klausur", dateText(e), countdown(e), placeText(e), sourceText(e)].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: ", ")
     }
 }
@@ -87,9 +104,7 @@ struct UpcomingExamsCard: View {
         // immer eine echte Ansicht: an einer leeren (noch keine Klausuren) startet `.task` nie, die Karte blieb leer
         VStack(alignment: .leading, spacing: 0) {
             Color.clear.frame(height: 0).accessibilityHidden(true)
-            UpcomingExamsList(items: items, registration: registration) { e in
-                if let m = e.i("module_id") { router.go(.module(m)) } else if let d = e.s("date") { router.go(.plan(view: "day", date: d)) }
-            }
+            UpcomingExamsList(items: items, registration: registration) { e in router.go(UFExam.target(e)) }
         }
         .task(id: token) { await load() }
         .ufReload { await load() }
@@ -168,7 +183,7 @@ struct UpcomingExamsList: View {
                     Text(UFExam.countdown(e)).ufFont(12.8, 650).foregroundStyle(UFExam.color).fixedSize()
                 }
                 if let p = UFExam.placeText(e, room: !roomAside) { Text(p).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true) }
-                if let s = e.s("source_label"), !s.isEmpty {
+                if let s = UFExam.sourceText(e) {
                     Text(s).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 if let registered {
@@ -213,7 +228,7 @@ struct ModuleNextExam: View {
             UFIcon(UFExam.icon, size: 14)
             VStack(alignment: .leading, spacing: 1) {
                 Text(text(e, room: room)).ufFont(13.6, 650).fixedSize(horizontal: false, vertical: true)
-                if let s = e.s("source_label"), !s.isEmpty { Text(s).ufFont(12).foregroundStyle(UF.muted) }
+                if let s = UFExam.sourceText(e) { Text(s).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true) }
             }
         }
         .foregroundStyle(UFExam.color)

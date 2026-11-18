@@ -15,7 +15,7 @@ enum DueTexts {
     static let reminderTitle = "Erinnerungen an Abgaben und Prüfungen"
     /// "Fristen aus dem Learnweb-Kalender" nur, wenn der Build Hildesheim anbietet (Abnahme 1.0 nur LUH, 07.11.2026)
     static var reminderText: String {
-        "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine"
+        "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher, vor Klausuren und Prüfungen auch 7 Tage vorher. Wird ein Klausurtermin neu erkannt, meldet StudiNow das einmal sofort. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine"
             + (UFReleaseUniversities.isShipped(.hildesheim) ? ", Fristen aus dem Learnweb-Kalender" : "")
             + UFDevice.adapt(" und eingetragene Klausurtermine – ausgeblendete nicht. Alles bleibt auf diesem iPad.")
     }
@@ -143,13 +143,18 @@ struct DueListCard: View {
                         }
                         .ufFont(11.84).foregroundStyle(UF.muted)
                     }
+                    // Vorbehalt der Erkennung (Wochentag passt nicht, nur die Woche genannt; 17.11.2026)
+                    if let note = x.s("note"), !note.isEmpty {
+                        Text(note).ufFont(11.84, 600).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityElement(children: .combine)
-            .accessibilityLabel("\(x.s("title") ?? "Termin"), \(DueTexts.sub(x)), \(x.s("in_days") ?? ""). \(x.s("origin") ?? "")")
+            .accessibilityLabel("\(x.s("title") ?? "Termin"), \(DueTexts.sub(x)), \(x.s("in_days") ?? ""). \(x.s("origin") ?? "")"
+                                + (x.s("note").map { ". \($0)" } ?? ""))
             UFBadge(x.s("in_days") ?? "", tone: DueTexts.tone(days)).fixedSize()
             if detected { menu(x, hidden: hidden) }
         }
@@ -164,7 +169,7 @@ struct DueListCard: View {
                 Button { Task { await patch(x, ["hidden": false]) } } label: { Label("Wieder anzeigen", systemImage: "eye") }
             } else {
                 if x["confirmed"]?.bool != true {
-                    Button { Task { await patch(x, ["confirmed": true]) } } label: { Label("Bestätigen", systemImage: "checkmark") }
+                    Button { Task { await patch(x, ["confirmed": true]) } } label: { Label("Stimmt – bestätigen", systemImage: "checkmark") }
                 }
                 Button {
                     _ = overlay.modal { DueTimeDialog(item: x) { t in Task { await patch(x, ["time": t.map(JSONValue.string) ?? .null, "confirmed": true]) } } }
@@ -230,7 +235,8 @@ struct DueReminderCard: View {
     @State private var hint: String?
 
     var body: some View {
-        // ab Plus (11.11.2026): ohne Plus die Sperrkarte mit "Mit StudiNow Plus freischalten" statt des Schalters
+        // ab Pro AI (Entscheidung des Inhabers 18.11.2026 "Alles ab Pro AI"; 11.-17.11.2026 ab Plus): ohne Pro AI die
+        // Sperrkarte mit "Mit StudiNow Pro AI freischalten" statt des Schalters
         if !entitlements.allows(.dueReminders) {
             UFLockedCard(.dueReminders, entitlements: entitlements)
                 .accessibilityIdentifier("due.reminders.locked")

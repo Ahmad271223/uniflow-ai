@@ -128,7 +128,7 @@ public enum ExamRegistrationAPI {
         var order: [String: Int] = [:]
         var planMessage: String?
         if let full {
-            let start = (full.plan["start_term"]?.string).flatMap(StudyPlanEngine.parseTerm) ?? term
+            let start: Int = StudyPlanEngine.parseTerm(full.plan["start_term"]?.string) ?? term
             for (i, m) in full.modules.enumerated() {
                 guard let id = m["id"]?.string, let st = full.state[id], st.term == term, suggestStatuses.contains(st.status) else { continue }
                 let exam = m["exam"]?.string
@@ -187,7 +187,9 @@ public enum ExamRegistrationAPI {
                     "id": .string(id), "title": .string(title), "lp": .null, "exam": .null, "kind": .null, "code": .null,
                     "status": .null, "fachsemester": .null, "period": "meldung", "last_attempt": false,
                     "app_module_ids": .array(e["module_id"]?.int.map { [JSONValue.number(Double($0))] } ?? []),
-                    "reason_kind": "klausur", "reason": .string("Klausurtermin bekannt"),
+                    "reason_kind": "klausur",
+                    // nur in einem Dokument erkannt (17.11.2026): nicht als sicher behaupten
+                    "reason": .string(e["detected_only"]?.bool == true ? "Klausurtermin erkannt – bitte prüfen" : "Klausurtermin bekannt"),
                     "registered": .bool(viaQIS || viaInfo || reg != nil),
                     "registered_via": viaQIS ? JSONValue.string("notenspiegel") : (reg != nil || viaInfo ? JSONValue.string("qis_info") : JSONValue.null),
                 ]

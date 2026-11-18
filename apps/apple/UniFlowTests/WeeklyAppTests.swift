@@ -189,8 +189,9 @@ extension LocalModulesAppTests {
     /// Lehrwoche (VL06), nicht die offenen Vorlesungen frueherer Wochen; mit auto_plan = 0 nichts. Danach ordnet ein
     /// Abgleich nur neue Dokumente ein (08.11.2026, LernplanEinordnenTests im Kern)
     func testAutoPlanAfterSyncPlansOnlyTheCurrentWeek() async throws {
+        let appCheck = StudyAutoPlan.allowed                                    // Pruefung der App (Tarif und `LearnCalendar`)
         StudyAutoPlan.allowed = { true }                                        // Plus: automatischer Lernplan
-        defer { StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) } }
+        defer { StudyAutoPlan.allowed = appCheck }
         let (api, recorder) = try await seededAPI()                  // Freitag, 20.11.2026 = Lehrwoche 6
         let backend = try await recorder.inner.host.backend()
         let tuesday = ts("2026-11-17T10:00"), wednesday = ts("2026-11-18T10:00")
@@ -216,8 +217,9 @@ extension LocalModulesAppTests {
     /// Free plant von Hand: der Abgleich legt keinen Lernplan an, auch mit auto_plan (Standard an) und neuen Dateien;
     /// die App verbindet die Pruefung mit `UFFeature.autoPlan` (Abnahme Lernkalender 07.11.2026)
     func testAutoPlanAfterSyncNeedsPlus() async throws {
+        let appCheck = StudyAutoPlan.allowed
         StudyAutoPlan.allowed = { false }                                       // Free
-        defer { StudyAutoPlan.allowed = { Entitlements.shared.allows(.autoPlan) } }
+        defer { StudyAutoPlan.allowed = appCheck }
         let (api, recorder) = try await seededAPI()
         let backend = try await recorder.inner.host.backend()
         let tuesday = ts("2026-11-17T10:00")
@@ -228,6 +230,25 @@ extension LocalModulesAppTests {
         await StudIPSync.autoPlan(host: recorder.inner.host, newFiles: 1)
         let cal = try await api.value("/api/calendar?start=2026-11-16&end=2026-11-22")
         XCTAssertTrue(cal.list("days").flatMap { $0.list("packages") }.isEmpty)
+    }
+
+    /// Lernkalender aus (`LearnCalendar`, Auftrag 17.11.2026): auch mit Plus bzw. Pro AI, `auto_plan` an und neuen
+    /// Dateien legt der Abgleich kein Lernpaket an; mit Schalter an plant er wie bisher
+    func testAutoPlanAfterSyncDoesNothingWithoutLearnCalendar() async throws {
+        let appCheck = StudyAutoPlan.allowed, before = LearnCalendar.enabled
+        StudyAutoPlan.allowed = { LearnCalendar.autoPlans(tariff: true) }       // Tarif erlaubt es, der Schalter entscheidet
+        LearnCalendar.enabled = false
+        defer { StudyAutoPlan.allowed = appCheck; LearnCalendar.enabled = before }
+        let (api, recorder) = try await seededAPI()
+        let backend = try await recorder.inner.host.backend()
+        let tuesday = ts("2026-11-17T10:00")
+        try await backend.context.database.transaction { c in
+            try c.execute("INSERT INTO files(id, course_id, name, studip_folder, chdate, status, kind) VALUES ('f-11', 'k-a-v', 'VL06.pdf', 'Vorlesung', ?, 'neu', 'pdf')",
+                          [tuesday])
+        }
+        await StudIPSync.autoPlan(host: recorder.inner.host, newFiles: 1)
+        let cal = try await api.value("/api/calendar?start=2026-11-16&end=2026-11-22")
+        XCTAssertTrue(cal.list("days").flatMap { $0.list("packages") }.isEmpty, "ohne Lernkalender kein Lernpaket")
     }
 
     /// Nach einem vollen Abgleich laeuft auch der Takt der Wochentests wie `_full_sync` am PC: ohne KI nicht (kein

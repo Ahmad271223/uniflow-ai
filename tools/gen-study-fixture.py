@@ -72,8 +72,10 @@ for cid, title, subject, kind, module, active in [
     ("k-ch", "Testchemie", "Testchemie", "vorlesung", None, 1),
     ("k-inaktiv", "Inaktiver Testkurs", "Testmathematik I", "vorlesung", 1, 0),
 ]:
-    SEED.append(("INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at) VALUES (?,?,?,?,?,?,?,?)",
-                 [cid, title, "WiSe 2026/27", subject, kind, active, module, "2026-10-01T09:00:00"]))
+    # first_listed_at: Dateiliste des Kurses zum ersten Mal eingelesen am 22.10. um 8 Uhr (wie first_seen der Dateien
+    # aus FILES: sie waren "schon da" und sind nicht neu); was spaeter kommt (WEEK3 am 28.10.), ist neu (study.new_file_sql)
+    SEED.append(("INSERT INTO courses(id, title, semester, subject, kind, active, module_id, created_at, first_listed_at) VALUES (?,?,?,?,?,?,?,?,?)",
+                 [cid, title, "WiSe 2026/27", subject, kind, active, module, "2026-10-01T09:00:00", "2026-10-22T08:00:00"]))
 
 # Stud.IP-Dateien (Aenderungszeit Ortszeit Berlin): Vorlesungsbeginn Montag 12.10.2026 (fuenf Kurse laden in dieser
 # Woche hoch), Woche 0 nach dem Stichtag 1.10., aelteres Semester davor, ein inaktiver Kurs, ein inaktives Modul

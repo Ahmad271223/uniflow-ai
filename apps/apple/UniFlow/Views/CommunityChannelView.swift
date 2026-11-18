@@ -1183,6 +1183,7 @@ struct CommunityPersonPane: View {
         HStack(spacing: 8) {
             UFButton(editing == nil ? "Senden" : "Speichern", icon: "check", kind: .primary, size: .small) { send() }
                 .disabled(draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .keyboardShortcut(.return, modifiers: .command)          // Tastatur (Mac, iPad): Befehl-Eingabe sendet
                 .accessibilityIdentifier("community.reader.send")
             if composerTitle != nil { UFButton("Abbrechen", size: .small) { resetComposer() } }
         }
@@ -1217,7 +1218,13 @@ struct CommunityPersonPane: View {
                     if c.isMine {
                         UFButton("Bearbeiten", kind: .ghost, size: .small) { resetComposer(); editing = c; draft = c.text }
                     } else {
-                        UFButton("Melden", kind: .ghost, size: .small) { act { try await service.reportComment(id: c.id, reason: .other) } }
+                        // mit Rueckmeldung (17.11.2026: vorher geschah nach dem Tippen sichtbar nichts)
+                        UFButton("Melden", kind: .ghost, size: .small) {
+                            act {
+                                try await service.reportComment(id: c.id, reason: .other)
+                                paneNotice = CommunityTexts.commentReported
+                            }
+                        }
                     }
                     if let removal = CommunityTexts.commentRemoval(isMine: c.isMine, ownSolution: solution.isOwn, accountService: service.isAccountService) {
                         UFButton(removal.title, kind: .danger, size: .small) {

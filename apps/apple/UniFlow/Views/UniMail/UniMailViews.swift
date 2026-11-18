@@ -1261,7 +1261,7 @@ struct UniCalendarCard: View {
     var body: some View {
         UFCard {
             UFCardHead("Uni-Kalender", icon: "calendar")
-            Text("Termine aus deinem Uni-Kalender (SOGo) erscheinen im Lernkalender und im Stundenplan als „Uni-Kalender“ – nur lesend; ändern kannst du sie im Uni-Kalender. Ganztägige Termine stehen nur hier.")
+            Text("Termine aus deinem Uni-Kalender (SOGo) erscheinen \(LearnCalendar.text("im Lernkalender und ", off: ""))im Stundenplan als „Uni-Kalender“ – nur lesend; ändern kannst du sie im Uni-Kalender. Ganztägige Termine stehen nur hier.")
                 .ufFont(13).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             Group {
                 if compact {
