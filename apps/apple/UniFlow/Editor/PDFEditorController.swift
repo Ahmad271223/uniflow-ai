@@ -1655,12 +1655,17 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard canEdit, shapeSnapEnabled, ShapeRecognizer.snaps(overlay.canvas.tool) else { return nil }
         var drawing = overlay.canvas.drawing
         guard drawing.strokes.count == overlay.undoBase.strokes.count + 1, let stroke = drawing.strokes.last, stroke.mask == nil else { return nil }
-        // Halten am Ende: Zeitstempel des Stifts (Rohpunkte), sonst die Punkte von PencilKit
-        let still = (held ?? 0) >= ShapeRecognizer.holdDuration || ShapeRecognizer.heldStill(stroke.path, endedAt: endedAt)
-        ShapeLog.log.debug("Formerkennung: gehalten \(held ?? -1, privacy: .public) s, PencilKit still \(still, privacy: .public)")
+        // Halten am Ende: Gibt es Rohpunkte, entscheiden NUR deren Zeitstempel (vom Stift selbst, `heldDuration`).
+        // Der Weg ueber PencilKit (`heldStill` mit `endedAt`) misst das Absetzen erst, wenn der Editor davon erfaehrt:
+        // War das iPad gerade beschaeftigt (volle Seite sichern, Abgleich), sah ein schnell abgesetzter Strich aus wie
+        // gehalten und wurde ersetzt - jedes Ersetzen setzt die Zeichnung neu und kann den naechsten Strich kosten
+        // (18.11.2026: Datensicherheit vor Formerkennung). Ohne Rohpunkte (Finger, Messung fehlt) wie bisher.
+        let still = held.map { $0 >= ShapeRecognizer.holdDuration } ?? ShapeRecognizer.heldStill(stroke.path, endedAt: endedAt)
+        ShapeLog.log.debug("Formerkennung: gehalten \(held ?? -1, privacy: .public) s, still \(still, privacy: .public)")
         guard still else { return nil }
         let points = stroke.path.interpolatedPoints(by: .distance(2)).map { $0.location.applying(stroke.transform) }
         guard let shape = ShapeRecognizer.recognize(points, lineOnly: ShapeRecognizer.lineOnly(stroke.ink)) else { return nil }
+        inkTrace?(String(format: "Form %@ ersetzt (gehalten %.3f s)", shape.name, held ?? -1))
         let ideal = ShapeRecognizer.idealStroke(shape, like: stroke)
         drawing.strokes[drawing.strokes.count - 1] = ideal
         overlay.isApplyingDrawing = true
