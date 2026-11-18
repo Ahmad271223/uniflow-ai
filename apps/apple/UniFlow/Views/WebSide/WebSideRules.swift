@@ -179,13 +179,17 @@ enum VideoSidePolicy {
 /// "Auf YouTube öffnen (außerhalb)" und die Lernseiten bleiben. Der Code bleibt, damit es spaeter wieder eingeschaltet
 /// werden kann. `true`: wie am 17.11.2026 (Build 45).
 enum YouTubeBrowse {
-    static var enabled = false
+    /// Ausgeliefert in 1.0.6: AN. Der Inhaber hat am 18.11.2026 nach dem Ausschalten entschieden: "nein YouTube war
+    /// richtig in 1.0.6" / "Ja, wieder einschalten" - mit den Folgen bei Apple (Altersfreigabe "Uneingeschränkter
+    /// Webzugang", Werbe-Angabe, Absatz zu YouTube in der Datenschutzerklärung, Prüfhinweis).
+    static let shipped = true
+    static var enabled = shipped
 
     /// Nur Debug-Builds: `-UFYouTubeBrowse YES` schaltet "YouTube öffnen" fuer UI-Tests ein (`UniFlowApp.init`, wie
     /// `LearnCalendar.applyDebugLaunch`); ohne das Argument gilt der ausgelieferte Standard
     static func applyDebugLaunch(defaults d: UserDefaults = .standard) {
         #if DEBUG
-        if d.object(forKey: "UFYouTubeBrowse") != nil { enabled = d.bool(forKey: "UFYouTubeBrowse") }
+        if d.object(forKey: "UFYouTubeBrowse") != nil { enabled = d.bool(forKey: "UFYouTubeBrowse") }   // YES oder NO
         #endif
     }
 }

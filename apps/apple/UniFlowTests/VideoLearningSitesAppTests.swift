@@ -184,7 +184,8 @@ final class VideoLearningSitesAppTests: XCTestCase {
         let r = try XCTUnwrap(DocumentVideoLinks.record("f1", defaults: d))
         XCTAssertEqual(r.onYouTube, true)
         XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1", youTubeBrowse: true), .youTube(YouTubeVisit(documentID: "f1", video: v)))
-        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1"), .video(v), "Schalter aus (Standard): eingebetteter Player")
+        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1", youTubeBrowse: false), .video(v), "Schalter aus: eingebetteter Player")
+        XCTAssertEqual(WebSidePickerSection.lastItem(r, documentID: "f1"), .youTube(YouTubeVisit(documentID: "f1", video: v)), "1.0.6 (Standard an): wieder auf YouTube")
         XCTAssertEqual(YouTubeVisit(documentID: "f1", video: v).startURL.absoluteString, "https://m.youtube.com/watch?v=dQw4w9WgXcQ")
         XCTAssertEqual(YouTubeVisit(documentID: "f1").startURL, YouTubeSidePolicy.start)
         XCTAssertEqual(YouTubeSidePolicy.decide(YouTubeVisit(documentID: "f1", video: VideoLink(videoID: "dQw4w9WgXcQ", start: 90)).startURL,
@@ -265,7 +266,10 @@ final class VideoLearningSitesAppTests: XCTestCase {
     /// der eingebettete Player mit demselben Video, ohne gueltiges Video nichts. Eingefuegter Link, Aufzeichnungen und
     /// Lernseiten bleiben unveraendert.
     func testYouTubeBrowseIsOffByDefaultAndNothingLeadsToTheYouTubePage() throws {
-        XCTAssertFalse(YouTubeBrowse.enabled, "ausgeliefert: aus")
+        // seit 18.11.2026 nachmittags ausgeliefert AN; dieser Test prueft den Weg mit Schalter aus (bleibt fuer spaeter)
+        XCTAssertTrue(YouTubeBrowse.shipped, "1.0.6: YouTube öffnen an")
+        YouTubeBrowse.enabled = false
+        defer { YouTubeBrowse.enabled = YouTubeBrowse.shipped }
         let v = VideoLink(videoID: "dQw4w9WgXcQ", start: 90)
         XCTAssertEqual(WebSideItem.shown(.youTube(YouTubeVisit(documentID: "f1", video: v))), .video(v))
         XCTAssertNil(WebSideItem.shown(.youTube(YouTubeVisit(documentID: "f1"))), "YouTube-Startseite: nichts")
@@ -300,9 +304,9 @@ final class VideoLearningSitesAppTests: XCTestCase {
         // Start-Argument nur in Debug: ohne Argument bleibt der Standard
         let launch = try XCTUnwrap(UserDefaults(suiteName: suite + ".start"))
         addTeardownBlock { launch.removePersistentDomain(forName: suite + ".start") }
-        defer { YouTubeBrowse.enabled = false }
+        YouTubeBrowse.enabled = false
         YouTubeBrowse.applyDebugLaunch(defaults: launch)
-        XCTAssertFalse(YouTubeBrowse.enabled)
+        XCTAssertFalse(YouTubeBrowse.enabled, "ohne Argument bleibt der Stand")
         launch.set(true, forKey: "UFYouTubeBrowse")
         YouTubeBrowse.applyDebugLaunch(defaults: launch)
         #if DEBUG

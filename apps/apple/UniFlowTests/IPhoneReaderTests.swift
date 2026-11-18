@@ -278,7 +278,7 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
         let before = Entitlements.shared.plan
         Entitlements.shared.setPlanForTesting(.plus)
         YouTubeBrowse.enabled = true
-        defer { Entitlements.shared.setPlanForTesting(before); YouTubeBrowse.enabled = false }
+        defer { Entitlements.shared.setPlanForTesting(before); YouTubeBrowse.enabled = YouTubeBrowse.shipped }
         YouTubeNotice.reset(defaults: YouTubeSidePane.defaults)
         let (env, pdf, _) = try openReader()
         let web = try XCTUnwrap(element(env, id: "phoneReader.web"), dump(env))
@@ -332,7 +332,9 @@ final class IPhoneReaderTests: IPhoneLearnTestCase {
     /// 1.0.5, Lernseiten stehen darunter. Ein in der Testfassung auf der YouTube-Seite angesehenes Video ("Zuletzt hier")
     /// oeffnet im eingebetteten Player - nie die YouTube-Seite, nie der Hinweis "YouTube ist ein Dienst von Google".
     func testPhoneReaderWithoutYouTubeBrowse() throws {
-        XCTAssertFalse(YouTubeBrowse.enabled, "Standard: aus")
+        // Weg mit Schalter aus (seit 18.11.2026 nachmittags ist 1.0.6 wieder AN)
+        YouTubeBrowse.enabled = false
+        defer { YouTubeBrowse.enabled = YouTubeBrowse.shipped }
         let before = Entitlements.shared.plan
         Entitlements.shared.setPlanForTesting(.plus)
         defer { Entitlements.shared.setPlanForTesting(before) }

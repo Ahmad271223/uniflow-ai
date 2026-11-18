@@ -11,7 +11,7 @@ final class WebSideUITests: XCTestCase {
     private func launch(youTube: Bool = false) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-UFDemo", "YES", "-UFRoute", "#/doc/demo-blatt", "-UFDocPanel", "companion",
-                               "-uniflow.toolbarPlacement", "bottom"] + (youTube ? ["-UFYouTubeBrowse", "YES"] : [])
+                               "-uniflow.toolbarPlacement", "bottom"] + ["-UFYouTubeBrowse", youTube ? "YES" : "NO"]
         app.launch()
         return app
     }
