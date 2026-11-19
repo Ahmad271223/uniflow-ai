@@ -413,6 +413,8 @@ final class Entitlements: ObservableObject {
     var creditPurchase: ((VerificationResult<StoreKit.Transaction>) async -> Void)?
 
     private var updates: Task<Void, Never>?
+    /// Aenderungen der Verlaengerung ohne neue Transaktion (vorgemerkter Downgrade, Kuendigung, Kulanzfrist)
+    private var statusUpdates: Task<Void, Never>?
 
     /// `observe: false` nur fuer Tests und Vorschauen mit festem Tarif
     init(observe: Bool = true, plan: UFPlan = .free) {
@@ -423,10 +425,30 @@ final class Entitlements: ObservableObject {
                 await self?.handle(result)
             }
         }
+        // Ein Downgrade bringt keine neue Transaktion, nur eine neue RenewalInfo (autoRenewPreference); die kommt
+        // hierueber, auch wenn sie nach dem Kauf erst verspaetet eintrifft oder auf einem anderen Geraet gewaehlt wurde
+        statusUpdates = Task { [weak self] in
+            for await _ in Product.SubscriptionInfo.Status.updates {
+                await self?.refresh()
+            }
+        }
         Task { await refresh() }
     }
 
-    deinit { updates?.cancel(); expiryCheck?.cancel() }
+    deinit { updates?.cancel(); statusUpdates?.cancel(); expiryCheck?.cancel() }
+
+    /// Nach dem Kauf eines kleineren Tarifs (Downgrade in der Abo-Gruppe): kurz warten, bis StoreKit den Wechsel in der
+    /// RenewalInfo fuehrt, damit die Tarifseite sofort "ab der nächsten Verlängerung …" zeigt. Gemessen 19.11.2026 im
+    /// Simulator mit iOS 26.2: direkt nach dem Kauf meldet `autoRenewPreference` noch den alten Tarif, eine halbe
+    /// Sekunde spaeter den neuen (iOS 27.2 sofort). Hoechstens `seconds`; danach bleibt es beim Stand, den
+    /// `Product.SubscriptionInfo.Status.updates` spaeter nachzieht.
+    func awaitPendingPlan(_ target: UFPlan, seconds: Double = 4) async {
+        let end = Date().addingTimeInterval(seconds)
+        while !planIsForced, pendingPlan != target, purchasedPlan > target, Date() < end {
+            try? await Task.sleep(nanoseconds: 250_000_000)
+            await refresh()
+        }
+    }
 
     func access(_ f: UFFeature) -> UFAccess {
         UFFeatureMatrix.access(f, plan: plan, ownChatGPT: ownChatGPTConnected)
