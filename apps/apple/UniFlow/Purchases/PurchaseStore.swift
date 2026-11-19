@@ -73,6 +73,11 @@ final class PurchaseStore: ObservableObject {
                 lastError = "Der Kauf konnte nicht bestätigt werden."
                 return .failed
             }
+            // Downgrade (kleinerer Tarif der Gruppe): gilt erst ab der naechsten Verlaengerung; die Tarifseite soll
+            // gleich "ab der nächsten Verlängerung …" zeigen (Entitlements.awaitPendingPlan)
+            if let target = UFPlan(productID: product.id), target < entitlements.purchasedPlan {
+                await entitlements.awaitPendingPlan(target)
+            }
             return .success
         } catch {
             let f = Self.failure(error)

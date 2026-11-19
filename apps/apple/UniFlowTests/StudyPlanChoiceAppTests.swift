@@ -101,6 +101,30 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         return true
     }
 
+    /// Knopf der Rueckfrage (SwiftUI `.alert`, als UIAlertController gezeigt) ueber die Bedienungshilfe ausloesen.
+    /// Gemessen 19.11.2026: im Simulator mit iOS 27.2 nimmt das erste Element mit dem Namen
+    /// (`_UIInterfaceActionCustomViewRepresentationView`) `accessibilityActivate()` an, mit iOS 26.2 lehnen es alle
+    /// Elemente des Knopfs ab, auch wenn die Rueckfrage fertig eingeblendet ist (in der App geht der Knopf; nur der
+    /// Testwirt kommt so nicht heran). Darum: warten, bis die Rueckfrage steht, jedes Element mit dem Namen versuchen
+    /// und sonst den Knopf der Rueckfrage direkt ausloesen (Handler der UIAlertAction, wie in
+    /// CommunityEntscheidungenAppTests). Geprueft bleibt: die Rueckfrage erscheint, erst danach wird gesendet.
+    private func pressAlertButton(_ env: HostedEnvironment, _ title: String) -> Bool {
+        _ = env.wait(timeout: 5) {
+            guard let p = env.hosting.presentedViewController else { return false }
+            return !p.isBeingPresented && p.transitionCoordinator == nil
+        }
+        guard let alert = env.hosting.presentedViewController else { return false }
+        for e in elements(alert.view) where e.accessibilityLabel == title {
+            if e.accessibilityActivate() { return true }
+        }
+        guard let a = alert as? UIAlertController, let action = a.actions.first(where: { $0.title == title }),
+              let block = action.value(forKey: "handler") else { return false }
+        typealias Handler = @convention(block) (UIAlertAction) -> Void
+        let handler = unsafeBitCast(block as AnyObject, to: Handler.self)
+        a.dismiss(animated: false) { handler(action) }
+        return true
+    }
+
     private func sheet(_ env: HostedEnvironment) -> UIView? {
         guard let p = env.hosting.presentedViewController, !p.isBeingDismissed else { return nil }
         return p.view
@@ -400,7 +424,7 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.sheet(env).map { self.find($0, label: "Zurücksetzen", exact: true) != nil } ?? false }, dump(sheet(env)))
         XCTAssertEqual(t.count("POST", "/api/study-plan/settings"), 3, "erst nach Bestaetigung")
         try ContainerTestBed.skipOnMac("die Rückfrage „Plan zurücksetzen?“ zeichnet der Mac als eigenes Systemfenster; „Zurücksetzen“ lässt sich im Testwirt nicht über die Bedienungshilfe auslösen (von Hand prüfen)")
-        XCTAssertTrue(tap(try XCTUnwrap(sheet(env)), "Zurücksetzen", exact: true))
+        XCTAssertTrue(pressAlertButton(env, "Zurücksetzen"), dump(sheet(env)))
         XCTAssertTrue(env.wait { t.count("POST", "/api/study-plan/settings") == 4 }, dump(sheet(env)))
         XCTAssertEqual(lastPost(t), ["placements": .null, "excluded": .null])
     }
