@@ -7,15 +7,25 @@ public enum Mensa {
     public static let windowDays = 14
     public static let freshSeconds = 3 * 3600
     public static let keepPastDays = 7
-    /// 2: mit Naehrwerten, Bestandteilen, Klima (aeltere Caches werden neu geholt)
-    public static let cacheVersion = 2
+    /// 2: mit Naehrwerten, Bestandteilen, Klima; 3: Foto (aeltere Caches werden neu geholt)
+    public static let cacheVersion = 3
     public static let userAgent = "StudiNow/1.0 (+https://studinow.app; support@studinow.app)"
     public static let roles: JSONValue = [["key": "student", "name": "Studierende"], ["key": "employee", "name": "Bedienstete"],
                                           ["key": "guest", "name": "Gäste"]]
     static let studifutterFields = "id,date,alias,price_student,price_employee,price_guest,foodoffer_category.alias,"
         + "foodoffer_category.sort,markings.markings_id.external_identifier,attribute_values.number_value,"
         + "attribute_values.string_value,attribute_values.food_attribute.external_identifier,"
-        + "foodoffer_components.component_foodoffers_id.alias"
+        + "foodoffer_components.component_foodoffers_id.alias,food.image"
+    /// Foto eines Gerichts (19.11.2026, wie app/mensa.py `studifutter_image`): Bild-ID aus Studi|Futter, das Geraet laedt
+    /// das verkleinerte Bild direkt beim Studentenwerk
+    public static let imageWidth = 480
+
+    static func studifutterImage(_ o: JSONValue) -> String? {
+        let asset = (o["food"]?["image"]?.string ?? "").trimmingCharacters(in: .whitespaces).lowercased()
+        guard asset.range(of: #"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"#, options: .regularExpression) != nil,
+              let api = data["sources"]?["studifutter"]?["api"]?.string else { return nil }
+        return "\(api)/assets/\(asset)?width=\(imageWidth)&quality=70"
+    }
     public static let nutritionKeys = ["energy_kj", "energy_kcal", "fat", "saturated_fat", "carbohydrates", "sugar", "fiber", "protein", "salt"]
 
     /// Datendatei (gemeinsam mit Python)
@@ -147,10 +157,11 @@ public enum Mensa {
     }
 
     static func finish(_ meal: inout [String: JSONValue], labels: Set<String>, nutrition: JSONValue = .null,
-                       components: [String] = [], climate: JSONValue = .null) {
+                       components: [String] = [], climate: JSONValue = .null, image: String? = nil) {
         meal["nutrition"] = nutrition
         meal["components"] = .array(components.map(JSONValue.string))
         meal["climate"] = climate
+        meal["image"] = image.map(JSONValue.string) ?? .null
         var labels = labels
         if labels.contains("vegetarisch") { labels.remove("fisch") }
         let order = data["labels"]?.array?.compactMap { $0["key"]?.string } ?? []
@@ -167,12 +178,12 @@ public enum Mensa {
 
     static func meal(id: String, name: String, category: String, time: String?, prices: JSONValue, allergens: [JSONValue],
                      additives: [JSONValue], notes: [String], labels: Set<String>, nutrition: JSONValue = .null,
-                     components: [String] = [], climate: JSONValue = .null) -> JSONValue {
+                     components: [String] = [], climate: JSONValue = .null, image: String? = nil) -> JSONValue {
         var m: [String: JSONValue] = ["id": .string(id), "name": .string(name), "category": .string(category),
                                       "time": time.map(JSONValue.string) ?? .null, "prices": prices,
                                       "allergens": .array(allergens), "additives": .array(additives),
                                       "notes": .array(notes.map(JSONValue.string))]
-        finish(&m, labels: labels, nutrition: nutrition, components: components, climate: climate)
+        finish(&m, labels: labels, nutrition: nutrition, components: components, climate: climate, image: image)
         return .object(m)
     }
 
@@ -227,7 +238,7 @@ public enum Mensa {
                                                         category: prettyCategory(cat?["alias"]?.string), time: nil, prices: prices,
                                                         allergens: allergens, additives: additives, notes: notes, labels: labels,
                                                         nutrition: nutrition(values, basis: "portion"), components: components,
-                                                        climate: climate)))
+                                                        climate: climate, image: studifutterImage(o))))
         }
         return result(days.mapValues { $0.sorted { ($0.0, $0.1) < ($1.0, $1.1) }.map(\.2) })
     }

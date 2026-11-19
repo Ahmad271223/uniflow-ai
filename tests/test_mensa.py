@@ -246,3 +246,19 @@ def test_sort_meals():
     assert mensa.sort_meals(meals, "line") == meals
     om = mensa.parse("openmensa", json.loads(raw("openmensa-hauptmensa.json")))["days"]["2026-11-05"]
     assert mensa.sort_meals(om, "kcal") == om, "ohne Naehrwerte bleibt die Reihenfolge"
+
+
+def test_studifutter_dish_photo():
+    """Foto (19.11.2026): nur eine gueltige Bild-ID aus food.image wird zur Adresse beim Studentenwerk, sonst None"""
+    data = mensa.load_data()
+    api = data["sources"]["studifutter"]["api"]
+    raw = {"data": [
+        {"id": "a", "date": "2026-11-20", "alias": "Burger", "food": {"image": "1D2C3B4A-0000-4000-8000-00000000ABCD"}},
+        {"id": "b", "date": "2026-11-20", "alias": "Suppe", "food": {"image": None}},
+        {"id": "c", "date": "2026-11-20", "alias": "Pasta", "food": {"image": "../../etc/passwd"}},
+        {"id": "d", "date": "2026-11-20", "alias": "Salat"},
+    ]}
+    meals = {m["id"]: m for m in mensa.parse("studifutter", raw)["days"]["2026-11-20"]}
+    assert meals["a"]["image"] == f"{api}/assets/1d2c3b4a-0000-4000-8000-00000000abcd?width={mensa.IMAGE_WIDTH}&quality=70"
+    assert meals["b"]["image"] is None and meals["c"]["image"] is None and meals["d"]["image"] is None
+    assert "food.image" in mensa.STUDIFUTTER_FIELDS

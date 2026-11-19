@@ -69,6 +69,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -129,6 +130,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "rind"
@@ -173,6 +175,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -240,6 +243,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -297,6 +301,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -349,6 +354,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -416,6 +422,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "schwein"
@@ -462,6 +469,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -498,6 +506,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -553,6 +562,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -620,6 +630,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fisch"
        ],
@@ -694,6 +705,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -772,6 +784,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "schwein"
@@ -815,6 +828,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -866,6 +880,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -926,6 +941,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -990,6 +1006,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "rind",
@@ -1057,6 +1074,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -1120,6 +1138,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -1191,6 +1210,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -1258,6 +1278,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "fleisch",
         "schwein"
@@ -1301,6 +1322,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -1356,6 +1378,7 @@
         "rating": null,
         "klimateller": false
        },
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -1415,6 +1438,7 @@
         "Obst"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -1472,6 +1496,7 @@
         "Champignonrahmsauce"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -1520,6 +1545,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "schwein"
@@ -1566,6 +1592,7 @@
         "Avocado"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -1614,6 +1641,7 @@
         "Balkankäse"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -1646,6 +1674,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -1690,6 +1719,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -1723,6 +1753,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -1772,6 +1803,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -1812,6 +1844,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [],
        "main": false
       },
@@ -1848,6 +1881,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -1896,6 +1930,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -1951,6 +1986,7 @@
         "Tagessalat"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2023,6 +2059,7 @@
         "BBQ-Sauce"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -2068,6 +2105,7 @@
         "Avocado"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2106,6 +2144,7 @@
         "Pikante Currysauce"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2168,6 +2207,7 @@
         "Pikante Currysauce"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "schwein",
@@ -2207,6 +2247,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2274,6 +2315,7 @@
         "Walnuss"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2341,6 +2383,7 @@
         "Grüne Sauce"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "fisch"
        ],
@@ -2400,6 +2443,7 @@
         "süßer Senf"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "schwein",
@@ -2434,6 +2478,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2467,6 +2512,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2500,6 +2546,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2547,6 +2594,7 @@
         "Tomatenpesto Tagessalat"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2601,6 +2649,7 @@
         "Weiße Sauce"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -2654,6 +2703,7 @@
         "Hummus"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2713,6 +2763,7 @@
         "rote Zwiebeln"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "schwein"
@@ -2752,6 +2803,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -2795,6 +2847,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2828,6 +2881,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2867,6 +2921,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -2912,6 +2967,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [],
        "main": false
       },
@@ -2942,6 +2998,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -2996,6 +3053,7 @@
         "Tagessalat"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -3055,6 +3113,7 @@
         "rote Zwiebeln"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "schwein"
@@ -3108,6 +3167,7 @@
         "Hummus"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -3163,6 +3223,7 @@
         "Paprikarahmsauce"
        ],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -3201,6 +3262,7 @@
        },
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -3257,6 +3319,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -3299,6 +3362,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "rind"
@@ -3329,6 +3393,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -3372,6 +3437,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -3415,6 +3481,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "schwein"
@@ -3442,6 +3509,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -3469,6 +3537,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegan",
         "vegetarisch"
@@ -3497,6 +3566,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "vegetarisch"
        ],
@@ -3544,6 +3614,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "gefluegel"
@@ -3586,6 +3657,7 @@
        "nutrition": null,
        "components": [],
        "climate": null,
+       "image": null,
        "labels": [
         "fleisch",
         "rind"
@@ -4251,7 +4323,7 @@
   "Beilage": "Beilage"
  },
  "urls": {
-  "garbsen": "https://studi-futter.rocket-meals.de/rocket-meals/api/items/foodoffers?fields=id%2Cdate%2Calias%2Cprice_student%2Cprice_employee%2Cprice_guest%2Cfoodoffer_category.alias%2Cfoodoffer_category.sort%2Cmarkings.markings_id.external_identifier%2Cattribute_values.number_value%2Cattribute_values.string_value%2Cattribute_values.food_attribute.external_identifier%2Cfoodoffer_components.component_foodoffers_id.alias&limit=-1&filter=%7B%22_and%22%3A%5B%7B%22canteen%22%3A%7B%22_eq%22%3A%2293b60b44-7040-40a9-910a-96dcce287c3e%22%7D%7D%2C%7B%22date%22%3A%7B%22_between%22%3A%5B%222026-11-05%22%2C%222026-11-18%22%5D%7D%7D%5D%7D",
+  "garbsen": "https://studi-futter.rocket-meals.de/rocket-meals/api/items/foodoffers?fields=id%2Cdate%2Calias%2Cprice_student%2Cprice_employee%2Cprice_guest%2Cfoodoffer_category.alias%2Cfoodoffer_category.sort%2Cmarkings.markings_id.external_identifier%2Cattribute_values.number_value%2Cattribute_values.string_value%2Cattribute_values.food_attribute.external_identifier%2Cfoodoffer_components.component_foodoffers_id.alias%2Cfood.image&limit=-1&filter=%7B%22_and%22%3A%5B%7B%22canteen%22%3A%7B%22_eq%22%3A%2293b60b44-7040-40a9-910a-96dcce287c3e%22%7D%7D%2C%7B%22date%22%3A%7B%22_between%22%3A%5B%222026-11-05%22%2C%222026-11-18%22%5D%7D%7D%5D%7D",
   "hi-uni": "https://sls.api.stw-on.de/v1/locations/150/menu/2026-11-05/2026-11-18",
   "hauptmensa": "https://openmensa.org/api/v2/canteens/6/meals"
  },

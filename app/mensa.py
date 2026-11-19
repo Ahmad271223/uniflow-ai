@@ -27,14 +27,27 @@ BERLIN = ZoneInfo("Europe/Berlin")
 WINDOW_DAYS = 14
 FRESH_SECONDS = 3 * 3600
 KEEP_PAST_DAYS = 7
-CACHE_VERSION = 2                      # 2: mit Naehrwerten, Bestandteilen, Klima (aeltere Caches werden neu geholt)
+CACHE_VERSION = 3                      # 2: mit Naehrwerten, Bestandteilen, Klima; 3: Foto (aeltere Caches werden neu geholt)
 USER_AGENT = "StudiNow/1.0 (+https://studinow.app; support@studinow.app)"
 ROLES = [{"key": "student", "name": "Studierende"}, {"key": "employee", "name": "Bedienstete"}, {"key": "guest", "name": "Gäste"}]
 TIMES = {"morning": "frueh", "noon": "mittag", "evening": "abend"}
 STUDIFUTTER_FIELDS = ("id,date,alias,price_student,price_employee,price_guest,foodoffer_category.alias,"
                       "foodoffer_category.sort,markings.markings_id.external_identifier,attribute_values.number_value,"
                       "attribute_values.string_value,attribute_values.food_attribute.external_identifier,"
-                      "foodoffer_components.component_foodoffers_id.alias")
+                      "foodoffer_components.component_foodoffers_id.alias,food.image")
+# Foto eines Gerichts (19.11.2026, Inhaber "Ja, einbauen"): Studi|Futter liefert zu den meisten Gerichten eine Bild-ID
+# (food.image); das Geraet laedt das Bild direkt beim Studentenwerk, verkleinert ueber die Schnittstelle selbst.
+_ASSET_ID = re.compile(r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$")
+IMAGE_WIDTH = 480
+
+
+def studifutter_image(o: dict, data: dict) -> str | None:
+    """Bild-Adresse eines Gerichts aus Studi|Futter (nur eine gueltige Bild-ID, sonst None)"""
+    food = o.get("food") if isinstance(o.get("food"), dict) else {}
+    asset = str(food.get("image") or "").strip().lower()
+    if not _ASSET_ID.match(asset):
+        return None
+    return f"{data['sources']['studifutter']['api']}/assets/{asset}?width={IMAGE_WIDTH}&quality=70"
 NUTRITION_KEYS = ["energy_kj", "energy_kcal", "fat", "saturated_fat", "carbohydrates", "sugar", "fiber", "protein", "salt"]
 
 _DATA: dict | None = None
@@ -144,12 +157,13 @@ def _nutrition(values: dict, basis: str) -> dict | None:
 
 
 def _finish(meal: dict, labels: set[str], data: dict, nutrition: dict | None = None, components: list[str] | None = None,
-            climate: dict | None = None) -> dict:
+            climate: dict | None = None, image: str | None = None) -> dict:
     """Kennzeichen in fester Reihenfolge; "Fisch" nur ohne "vegetarisch" (Fisch als Allergen etwa in einer Sosse).
     Dazu Naehrwerte (je Portion oder je 100 g), Bestandteile/Beilagen und Klima-Angaben, wie die Quelle sie liefert."""
     meal["nutrition"] = nutrition
     meal["components"] = components or []
     meal["climate"] = climate
+    meal["image"] = image
     if "vegetarisch" in labels:
         labels.discard("fisch")
     order = [l["key"] for l in data["labels"]]
@@ -218,7 +232,7 @@ def parse_studifutter(raw: dict, data: dict | None = None) -> dict:
         climate = {"co2_g": co2_g, "rating": rating, "klimateller": klimateller} if (co2_g or rating or klimateller) else None
         sort = cat.get("sort") if isinstance(cat.get("sort"), (int, float)) else 99
         days.setdefault(d, []).append((sort, i, _finish(meal, labels, data, _nutrition(values, "portion"),
-                                                         [c for c in components if c], climate)))
+                                                         [c for c in components if c], climate, studifutter_image(o, data))))
     return {"days": {d: [m for _, _, m in sorted(v, key=lambda x: (x[0], x[1]))] for d, v in sorted(days.items())}, "closed": []}
 
 

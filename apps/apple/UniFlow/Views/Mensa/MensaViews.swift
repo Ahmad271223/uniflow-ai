@@ -625,6 +625,7 @@ struct MensaMealCard: View {
     var body: some View {
         let main = meal["main"]?.bool == true
         Button(action: open) {
+            HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .firstTextBaseline) {
                     Text(((meal.s("category") ?? "") + (meal.s("time") == "abend" ? " · abends" : "")).uppercased())
@@ -642,6 +643,8 @@ struct MensaMealCard: View {
                 if !short.isEmpty { Text(short).ufFont(12.8).foregroundStyle(UF.text2) }
                 HStack(spacing: 3) { Text("Alle Angaben").ufFont(12.8, 500); UFIcon("chevron-right", size: 12) }.foregroundStyle(UF.accentText)
             }
+            if let url = MensaMealPhoto.url(meal) { MensaMealPhoto(url: url).frame(width: 76, height: 76).padding(.top, 20) }
+            }
             .padding(12)
             .frame(maxWidth: .infinity, minHeight: 44, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: UF.r).fill(main ? UF.surface : UF.surface2))
@@ -658,6 +661,35 @@ struct MensaMealCard: View {
     }
 }
 
+/// Foto eines Gerichts (19.11.2026, Inhaber "Ja, einbauen"): nur wo Studi|Futter (Studentenwerk Hannover) eines liefert
+/// (`Mensa.studifutterImage`); das Geraet laedt es direkt dort, wie den Speiseplan selbst. Ohne Foto, beim Laden oder bei
+/// einem Fehler bleibt nur eine ruhige Flaeche bzw. nichts; in Tests und der Demo gibt es keine Fotos (kein Netz).
+struct MensaMealPhoto: View {
+    let url: URL
+
+    static let credit = "Foto: Studentenwerk Hannover"
+
+    /// Nur https und nur die Schnittstelle von Studi|Futter (keine beliebigen Adressen aus den Daten)
+    static func url(_ meal: JSONValue) -> URL? {
+        guard let s = meal.s("image"), let u = URL(string: s), u.scheme == "https",
+              let api = Mensa.data["sources"]?["studifutter"]?["api"]?.string, let host = URL(string: api)?.host,
+              u.host == host else { return nil }
+        return u
+    }
+
+    var body: some View {
+        AsyncImage(url: url, transaction: Transaction(animation: UF.transition)) { phase in
+            switch phase {
+            case .success(let image): image.resizable().scaledToFill()
+            case .failure: UF.surface2
+            default: UF.surface2
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: UF.r))
+        .accessibilityHidden(true)
+    }
+}
+
 /// Alle Angaben zu einem Gericht wie auf der Seite der Mensa: Preise (alle Gruppen), Bestandteile und Beilagen,
 /// Naehrwerte (je Portion bzw. je 100 g) oder "Keine Nährwertangaben vom Studentenwerk", Kennzeichnungen (mit Klima),
 /// Allergene und Zusatzstoffe mit vollen Namen
@@ -671,6 +703,12 @@ struct MensaMealDetail: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if let url = MensaMealPhoto.url(meal) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            MensaMealPhoto(url: url).frame(maxWidth: .infinity).frame(height: 200)
+                            Text(MensaMealPhoto.credit).ufFont(11.5).foregroundStyle(UF.muted)
+                        }
+                    }
                     VStack(alignment: .leading, spacing: 4) {
                         Text(meal.s("name") ?? "").ufFont(22, 700).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                             .accessibilityAddTraits(.isHeader)

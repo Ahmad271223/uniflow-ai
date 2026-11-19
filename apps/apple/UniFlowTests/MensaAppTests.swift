@@ -128,4 +128,16 @@ final class MensaAppTests: XCTestCase {
         host.view.layoutIfNeeded()
         XCTAssertNotNil(host.view)
     }
+
+    /// Foto (19.11.2026): nur https-Adressen der Studi|Futter-Schnittstelle werden geladen, alles andere nicht
+    func testMealPhotoOnlyFromStudifutter() throws {
+        let api = try XCTUnwrap(Mensa.data["sources"]?["studifutter"]?["api"]?.string)
+        let ok: JSONValue = ["image": .string(api + "/assets/1d2c3b4a-0000-4000-8000-00000000abcd?width=480&quality=70")]
+        XCTAssertNotNil(MensaMealPhoto.url(ok))
+        for bad in ["http://studi-futter.rocket-meals.de/x.jpg", "https://example.com/x.jpg", "kein Link"] {
+            XCTAssertNil(MensaMealPhoto.url(["image": .string(bad)]), bad)
+        }
+        XCTAssertNil(MensaMealPhoto.url(["image": .null]))
+        XCTAssertNil(MensaMealPhoto.url([:]))
+    }
 }

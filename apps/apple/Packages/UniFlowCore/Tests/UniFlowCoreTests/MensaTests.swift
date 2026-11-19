@@ -61,6 +61,21 @@ final class MensaTests: XCTestCase {
         XCTAssertEqual(fx["parse"]?.object?.count, 3)
     }
 
+    /// Foto (19.11.2026, wie tests/test_mensa.py): nur eine gueltige Bild-ID wird zur Adresse beim Studentenwerk
+    func testStudifutterDishPhoto() throws {
+        let api = try XCTUnwrap(Mensa.data["sources"]?["studifutter"]?["api"]?.string)
+        let raw: JSONValue = ["data": [
+            ["id": "a", "date": "2026-11-20", "alias": "Burger", "food": ["image": "1D2C3B4A-0000-4000-8000-00000000ABCD"]],
+            ["id": "b", "date": "2026-11-20", "alias": "Suppe", "food": ["image": .null]],
+            ["id": "c", "date": "2026-11-20", "alias": "Pasta", "food": ["image": "../../etc/passwd"]],
+            ["id": "d", "date": "2026-11-20", "alias": "Salat"]]]
+        let meals = Mensa.parseStudifutter(raw)["days"]?["2026-11-20"]?.array ?? []
+        let byID = Dictionary(uniqueKeysWithValues: meals.map { ($0["id"]?.string ?? "", $0) })
+        XCTAssertEqual(byID["a"]?["image"]?.string, "\(api)/assets/1d2c3b4a-0000-4000-8000-00000000abcd?width=\(Mensa.imageWidth)&quality=70")
+        for id in ["b", "c", "d"] { XCTAssertEqual(byID[id]?["image"], .null, id) }
+        XCTAssertTrue(Mensa.studifutterFields.contains("food.image"))
+    }
+
     func testDaysFiltersTopPricesLikePython() throws {
         let fx = try cases()
         let parsed = { (n: String) -> JSONValue in fx["parse"]?[n]?["result"] ?? .null }
