@@ -38,6 +38,10 @@ struct AIStartView: View {
     @State private var modules: [JSONValue] = []
     @State private var files: [JSONValue] = []
     @State private var loaded = false
+    /// Erstes Laden von Modulen und Bibliothek: eine Frage, die schon vorher losgeht, wartet darauf, damit das zuletzt
+    /// geoeffnete Dokument auch dann anhaengt (19.11.2026: wer gleich nach dem Oeffnen fragte, fragte ohne Dokument;
+    /// "Erklären / PDF analysieren" meldete "Wähle zuerst ein Dokument.")
+    @State private var firstLoad: Task<Void, Never>?
     @State private var module = 0
     @State private var fileID = ""
     @State private var question = ""
@@ -126,7 +130,13 @@ struct AIStartView: View {
         }
         .background(UF.bg)
         .ufLearnSheetHost(learnSheets)
-        .task(id: session.api.map(ObjectIdentifier.init)) { await load() }
+        .task(id: session.api.map(ObjectIdentifier.init)) {
+            let t = Task { await loadDocuments() }
+            firstLoad = t
+            await withTaskCancellationHandler { await t.value } onCancel: { t.cancel() }
+            guard !Task.isCancelled, let api = session.api else { return }
+            recentUsed = await RecentItem.load(api: api, conversations: .shared, limit: 15)
+        }
         // StudiNow-KI: Credits-Stand frisch vom Dienst (GET /api/entitlements), danach nach jeder Antwort
         .task(id: studinowAI || chatOnly) { if studinowAI || chatOnly { await studoraAccount?.refreshCredits() } }
         .ufCreditShop(isPresented: $creditShop, opensFor: errorAction)
@@ -138,6 +148,13 @@ struct AIStartView: View {
     }
 
     private func load() async {
+        await loadDocuments()
+        guard let api = session.api else { return }
+        recentUsed = await RecentItem.load(api: api, conversations: .shared, limit: 15)
+    }
+
+    /// Module und Bibliothek; beim ersten Mal auch die Vorgabe fuer das angehaengte Dokument
+    private func loadDocuments() async {
         guard let api = session.api else { return }
         if let c = ActiveContainer.current { recents.attachActive(defaults: c.defaults, scope: api.namespace.id) }
         do {
@@ -150,7 +167,6 @@ struct AIStartView: View {
             if !loaded, fileID.isEmpty, let f = currentFile?.s("id") { fileID = f }
             loaded = true
         } catch { if !loaded { toast.show(error.localizedDescription) } }
-        recentUsed = await RecentItem.load(api: api, conversations: .shared, limit: 15)
     }
 
     // MARK: - Start: Logo, Frage, Pillen, Feld
@@ -641,7 +657,13 @@ struct AIStartView: View {
         await send(mode: "ask", question: q, label: q, busyLabel: "Die KI liest deine Unterlagen …")
     }
 
+    /// Vor einer Anfrage: laeuft das erste Laden noch, darauf warten (sonst fehlen Dokument und Vorgabe)
+    private func waitForDocuments() async {
+        if !loaded, let t = firstLoad { await t.value }
+    }
+
     private func explain() async {
+        await waitForDocuments()
         guard let f = currentFile else { toast.show("Wähle zuerst ein Dokument."); return }
         guard aiEnabled else { router.go(.settings(tab: ChatGPTLink.settingsTab)); return }
         fileID = f.s("id") ?? fileID
@@ -657,6 +679,7 @@ struct AIStartView: View {
     /// Gespraech als `history`, wie die KI-Hilfe im Editor (file_id, page, mode, history); die Antwort kommt in den
     /// Verlauf und nach "Zuletzt"
     private func send(mode: String, question q: String, label: String, busyLabel: String) async {
+        await waitForDocuments()
         guard let api = session.api, !busy else { return }
         // Kontext: das angehaengte Dokument (Seite 1); ohne Dokument geht nur die Frage
         let f = fileID.isEmpty ? nil : currentFile

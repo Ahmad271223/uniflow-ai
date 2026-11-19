@@ -254,6 +254,21 @@ struct TutorDocControls: View {
             // Segmente nach Inhalt breit (Store-Bilder 05.11.2026: im iPad-Hochformat ist die Leiste 330 pt schmal, gleich
             // breite Segmente kuerzten "Ganzes Dokument" auf "Ganzes Doku…")
             TutorScopeSegments(scope: $scope)
+                // Bedienungshilfe ueber SwiftUI statt ueber die Segmente des UIKit-Umschalters: SwiftUI haengt den
+                // `UISegmentedControl` ausserhalb des Fensters ein (Befund 19.11.2026, iOS 26.2 und 27.2: Segment ohne
+                // Fenster, Rahmen 0 pt breit), dann liefert `accessibilityActivate()` false und VoiceOver bzw. der Test
+                // konnte "Ganzes Dokument" nicht waehlen. Je Umfang ein Knopf mit vollem Titel (auch wenn die Leiste
+                // "Dokument" kurz zeigt), der gewaehlte als ausgewaehlt.
+                .accessibilityRepresentation {
+                    HStack {
+                        ForEach(TutorDocScope.allCases) { s in
+                            Button(s.title) { scope = s }
+                                .accessibilityAddTraits(scope == s ? .isSelected : [])
+                        }
+                    }
+                    .accessibilityElement(children: .contain)
+                    .accessibilityLabel("Umfang")
+                }
         }
     }
 
