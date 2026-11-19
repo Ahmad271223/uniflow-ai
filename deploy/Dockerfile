@@ -15,7 +15,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # tzdata: Zeitplan (08:00/15:00, Loeschfristen 04:00) in Ortszeit; sqlite3: Pruefen/Backups von Hand im Container
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates tzdata sqlite3 \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata sqlite3 fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /srv/uniflow
@@ -28,6 +28,8 @@ RUN pip install -r requirements.txt \
 
 # Nur, was der Dienst braucht: Code, Oberflaeche (app/static) und die Rechtstexte (/datenschutz, /impressum, ...)
 COPY app ./app
+# Klausur-Generator: PDF-Programm (app/exam_shop.py), Schrift DejaVu aus fonts-dejavu-core
+COPY tools/klausur_pdf/klausur_pdf ./tools/klausur_pdf/klausur_pdf
 COPY docs/release ./docs/release
 # Datendateien, die der Dienst zur Laufzeit liest, im selben Unterpfad wie im Repo (app/*.py lesen ROOT/packages/... und
 # ROOT/apps/apple/...): Studienverlauf (Register, Grundstock der Modulkataloge), Mensa, Raumfinder, Pruefungsanmeldung.

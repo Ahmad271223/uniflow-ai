@@ -111,3 +111,17 @@ def test_schritt_nummer_nicht_doppelt():
     # die Nummer ist in allen drei Fällen hervorgehoben
     for zeile in ("a = 2", "Schritt 1: a = 2", "**Schritt 1:** a = 2"):
         assert schritt_markup(zeile, 1).startswith(("<font", "<b>"))
+
+
+def test_tiefgestellte_buchstaben_ohne_kaestchen(tmp_path):
+    """Die KI schreibt aₙ, Σₖ₌₁, (−1)ᵏ⁺¹ (Probelauf 18.11.2026): Zeichen, die der Schrift fehlen, werden zu
+    <sub>/<super> mit dem normalen Buchstaben; vorhandene wie ₁ und ² bleiben."""
+    from klausur_pdf.render import hoch_tief
+    from klausur_pdf.fonts import registriere
+    from reportlab.pdfbase import pdfmetrics
+    vorrat = pdfmetrics.getFont(registriere().normal).face.charToGlyph
+    t = hoch_tief("aₙ₊₁ = √(3 + aₙ), (−1)ᵏ⁺¹, x²")
+    for z in t:
+        assert ord(z) in vorrat or z in "<>/", f"Zeichen ohne Glyphe: {z!r}"
+    assert "<sub>n</sub>" in t or "ₙ" not in t.replace("<sub>n</sub>", "")
+    assert "x²" in t

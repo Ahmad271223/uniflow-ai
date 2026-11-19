@@ -18,3 +18,5 @@ anthropic[bedrock]==2.1.0
 # Paket ergaenzt den vorhandenen HTTP-Client (httpx2, kommt mit anthropic) um HTTP/2; reines Python, bringt hpack und
 # hyperframe mit. Ohne das Paket bleibt das Weck-Signal aus (ein Satz im Protokoll), alles andere laeuft.
 h2==4.4.1
+# Klausur-Generator: PDF der Probeklausuren (tools/klausur_pdf, app/exam_shop.py)
+reportlab==5.1.0

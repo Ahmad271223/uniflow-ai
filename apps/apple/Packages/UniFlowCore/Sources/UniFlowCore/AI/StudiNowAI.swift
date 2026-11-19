@@ -307,6 +307,35 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
         return LocalHTTPError(status: status, detail: .object(d))
     }
 
+    /// Datei vom Dienst laden (Klausur-Generator: PDF einer gekauften Probeklausur). Wie `json`: nur mit Token und
+    /// Einwilligung; Fehler als `LocalHTTPError`.
+    public func download(_ path: String) async throws -> Data {
+        guard let token = tokens.load(), !token.isEmpty else {
+            throw Self.error(401, "account_required", StudiNowAIText.accountRequired)
+        }
+        guard await consent.ensureConsent() else {
+            throw Self.error(403, AIConsentText.code, AIConsentText.declined)
+        }
+        let r: ServiceHTTPResponse
+        do {
+            r = try await http.send(AIHTTPRequest(method: "GET", url: base + path, headers: ["Authorization": "Bearer \(token)"]))
+        } catch {
+            if Task.isCancelled { throw CancellationError() }
+            throw Self.error(503, "service_unreachable", StudiNowAIText.unreachable)
+        }
+        guard (200..<300).contains(r.status) else {
+            if r.status == 401 {
+                try? tokens.save(nil)
+                onSignedOut?()
+                throw Self.error(401, "account_required", StudiNowAIText.sessionExpired)
+            }
+            let j = (try? JSONValue.parse(r.body)) ?? .null
+            let fields = (j["detail"]?.object ?? j.object) ?? [:]
+            throw Self.error(r.status, fields["code"]?.string ?? "http_\(r.status)", fields["detail"]?.string ?? StudiNowAIText.badAnswer)
+        }
+        return r.body
+    }
+
     /// JSON-Anfrage an den Dienst mit dem Token des Kontos (wie `ai_relay.service_json`); Fehler als `LocalHTTPError`
     /// mit Status, Code, Zusatzfeldern und Text aus `StudiNowAIText`. Ohne Token und ohne Einwilligung
     /// (`AIConsentGate`, 403 `ai_consent_required`) wird nichts gesendet.
