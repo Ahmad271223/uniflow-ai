@@ -278,7 +278,16 @@ final class IPhoneMessageReplyTests: IPhoneLearnTestCase {
         }
         defer { NotificationCenter.default.removeObserver(observer) }
         let editor = try XCTUnwrap(textView(env), "Textfeld")
-        XCTAssertTrue(editor.becomeFirstResponder())
+        // Wie ein Finger: getippt wird nur, was im Blatt zu sehen ist. Liegt das Textfeld bei halber Hoehe unter dem
+        // Rand (niedriges Blatt, z. B. iPad Air mit iOS 26.2), erst hinrollen - iOS 26 laesst ein verdecktes Feld nicht
+        // zum Ersthelfer werden (canBecomeFirstResponder false, gemessen 19.11.2026)
+        var scroller: UIView? = editor.superview
+        while let s = scroller, !(s is UIScrollView) { scroller = s.superview }
+        if let s = scroller as? UIScrollView, !sheetFrame(env).contains(editor.convert(editor.bounds, to: nil)) {
+            s.scrollRectToVisible(editor.convert(editor.bounds, to: s), animated: false)
+            env.pump(0.5)
+        }
+        XCTAssertTrue(editor.becomeFirstResponder(), "Textfeld \(editor.convert(editor.bounds, to: nil)) in \(sheetFrame(env))")
         XCTAssertTrue(env.wait(timeout: 5) { sheet.selectedDetentIdentifier == .large }, "ganzes Blatt beim Schreiben")
         env.pump(0.8)
         area = sheetFrame(env)
@@ -293,15 +302,21 @@ final class IPhoneMessageReplyTests: IPhoneLearnTestCase {
         XCTAssertTrue(env.wait(timeout: 3) { !editor.isFirstResponder }, "Tastatur aus")
         XCTAssertEqual(sheet.selectedDetentIdentifier, .large)
         XCTAssertTrue(env.wait(timeout: 3) { self.button(env, MessageReplySheet.hideKeyboard) == nil })
-        // gleich hoher unterer Bereich (auch ohne Bildschirmtastatur, z. B. mit Hardware-Tastatur): Leiste steigt mit
-        let presented = try XCTUnwrap(env.hosting.presentedViewController)
-        presented.additionalSafeAreaInsets.bottom = 320
-        env.pump(0.6)
-        send = try XCTUnwrap(button(env, "Senden"))
-        XCTAssertLessThanOrEqual(frame(send).maxY, area.maxY - 320 + 1, "Senden über dem unteren Bereich: \(frame(send)) in \(area)")
-        XCTAssertGreaterThanOrEqual(frame(send).minY, area.minY)
-        presented.additionalSafeAreaInsets.bottom = 0
-        env.pump(0.4)
+        // gleich hoher unterer Bereich (auch ohne Bildschirmtastatur, z. B. mit Hardware-Tastatur): Leiste steigt mit.
+        // Nur auf einem iPhone-Simulator: auf einem iPad-Simulator ist das Blatt hier ein schwebendes Formblatt (schmale
+        // Groessenklasse nur gespielt, Fenster bildschirmgross) - so zeigt die App es nie, ein echtes schmales
+        // iPad-Fenster bekommt ein Blatt von unten wie das iPhone. iOS 26.2 reicht dort den unteren Bereich nicht ins
+        // Formblatt weiter (iPad Air, 19.11.2026)
+        if UIDevice.current.userInterfaceIdiom == .phone {
+            let presented = try XCTUnwrap(env.hosting.presentedViewController)
+            presented.additionalSafeAreaInsets.bottom = 320
+            env.pump(0.6)
+            send = try XCTUnwrap(button(env, "Senden"))
+            XCTAssertLessThanOrEqual(frame(send).maxY, area.maxY - 320 + 1, "Senden über dem unteren Bereich: \(frame(send)) in \(area)")
+            XCTAssertGreaterThanOrEqual(frame(send).minY, area.minY)
+            presented.additionalSafeAreaInsets.bottom = 0
+            env.pump(0.4)
+        }
 
         // senden
         m.text = "Danke für die Info!"
