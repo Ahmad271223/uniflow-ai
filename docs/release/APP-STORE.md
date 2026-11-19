@@ -484,12 +484,10 @@ Einstellungen, Links zu Nutzungsbedingungen und Datenschutzerklärung, „Käufe
 
 ## Hinweise für die App-Prüfung (Review Notes)
 
-> **Achtung, Stand 18.11.2026 (Zweig `mac/lesbarkeit`):** Der Inhaber hat entschieden, den Textlink
-> „Ohne Hochschulkonto ansehen (Demo)“ von der Anmeldeseite zu entfernen (`FirstLoginFlow.demoLinkShown = false`).
-> Sobald das in einem Build ist, stimmen die Prüfhinweise unten nicht mehr: Schritt 3 beschreibt einen Link, den es
-> dann nicht gibt. Vor der nächsten Einreichung muss der Inhaber festlegen, wie Apples Prüfer ohne Hochschulkonto
-> in die App kommen (z. B. Zugangsdaten eines Test-Kontos der Hochschule im Feld „Anmeldung erforderlich“), und die
-> Hinweise müssen das beschreiben. Sonst ist eine Ablehnung nach Richtlinie 2.1 (unvollständiger Zugang) zu erwarten.
+> **Stand 19.11.2026 (Entscheidung des Inhabers „Demo kleiner anbieten“):** Der Textlink steht nicht mehr direkt auf
+> der Anmeldeseite (`FirstLoginFlow.demoLinkShown = false`). Unten rechts steht ein kleiner Knopf „Hilfe“
+> (`FirstLoginFlow.demoBehindHelp = true`); erst er klappt „Kein Hochschulkonto zur Hand? Ohne Hochschulkonto ansehen
+> (Demo)“ auf. Die Prüfhinweise unten (Schritt 3) beschreiben genau diesen Weg.
 
 Auf Englisch, damit jede Prüferin sie lesen kann; Bezeichnungen der Oberfläche stehen auf Deutsch in Anführungszeichen,
 wie sie in der App erscheinen. Anmeldedaten für ein Demo-Konto: keine (Feld „Anmeldung erforderlich“ ausschalten – die
@@ -498,7 +496,7 @@ Kontakt: Ahmad Fakih, support@studinow.app, Telefon vom Inhaber. Die Notizen bes
 die KI, wenn Pro AI nicht eingereicht ist (Richtlinie 2.3.1: keine versteckten Funktionen) – sie sind kein Werbetext.
 
 Demo nur für Prüfer (Entscheidung des Inhabers 04.11.2026): normale Nutzer sehen die Demo nirgends. Einziger Weg ist
-der kleine Textlink „Ohne Hochschulkonto ansehen (Demo)“ ganz unten auf der Anmeldeseite der Hochschule (Wortlaut in
+der kleine Knopf „Hilfe“ unten auf der Anmeldeseite und darunter der Textlink „Ohne Hochschulkonto ansehen (Demo)“ (Wortlaut in
 der App und hier gleich, `tests/test_release_texts.py`). Solange die Demo aktiv ist, steht oben eine schmale Leiste
 „Demo-Inhalte – erfunden, ohne Hochschule“ mit „Beenden“. Die Store-Bildschirmfotos zeigen die Leiste nicht.
 
@@ -507,14 +505,14 @@ Web und Windows einmal „KI-Hilfe: Was wird gesendet?“ (was, an wen: StudiNow
 Bedrock Frankfurt, Link zur Datenschutzerklärung) und senden ohne „Okay, los“ nichts (zentral in
 `StudiNowAI.json` bzw. `app/ai_consent.py`, je Konto, widerrufbar unter „KI-Einwilligung widerrufen“).
 
-### Fassung nur Plus – ÜBERHOLT, nicht verwenden (1.0.4 wird mit Pro AI eingereicht) – 3910 Zeichen
+### Fassung nur Plus – ÜBERHOLT, nicht verwenden (1.0.4 wird mit Pro AI eingereicht) – 3956 Zeichen
 
 ```text review-notes
 StudiNow is a study app for students in Germany. Connected today: Leibniz Universität Hannover. Its university features (files, timetable, messages, mail, grades) need the student's personal university account, which we cannot share. Please use the built-in demo content (no university account needed):
 
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It keeps the data of each Apple account and each university strictly separate on the device; it sends nothing to our servers.
 2. Choose a plan ("StudiNow Free" is enough) and the university "Leibniz Universität Hannover" (the only one offered in this version). A 7-day trial with everything unlocked starts automatically, no purchase or payment details (once per iPad). Afterwards "Deine Probe ist vorbei" asks for a choice; "Bei Free bleiben" needs no purchase.
-3. On the university login page tap the small text link "Ohne Hochschulkonto ansehen (Demo)" at the very bottom, below "Später anmelden". This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all invented by us). Demo mode never contacts the university.
+3. On the university login page tap the small button "Hilfe" at the bottom right (next to "Später anmelden"), then the link "Ohne Hochschulkonto ansehen (Demo)" that appears below it. This creates a demo module with three PDFs, timetable, study calendar, five flashcards, a deadline and an announcement (all invented by us). Demo mode never contacts the university.
 While the demo is active, a slim bar "Demo-Inhalte – erfunden, ohne Hochschule" is shown at the top. Tap "Beenden" in that bar and confirm: all demo content is removed.
 
 University password: below each university login page, the switch "Passwort auf diesem iPad merken" (on by default, can be turned off) stores the university user name and password only in this iPad's Keychain (this device only, not synced to iCloud) to sign in again when a session expires. It is never sent to our servers. Type or delete it under "Einstellungen" → "Zugang & Darstellung" → "Uni-Zugang"; signing out also deletes it.
@@ -530,7 +528,7 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3806 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3887 Zeichen (max. 4000)
 
 **1.0.6:** Wege in den Einstellungen nach der neuen Gliederung („Konto & Tarif“, „Uni-Zugang & Abgleich“), dazu
 Credit-Pakete (wo, wer darf), Lernkalender bewusst aus, Hintergrund-Modi (`fetch`/`processing` für den Abgleich 8–18 Uhr,
@@ -544,7 +542,7 @@ New in 1.0.6: AI credit packs (two consumables), exam dates found in slides, aut
 Connected today: Leibniz Universität Hannover and Universität Hildesheim. University features need a personal account. Please use the demo:
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account.
 2. Choose "StudiNow Free" and "Leibniz Universität Hannover". A 7-day trial at Pro AI level starts, no purchase, once per device.
-3. On the university login page tap the small link "Ohne Hochschulkonto ansehen (Demo)" at the bottom: an invented module with PDFs, timetable and flashcards; it never contacts the university. The bar "Demo-Inhalte – erfunden, ohne Hochschule" marks it; "Beenden" removes it.
+3. On the university login page tap the small button "Hilfe" at the bottom right (next to "Später anmelden"), then the link "Ohne Hochschulkonto ansehen (Demo)" that appears below it: an invented module with PDFs, timetable and flashcards; it never contacts the university. The bar "Demo-Inhalte – erfunden, ohne Hochschule" marks it; "Beenden" removes it.
 
 After the trial "Deine Probe ist vorbei" shows Free, Plus and Pro AI (yearly) and closes only after a choice. "Bei Free bleiben" is a valid choice without any purchase.
 
