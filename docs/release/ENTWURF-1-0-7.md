@@ -25,7 +25,7 @@ Dazu kleinere Verbesserungen und Fehlerbehebungen.
 ## Hinweis für Apples Prüfer (Englisch, an `review-notes-proai` anhängen)
 
 ```text
-New in 1.0.7 – Exam generator (Pro AI): In a module, tap "Klausur-Generator", pick lecture slides, past exams and exercises, then "Probeklausuren erstellen". The service creates up to ten practice exams with worked solutions as PDF; each costs 15 AI credits (taken from the monthly Pro AI credits, then from purchased credit packs, no new in-app purchase). If generation fails, nothing is charged. In the demo (Hilfe → Ohne Hochschulkonto ansehen) the demo module contains slides and an old exam to try it. Mensa: dish photos are loaded directly from the public Studentenwerk Hannover menu service (Studi|Futter), like the menu itself.
+New in 1.0.7 – Exam generator (Pro AI): In a module, tap "Klausur-Generator", pick lecture slides, past exams and exercises, then "Probeklausuren erstellen". The service creates up to ten practice exams with worked solutions as PDF; each costs 15 AI credits (taken from the monthly Pro AI credits, then from purchased credit packs, no new in-app purchase). If generation fails, nothing is charged. [VOR ÜBERNAHME PRÜFEN: Geht der Klausur-Generator in der Demo? Sonst diesen Satz weglassen und angeben, dass er ein Pro-AI-Konto mit Credits braucht.] Mensa: dish photos are loaded directly from the public Studentenwerk Hannover menu service (Studi|Futter), like the menu itself.
 ```
 
 ## Datenschutz – neue Absätze
@@ -41,12 +41,12 @@ New in 1.0.7 – Exam generator (Pro AI): In a module, tap "Klausur-Generator", 
 
 > **Klausur-Generator (Pro AI).** Erstellst du Probeklausuren, schickt die App den Text der gewählten Seiten
 > (Vorlesungen, Altklausuren, Übungen) einmal an den StudiNow-Dienst. Der Dienst gibt ihn zum Erzeugen an einen
-> KI-Auftragsverarbeiter weiter (Abschnitt 8c) und löscht die Seitentexte spätestens 24 Stunden danach. Gespeichert
+> KI-Auftragsverarbeiter weiter (Abschnitt 8c) und löscht die Seitentexte spätestens 3 Stunden danach. Gespeichert
 > bleiben die erzeugten Probeklausuren und eine Themenübersicht, ohne Bezug zu deinem Konto; wer dieselben Unterlagen
 > hat, kann dieselben Probeklausuren kaufen. Zu deinem Konto speichern wir nur, welche Probeklausuren du gekauft hast
 > (für den Zugriff und eine Erstattung). Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
-(Vor Übernahme prüfen: Löschfrist `MATERIAL_HOURS` in `app/exam_shop.py`.)
+(Löschfrist: `MATERIAL_HOURS = 3` in `app/exam_shop.py`, geprüft 19.11.2026.)
 
 ## Nutzungsbedingungen – neuer Punkt (§ Credits)
 
