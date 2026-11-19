@@ -226,6 +226,7 @@ final class PageInkView: UIView {
         if let f = foreignInk { Self.zoom(f, pageSize: geometry.pageSize, to: change ? zoom : current) }
         correctionView?.setZoom(change ? zoom : current)
         guard !isDrawing, change else { return }
+        endTranslucentHole()                                    // die Maske passt nach dem Zoomwechsel nicht mehr
         coverDuringRedraw()
         Self.rescalesMade += 1
         let size = geometry.pageSize
@@ -303,8 +304,25 @@ final class PageInkView: UIView {
     /// `testFormenTextmarkerNurLinieUndFueller`: die Markierung ist dann fuer die Dauer des Deckbilds doppelt zu sehen)
     static var spareTranslucentStroke = true
 
+    /// Durchscheinende Tinte im Tausch: Deckbild, an dessen Stelle die Zeichenflaeche gerade verdeckt ist (Maske), und
+    /// das Bild des neuen Stands dort (`coverReplacement`)
+    private var translucentHole: (cover: UIView, image: UIView)?
+
+    /// Die Zeichenflaeche zeigt die Stelle wieder selbst: Maske und Bild weg, im selben Bild (kein Ueberblenden, sonst
+    /// laege die Markierung kurz doppelt). Vor einem neuen Strich und einem Zoomwechsel sofort.
+    func endTranslucentHole() {
+        guard let hole = translucentHole else { return }
+        translucentHole = nil
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        hole.image.removeFromSuperview()
+        canvas.layer.mask = nil
+        CATransaction.commit()
+    }
+
     private func coverReplacement(_ stroke: PKStroke, replacing old: PKStroke, others: [PKStroke]) {
         guard window != nil else { return }
+        endTranslucentHole()
         let page = CGRect(origin: .zero, size: geometry.pageSize)
         let cover = UIView(frame: page)
         cover.isUserInteractionEnabled = false
@@ -321,19 +339,30 @@ final class PageInkView: UIView {
         // Durchscheinende Tinte (Textmarker, Stift mit Deckkraft unter 100 %): Laege das Bild von eben (mit dem alten
         // Strich) ueber dem neuen Strich, den PencilKit darunter zeichnet, waere der Strich fuer die Dauer des Deckbilds
         // doppelt da und dort, wo beide sich decken, dunkler. Darum ist das Deckbild an der Stelle des alten und des
-        // neuen Strichs ausgespart; dort zeigt PencilKit den neuen Strich selbst, genau ein Mal. Deckende Striche, die
-        // durch diese Stelle laufen (Handschrift unter der Markierung), liegen als Bild darueber und blinken nicht.
+        // neuen Strichs ausgespart. Dort zeigte bis 19.11.2026 PencilKit selbst den neuen Stand - aber nicht sofort:
+        // gemessen (iPadOS 26.2 und 27.2, Bild fuer Bild) erst ein bis zwei Bilder lang noch den alten Strich (mit dem
+        // Knaeuel vom Halten dunkler als die fertige Markierung), dann ein bis drei Bilder lang GAR NICHTS (die
+        // Markierung war weg), dann die gerade Linie. Jetzt ist die Zeichenflaeche an dieser Stelle fuer die Dauer des
+        // Deckbilds verdeckt (Maske) und das Deckbild zeigt dort den neuen Stand als Bild: alle Striche, die durch die
+        // Stelle laufen, in ihrer Reihenfolge, die Markierung genau ein Mal. Weg geht beides im selben Bild
+        // (`endTranslucentHole`), wenn PencilKit fertig gezeichnet hat.
         let hole = old.renderBounds.union(stroke.renderBounds).insetBy(dx: -3, dy: -3).intersection(page).integral
         if Self.spareTranslucentStroke, !opaque, let shot, !hole.isNull, hole.width >= 1, hole.height >= 1 {
             let zoom = shot.bounds.width / max(1, page.width)
-            let path = UIBezierPath(rect: shot.bounds)
-            path.append(UIBezierPath(rect: CGRect(x: hole.minX * zoom, y: hole.minY * zoom, width: hole.width * zoom, height: hole.height * zoom)))
-            let mask = CAShapeLayer()
-            mask.frame = shot.bounds
-            mask.fillRule = .evenOdd
-            mask.path = path.cgPath
-            shot.layer.mask = mask
-            let crossing = others.filter { Self.isOpaque($0.ink) && $0.renderBounds.intersects(hole) }
+            let holeInCanvas = CGRect(x: hole.minX * zoom, y: hole.minY * zoom, width: hole.width * zoom, height: hole.height * zoom)
+            func cutOut(_ bounds: CGRect) -> CAShapeLayer {
+                let path = UIBezierPath(rect: bounds)
+                path.append(UIBezierPath(rect: holeInCanvas))
+                let mask = CAShapeLayer()
+                mask.frame = bounds
+                mask.fillRule = .evenOdd
+                mask.path = path.cgPath
+                return mask
+            }
+            shot.layer.mask = cutOut(shot.bounds)
+            // Zeichenflaeche verdecken nur, wenn sie keine eigene Maske hat; sonst wie bisher (PencilKit zeigt die Stelle)
+            let hideCanvas = canvas.layer.mask == nil && abs(canvas.bounds.width - shot.bounds.width) < 1
+            let crossing = (others + [stroke]).filter { $0.renderBounds.intersects(hole) && (hideCanvas || Self.isOpaque($0.ink)) }
             if !crossing.isEmpty {
                 let wanted = max(1, lastRenderScale > 0 ? lastRenderScale : UIScreen.main.scale)
                 let scale = max(1, min(wanted, (4_000_000 / max(1, hole.width * hole.height)).squareRoot()))
@@ -345,6 +374,13 @@ final class PageInkView: UIView {
                 view.frame = hole
                 view.isUserInteractionEnabled = false
                 cover.addSubview(view)
+                if hideCanvas {
+                    CATransaction.begin()
+                    CATransaction.setDisableActions(true)
+                    canvas.layer.mask = cutOut(canvas.bounds)
+                    CATransaction.commit()
+                    translucentHole = (cover, view)
+                }
             }
             Self.translucentCoversMade += 1
         }
@@ -392,6 +428,7 @@ final class PageInkView: UIView {
     private func dropReplacementCover(_ view: UIView) {
         guard let i = replacementCovers.firstIndex(where: { $0.view === view }) else { return }
         replacementCovers.remove(at: i)
+        if translucentHole?.cover === view { endTranslucentHole() }
         UIView.animate(withDuration: 0.08, delay: 0, options: [.allowUserInteraction], animations: { view.alpha = 0 }) { _ in
             view.removeFromSuperview()
         }
@@ -1524,6 +1561,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         inkTrace?("Werkzeug an")
         if !PencilTuning.liftBelongsToItsStroke { overlay(of: canvasView)?.lifts = [] }
         overlay(of: canvasView)?.reportedWhileDrawing = false
+        overlay(of: canvasView)?.endTranslucentHole()            // der neue Strich muss ueberall zu sehen sein
         overlay(of: canvasView)?.isDrawing = true
         reclaimFocusForWriting()
     }

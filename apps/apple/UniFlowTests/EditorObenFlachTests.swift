@@ -49,6 +49,8 @@ final class EditorObenFlachTests: XCTestCase {
         var scale: CGFloat = 0
         var pageWidth: CGFloat = 0
         var margins: UIEdgeInsets = .zero
+        /// Oberkante der ersten Seite in PDFKits Dokumentansicht (Seitenpunkte): so viel Rand legt PDFKit selbst davor
+        var pdfKitTop: CGFloat?
     }
 
     private func host(_ titles: [String], size: CGSize) throws -> (env: HostedEnvironment, ids: [String]) {
@@ -113,13 +115,18 @@ final class EditorObenFlachTests: XCTestCase {
         m.margins = pdf.pageBreakMargins
         m.toolbar = frame("editor.toolbar", env)
         m.header = frame("editor.header", env)
+        // wo PDFKit die erste Seite in seine eigene Ansicht legt (Seitenpunkte, ohne Zoom und ohne Verschiebung)
+        if let doc = pdf.documentView {
+            m.pdfKitTop = pdf.convert(pdf.convert(page.bounds(for: pdf.displayBox), from: page), to: doc).minY
+        }
         return m
     }
 
     private func zeile(_ what: String, _ m: Messung) -> String {
-        String(format: "[Oben] %@ (%.0f x %.0f): Statuszeile %.0f pt, Dokument beginnt bei %.0f pt, erste Seite bei %.2f pt; Leisten ohne Statuszeile %.0f pt%@; Seite %.0f pt breit, Massstab %.3f, Seitenrand oben %.2f",
+        String(format: "[Oben] %@ (%.0f x %.0f): Statuszeile %.0f pt, Dokument beginnt bei %.0f pt, erste Seite bei %.2f pt; Leisten ohne Statuszeile %.0f pt%@; Seite %.0f pt breit, Massstab %.3f, Seitenrand oben %.2f (gemeldet), %@ (von PDFKit gelegt); iOS %@",
                what, m.window.width, m.window.height, m.statusBar, m.documentTop, m.pageTop, m.documentTop - m.statusBar,
-               m.header.map { String(format: "; Kopfzeile %.0f pt hoch", $0.height) } ?? "", m.pageWidth, m.scale, m.margins.top)
+               m.header.map { String(format: "; Kopfzeile %.0f pt hoch", $0.height) } ?? "", m.pageWidth, m.scale, m.margins.top,
+               m.pdfKitTop.map { String(format: "%.2f", $0) } ?? "-", UIDevice.current.systemVersion)
     }
 
     private func shoot(_ env: HostedEnvironment, _ name: String) throws {
@@ -164,12 +171,16 @@ final class EditorObenFlachTests: XCTestCase {
                     XCTAssertEqual(header.height, rowHeight, accuracy: 0.5, what)
                     XCTAssertEqual(m.documentTop, header.maxY, accuracy: 1, "\(what): unter der Zeile sofort das Dokument")
                     // bis zur ersten Seite nur PDFKits Seitenrand (Seiten-pt mal Massstab), kein leerer Streifen. Die App setzt
-                    // keinen eigenen Rand. iPad: `pageBreakMargins.top` 4,75 (quer 4,75 x 1,957 = 9,3 pt, hoch 6,5 pt). Am Mac
-                    // meldet PDFKit dieselben 4,75, zeichnet aber 5,25 (gemessen 18.11.2026 bei gleichem Massstab: quer
-                    // 10,27 pt, hoch 7,14 pt) - ein halber Seitenpunkt grauer Rand mehr, kein Fehler der App
+                    // keinen eigenen Rand. `pageBreakMargins.top` meldet ueberall 4,75; wohin PDFKit die erste Seite legt,
+                    // haengt aber vom System ab (gemessen 19.11.2026, Lage der Seite in PDFKits Dokumentansicht): iPadOS
+                    // 27.2 bei 4,75 (quer 4,75 x 1,957 = 9,30 pt, hoch 6,46 pt), iPadOS 26.2 und Mac bei 5,25 (quer
+                    // 10,27 pt, hoch 7,14 pt) - ein halber Seitenpunkt grauer Rand mehr, von PDFKit, kein Fehler der App.
+                    // Darum gilt der Rand, den PDFKit selbst legt (hoechstens einen halben Seitenpunkt mehr als gemeldet).
                     let pageGap = m.pageTop - m.documentTop
-                    let pdfKitMargin = PDFEditorController.isMac ? 5.25 : m.margins.top
-                    XCTAssertLessThanOrEqual(pageGap, pdfKitMargin * m.scale + 0.5, "\(what): kein leerer Streifen bis zur Seite")
+                    let pdfKitTop = try XCTUnwrap(m.pdfKitTop, "\(what): Lage der Seite in PDFKits Dokumentansicht")
+                    XCTAssertGreaterThanOrEqual(pdfKitTop, m.margins.top - 0.01, "\(what): PDFKit legt mindestens den gemeldeten Rand")
+                    XCTAssertLessThanOrEqual(pdfKitTop, m.margins.top + 0.5 + 0.01, "\(what): PDFKit legt hoechstens einen halben Seitenpunkt mehr")
+                    XCTAssertLessThanOrEqual(pageGap, pdfKitTop * m.scale + 0.5, "\(what): kein leerer Streifen bis zur Seite")
                     XCTAssertLessThanOrEqual(pageGap, 11, "\(what): kein leerer Streifen bis zur Seite")
                     // keine Funktion fehlt: alles, was die Navigationsleiste trug, steht einzeln in der Zeile
                     var wanted = ["doc.pages", "doc.search", "toolbar.askAI.locked", "doc.split", "doc.pencilOnly", "doc.layers", "doc.share",

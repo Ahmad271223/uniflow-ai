@@ -348,11 +348,11 @@ extension EditorStrichBleibtTests {
         let id = ObjectIdentifier(canvas)
         var report: [String] = []
         func ersetzt(seit log0: Int) -> Int { ZeichnungSpion.log[log0...].filter { $0.canvas == id && !$0.own }.count }
-        func zeichne(_ f: Handzeichnung, halten: Bool, bei y: CGFloat) async throws -> PKStroke? {
+        func zeichne(_ f: Handzeichnung, halten: Bool, bei y: CGFloat, vorDemAbsetzen: (() -> Void)? = nil) async throws -> PKStroke? {
             let n0 = canvas.drawing.strokes.count
             let bahn = halten ? f.bahn : Array(f.bahn.dropLast(f.knaeuel))
             let pts = bahn.map { overlay.content.convert(CGPoint(x: $0.x + mitte.x, y: $0.y + y), to: nil) }
-            try await Self.zeichne(pts, knaeuel: halten ? f.knaeuel : 0, halten: halten ? 0.8 : 0, in: window)
+            try await Self.zeichne(pts, knaeuel: halten ? f.knaeuel : 0, halten: halten ? 0.8 : 0, in: window, vorDemAbsetzen: vorDemAbsetzen)
             let until = Uhr.now() + 4
             while Uhr.now() < until, canvas.drawing.strokes.count <= n0 { try await Task.sleep(nanoseconds: 10_000_000) }
             XCTAssertEqual(canvas.drawing.strokes.count, n0 + 1, "\(f.name): ein Strich")
@@ -369,7 +369,11 @@ extension EditorStrichBleibtTests {
         // Gegenprobe "wie bis 17.11.": Deckbild ohne Aussparung - die Markierung liegt dann doppelt uebereinander
         PageInkView.spareTranslucentStroke = false
         addTeardownBlock { @MainActor in PageInkView.spareTranslucentStroke = true }
-        _ = try await zeichne(linie, halten: true, bei: y1)
+        // Die gezogene Markierung (mit dem Knaeuel vom Halten) ist selbst etwas dunkler als die gerade (gemessen 19.11.2026:
+        // 620 bis 635 gegen 655). Das erste Bild nach der Meldung kann noch sie zeigen (der Bildschirm ist ein Bild
+        // hinterher) - das ist nicht doppelt. Doppelt ist dunkler als beide (Gegenprobe: 570).
+        var ohneGezogen = 765
+        _ = try await zeichne(linie, halten: true, bei: y1) { ohneGezogen = Self.dunkelster(window, region) }
         var ohne: [Int] = []
         let bis = Uhr.now() + 1.6
         while Uhr.now() < bis {
@@ -378,14 +382,15 @@ extension EditorStrichBleibtTests {
         }
         try await Task.sleep(nanoseconds: 600_000_000)
         let ohneDanach = Self.dunkelster(window, region)
-        report.append("Gegenprobe ohne Aussparung im Deckbild: dunkelste Stelle waehrend des Tauschs \(ohne.min() ?? 0), danach \(ohneDanach)")
-        XCTAssertLessThan(ohne.min() ?? 765, ohneDanach - 24, "Messaufbau: ohne Aussparung ist die doppelte Markierung im Bild zu sehen")
+        report.append("Gegenprobe ohne Aussparung im Deckbild: gezogen \(ohneGezogen), dunkelste Stelle waehrend des Tauschs \(ohne.min() ?? 0), danach \(ohneDanach)")
+        XCTAssertLessThan(ohne.min() ?? 765, min(ohneDanach, ohneGezogen) - 24, "Messaufbau: ohne Aussparung ist die doppelte Markierung im Bild zu sehen")
         PageInkView.spareTranslucentStroke = true
         editor.undo()
         try await Task.sleep(nanoseconds: 900_000_000)
         var log0 = ZeichnungSpion.log.count
         let covers0 = PageInkView.translucentCoversMade
-        _ = try await zeichne(linie, halten: true, bei: y1)
+        var gezogen = 765
+        _ = try await zeichne(linie, halten: true, bei: y1) { gezogen = Self.dunkelster(window, region) }
         // jedes Bild nach dem Absetzen: wie dunkel ist die dunkelste Stelle der Markierung?
         var dunkel: [Int] = []
         let ende = Uhr.now() + 1.6
@@ -399,7 +404,11 @@ extension EditorStrichBleibtTests {
         XCTAssertEqual(ersetzt(seit: log0), 1, "Textmarker-Linie gehalten: ein Mal ersetzt")
         XCTAssertEqual(PageInkView.translucentCoversMade, covers0 + 1, "Deckbild an der Stelle der Markierung ausgespart")
         XCTAssertLessThan(danach, 740, "Messaufbau: die Markierung ist im Bild zu sehen (dunkelste Stelle \(danach) von 765)")
-        XCTAssertGreaterThanOrEqual(dunkel.min() ?? 0, danach - 24, "Markierung in keinem Bild dunkler als danach (doppelt): \(dunkel.min() ?? 0) gegen \(danach)")
+        XCTAssertGreaterThanOrEqual(dunkel.min() ?? 0, min(danach, gezogen) - 24,
+                                    "Markierung in keinem Bild dunkler als gezogen und danach (doppelt): \(dunkel.min() ?? 0) gegen \(gezogen) und \(danach)")
+        // ... und in keinem Bild weg: bis 19.11.2026 zeigte PencilKit an der ausgesparten Stelle ein bis drei Bilder lang
+        // gar nichts (dunkelste Stelle 765 = weiss), bis es den neuen Stand gezeichnet hatte
+        XCTAssertLessThan(dunkel.max() ?? 765, 740, "Markierung in keinem Bild weg: \(dunkel.max() ?? 765) (765 = weiss)")
         if let s = canvas.drawing.strokes.last {
             let a = s.path[0].location.applying(s.transform), b = s.path[s.path.count - 1].location.applying(s.transform)
             let xs = linie.bahn.map { $0.x + mitte.x }
