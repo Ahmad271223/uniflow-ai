@@ -169,21 +169,23 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     # Build 44 (16.11.2026): Hotfix 1.0.5 aus 10cf2836 (Store-Stand + Absturz-Korrektur + Speicher-Runde nach dem
     # Schliessen), 23:42 eingereicht; develop ist Build 45 (Version 1.0.6)
     assert r[44]["commit"] == "10cf2836" and r[44]["date"] == "16.11.2026 23:37"
-    assert r[44]["status"].startswith("eingereicht: Version 1.0.5 am 16.11.2026 23:42 zur Prüfung gegeben")
+    assert r[44]["status"].startswith("veröffentlicht: Version 1.0.5 am 18.11.2026 abends vom Inhaber freigegeben")
+    assert "eingereicht: Version 1.0.5 am 16.11.2026 23:42 zur Prüfung gegeben" in r[44]["status"]
     for must in ("WAITING_FOR_REVIEW", "Freigabe nach der Prüfung von Hand", "`release/1.0.5-hotfix`", "`ios-1.0.5-b44`", "Server unverändert auf `fc66fba4`"):
         assert must in r[44]["status"], must
     for must in ("Stand der Store-Version 1.0.4 (Build 42, `fc66fba4`) plus genau zwei Korrekturen", "`Views.swift`", "`SyncEngine.swift`", "iPadOS 26.2"):
         assert must in r[44]["content"], must
-    # Build 45 (19.11.2026): Version 1.0.6 aus f5e21794 gebaut, hochgeladen, in 1.0.6 gewaehlt; noch nicht eingereicht
-    assert r[45]["commit"] == "f5e21794" and project_build() == 45 and r[45]["date"] == "19.11.2026 14:20"
-    assert r[45]["status"].startswith("hochgeladen 19.11.2026 14:26 (Apple VALID), in Version 1.0.6 gewählt")
+    # Build 45 (19.11.2026): Version 1.0.6 aus f5e21794, eingereicht 15:00 mit beiden Credit-Paketen; develop ist Build 46 (1.0.7)
+    assert r[45]["commit"] == "f5e21794" and project_build() == 46 and r[45]["date"] == "19.11.2026 14:20"
+    assert r[45]["status"].startswith("eingereicht: Version 1.0.6 am 19.11.2026 15:00 zur Prüfung gegeben")
     for must in ("AFTER_APPROVAL", "Credit-Pakete", "`UFIntakeOffered` YES", "Demo hinter „Hilfe“"):
         assert must in r[45]["status"], must
+    assert r[46]["commit"] is None and r[46]["status"].startswith("vorbereitet, noch nicht hochgeladen: Version 1.0.7")
     for must in ("Lernkalender aus", "Erinnerungen ab Pro AI", "KI-Credits", "YouTube öffnen"):
         assert must in r[45]["content"], must
     doc = DOC.read_text(encoding="utf-8")
-    assert submitted() == 44
-    assert "Im App Store: 1.0.4 mit Build 42 seit 16.11.2026 10:49 (von Apple genehmigt, vom Inhaber freigegeben)." in doc
+    assert submitted() == 45
+    assert "Im App Store: 1.0.5 mit Build 44 seit 18.11.2026 abends (vom Inhaber freigegeben), davor 1.0.4 mit Build 42 seit 16.11.2026 10:49." in doc
     assert "keine Version" not in doc and "mit Build 41 seit" not in doc
     # seit Build 40 nicht mehr nur LUH, seit Build 39 nicht mehr nur iPad
     assert "bis Build 39\n`UF_SHIPPED_UNIVERSITIES=luh` (nur LUH), ab Build 40 `luh hildesheim`" in doc
@@ -193,7 +195,8 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     assert "Build 42 als Version 1.0.4 veröffentlicht am 16.11.2026 10:49 (eingereicht am 15.11.2026 10:13" in row, row
     assert "Builds 36 bis 40 (1.0.4) nur TestFlight" in row and "noch nicht eingereicht" not in row, row
     head = store.splitlines()[2]
-    assert "Build 42 ist seit 16.11.2026 10:49 als Version 1.0.4 veröffentlicht" in head and "Build 44 ist seit 16.11.2026 23:42 als Version 1.0.5 in der Prüfung" in head
+    assert "Build 42 ist seit 16.11.2026 10:49 als Version 1.0.4 veröffentlicht" in head and "Build 45 ist seit 19.11.2026 15:00 als Version 1.0.6 in der Prüfung" in head
+    assert "Build 44 ist seit 18.11.2026 als Version 1.0.5 veröffentlicht" in head
     assert "noch nicht eingereicht" not in head
     assert "10 iPad-Bilder und\n7 iPhone-Bilder, alle COMPLETE" in store
     assert "Die neue Einreichung vom 15.11.2026 mit Build 42 nutzt dieselben Texte und Bilder\nunverändert." in store
