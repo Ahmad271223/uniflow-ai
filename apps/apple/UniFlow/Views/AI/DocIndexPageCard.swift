@@ -130,14 +130,20 @@ struct DocIndexPageCard: View {
 
     private func element(_ e: JSONValue, refs: [JSONValue]) -> some View {
         VStack(alignment: .leading, spacing: 2) {
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                Text(Self.typeLabels[e.s("type") ?? ""] ?? (e.s("type") ?? "")).ufFont(11.5, 700).foregroundStyle(UF.accentText)
-                Text(FormulaText.attributed(e.s("title") ?? "", size: 13.12, weight: 600)).ufFont(13.12, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
-                if e["uncertain"]?.bool == true { Text("unsicher").ufFont(11).foregroundStyle(UF.muted) }
+            // Art, Titel und Erklaerung als ein Element; die Verweise bleiben eigene Knoepfe (19.11.2026: mit
+            // `.combine` ueber alles verschluckte iOS 26.2 und der Mac den Verweis "auch in Vorlesung …", VoiceOver kam
+            // nicht an ihn heran)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(Self.typeLabels[e.s("type") ?? ""] ?? (e.s("type") ?? "")).ufFont(11.5, 700).foregroundStyle(UF.accentText)
+                    Text(FormulaText.attributed(e.s("title") ?? "", size: 13.12, weight: 600)).ufFont(13.12, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                    if e["uncertain"]?.bool == true { Text("unsicher").ufFont(11).foregroundStyle(UF.muted) }
+                }
+                if let x = e.s("explanation"), !x.isEmpty {
+                    Text(FormulaText.attributed(x, size: 12.8)).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                }
             }
-            if let x = e.s("explanation"), !x.isEmpty {
-                Text(FormulaText.attributed(x, size: 12.8)).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
-            }
+            .accessibilityElement(children: .combine)
             ForEach(Array(refs.enumerated()), id: \.offset) { _, r in
                 Button { open(r.s("file_id") ?? fileID, r.i("page") ?? 1) } label: {
                     Text(r.s("text") ?? "").ufFont(12).foregroundStyle(UF.accentText)
@@ -145,7 +151,6 @@ struct DocIndexPageCard: View {
                 .buttonStyle(.plain)
             }
         }
-        .accessibilityElement(children: .combine)
     }
 
     private func load(page p: Int) async {
