@@ -1469,7 +1469,7 @@ class _Call:
                     state = (e.extra or {}).get("credits") or {}
                     # Rest des Monats plus nutzbare gekaufte Credits (`available`); aeltere Staende kennen nur `remaining`
                     remaining = int(state.get("available", state.get("remaining")) or 0)
-                    fit = min(ai_prices.max_output_within(m, self.system, self.prompt, remaining * ai_prices.MICROEUR_PER_CREDIT, self.images,
+                    fit = min(ai_prices.max_output_within(m, self.system, self.prompt, int(remaining * ai_prices.MICROEUR_PER_CREDIT / ai_prices.credit_factor(m)), self.images,
                                                           self.schema) for m in self.models) if e.code == "credits_exhausted" and remaining > 0 else 0
                     fit = min(fit, self.max_out - 1)
                     if fit < min(MIN_SHRUNK_OUTPUT, self.max_out - 1) or self._estimate(fit) > remaining:

@@ -293,7 +293,7 @@ struct PenPresetChips: View {
                 if let t = p.toolValue { onPick(t) }
                 tools.applyPreset(p.id)
             } label: {
-                PenPresetDot(preset: p).frame(width: 36, height: EditorToolbar.hitSide)
+                PenPresetDot(preset: p).frame(width: EditorToolbar.presetWidth, height: EditorToolbar.hitSide)
             }
             .buttonStyle(EditorToolButtonStyle(selected: active))
             .contextMenu {

@@ -15,7 +15,7 @@ struct MathFormulaView: View {
     var body: some View {
         let s = UFScaledFont.scaled(size, typeSize)
         Group {
-            if let lines = MathLayout.cachedParse(latex) {
+            if let lines = MathLayout.cachedParse(latex), lines.allSatisfy({ $0.depth <= MathNodeView.maxDepth }) {
                 let formula = VStack(spacing: s * 0.45) {
                     ForEach(lines.indices, id: \.self) { i in MathNodeView(node: lines[i], size: s) }
                 }
@@ -163,7 +163,13 @@ struct MathNodeView: View {
     private var smaller: CGFloat { max(9, size * 0.72) }
     private var line: CGFloat { max(1, size * 0.055) }
 
-    var body: some View { content }
+    /// tiefer verschachtelt (sehr seltenes LaTeX): lesbarer Text statt gesetzter Formel, jede Ebene kostet Stapel
+    static let maxDepth = 24
+
+    /// `AnyView` bricht die Rekursion des Typs: ohne sie rechnet SwiftUI `_viewListCount` ueber MathNodeView ->
+    /// body -> MathNodeView ... endlos und der Stapel des Hauptfadens laeuft ueber (Absturz am iPad Air 4, 18.11.2026,
+    /// EXC_BAD_ACCESS in `ModifiedContent._viewListCount`, bei jedem Oeffnen der Antwort wieder)
+    var body: some View { AnyView(content) }
 
     private func serif(_ s: String, italic: Bool = false) -> some View {
         Text(s).font(.system(size: size, weight: .regular, design: .serif)).italic(italic).fixedSize()
@@ -234,6 +240,20 @@ struct MathNodeView: View {
                     if !close.isEmpty { serif(close) }
                 }
             }
+        }
+    }
+}
+
+extension MathNode {
+    /// Verschachtelungstiefe des Baums (Zeile, Bruch, Hochzahl, Wurzel, Kasten, Klammer zaehlen je eine Ebene)
+    var depth: Int {
+        switch self {
+        case .row(let xs): return 1 + (xs.map(\.depth).max() ?? 0)
+        case .frac(let a, let b): return 1 + max(a.depth, b.depth)
+        case .scripts(let b, let sup, let sub): return 1 + max(b.depth, sup?.depth ?? 0, sub?.depth ?? 0)
+        case .sqrt(let b, let i): return 1 + max(b.depth, i?.depth ?? 0)
+        case .boxed(let b), .fenced(_, let b, _): return 1 + b.depth
+        case .ident, .number, .symbol, .op, .text, .space: return 1
         }
     }
 }

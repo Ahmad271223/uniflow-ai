@@ -250,9 +250,42 @@ def cost_microeur(model: str | None, input_tokens: int, output_tokens: int, cach
     return int(round((i - c) * p.input_eur + c * p.cached_eur + o * p.output_eur))
 
 
-def credits_for(microeur: int) -> int:
-    """Credits fuer Kosten in Millionstel Euro (MICROEUR_PER_CREDIT je Credit): immer aufgerundet."""
-    return max(0, math.ceil(max(0, int(microeur)) / MICROEUR_PER_CREDIT))
+# Aufschlag fuer starke Modelle (Auftrag des Inhabers 18.11.2026 abends: "dann sollen das halt 10 credits ... bei 4,9 cent"):
+# Modelle ab STRONG_OUTPUT_EUR Ausgabepreis (EUR je 1 Mio. Tokens; gpt-6.1-sol, gpt-6-sol, Claude Sonnet) kosten
+# STRONG_CREDIT_FACTOR-mal so viele Credits wie ihre echten Kosten - eine lange Rechen-Antwort mit 4,9 Cent also 10 statt
+# 8 Credits. Guenstige Modelle (gpt-6-luna, gpt-6.1-terra) bleiben beim Kurs. Einstellbar mit LERNAPP_CREDIT_STRONG_FACTOR
+# (1 = aus) in deploy/.env.
+STRONG_OUTPUT_EUR = 8.0
+STRONG_CREDIT_FACTOR = 1.3
+STRONG_FACTOR_ENV = "LERNAPP_CREDIT_STRONG_FACTOR"
+
+
+def credit_factor(model: str | None) -> float:
+    """Faktor auf die Credits eines Modells: STRONG_CREDIT_FACTOR fuer starke Modelle, sonst 1."""
+    if not model:
+        return 1.0
+    # Listenpreis des Modells aus der Tabelle (nicht der einheitliche Altpreis LERNAPP_AI_PRICE_OUT_EUR, der fuer alle
+    # Modelle gleich waere): stark ist, was laut Tabelle teuer ist
+    hit = _lookup(model, table())
+    try:
+        out = float(hit[1].get("output", 0)) if hit else 0.0
+    except (TypeError, ValueError):
+        out = 0.0
+    if out < STRONG_OUTPUT_EUR:
+        return 1.0
+    raw = (os.environ.get(STRONG_FACTOR_ENV) or "").strip().replace(",", ".")
+    try:
+        f = float(raw) if raw else STRONG_CREDIT_FACTOR
+    except ValueError:
+        f = STRONG_CREDIT_FACTOR
+    return f if math.isfinite(f) and 1.0 <= f <= 5.0 else STRONG_CREDIT_FACTOR
+
+
+def credits_for(microeur: int, model: str | None = None) -> int:
+    """Credits fuer Kosten in Millionstel Euro (MICROEUR_PER_CREDIT je Credit, starke Modelle mal `credit_factor`):
+    immer aufgerundet."""
+    cost = max(0, int(microeur)) * credit_factor(model)
+    return max(0, math.ceil(round(cost, 6) / MICROEUR_PER_CREDIT))
 
 
 # ---------------------------------------------------------------- Schaetzung vor dem Aufruf
@@ -387,7 +420,7 @@ def estimate_credits(model: str | None, system: str, prompt: str, max_output_tok
                      schema: dict | None = None) -> int:
     """Reservierung in Credits vor dem Aufruf: die harte Obergrenze (worst_case_microeur), aufgerundet, mindestens 1. Die
     echten Kosten koennen nie darueber liegen; abgerechnet wird danach `usage` (app/credits.py gibt den Rest frei)."""
-    return max(1, credits_for(worst_case_microeur(model, system, prompt, max_output_tokens, images, schema)))
+    return max(1, credits_for(worst_case_microeur(model, system, prompt, max_output_tokens, images, schema), model))
 
 
 def listing() -> list[dict]:

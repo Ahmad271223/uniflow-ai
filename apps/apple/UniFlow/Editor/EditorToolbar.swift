@@ -631,13 +631,20 @@ struct EditorToolbar: View {
     var body: some View {
         HStack(spacing: 2) {
             if embedded {
-                // so breit wie noetig: alle Werkzeuge, sonst Objektwerkzeuge in einem Knopf, sonst schieben (nie umbrechen)
+                // so breit wie noetig: alle Werkzeuge, sonst Objektwerkzeuge in einem Knopf, sonst schieben (nie umbrechen).
+                // Gewaehlt wird zwischen leeren Flaechen mit der berechneten Breite der Reihe; gezeichnet wird nur die
+                // passende Reihe (Dauerlast am iPad Air 4, 18.11.2026: ViewThatFits mit den drei echten Reihen baute
+                // und vermass bei jedem Layout-Durchgang alle drei samt Knoepfen und Popovern neu, Hauptfaden 100 %).
+                let full = Self.rowWidth(collapsed: false, presets: tools.presets.count, inkOnly: mode.inkOnly, embedded: true)
+                let compact = Self.rowWidth(collapsed: true, presets: tools.presets.count, inkOnly: mode.inkOnly, embedded: true)
                 ViewThatFits(in: .horizontal) {
-                    toolRow(collapsed: false).fixedSize()
-                    toolRow(collapsed: true).fixedSize()
-                    ScrollView(.horizontal, showsIndicators: false) { toolRow(collapsed: true) }
-                        .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
-                        .frame(minWidth: Self.hitSide * 2)              // mindestens zwei Stifte zu sehen
+                    Color.clear.frame(width: full, height: Self.hitSide)
+                    Color.clear.frame(width: compact, height: Self.hitSide)
+                    Color.clear.frame(minWidth: Self.hitSide * 2, idealWidth: compact, maxWidth: .infinity) // mindestens zwei Stifte
+                        .frame(height: Self.hitSide)
+                }
+                .overlay(alignment: .leading) {
+                    GeometryReader { g in fittedRow(width: g.size.width, full: full, compact: compact) }
                 }
             } else {
                 ScrollView(.horizontal, showsIndicators: false) { toolRow(collapsed: false) }
@@ -684,7 +691,33 @@ struct EditorToolbar: View {
     private var divider: some View { UF.line.frame(width: 1, height: 22).padding(.horizontal, 3) }
 
     /// Werkzeuge der Zeichenflaeche, Lineal und (ausser im Korrektur-Modus) die Objektwerkzeuge, einzeln oder in einem Knopf
-    private func toolRow(collapsed: Bool) -> some View {
+    /// Reihe fuer die Breite, die `ViewThatFits` oben gewaehlt hat (volle, eingeklappte oder wischbare Reihe)
+    @ViewBuilder private func fittedRow(width: CGFloat, full: CGFloat, compact: CGFloat) -> some View {
+        if width >= full - 0.5 {
+            toolRow(collapsed: false).fixedSize()
+        } else if width >= compact - 0.5 {
+            toolRow(collapsed: true).fixedSize()
+        } else {
+            ScrollView(.horizontal, showsIndicators: false) { toolRow(collapsed: true) }
+                .scrollBounceBehavior(.basedOnSize, axes: .horizontal)
+                .frame(width: width)
+        }
+    }
+
+    /// Breite der Werkzeugreihe (`toolRow`), ohne sie zu messen: je Werkzeug und Lineal `hitSide`, je eigener Stift
+    /// `presetWidth`, Trennlinie `dividerWidth`, eingeklappt die Objektwerkzeuge als ein Knopf; dazu der Rand
+    static func rowWidth(collapsed: Bool, presets: Int, inkOnly: Bool, embedded: Bool) -> CGFloat {
+        var w = CGFloat(EditorToolState.Tool.canvasTools.count + 1) * hitSide + CGFloat(presets) * presetWidth
+        if !inkOnly { w += dividerWidth + (collapsed ? hitSide : CGFloat(EditorToolState.Tool.objectTools.count) * hitSide) }
+        return w + 2 * (embedded ? 2 : 6)
+    }
+
+    /// Breite eines eigenen Stifts in der Reihe (`PenPresetChips`)
+    static let presetWidth: CGFloat = 36
+    /// Trennlinie: 1 pt und je 3 pt Abstand (`divider`)
+    static let dividerWidth: CGFloat = 7
+
+    func toolRow(collapsed: Bool) -> some View {
         HStack(spacing: 0) {
             ForEach(EditorToolState.Tool.canvasTools) { toolButton($0) }
             PenPresetChips(tools: tools, onPick: onPick)                    // eigene Stifte (14.11.2026)
@@ -739,7 +772,15 @@ struct EditorToolbar: View {
     }
 
     /// Werkzeug: Symbol, bei Stiften ein Farbpunkt darunter; zweites Tippen oeffnet seine Einstellungen
+    #if DEBUG
+    /// Messung (`EditorToolbarLayoutAppTests`): wie oft Werkzeugknoepfe gebaut wurden
+    nonisolated(unsafe) static var toolButtonBuilds = 0
+    #endif
+
     private func toolButton(_ t: EditorToolState.Tool) -> some View {
+        #if DEBUG
+        Self.toolButtonBuilds += 1
+        #endif
         let selected = tools.tool == t
         return Button {
             if selected {

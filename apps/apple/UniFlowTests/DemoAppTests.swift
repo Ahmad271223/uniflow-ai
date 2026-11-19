@@ -310,18 +310,27 @@ final class DemoAppTests: XCTestCase {
         XCTAssertEqual(UniStubProtocol.requests.count, 0)
     }
 
-    /// Anmeldeseite: ganz unten der kleine Textlink (kein Knopf mit Symbol), unter "Später anmelden"; antippen startet
-    /// die Demo; ohne Angebot (schon angemeldet) fehlt er
-    func testLoginPageHasTheDemoLinkAtTheBottom() async throws {
+    /// Anmeldeseite: kein Demo-Link sichtbar (Entscheidung des Inhabers 18.11.2026), aber ein kleiner Knopf "Hilfe"; erst
+    /// er klappt "Ohne Hochschulkonto ansehen (Demo)" auf (19.11.2026, Zugang fuer Apples Pruefer); antippen startet die
+    /// Demo; ohne Angebot (schon angemeldet) fehlt auch "Hilfe"
+    func testLoginFlowNoLongerShowsTheDemoLinkDirectly() {
+        XCTAssertFalse(FirstLoginFlow.demoLinkShown)
+        XCTAssertTrue(FirstLoginFlow.demoBehindHelp)
+    }
+
+    func testLoginPageOffersTheDemoBehindHelp() async throws {
         XCTAssertTrue(HostedEnvironment.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { HostedEnvironment.accessibilityAutomation(false) }
         var taps = 0
         let env = try hostWithEnvironment(VStack { Spacer(); FirstLoginBottomBar(demo: .offered, onLater: {}, onDemo: { taps += 1 }) })
+        await eventually({ self.shows(env.view, FirstLoginBottomBar.help) }, texts(env.view).joined(separator: "\n"))
+        XCTAssertFalse(shows(env.view, DemoTexts.firstStart), "Demo-Link erst nach „Hilfe“")
+        XCTAssertTrue(tap(FirstLoginBottomBar.help, in: env.view))
         await eventually({ self.shows(env.view, DemoTexts.firstStart) }, texts(env.view).joined(separator: "\n"))
         let link = try XCTUnwrap(element(DemoTexts.firstStart, in: env.view))
         let later = try XCTUnwrap(element("Später anmelden", in: env.view))
         XCTAssertTrue(link.accessibilityTraits.contains(.button))
-        XCTAssertGreaterThanOrEqual(link.accessibilityFrame.midY, later.accessibilityFrame.maxY - 1, "Link ganz unten, unter „Später anmelden“")
+        XCTAssertGreaterThanOrEqual(link.accessibilityFrame.midY, later.accessibilityFrame.maxY - 1, "Link unter „Später anmelden“")
         XCTAssertTrue(tap(DemoTexts.firstStart, in: env.view))
         XCTAssertEqual(taps, 1)
         env.window.isHidden = true
@@ -333,6 +342,7 @@ final class DemoAppTests: XCTestCase {
         let hidden = try hostWithEnvironment(FirstLoginBottomBar(demo: .hidden, onLater: {}))
         await eventually({ self.shows(hidden.view, "Später anmelden") })
         XCTAssertFalse(shows(hidden.view, DemoTexts.firstStart))
+        XCTAssertFalse(shows(hidden.view, FirstLoginBottomBar.help), "angemeldet: keine Hilfe zur Demo")
     }
 
     /// Leiste nur bei aktiver Demo (ueber jeder Seite der App-Huelle); in den Store-Bildern mit `\.ufDemoBarHidden` aus

@@ -481,7 +481,7 @@ struct UFAbovePage<Top: View, Content: View>: View {
         VStack(spacing: 0) {
             // Breite wie UFContent (max. 1480 px bzw. die der Seite)
             VStack(alignment: .leading, spacing: 0) { top() }
-            .frame(maxWidth: maxWidth ?? 1480, alignment: .leading)
+            .frame(maxWidth: UFDevice.pageWidth(maxWidth ?? 1480), alignment: .leading)   // wie UFContent
             .frame(maxWidth: .infinity)
             content()
         }

@@ -63,7 +63,7 @@ enum UF {
     static let rSm: CGFloat = 8          // --r-sm
     static let r: CGFloat = 12           // --r
     static let rLg: CGFloat = 16         // --r-lg
-    static let sidebar: CGFloat = 248    // --sidebar
+    static let sidebar: CGFloat = (248 * UFDevice.textScale).rounded()    // --sidebar (am Mac mit der groesseren Schrift breiter)
     static let sidebarMin: CGFloat = 68  // --sidebar-min
     static let header: CGFloat = 56      // --header
     static var transition: Animation? { motion(.easeInOut(duration: 0.16)) }   // --t: .16s ease
@@ -106,7 +106,12 @@ enum UFTypeface {
     private static var cache: [String: UIFont] = [:]
     private static let lock = NSLock()
 
-    static func font(_ size: CGFloat, _ css: CGFloat) -> UIFont {
+    /// `size` in Punkten wie am iPad; am Mac etwas groesser (`UFDevice.textScale`)
+    static func font(_ size: CGFloat, _ css: CGFloat) -> UIFont { font(size, css, scale: UFDevice.textScale) }
+
+    static func font(_ base: CGFloat, _ css: CGFloat, scale: CGFloat) -> UIFont {
+        // iPad und iPhone (scale 1): Groesse genau wie angegeben; am Mac auf Viertelpunkte (wenige Schnitte im Speicher)
+        let size = scale == 1 ? base : (base * scale * 4).rounded() / 4
         let key = "\(size)|\(css)"
         lock.lock(); defer { lock.unlock() }
         if let f = cache[key] { return f }
@@ -187,9 +192,10 @@ struct UFScaledFont: ViewModifier {
 
     func body(content: Content) -> some View {
         let s = Self.scaled(size, typeSize)
-        let extra = max(0, s * lh - UFTypeface.font(s, weight).lineHeight)
+        // Zeilenhoehe zur tatsaechlichen Schrift (am Mac `UFDevice.textScale` groesser)
+        let extra = max(0, s * UFDevice.textScale * lh - UFTypeface.font(s, weight).lineHeight)
         return content.font(.uf(s, weight))
-            .tracking(em * s)
+            .tracking(em * s * UFDevice.textScale)
             .lineSpacing(extra)
             .padding(.vertical, extra / 2)
     }

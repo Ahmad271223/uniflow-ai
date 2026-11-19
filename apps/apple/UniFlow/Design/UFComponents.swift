@@ -768,7 +768,7 @@ struct UFContent<Content: View>: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) { content }
                 .padding(pad)
-                .frame(maxWidth: maxWidth ?? (wide ? .infinity : 1480), alignment: .leading)
+                .frame(maxWidth: maxWidth.map(UFDevice.pageWidth) ?? (wide ? .infinity : UFDevice.pageWidth(1480)), alignment: .leading)
                 .frame(maxWidth: .infinity)
         }
         .defaultScrollAnchor(UFDebugScroll.anchor)

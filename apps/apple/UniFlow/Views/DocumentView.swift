@@ -916,7 +916,8 @@ struct DocumentView: View {
         .ufFullScreenCover(item: $openedVersion) { v in
             NavigationStack {
                 // Vollbild einer frueheren Fassung: derselbe Zurueck-Pfeil wie im Editor schliesst sie (vorher "Schließen")
-                DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true, onBack: { openedVersion = nil })
+                // AnyView: der Typ enthielte sich sonst selbst (tools/pruefe-rekursive-ansichten.py, Absturz 18.11.2026)
+                AnyView(DocumentView(file: store.oldVersionFile(v), api: api, readOnly: true, onBack: { openedVersion = nil }))
             }
         }
         .fileImporter(isPresented: $importingSolution, allowedContentTypes: [Self.solutionType]) { result in

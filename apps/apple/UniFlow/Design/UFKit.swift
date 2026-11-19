@@ -491,7 +491,8 @@ struct UFSheetLayer: View {
             .scrollBounceBehavior(.basedOnSize)
             .ufSheetPresentation(wide: l.wide)
             .ufSheet(item: Self.binding(overlay, index: index + 1, active: true)) { _ in
-                UFSheetLayer(overlay: overlay, index: index + 1)
+                // AnyView: der Typ enthielte sich sonst selbst (tools/pruefe-rekursive-ansichten.py, Absturz 18.11.2026)
+                AnyView(UFSheetLayer(overlay: overlay, index: index + 1))
             }
         }
     }
@@ -833,7 +834,7 @@ struct UFWordWrapText: View {
     var body: some View {
         let base = UFScaledFont.scaled(size, typeSize)
         let fit = Self.fit(text, base: base, weight: weight, em: em, width: width, minScale: minScale)
-        let extra = max(0, fit.size * lh - UFTypeface.font(fit.size, weight).lineHeight)
+        let extra = max(0, fit.size * UFDevice.textScale * lh - UFTypeface.font(fit.size, weight).lineHeight)
         Text(fit.text)
             .font(.uf(fit.size, weight))
             .tracking(em * fit.size)

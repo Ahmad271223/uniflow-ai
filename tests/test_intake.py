@@ -223,6 +223,9 @@ def svc(hosted, intake, monkeypatch):
     sent = []
 
     def fake_forward(url, path, body, content_type, university):
+        if not isinstance(body, bytes):                      # Datei in Stuecken (intake_api.Stream)
+            assert len(body) == sum(len(c) for c in body)
+            body = b"".join(body)
         t = intake.make_ticket(university)["ticket"]
         st, _, b = asgi_call(intake.app, "POST", path, body=body, headers={"Authorization": f"Bearer {t}"}, content_type=content_type)
         sent.append((url, path, university, body))
@@ -295,3 +298,66 @@ def test_unreachable_intake_is_502(hosted, monkeypatch):
     u, h = user(hosted, "weg@example.com")
     st, d = svc_call(hosted, "/api/intake/check", h, json.dumps({"files": []}))
     assert st == 502 and d["code"] == "intake_unreachable"
+
+
+# ---------------------------------------------------------------- Andrang (18.11.2026: "problemlos, ohne dass normale Nutzer etwas merken")
+
+def test_service_busy_answers_503_and_keeps_nothing(svc, monkeypatch):
+    """Zu viele Weitergaben gleichzeitig: 503 intake_busy mit Retry-After; die App versucht es still beim naechsten Abgleich"""
+    from app import intake_api
+    u, h = user(svc, "andrang@example.com")
+    data = pdf("Folgen und Reihen")
+    body, ct = multipart(data, meta(data))
+    monkeypatch.setattr(intake_api, "_uploads_running", intake_api.parallel_uploads())
+    st, d = svc_call(svc, "/api/intake/file", h, body, ct)
+    assert st == 503 and d["code"] == "intake_busy"
+    assert svc.sent == [], "nichts weitergereicht"
+    monkeypatch.setattr(intake_api, "_uploads_running", 0)
+    st, d = svc_call(svc, "/api/intake/file", h, body, ct)
+    assert st == 200 and intake_api._uploads_running == 0, "Zaehler geht nach der Weitergabe zurueck"
+
+
+def test_parallel_setting_is_bounded(monkeypatch):
+    from app import intake_api
+    for raw, want in [("", 2), ("x", 2), ("0", 1), ("5", 5), ("99", 16)]:
+        monkeypatch.setenv("LERNAPP_INTAKE_PARALLEL", raw)
+        assert intake_api.parallel_uploads() == want, raw
+
+
+def test_intake_busy_answers_503(intake, monkeypatch):
+    monkeypatch.setattr(intake, "_running", intake.PARALLEL)
+    data = pdf("Folgen und Reihen")
+    body, ct = multipart(data, meta(data))
+    st, _, b = asgi_call(intake.app, "POST", "/intake/v1/file", body=body,
+                         headers={"Authorization": f"Bearer {ticket(intake)}"}, content_type=ct)
+    assert st == 503 and json.loads(b)["detail"]["code"] == "intake_busy"
+
+
+def test_stream_reaches_the_intake_in_pieces_with_length(monkeypatch):
+    """Echte Weitergabe ueber HTTP: Datei in Stuecken (nie ganz im Speicher des Dienstes), Content-Length stimmt"""
+    import http.server, io, threading
+    from app import intake_api
+    got = {}
+
+    class H(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):
+            n = int(self.headers["Content-Length"])
+            got["body"], got["len"] = self.rfile.read(n), n
+            out = b'{"status": "stored"}'
+            self.send_response(200); self.send_header("Content-Length", str(len(out))); self.end_headers()
+            self.wfile.write(out)
+
+        def log_message(self, *a):
+            pass
+
+    srv = http.server.HTTPServer(("127.0.0.1", 0), H)
+    threading.Thread(target=srv.handle_request, daemon=True).start()
+    monkeypatch.setenv("LERNAPP_INTAKE_SECRET", SECRET)
+    monkeypatch.setattr(intake_api, "CHUNK", 7)
+    data = b"%PDF-1.4 " + bytes(range(256)) * 5
+    s = intake_api.Stream(b"KOPF", io.BytesIO(data), len(data), b"ENDE")
+    assert len(list(s)) > 3, "in Stuecken"
+    st, d = intake_api.forward(f"http://127.0.0.1:{srv.server_port}", "/intake/v1/file", s, "application/pdf", "luh")
+    srv.server_close()
+    assert st == 200 and d == {"status": "stored"}
+    assert got["body"] == b"KOPF" + data + b"ENDE" and got["len"] == len(s)

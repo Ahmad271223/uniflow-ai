@@ -1569,6 +1569,13 @@ final class StudIPSync: ObservableObject {
     nonisolated static func autoPlan(host: LocalBackendHost, newFiles: Int, weekly: Bool = true) async {
         guard !Task.isCancelled, let backend = try? await host.backend() else { return }
         _ = try? await StudyAutoPlan.afterSync(backend, newFiles: newFiles)
+        // Datei-Eingang (18.11.2026): neue Kurs-PDFs einmal an StudiNow (Build-Schalter UF_INTAKE_OFFERED, von selbst an,
+        // nur im WLAN). Direkt nach dem Abgleich und nach jedem Abgleich (auch dem kurzen): am iPad A16 kam nach einem
+        // Abgleich nichts an, weil der Schritt hinter Wochentests und dem Vorwaermen des Index (lang) und nur nach einem
+        // vollen Abgleich lief.
+        // eigener Hintergrund-Task (niedrigste Prioritaet), der Rest wartet nicht darauf
+        guard !Task.isCancelled else { return }
+        await CourseFileIntakeRunner.startAfterSync(host: host)
         guard weekly, !Task.isCancelled else { return }
         // automatische Wochentests ab Pro AI (UFWeeklyAutoGate); der Index unten laeuft in jedem Tarif
         if await UFWeeklyAutoGate.check(), case .ran(_, let changed) = await WeeklyAutoTick.run(backend.context), changed {
@@ -1577,10 +1584,6 @@ final class StudIPSync: ObservableObject {
         // Dokument-Index der laufenden Woche vorwaermen (erst Bibliothek, dann sparsames Modell): nur WLAN + Laden
         guard !Task.isCancelled else { return }
         await DocIndexPrewarm.run(backend.context)
-        // Datei-Eingang (18.11.2026): neue Kurs-PDFs einmal an StudiNow, nur im Test-Build (UF_INTAKE_OFFERED=YES),
-        // nur mit Zustimmung und im WLAN
-        guard !Task.isCancelled else { return }
-        await CourseFileIntakeRunner.afterSync(host: host)
     }
 
     /// Beim Oeffnen der App: Dokumente, die ein Hintergrundabgleich gebracht hat, in den bestehenden Lernplan

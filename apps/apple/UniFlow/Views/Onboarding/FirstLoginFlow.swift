@@ -78,7 +78,8 @@ struct FirstLoginFlow: View {
             } else {
                 FirstLoginPage(step: steps[index], index: index, count: steps.count, studip: containers.studip, qis: containers.qis,
                                hildesheim: containers.hildesheim, hsh: containers.hsh, onDone: advance, onLater: later,
-                               demo: Self.offersDemo(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim, hsh: containers.hsh)
+                               demo: Self.demoBehindHelp && Self.offersDemo(studip: containers.studip, qis: containers.qis,
+                                                                           hildesheim: containers.hildesheim, hsh: containers.hsh)
                                    ? (startingDemo ? .starting : .offered) : .hidden,
                                onDemo: startDemo)
                     .id(steps[index])
@@ -119,6 +120,18 @@ struct FirstLoginFlow: View {
     private func later() {
         if Self.anyConnected(studip: containers.studip, qis: containers.qis, hildesheim: containers.hildesheim, hsh: containers.hsh) { syncing = true } else { account.markLoginDone() }
     }
+
+    /// Textlink "Ohne Hochschulkonto ansehen (Demo)" auf der Anmeldeseite: aus (Entscheidung des Inhabers 18.11.2026,
+    /// "Demo beim Anmelden entfernen", nach dem Hinweis, dass die App-Pruefung von Apple bisher genau diesen Weg nutzt).
+    /// Die Demo selbst (`startDemo`, Demo-Leiste, "Beenden") bleibt im Code, ohne Weg dorthin in der App. Vor der
+    /// naechsten Einreichung muessen die Pruefhinweise einen anderen Zugang nennen (docs/release/APP-STORE.md).
+    static let demoLinkShown = false
+
+    /// Demo hinter "Hilfe" (Entscheidung des Inhabers 19.11.2026, "Demo kleiner anbieten"): unten auf der Anmeldeseite
+    /// steht nur ein kleiner Knopf "Hilfe"; erst nach dem Antippen erscheint "Ohne Hochschulkonto ansehen (Demo)". So
+    /// kommen Apples Pruefer ohne Hochschulkonto in die App (Pruefhinweise in docs/release/APP-STORE.md), und auf der
+    /// Seite selbst steht kein Demo-Link mehr.
+    static let demoBehindHelp = true
 
     /// "Ohne Hochschulkonto ansehen (Demo)" nur, solange keine Quelle der Hochschule verbunden ist (wer sich angemeldet
     /// hat, braucht keine Demo, und ein laufender Abgleich soll nicht neben der Demo weiterlaufen)
@@ -254,12 +267,17 @@ struct FirstLoginPage: View {
     static let passwordNote = UFDevice.adapt("Du tippst Benutzername und Passwort selbst auf der Seite der Universität ein. Mit „Passwort auf diesem iPad merken“ meldet StudiNow dich danach selbst wieder an; das Passwort bleibt nur auf diesem iPad.")
 }
 
-/// Unterer Rand jeder Anmeldeseite: Hinweis und "Später anmelden"; darunter, ganz unten, klein und zurueckhaltend der
-/// Textlink "Ohne Hochschulkonto ansehen (Demo)" (nur fuer die App-Pruefung gedacht, kein Knopf; einziger Weg zur Demo)
+/// Unterer Rand jeder Anmeldeseite: Hinweis und "Später anmelden"; mit Demo-Angebot dazu ein kleiner Knopf "Hilfe",
+/// der darunter den Textlink "Ohne Hochschulkonto ansehen (Demo)" aufklappt (seit 19.11.2026 nicht mehr sofort sichtbar;
+/// fuer die App-Pruefung gedacht, einziger Weg zur Demo)
 struct FirstLoginBottomBar: View {
     var demo: FirstLoginDemo = .hidden
     let onLater: () -> Void
     var onDemo: () -> Void = {}
+    @State private var helpOpen = false
+
+    static let help = "Hilfe"
+    static let helpLead = "Kein Hochschulkonto zur Hand?"
 
     var body: some View {
         VStack(spacing: 2) {
@@ -269,19 +287,29 @@ struct FirstLoginBottomBar: View {
                     Text(FirstLoginPage.laterHint).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 8)
+                if demo != .hidden {
+                    Button { helpOpen.toggle() } label: {
+                        Text(Self.help).ufFont(12.8, 600).foregroundStyle(UF.muted).ufHitArea()
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityIdentifier("firststart.help")
+                }
                 UFButton("Später anmelden", icon: "arrow-right", kind: .ghost, size: .small) { onLater() }
                     .accessibilityIdentifier("firststart.later")
             }
-            if demo != .hidden {
-                Button { onDemo() } label: {
-                    Text(demo == .starting ? DemoTexts.firstStartRunning : DemoTexts.firstStart)
-                        .ufFont(11.5).underline().foregroundStyle(UF.muted)
-                        .ufHitArea()
+            if demo != .hidden, helpOpen || demo == .starting {
+                HStack(spacing: 6) {
+                    Spacer(minLength: 8)
+                    Text(Self.helpLead).ufFont(11.5).foregroundStyle(UF.muted)
+                    Button { onDemo() } label: {
+                        Text(demo == .starting ? DemoTexts.firstStartRunning : DemoTexts.firstStart)
+                            .ufFont(11.5).underline().foregroundStyle(UF.muted)
+                            .ufHitArea()
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(demo == .starting)
+                    .accessibilityIdentifier("firststart.demo")
                 }
-                .buttonStyle(.plain)
-                .disabled(demo == .starting)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .accessibilityIdentifier("firststart.demo")
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 8)

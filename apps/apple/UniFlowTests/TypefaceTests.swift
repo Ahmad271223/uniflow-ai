@@ -20,12 +20,23 @@ final class TypefaceTests: XCTestCase {
         XCTAssertEqual(UFTypeface.snapped(300), 400)
     }
 
+    /// Mac ("Designed for iPad", 18.11.2026): alle Schriften der App etwas groesser; iPad und iPhone unveraendert
+    func testMacTextScale() {
+        XCTAssertEqual(UFDevice.textScale, ProcessInfo.processInfo.isiOSAppOnMac ? UFDevice.macTextScale : 1)
+        XCTAssertEqual(UFTypeface.font(14.5, 400, scale: 1.12).pointSize, 16.25)
+        XCTAssertEqual(UFTypeface.font(14.5, 400, scale: 1).pointSize, 14.5)
+        XCTAssertEqual(UFTypeface.font(14.5, 400).pointSize, ProcessInfo.processInfo.isiOSAppOnMac ? 16.25 : 14.5)
+        XCTAssertEqual(UFDevice.pageWidth(1120, mac: false), 1120, "iPad: Seiten wie bisher")
+        XCTAssertEqual(UFDevice.pageWidth(1120, mac: true), 1512, "Mac: breiter")
+    }
+
     func testTextWidthMatchesSafari() {
         // Safari im iPad-Simulator: 900 px bei 2360/1180 = 1,695 px/pt -> 531,0 pt (Untertitel des Lernkalenders)
         let s = "Dein Wochenplan – perfekt auf Vorlesungen, Übungen und Tests abgestimmt." as NSString
-        let w = s.size(withAttributes: [.font: UFTypeface.font(14.5, 400)]).width
+        // Masse wie am iPad (am Mac ist die Schrift der App `UFDevice.textScale` groesser, siehe unten)
+        let w = s.size(withAttributes: [.font: UFTypeface.font(14.5, 400, scale: 1)]).width
         XCTAssertEqual(w, 531.0, accuracy: 2.0)
-        let bold = s.size(withAttributes: [.font: UFTypeface.font(14.5, 600)]).width
+        let bold = s.size(withAttributes: [.font: UFTypeface.font(14.5, 600, scale: 1)]).width
         XCTAssertGreaterThan(bold, w + 5, "Gewicht ueber die Achse wght gesetzt")
     }
 }

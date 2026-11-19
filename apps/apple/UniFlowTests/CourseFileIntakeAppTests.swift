@@ -55,9 +55,19 @@ final class CourseFileIntakeAppTests: XCTestCase {
         XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults))
     }
 
-    func testOffUntilConsent() {
+    /// Entscheidung 18.11.2026 abends: ohne Eintrag AN (Grundlage in den Nutzungsbedingungen), Ausschalten wird gemerkt
+    func testOnByDefaultAndOffIsRemembered() {
         CourseFileIntakeSetting.isOffered = true
-        XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults), "ohne Zustimmung aus")
+        XCTAssertTrue(CourseFileIntakeSetting.isOn(defaults), "ohne Eintrag an")
+        CourseFileIntakeSetting.set(false, defaults)
+        XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults), "ausgeschaltet bleibt aus")
+        CourseFileIntakeSetting.isOffered = false
+        defaults.removeObject(forKey: CourseFileIntakeSetting.key)
+        XCTAssertFalse(CourseFileIntakeSetting.isOn(defaults), "Store-Build (nicht angeboten): nie an")
+    }
+
+    func testSwitchRemembersTime() {
+        CourseFileIntakeSetting.isOffered = true
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         CourseFileIntakeSetting.set(true, defaults, now: now)
         XCTAssertTrue(CourseFileIntakeSetting.isOn(defaults))
@@ -114,11 +124,13 @@ final class CourseFileIntakeAppTests: XCTestCase {
         XCTAssertEqual(fake.calls, [], "nichts gesendet")
     }
 
-    /// Build-Wert YES, aber ohne Zustimmung (oder ohne WLAN, Konto, in der Demo, unter Tests): nichts gesendet
+    /// Build-Wert YES, aber vom Nutzer ausgeschaltet (oder ohne WLAN, Konto, in der Demo, unter Tests): nichts gesendet
     func testWithoutConsentOrConditionsNothingIsSent() async throws {
         let b = try await backend()
         let fake = FakeIntake()
         CourseFileIntakeSetting.isOffered = true
+        XCTAssertTrue(CourseFileIntakeSetting.isOn(defaults), "ohne Eintrag von selbst an (18.11.2026)")
+        CourseFileIntakeSetting.set(false, defaults)       // Nutzer schaltet aus (Widerspruch)
         try await assertNotRun(b, fake, conditions(consented: CourseFileIntakeSetting.isOn(defaults)))
         var all = conditions(consented: true)
         XCTAssertTrue(all.allowed)

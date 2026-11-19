@@ -720,7 +720,8 @@ private struct ServerAccountArea: View {
     /// Stift und Schreibhand nur mit Editor (am iPhone keiner, Vorgabe 11.11.2026)
     private var penCard: some View {
         UFCard {
-            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+            SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen",
+                        note: EditorPointer.settingsNote(isMac: PDFEditorController.isMac)) {
                 UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                          selection: Binding(get: { pen }, set: { v in
                              pen = v
@@ -1109,7 +1110,8 @@ private struct LocalLookArea: View {
             }
             if UFEditorAvailability.available {
                 UFCard {
-                    SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen") {
+                    SettingsRow(EditorPointer.settingsTitle(isMac: PDFEditorController.isMac), icon: "pen",
+                                note: EditorPointer.settingsNote(isMac: PDFEditorController.isMac)) {
                         UFSelect(options: EditorPointer.settingsOptions(isMac: PDFEditorController.isMac),
                                  selection: Binding(get: { pencilOnly ? "pen_only" : "all" }, set: { pencilOnly = $0 == "pen_only" }))
                     }

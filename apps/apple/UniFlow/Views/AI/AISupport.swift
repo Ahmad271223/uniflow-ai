@@ -601,7 +601,8 @@ struct AIMarkdownBlocks: View {
                 .accessibilityHidden(true)
         case .quote(let inner):
             // Merke-Kasten (wie ChatGPT): weiche Akzentflaeche mit Rand, darin die Bloecke
-            AIMarkdownBlocks(blocks: inner, size: size)
+            // `AnyView`: bricht die Rekursion des Typs (sonst `_viewListCount` endlos, Absturz wie bei `MathNodeView`)
+            AnyView(AIMarkdownBlocks(blocks: inner, size: size))
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.accentSoft))

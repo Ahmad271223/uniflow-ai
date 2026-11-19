@@ -20,6 +20,16 @@ enum TutorDocScope: String, CaseIterable, Identifiable {
         case .range: return "Seiten …"
         }
     }
+
+    /// Kurz, wenn die Leiste zu schmal ist (KI-Hilfe neben dem Dokument am iPad, Bild des Inhabers 18.11.2026:
+    /// "Diese Se…", "Ganzes Dokum…")
+    var shortTitle: String {
+        switch self {
+        case .page: return "Seite"
+        case .document: return "Dokument"
+        case .range: return "Seiten …"
+        }
+    }
 }
 
 /// Reine Regeln der Oberflaeche (UniFlowTests/TutorDocumentAppTests.swift)
@@ -284,9 +294,7 @@ struct TutorScopeSegments: UIViewRepresentable {
     func makeUIView(context: Context) -> UISegmentedControl {
         let control = UISegmentedControl(items: TutorDocScope.allCases.map(\.title))
         control.apportionsSegmentWidthsByContent = true
-        let font = UIFontMetrics(forTextStyle: .footnote).scaledFont(for: .systemFont(ofSize: 12.5, weight: .medium))
-        control.setTitleTextAttributes([.font: font], for: .normal)
-        control.setTitleTextAttributes([.font: UIFontMetrics(forTextStyle: .footnote).scaledFont(for: .systemFont(ofSize: 12.5, weight: .semibold))], for: .selected)
+        Self.style(control, size: 12.5, short: false)
         control.accessibilityLabel = "Umfang"
         control.setContentCompressionResistancePriority(.defaultLow, for: .horizontal)
         control.addTarget(context.coordinator, action: #selector(Coordinator.changed(_:)), for: .valueChanged)
@@ -299,7 +307,27 @@ struct TutorScopeSegments: UIViewRepresentable {
         if control.selectedSegmentIndex != i { control.selectedSegmentIndex = i }
     }
 
+    /// Schrift und Titel: Vorgabe 12,5 pt (am Mac mit `UFDevice.textScale`)
+    static func style(_ c: UISegmentedControl, size: CGFloat, short: Bool) {
+        let s = size * UFDevice.textScale
+        c.setTitleTextAttributes([.font: UIFontMetrics(forTextStyle: .footnote).scaledFont(for: .systemFont(ofSize: s, weight: .medium))], for: .normal)
+        c.setTitleTextAttributes([.font: UIFontMetrics(forTextStyle: .footnote).scaledFont(for: .systemFont(ofSize: s, weight: .semibold))], for: .selected)
+        for (i, scope) in TutorDocScope.allCases.enumerated() where i < c.numberOfSegments {
+            let title = short ? scope.shortTitle : scope.title
+            if c.titleForSegment(at: i) != title { c.setTitle(title, forSegmentAt: i) }
+        }
+    }
+
+    /// Passt die Leiste nicht in die Breite: erst etwas kleinere Schrift, dann kurze Titel ("Seite", "Dokument")
+    static func fit(_ c: UISegmentedControl, width: CGFloat) {
+        for (size, short) in [(12.5, false), (11.5, false), (12.5, true), (11.5, true)] as [(CGFloat, Bool)] {
+            style(c, size: size, short: short)
+            if c.intrinsicContentSize.width <= width { return }
+        }
+    }
+
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: UISegmentedControl, context: Context) -> CGSize? {
+        if let w = proposal.width, w.isFinite, w > 0 { Self.fit(uiView, width: w) }
         let ideal = uiView.intrinsicContentSize
         return CGSize(width: proposal.width ?? ideal.width, height: ideal.height)
     }

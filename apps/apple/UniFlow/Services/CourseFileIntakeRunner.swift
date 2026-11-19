@@ -5,13 +5,14 @@ import UniFlowCore
 /// werden dort geordnet (`CourseFileIntake` im Kern, Server app/intake_api.py + app/intake_server.py,
 /// docs/DATEI-EINGANG-2026-11-18.md).
 ///
-/// Schalter ueber den Build, nicht ueber den Code (Entscheidung des Inhabers 18.11.2026): im App-Store-Build AUS, nur
-/// in einem eigenen Test-Build fuer zwei Tester AN. Die Build-Einstellung `UF_INTAKE_OFFERED` (project.yml, Debug und
-/// Release "NO") landet als `UFIntakeOffered` in der Info.plist; der Test-Build setzt sie beim Bauen auf YES
-/// (`xcodebuild … UF_INTAKE_OFFERED=YES`).
+/// Schalter ueber den Build, nicht ueber den Code: die Build-Einstellung `UF_INTAKE_OFFERED` (project.yml) landet als
+/// `UFIntakeOffered` in der Info.plist. Seit 18.11.2026 abends ("Ja, auch im Store"): Release (TestFlight, App Store)
+/// YES, Debug NO (Tests und Simulator schicken nie etwas).
 ///
-/// Auch im Test-Build nur mit Zustimmung (Schalter, aus bis zur Zustimmung), nur mit StudiNow-Konto, nur im WLAN, nie in
-/// der Demo und nie unter XCTest. Die Texte sind ein Entwurf: vor einer Veroeffentlichung im App Store mit dem Inhaber
+/// Entscheidung des Inhabers 18.11.2026 abends ("das soll direkt geschehen, wir schreiben das in die AGBs"): wo der Build
+/// den Eingang anbietet, ist er von selbst AN, ohne Zustimmungs-Dialog; Grundlage ist der Absatz in Nutzungsbedingungen und
+/// Datenschutzerklaerung, der Schalter in den Einstellungen schaltet ihn jederzeit AUS (Widerspruch). Weiter nur mit
+/// StudiNow-Konto, nur im WLAN, nie in der Demo und nie unter XCTest. Die Texte sind ein Entwurf: vor einer Veroeffentlichung im App Store mit dem Inhaber
 /// abstimmen (auch die Datenschutzerklaerung braucht dann einen Absatz).
 enum CourseFileIntakeSetting {
     /// Schluessel in der Info.plist (aus der Build-Einstellung `UF_INTAKE_OFFERED`)
@@ -31,8 +32,8 @@ enum CourseFileIntakeSetting {
     static let key = "studinow.courseFileIntake.v1"
     static let consentKey = "studinow.courseFileIntake.v1.consentAt"
 
-    /// Eingeschaltet = Build bietet es an UND der Nutzer hat zugestimmt
-    static func isOn(_ d: UserDefaults = .standard) -> Bool { isOffered && d.bool(forKey: key) }
+    /// Eingeschaltet = Build bietet es an UND der Nutzer hat es nicht ausgeschaltet (ohne Eintrag: an, 18.11.2026)
+    static func isOn(_ d: UserDefaults = .standard) -> Bool { isOffered && ((d.object(forKey: key) as? Bool) ?? true) }
 
     static func set(_ on: Bool, _ d: UserDefaults = .standard, now: Date = Date()) {
         d.set(on, forKey: key)
@@ -41,7 +42,7 @@ enum CourseFileIntakeSetting {
 
     static let cardTitle = "Kursdateien teilen"
     static let title = "Neue Kursdateien an StudiNow schicken"
-    static let short = "Neue Vorlesungen, Übungen, Skripte und Altklausuren gehen einmal an StudiNow und werden dort nach Hochschule, Studiengang, Semester und Modul geordnet."
+    static let short = "Neue Vorlesungen, Übungen, Skripte und Altklausuren gehen einmal an StudiNow und werden dort nach Hochschule, Studiengang, Semester und Modul geordnet. Ohne deinen Namen, nur im WLAN. Ausschalten geht jederzeit hier."
     static let consentTitle = "Kursdateien an StudiNow schicken?"
     /// Abgeglichen mit dem, was wirklich geht (`CourseFileIntake.Meta`, `AccountCourseFileIntake`, app/intake_api.py)
     static let consentPoints = [
@@ -93,7 +94,27 @@ enum CourseFileIntakeRunner {
         let transport = AccountCourseFileIntake(account: account, university: uni)
         let c = Conditions(offered: CourseFileIntakeSetting.isOffered, consented: CourseFileIntakeSetting.isOn(), underTest: false,
                            demo: false, onWiFi: true, signedIn: true)
-        _ = try? await send(ctx, transport: transport, when: c)
+        // alles, was fehlt, in Runden zu je `filesPerRun` (Inhaber 18.11.2026: "ohne Grenzen"); Ende, wenn eine Runde
+        // nichts mehr findet, bei einem Fehler (Netz, Eingang ausgelastet: naechster Abgleich) oder beim Abbruch
+        for _ in 0..<maxRounds {
+            guard !Task.isCancelled, await DocIndexPrewarm.onWiFi(),
+                  let r = try? await send(ctx, transport: transport, when: c),
+                  r.checked + r.skippedNameLists > 0 else { return }
+        }
+    }
+
+    /// Hoechstens so viele Runden je Abgleich (100 x 60 = 6000 Dateien); der naechste Abgleich macht weiter
+    static let maxRounds = 100
+    @MainActor private static var running: Task<Void, Never>?
+
+    /// Nach dem Abgleich starten, ohne dass der Nutzer etwas merkt: eigener Hintergrund-Task mit niedrigster
+    /// Prioritaet, der Abgleich wartet nicht darauf; laeuft schon einer, startet kein zweiter.
+    @MainActor static func startAfterSync(host: LocalBackendHost) {
+        guard CourseFileIntakeSetting.isOn(), running == nil else { return }
+        running = Task.detached(priority: .background) {
+            await afterSync(host: host)
+            await MainActor.run { running = nil }
+        }
     }
 }
 
@@ -133,13 +154,10 @@ struct CourseFileIntakeRow: View {
     var body: some View {
         if CourseFileIntakeSetting.isOffered {
             VStack(alignment: .leading, spacing: 6) {
+                // an ohne Rueckfrage (Standard ist an, 18.11.2026); aus = Widerspruch, gemerkt
                 Toggle(isOn: Binding(get: { on }, set: { want in
-                    if want {
-                        overlay.modal { CourseFileIntakeConsentDialog { on = CourseFileIntakeSetting.isOn() } }
-                    } else {
-                        CourseFileIntakeSetting.set(false)
-                        on = false
-                    }
+                    CourseFileIntakeSetting.set(want)
+                    on = CourseFileIntakeSetting.isOn()
                 })) {
                     Text(CourseFileIntakeSetting.title).ufFont(14.5, 600).foregroundStyle(UF.text)
                         .fixedSize(horizontal: false, vertical: true)
