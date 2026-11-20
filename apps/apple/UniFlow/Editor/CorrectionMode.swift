@@ -320,8 +320,10 @@ final class CorrectionPageView: UIView, PKCanvasViewDelegate {
     }
 
     /// Wie die eigene Canvas: PencilKit zoomt selbst (scharfe Striche), Nadeln bleiben gleich gross auf dem Bildschirm
-    func setZoom(_ zoom: CGFloat) {
-        PageInkView.zoom(ink, pageSize: bounds.size, to: zoom)
+    /// `window`: Ausschnitt der Seite wie bei der eigenen Canvas (bei starkem Zoom nur der sichtbare Teil); nil = ganze Seite
+    func setZoom(_ zoom: CGFloat, window: CGRect? = nil) {
+        PageInkView.place(ink, pageSize: bounds.size,
+                          layout: InkLayout(zoom: max(1, zoom), window: window ?? CGRect(origin: .zero, size: bounds.size)))
         pinScale = 1 / max(1, zoom)
         pins.subviews.forEach { $0.transform = CGAffineTransform(scaleX: pinScale, y: pinScale) }
     }
@@ -342,7 +344,7 @@ extension PageInkView {
         guard let v else { return }
         v.frame = CGRect(origin: .zero, size: geometry.pageSize)
         content.addSubview(v)
-        v.setZoom(canvas.zoomScale)
+        v.setZoom(inkLayout.zoom, window: inkLayout.window)
     }
 }
 

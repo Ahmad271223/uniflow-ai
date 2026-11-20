@@ -26,6 +26,13 @@ final class InkCanvasView: PKCanvasView {
     override var undoManager: UndoManager? { silentUndo }
 }
 
+/// Lage einer gezoomten Zeichenflaeche: Zoom der Canvas und Ausschnitt der Seite (Seitenpunkte), den sie zeigt
+/// (`PageInkView.inkLayout(pageSize:viewport:zoom:screen:)`)
+struct InkLayout: Equatable, Sendable {
+    var zoom: CGFloat
+    var window: CGRect
+}
+
 /// Overlay einer Seite: fremde Loesungen (nur Anzeige) ganz unten, darueber Vorlage und Web-Objekte (Text, Formen,
 /// Bilder), PencilKit-Canvas oben.
 /// Beide arbeiten in Seitenpunkten (wie der Web-Editor); passt PDFKit die Overlay-Groesse an, gleicht eine
@@ -106,6 +113,7 @@ final class PageInkView: UIView {
         overrideUserInterfaceStyle = .light            // gilt fuer Canvas, Vorlage und Objekte
         content.bounds = rect
         content.backgroundColor = .clear
+        inkLayout = InkLayout(zoom: 1, window: rect)
         canvas.frame = rect
         canvas.backgroundColor = .clear
         canvas.isOpaque = false
@@ -143,11 +151,11 @@ final class PageInkView: UIView {
             c.drawing = all
             foreignView.addSubview(c)
             foreignInk = c
-            Self.zoom(c, pageSize: geometry.pageSize, to: canvas.zoomScale)
+            Self.place(c, pageSize: geometry.pageSize, layout: inkLayout)
         }
         foreignReleased = false
         // neue Ebenen in der aktuellen Aufloesung (sonst grob, bis der Zoom das naechste Mal wechselt)
-        if lastRenderScale > 0 { views.forEach { $0.setRenderScale(lastRenderScale, zoom: canvas.zoomScale) } }
+        if lastRenderScale > 0 { views.forEach { $0.setRenderScale(Self.objectScale(lastRenderScale), zoom: inkLayout.zoom) } }
     }
 
     /// Gemeinsame Canvas der fremden Striche dieser Seite (nur Anzeige)
@@ -173,23 +181,55 @@ final class PageInkView: UIView {
     /// Canvas zoomt selbst (PencilKit rendert fertige Striche nur nach dem eigenen Zoom) und wird per Transform auf
     /// Seitengroesse gebracht; die Striche bleiben in Seitenpunkten
     static func zoom(_ c: PKCanvasView, pageSize size: CGSize, to zoom: CGFloat) {
-        let z = max(1, zoom)
-        guard abs(z - c.zoomScale) > 0.001 || c.bounds.size != CGSize(width: size.width * z, height: size.height * z) else { return }
+        place(c, pageSize: size, layout: InkLayout(zoom: max(1, zoom), window: CGRect(origin: .zero, size: size)))
+    }
+
+    /// Canvas zeigt den Ausschnitt `layout.window` (Seitenpunkte) der Seite, `layout.zoom`-fach gezoomt und per
+    /// Transform wieder auf Seitenpunkte gebracht: Rahmen = Ausschnitt, Inhalt verschoben (`contentOffset`), die
+    /// Striche bleiben in Seitenpunkten. Ganze Seite: wie bis 1.0.7 (Rahmen = Seite, kein Versatz). Nur der Ausschnitt
+    /// verschoben: PencilKit zeichnet nur die neu sichtbaren Kacheln, wie beim eigenen Scrollen.
+    static func place(_ c: PKCanvasView, pageSize size: CGSize, layout l: InkLayout) {
+        let z = min(max(1, l.zoom), maxCanvasZoom), w = l.window
+        let boundsSize = CGSize(width: w.width * z, height: w.height * z)
+        let offset = CGPoint(x: w.minX * z, y: w.minY * z)
+        let center = CGPoint(x: w.midX, y: w.midY)
+        let zoomChanges = abs(z - c.zoomScale) > 0.001
+        guard zoomChanges || c.bounds.size != boundsSize || c.center != center
+              || abs(c.contentOffset.x - offset.x) > 0.01 || abs(c.contentOffset.y - offset.y) > 0.01 else { return }
         c.transform = .identity
-        c.minimumZoomScale = min(z, c.zoomScale)
-        c.maximumZoomScale = max(z, c.zoomScale)
-        c.bounds = CGRect(x: 0, y: 0, width: size.width * z, height: size.height * z)
-        c.center = CGPoint(x: size.width / 2, y: size.height / 2)
-        c.zoomScale = z
-        c.minimumZoomScale = z
-        c.maximumZoomScale = z
-        c.contentSize = c.bounds.size
-        c.contentOffset = .zero
+        if zoomChanges {
+            c.minimumZoomScale = min(z, c.zoomScale)
+            c.maximumZoomScale = max(z, c.zoomScale)
+            c.bounds = CGRect(origin: .zero, size: boundsSize)
+            c.center = center
+            c.zoomScale = z
+            c.minimumZoomScale = z
+            c.maximumZoomScale = z
+        }
+        c.bounds = CGRect(origin: c.bounds.origin, size: boundsSize)
+        c.center = center
+        c.contentSize = CGSize(width: size.width * z, height: size.height * z)
+        c.contentOffset = offset
         c.transform = CGAffineTransform(scaleX: 1 / z, y: 1 / z)
     }
 
     /// zuletzt gesetzte Aufloesung (`setRenderScale`), fuer spaeter angelegte fremde Ebenen
     private(set) var lastRenderScale: CGFloat = 0
+    /// Zoom und Ausschnitt fuer fremde Striche und Korrektur (folgen sofort, auch waehrend eines eigenen Strichs)
+    private(set) var inkLayout = InkLayout(zoom: 1, window: .zero)
+    /// Ausschnitt der Seite, den die eigene Zeichenflaeche zeigt (Seitenpunkte); die ganze Seite bis zum 4-fachen Zoom
+    var inkWindow: CGRect {
+        let z = max(canvas.zoomScale, 0.0001)
+        return CGRect(x: canvas.contentOffset.x / z, y: canvas.contentOffset.y / z, width: canvas.bounds.width / z, height: canvas.bounds.height / z)
+    }
+    /// Gewollter Zoom der Canvas nach dem letzten `setRenderScale` (vor der Speichergrenze)
+    private var wantedZoom: CGFloat = 1
+    private var layoutScreen: CGFloat = UIScreen.main.scale
+    /// Ausschnitt noch offen: Die ganze Seite waere zu gross und der sichtbare Teil ist noch unbekannt (ohne Fenster,
+    /// z. B. gleich nach dem Anlegen). Kommt beim Einsetzen ins Fenster bzw. beim naechsten Scrollen.
+    private var layoutDeferred = false
+    /// Scrollen der PDFView: der Ausschnitt folgt (`followViewport`)
+    private var scrollObservation: NSKeyValueObservation?
 
     /// Fremde Ebenen freigeben (Speicherwarnung); die Auswahl der Ebenen bleibt im Editor.
     func releaseForeign() {
@@ -215,32 +255,143 @@ final class PageInkView: UIView {
     /// hoeherer `contentScaleFactor` wirkt nur auf den laufenden Strich (gemessen: Kante 23 statt 3 Pixel bei Zoom 5).
     /// Darum zoomt die Canvas selbst und wird per Transform wieder auf Seitengroesse gebracht; die Striche bleiben in
     /// Seitenpunkten. Waehrend eines Strichs bleibt alles, sonst bricht er ab.
+    ///
+    /// Bis 1.0.7 endete der Zoom der Canvas beim 4-fachen (ganze Seite, Speicher): bei 600 % (PDF-Zoom 8 bis 12) zeigte
+    /// der Bildschirm die Tinte zwei- bis dreifach vergroessert, verpixelt (Meldung des Inhabers 20.11.2026). Jetzt
+    /// zoomt die Canvas so weit wie die Anzeige; waere die ganze Seite dafuer zu gross (`inkPixelBudget`), zeigt sie
+    /// nur den sichtbaren Teil der Seite mit Rand (`inkLayout(pageSize:viewport:zoom:screen:)`), und dieser Ausschnitt
+    /// folgt dem Scrollen (`followViewport`). Bis zum 4-fachen Zoom bleibt alles wie bisher.
     func setRenderScale(_ scale: CGFloat, screen: CGFloat = UIScreen.main.scale) {
-        objectsView.setRenderScale(scale)
+        objectsView.setRenderScale(Self.objectScale(scale))
         lastRenderScale = scale
+        layoutScreen = screen
         let zoom = max(1, scale / screen)
         // Der Wechsel zeichnet alle Striche neu. Beim Herauszoomen reichen die feineren Kacheln, bis es deutlich weniger wird
         let current = canvas.zoomScale
         let change = abs(zoom - current) > 0.001 && (zoom > current || zoom <= current / 2 || zoom == 1)
-        foreignLayerViews.forEach { $0.setRenderScale(scale, zoom: change ? zoom : current) }   // importierte Loesungen ebenso
-        if let f = foreignInk { Self.zoom(f, pageSize: geometry.pageSize, to: change ? zoom : current) }
-        correctionView?.setZoom(change ? zoom : current)
-        guard !isDrawing, change else { return }
-        endTranslucentHole()                                    // die Maske passt nach dem Zoomwechsel nicht mehr
-        coverDuringRedraw()
-        Self.rescalesMade += 1
-        let size = geometry.pageSize
-        canvas.transform = .identity
-        canvas.minimumZoomScale = min(zoom, canvas.zoomScale)
-        canvas.maximumZoomScale = max(zoom, canvas.zoomScale)
-        canvas.bounds = CGRect(x: 0, y: 0, width: size.width * zoom, height: size.height * zoom)
-        canvas.center = CGPoint(x: size.width / 2, y: size.height / 2)
-        canvas.zoomScale = zoom
-        canvas.minimumZoomScale = zoom
-        canvas.maximumZoomScale = zoom
-        canvas.contentSize = canvas.bounds.size
-        canvas.contentOffset = .zero
-        canvas.transform = CGAffineTransform(scaleX: 1 / zoom, y: 1 / zoom)
+        wantedZoom = change ? zoom : current
+        guard let l = Self.inkLayout(pageSize: geometry.pageSize, viewport: viewportInPage(), zoom: wantedZoom, screen: screen) else {
+            layoutDeferred = true
+            foreignLayerViews.forEach { $0.setRenderScale(Self.objectScale(scale), zoom: inkLayout.zoom) }
+            return
+        }
+        layoutDeferred = false
+        apply(l)
+    }
+
+    /// Zoom und Ausschnitt setzen: fremde Striche und Korrektur sofort, die eigene Zeichenflaeche nicht mitten im Strich
+    private func apply(_ l: InkLayout) {
+        inkLayout = l
+        foreignLayerViews.forEach { $0.setRenderScale(Self.objectScale(lastRenderScale), zoom: l.zoom) }   // importierte Loesungen ebenso
+        if let f = foreignInk { Self.place(f, pageSize: geometry.pageSize, layout: l) }
+        correctionView?.setZoom(l.zoom, window: l.window)
+        guard !isDrawing else { return }
+        let zoomChanges = abs(l.zoom - canvas.zoomScale) > 0.001
+        guard zoomChanges || !Self.same(l.window, inkWindow) else { return }
+        endTranslucentHole()                                    // die Maske passt nach dem Wechsel nicht mehr
+        if zoomChanges {
+            coverDuringRedraw()
+            Self.rescalesMade += 1
+        } else {
+            Self.windowMoves += 1
+        }
+        Self.place(canvas, pageSize: geometry.pageSize, layout: l)
+    }
+
+    private static func same(_ a: CGRect, _ b: CGRect) -> Bool {
+        abs(a.minX - b.minX) < 0.01 && abs(a.minY - b.minY) < 0.01 && abs(a.width - b.width) < 0.01 && abs(a.height - b.height) < 0.01
+    }
+
+    /// Text und Bilder der Objekte hoechstens so fein wie bis 1.0.7 (eine Textansicht kostet Bildpunkte im Quadrat
+    /// des Faktors; Formen und Vorlage sind Vektor-Ebenen und bleiben ohnehin scharf)
+    static let objectScaleLimit: CGFloat = 8
+    static func objectScale(_ scale: CGFloat) -> CGFloat { min(scale, objectScaleLimit) }
+
+    // MARK: Ausschnitt der Zeichenflaeche (Tinte bei jedem Zoom scharf)
+
+    /// Hoechstens so viele Bildpunkte zeigt eine Zeichenflaeche: der bisherige Hoechstwert, eine A4-Seite beim 4-fachen
+    /// Zoom auf einem 2x-Bildschirm (595 x 842 x 4^2 x 2^2 = 32 Mio., rund 128 MB). Darueber nur der sichtbare Teil.
+    nonisolated static let inkPixelBudget: CGFloat = 33_000_000
+    /// Rand um den sichtbaren Teil, je Seite als Anteil seiner Groesse: dort ist die Tinte beim Verschieben schon gezeichnet
+    nonisolated static let windowMargin: CGFloat = 0.25
+    /// Zoomstufen der Canvas (jeder Wechsel zeichnet alle Striche der Seite neu)
+    nonisolated static let zoomSteps: [CGFloat] = [1, 1.5, 2, 3, 4, 6, 8, 10]
+    /// PencilKit nimmt hoechstens den 10-fachen Zoom an (`zoomScale` 12 liest sich als 10, gemessen iPadOS 27.2,
+    /// `EditorDeviceFixesTests`). Bei 2x-Bildschirm 20 Bildpunkte je Seitenpunkt: 600 % auf dem iPad hoch braucht 16,3.
+    nonisolated static let maxCanvasZoom: CGFloat = 10
+
+    /// Messung (Tests): wie oft der Ausschnitt nur verschoben wurde (ohne Neuzeichnen der ganzen Seite)
+    private(set) static var windowMoves = 0
+
+    /// Bis zu diesem Zoom zeigt die Canvas immer die ganze Seite, genau wie bis 1.0.7 (auch grosse Seiten wie A1/A0;
+    /// sichtbar soll sich dort nichts aendern). Der Ausschnitt gilt nur darueber, wo es bisher nicht schaerfer ging.
+    nonisolated static let wholePageZoom: CGFloat = 4
+
+    /// Zoom und Ausschnitt der Canvas fuer den gewollten Zoom. Bis `wholePageZoom` oder wenn die ganze Seite in `budget`
+    /// passt: die ganze Seite (wie bisher). Sonst der sichtbare Teil `viewport` (Seitenpunkte) mit Rand `margin`; passt
+    /// auch der nicht, eine Zoomstufe tiefer (bis `wholePageZoom`, dann wieder die ganze Seite wie bisher). nil: die
+    /// ganze Seite ist zu gross und der sichtbare Teil unbekannt oder weit weg.
+    nonisolated static func inkLayout(pageSize size: CGSize, viewport: CGRect?, zoom wanted: CGFloat, screen: CGFloat,
+                                      budget: CGFloat = inkPixelBudget, margin: CGFloat = windowMargin) -> InkLayout? {
+        let page = CGRect(origin: .zero, size: size)
+        func pixels(_ r: CGRect, _ z: CGFloat) -> CGFloat { r.width * r.height * z * z * screen * screen }
+        let z0 = min(max(1, wanted.isFinite ? wanted : 1), maxCanvasZoom)
+        if z0 <= wholePageZoom + 0.001 || pixels(page, z0) <= budget { return InkLayout(zoom: z0, window: page) }
+        guard let v = viewport, !v.isNull, v.width > 0, v.height > 0 else { return nil }
+        let near = v.insetBy(dx: -v.width * margin, dy: -v.height * margin).integral.intersection(page)
+        guard !near.isNull, near.width > 0, near.height > 0 else { return nil }
+        var z = z0
+        while z > wholePageZoom + 0.001, pixels(near, z) > budget { z = zoomSteps.last { $0 < z - 0.001 } ?? 1 }
+        if z <= wholePageZoom + 0.001 || pixels(page, z) <= budget { return InkLayout(zoom: z, window: page) }
+        return InkLayout(zoom: z, window: near)
+    }
+
+    /// Teil der Seite (Seitenpunkte), der gerade zu sehen sein kann: das Fenster, beschnitten von allen Vorfahren, die
+    /// ihren Inhalt beschneiden (Scroll-Ansicht der PDFView). nil ohne Fenster.
+    func viewportInPage() -> CGRect? {
+        guard let window else { return nil }
+        var r = window.bounds
+        var v = superview
+        while let a = v, a !== window {
+            if a.clipsToBounds { r = r.intersection(a.convert(a.bounds, to: window)) }
+            v = a.superview
+        }
+        guard !r.isNull, r.width > 0, r.height > 0 else { return nil }
+        return content.convert(r, from: window)
+    }
+
+    /// Beim Scrollen: Liegt der sichtbare Teil (mit halbem Rand) nicht mehr im Ausschnitt, wandert der Ausschnitt mit.
+    /// Der Zoom steigt dabei nie (das macht `setRenderScale` nach dem Zoomen), er sinkt nur, wenn der Ausschnitt beim
+    /// Herauszoomen sonst zu gross wuerde. Zeigt die Canvas die ganze Seite, kostet das nichts.
+    func followViewport() {
+        guard !isDrawing, lastRenderScale > 0 else { return }
+        let page = CGRect(origin: .zero, size: geometry.pageSize)
+        guard layoutDeferred || inkLayout.window != page else { return }
+        guard let v = viewportInPage() else { return }
+        if !layoutDeferred {
+            let half = Self.windowMargin / 2
+            let need = v.insetBy(dx: -v.width * half, dy: -v.height * half).intersection(page)
+            if need.isNull || need.isEmpty || inkLayout.window.insetBy(dx: -0.5, dy: -0.5).contains(need) { return }
+        }
+        let zoom = layoutDeferred ? wantedZoom : min(wantedZoom, inkLayout.zoom)
+        guard let l = Self.inkLayout(pageSize: geometry.pageSize, viewport: v, zoom: zoom, screen: layoutScreen) else { return }
+        layoutDeferred = false
+        apply(l)
+    }
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        scrollObservation = nil
+        guard window != nil else { return }
+        var v = superview
+        while let a = v, !(a is UIScrollView) || a is PKCanvasView { v = a.superview }
+        if let scroll = v as? UIScrollView {
+            scrollObservation = scroll.observe(\.contentOffset, options: []) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.followViewport() }
+            }
+        }
+        // PDFKit setzt Rahmen und Lage erst nach dem Einsetzen
+        DispatchQueue.main.async { [weak self] in self?.followViewport() }
     }
 
     /// Messung (`EditorStrichBleibtTests`): wie oft eine Zeichenflaeche ihre Zoomstufe gewechselt hat (PencilKit zeichnet
@@ -348,10 +499,12 @@ final class PageInkView: UIView {
         // (`endTranslucentHole`), wenn PencilKit fertig gezeichnet hat.
         let hole = old.renderBounds.union(stroke.renderBounds).insetBy(dx: -3, dy: -3).intersection(page).integral
         if Self.spareTranslucentStroke, !opaque, let shot, !hole.isNull, hole.width >= 1, hole.height >= 1 {
-            let zoom = shot.bounds.width / max(1, page.width)
-            let holeInCanvas = CGRect(x: hole.minX * zoom, y: hole.minY * zoom, width: hole.width * zoom, height: hole.height * zoom)
+            // Punkte des sichtbaren Ausschnitts der Canvas (bei starkem Zoom zeigt sie nur einen Teil der Seite)
+            let zoom = max(canvas.zoomScale, 0.0001), origin = canvas.contentOffset
+            let holeInCanvas = CGRect(x: hole.minX * zoom - origin.x, y: hole.minY * zoom - origin.y,
+                                      width: hole.width * zoom, height: hole.height * zoom)
             func cutOut(_ bounds: CGRect) -> CAShapeLayer {
-                let path = UIBezierPath(rect: bounds)
+                let path = UIBezierPath(rect: CGRect(origin: .zero, size: bounds.size))
                 path.append(UIBezierPath(rect: holeInCanvas))
                 let mask = CAShapeLayer()
                 mask.frame = bounds
@@ -968,11 +1121,15 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         pdfView.maxScaleFactor = range.upperBound
     }
 
-    /// Faktor fuer die Zeichenflaeche: Bildschirm mal PDF-Zoom, begrenzt (je Seite eine Metal-Flaeche im Speicher)
-    nonisolated static func renderScale(screen: CGFloat, zoom: CGFloat, limit: CGFloat = 8) -> CGFloat {
+    /// Faktor fuer die Zeichenflaeche: Bildschirm mal PDF-Zoom in festen Stufen. Den Speicher begrenzt die Flaeche der
+    /// Zeichenflaeche (`PageInkView.inkPixelBudget`), nicht mehr dieser Faktor; `limit` bleibt fuer Aufrufer mit eigener Grenze.
+    nonisolated static func renderScale(screen: CGFloat, zoom: CGFloat, limit: CGFloat = .infinity) -> CGFloat {
         guard zoom.isFinite, zoom > 0 else { return screen }
         // feste Stufen: jeder Wechsel zeichnet die Tinte neu, das soll nicht bei jedem kleinen Pinch passieren
-        let step = [1, 1.5, 2, 3, 4].first { $0 >= zoom } ?? 4
+        // ab dem 4-fachen zeigt die Zeichenflaeche nur den sichtbaren Teil der Seite (`PageInkView.inkLayout`): Die
+        // Grenze ist die Flaeche, nicht mehr der Zoom (bis 1.0.7 hoechstens 4-fach, bei 600 % verpixelt)
+        let steps = PageInkView.zoomSteps
+        let step = steps.first { $0 >= zoom } ?? steps[steps.count - 1]
         return min(limit, screen * step)
     }
 
