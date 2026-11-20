@@ -72,13 +72,25 @@ struct ModuleWeekDoneButton: View {
     /// Buchstabe um; die Beschriftung fuer VoiceOver bleibt
     @Environment(\.ufCompact) private var compact
 
+    private func progressText(_ t: String, all: Bool) -> some View {
+        Text(t).ufFont(12.8, all ? 600 : 400).monospacedDigit().lineLimit(1).fixedSize()
+            .foregroundStyle(all ? UF.okText : UF.muted)
+    }
+
     var body: some View {
         let p = ModuleDoneAction.progress(w)
         let all = p.total > 0 && p.done == p.total
         HStack(spacing: 8) {
             if p.done > 0 {
-                Text(ModuleDoneAction.text(p)).ufFont(12.8, all ? 600 : 400).monospacedDigit()
-                    .foregroundStyle(all ? UF.okText : UF.muted)
+                // 20.11.2026 (Bildschirmfoto des Inhabers): im vollen Wochenkopf blieb fuer "1/4 erledigt" keine Breite,
+                // der Text brach Buchstabe fuer Buchstabe um und machte die Zeile riesig. Jetzt nie umbrechen: passt der
+                // ganze Text nicht, nur "1/4", sonst gar nichts (der Knopf "Woche erledigt" sagt dann genug)
+                ViewThatFits(in: .horizontal) {
+                    progressText(ModuleDoneAction.text(p), all: all)
+                    progressText("\(p.done)/\(p.total)", all: all)
+                    Color.clear.frame(width: 0, height: 0)
+                }
+                .layoutPriority(-1)
             }
             Button {
                 let ids = ModuleDoneAction.files(w).compactMap { $0.s("id") }

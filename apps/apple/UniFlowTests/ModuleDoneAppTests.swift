@@ -126,6 +126,32 @@ final class ModuleDoneAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.both(api, "gelesen") })
     }
 
+    /// Bildschirmfoto des Inhabers 20.11.2026: im vollen Wochenkopf brach "1/4 erledigt" Buchstabe fuer Buchstabe um
+    /// und machte die Zeile riesig. Jetzt: ganzer Text, sonst nur "1/4", sonst nichts - die Zeile bleibt flach.
+    func testProgressNeverWrapsInACrowdedWeekHeader() throws {
+        let ticked: JSONValue = ["vorlesungen": [["id": "a", "status": "erledigt"], ["id": "b"]], "uebungen": [["id": "c"], ["id": "d"]]]
+        let open: JSONValue = ["vorlesungen": [["id": "a"], ["id": "b"]], "uebungen": [["id": "c"], ["id": "d"]]]
+        func height(_ w: JSONValue, _ width: CGFloat) throws -> (CGFloat, [String]) {
+            let row = HStack(spacing: 8) {
+                Text("Woche 2 · 19.10. – 25.10.").lineLimit(1).fixedSize()
+                Spacer(minLength: 4)
+                ModuleWeekDoneButton(moduleID: 1, w: w)
+            }
+            .frame(width: width)
+            let env = try hostWithEnvironment(row, size: CGSize(width: width, height: 400))
+            env.pump(0.3)
+            defer { env.window.isHidden = true }
+            return (env.view.sizeThatFits(CGSize(width: width, height: 2000)).height, env.labels())
+        }
+        for width in [CGFloat(900), 420, 330, 260] {
+            let (base, _) = try height(open, width)            // derselbe Kopf ohne Fortschritt
+            let (h, labels) = try height(ticked, width)
+            XCTAssertLessThanOrEqual(h, base + 2, "Breite \(width): Zeile \(h) statt \(base) pt – Fortschritt bricht um")
+            XCTAssertFalse(labels.contains { $0.count == 1 }, "Breite \(width): einzelne Buchstaben \(labels)")
+            if width >= 900 { XCTAssertTrue(labels.contains("1/4 erledigt"), "\(labels)") }
+        }
+    }
+
     // MARK: Bilder
 
     func testScreenshots() throws {
