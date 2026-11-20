@@ -2234,6 +2234,17 @@ struct DocumentView: View {
                 }
                 .buttonStyle(.plain)
                 .accessibilityIdentifier("doc.solutionBeside")
+                // 20.11.2026 (Inhaber: "von PDF projizieren wieder entfernen, dafür fehlt Button"): die eingeblendeten
+                // Loesungen direkt hier wieder ausblenden (bisher nur im Menue "Ebenen"); bleiben gespeichert
+                Divider().frame(height: 14)
+                Button {
+                    for layer in foreignLayers where layer.visible { setVisible(layer, false) }
+                } label: {
+                    Label("Ausblenden", systemImage: "eye.slash").lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Blendet die Lösung(en) auf dieser PDF aus; im Menü „Ebenen“ wieder einblenden")
+                .accessibilityIdentifier("doc.solutionHide")
             }
             if let notice = store.notice ?? store.pageNotice ?? store.inkNotice {
                 Divider().frame(height: 14)
