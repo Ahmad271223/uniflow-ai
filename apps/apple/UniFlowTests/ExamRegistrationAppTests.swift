@@ -165,6 +165,21 @@ final class ExamRegistrationAppTests: XCTestCase {
         return APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
     }
 
+    /// Geraeteabgleich (20.11.2026): ohne eigenen Abruf "Stand von deinem anderen Gerät, <Datum Uhrzeit>"; ein eigener
+    /// Abruf, der nicht klappte, steht dahinter; nach eigenem Abruf wie bisher
+    func testCheckedLineShowsStandFromOtherDevice() {
+        let base: [String: JSONValue] = ["supported": true, "system": "QIS"]
+        func line(_ extra: [String: JSONValue]) -> String { ExamRegistrationText.checked(ExamRegistrationState(.object(base.merging(extra) { $1 }))) }
+        XCTAssertEqual(line(["registrations_synced_at": "2026-11-20T11:05:00"]), "Stand von deinem anderen Gerät, 20.11.2026 11:05 Uhr")
+        XCTAssertEqual(line(["registrations_synced_at": "2026-11-20T11:05:00", "registrations_checked_at": "2026-11-20T12:00:00",
+                             "registrations_ok": false, "registrations_message": "Bitte im QIS anmelden."]),
+                       "Stand von deinem anderen Gerät, 20.11.2026 11:05 Uhr · Eigener Abruf 20.11.2026 12:00 Uhr: Bitte im QIS anmelden.")
+        XCTAssertEqual(line(["registrations_checked_at": "2026-11-20T12:00:00", "registrations_ok": true,
+                             "registrations_message": "2 angemeldete Prüfungen gelesen."]),
+                       "Zuletzt abgerufen 20.11.2026 12:00 Uhr: 2 angemeldete Prüfungen gelesen.")
+        XCTAssertTrue(line([:]).hasPrefix("Angemeldete Prüfungen noch nicht abgerufen."))
+    }
+
     func testHildesheimTextsSayLSFAndLinkOpensLSFInApp() throws {
         let st = try awaiting { await ExamRegistrationState.load(try await self.hildesheimAPI(now: "2026-11-05T10:00:00")) }
         let s = try XCTUnwrap(st)

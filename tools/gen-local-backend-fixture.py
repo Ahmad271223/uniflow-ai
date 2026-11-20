@@ -375,7 +375,7 @@ SAMPLES: dict[str, dict] = {
                                                        "window", "vbp_window", "periods", "show_card", "plan_available",
                                                        "plan_message", "suggestions", "open_count", "registered_count",
                                                        "registered", "registrations_checked_at", "registrations_ok",
-                                                       "registrations_message", "warnings", "qis_url", "hint", "rules",
+                                                       "registrations_message", "registrations_synced_at", "warnings", "qis_url", "hint", "rules",
                                                        "disclaimer", "system", "open_label", "period_note"],
                                               "reason": "nur auf dem Geraet (ExamRegistrationEndpoints)"}},
     # Geteilte Wochenstapel und Stapel teilen (CardStackEndpoints, app/server.py + app/community_cards_api.py). Leere

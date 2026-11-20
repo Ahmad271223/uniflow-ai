@@ -261,6 +261,8 @@ public enum ExamRegistrationAPI {
             "registered": .array(registeredJSON),
             "registrations_checked_at": run?["at"] ?? .null, "registrations_ok": run?["ok"] ?? .null,
             "registrations_message": run?["message"] ?? .null,
+            // ohne eigenen erfolgreichen Abruf: Zeilen vom anderen Geraet (Geraeteabgleich, 20.11.2026) mit ihrem Stand
+            "registrations_synced_at": run?["ok"]?.bool != true ? StudyPlanEngine.opt(try QISRegistrationsSync.syncedAt(c)) : .null,
             "warnings": .array(warnings), "qis_url": qisURL, "hint": .string(data.hint ?? hint),
             "rules": .array(data.rules.map { .string($0.text) }), "disclaimer": .string(data.disclaimer ?? disclaimer),
             "system": .string(system), "open_label": .string(openLabel(system)), "period_note": StudyPlanEngine.opt(data.periodNote),
