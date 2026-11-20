@@ -102,6 +102,25 @@ def test_entitlements_match_team_template_and_website():
     assert "PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai\n" in YML
 
 
+def test_cloudkit_environment_is_production_for_every_release_build():
+    """20.11.2026: Der Mac des Inhabers (1.0.5 aus TestFlight) zeigte Community-Beitraege, die sein iPad (1.0.6/1.0.7 per
+    Kabel, Release mit Entwickler-Profil) nicht hatte. Ursache: ohne `icloud-container-environment` in den Berechtigungen
+    nimmt ein Build mit Entwickler-Profil die CloudKit-Umgebung Development, TestFlight und App Store Production – zwei
+    getrennte Datenbanken. Seitdem steht die Umgebung fest in beiden Berechtigungsdateien: Release = Production (auch per
+    Kabel), Debug = Development."""
+    for name in ("UniFlow.entitlements", "UniFlowPush.entitlements"):
+        ent = plistlib.loads((APPLE / "UniFlow" / name).read_bytes())
+        assert ent["com.apple.developer.icloud-container-environment"] == "$(UF_CLOUDKIT_ENVIRONMENT)", name
+    target = YML.split("\n  UniFlow:\n", 1)[1].split("\n  UniFlowTests:", 1)[0]
+    configs = target.split("      configs:\n", 1)[1].split("    preBuildScripts:", 1)[0]
+    debug, release = configs.split("\n        Release:\n", 1)
+    assert re.search(r"^\s+UF_CLOUDKIT_ENVIRONMENT: Development$", debug, re.M)
+    assert re.search(r"^\s+UF_CLOUDKIT_ENVIRONMENT: Production$", release, re.M)
+    assert YML.count("UF_CLOUDKIT_ENVIRONMENT:") == 2
+    # die Mac-Testkennung bleibt ohne iCloud (tools/mac-test.sh): kein Zugriff auf eine der beiden Datenbanken
+    assert plistlib.loads((APPLE / "Config" / "MacTest.entitlements").read_bytes()) == {}
+
+
 def test_release_info_plist_has_no_transport_exception_and_declares_export_compliance():
     info = YML.split("    info:\n", 1)[1].split("\n  UniFlowTests:", 1)[0]
     assert not re.search(r"^\s+NSAppTransportSecurity:", info, re.M) and "NSAllowsArbitraryLoads" not in YML
