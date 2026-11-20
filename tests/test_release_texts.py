@@ -35,7 +35,7 @@ def test_all_release_files_exist_and_are_marked_as_drafts():
             # 14.11.2026: vom Inhaber fertig gegeben, ohne Entwurfsvermerk (tests/test_rechtstexte.py); Nutzungsbedingungen
             # 18.11.2026 (Erinnerungen ab Pro AI), Datenschutz 18.11.2026 (YouTube neben dem Dokument, 1.0.6)
             new = ("NUTZUNGSBEDINGUNGEN.md", "DATENSCHUTZ.md")
-            assert ("Stand 18.11.2026" if f in new else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
+            assert ("Stand 20.11.2026" if f in new else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
             continue
         assert re.search(r"Entw(urf|ürfe)", text) and "26.10.2026" in text, f
 
@@ -158,7 +158,7 @@ def test_review_notes_describe_the_build_honestly():
     # in der Demo nicht sichtbar); dafuer der Stand der Abos, wie er in App Store Connect steht
     # 10.11.2026 (Einreichung 1.0.2): erste Zeile nennt das Neue statt der Geschichte von 1.0/1.0.1
     assert "monthly products are removed from sale" in pro
-    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.6:")
+    assert "19.99 € and 39.99 € from 11 Nov 2026" in pro and pro.startswith("New in 1.0.7:")
     # 1.0.6: Einstellungen in Bereichen (SettingsAreas.swift); die Wege im Hinweis nennen die neuen Namen
     areas = _swift("Views/Settings/SettingsAreas.swift")
     assert 'case .account: return "Konto & Tarif"' in areas and 'case .uni: return "Uni-Zugang & Abgleich"' in areas
@@ -198,10 +198,9 @@ def test_review_notes_describe_the_build_honestly():
     assert "(am iPhone darüber) YouTube zum Suchen und Schauen" in desc and "Texterkennung auf dem Gerät" in desc
     assert "keine Werbung von StudiNow" in desc
     wn = f["whats-new-proai"]
-    assert wn.startswith("Neu in 1.0.6:\n") and wn.count("\n• ") == 10, "höchstens zehn kurze Punkte"
-    for must in ("Lernkalender, Lernpakete und automatische Lernplanung sind vorerst ausgeblendet", "Füller",
-                 "gibt es jetzt mit Pro AI", "100 oder 200 Credits", "Neu auch am iPhone", "24 Stunden",
-                 "Klausuren und Tests: bald und neu erkannt", "zwischen 8 und 18 Uhr alle 30 Minuten"):
+    assert wn.startswith("Neu in 1.0.7:\n") and wn.count("\n• ") == 10, "höchstens zehn kurze Punkte"
+    for must in ("Klausur-Generator (Pro AI)", "15 Credits", "Noten selbst eintragen", "ohne Noten und Ergebnisse",
+                 "höchstens ein Versuch", "Mensa mit Fotos", "mit zwei Fingern zoomen", "ab der nächsten Verlängerung Plus"):
         assert must in wn, must
     for gone in ("Glättung", "geglättet", "Lernziele"):
         assert gone not in wn, gone

@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Stand 18.11.2026.**
+**Stand 20.11.2026.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -168,6 +168,13 @@ Datenschutzhinweise (für YouTube die Datenschutzerklärung von Google). Google 
 (EU-US Data Privacy Framework). Rechtsgrundlage für das Öffnen ist die Erfüllung des Nutzungsvertrags (Art. 6 Abs. 1
 lit. b DSGVO); über Cookies von YouTube entscheidest du in der Einwilligungsabfrage von YouTube.
 
+## 4b. Mensa
+
+Den Speiseplan und, in Hannover, die Fotos der Gerichte lädt die App direkt beim jeweiligen Studentenwerk
+(Studentenwerk Hannover über Studi|Futter, Studentenwerk OstNiedersachsen, ersatzweise OpenMensa). Dabei erhält der
+Anbieter die bei jedem Abruf üblichen Angaben (IP-Adresse, Zeitpunkt, Gerätetyp). An StudiNow geht dabei nichts;
+deine Auswahl (Mensa, Preisgruppe, Allergene) bleibt auf dem Gerät. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
+
 ## 5. StudiNow-Konto und Anmeldung (gehosteter Dienst)
 
 Wenn du ein StudiNow-Konto anlegst, verarbeiten wir:
@@ -238,6 +245,16 @@ mit; meldet sich ein anderes Gerät mit einem anderen Stud.IP-Benutzer, hält de
 zu schreiben.
 Löschen in der App (Papierkorb, Konto) löscht auch im Dienst; endgültig gelöscht wird mit dem Konto, spätestens
 30 Tage nach dessen Löschung. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
+
+**Angemeldete Prüfungen (seit 1.0.7).** Mit dem StudiNow-Konto speichert der Dienst die Liste deiner angemeldeten Prüfungen, wie
+die App sie im QIS, LSF oder Campusmanagement deiner Hochschule gelesen hat, im Datenbereich deines Uni-Kontos, damit
+sie auch auf deinen anderen Geräten erscheint. Gespeichert werden je Prüfung: Prüfungsnummer, Bezeichnung, Semester,
+Datum, Uhrzeit, Raum, Versuch, Status der Anmeldung (z. B. angemeldet, zugelassen, storniert), Rücktrittsfrist,
+Prüfungsform und der Abschluss bzw. Studiengang, wie die Seite ihn nennt. Nicht gespeichert werden Noten,
+Prüfungsergebnisse (etwa „bestanden“ oder „nicht bestanden“; an ihrer Stelle steht im Dienst nur „abgeschlossen“) und
+der Name der Prüferin oder des Prüfers; das bleibt nur auf dem Gerät, das die Liste gelesen hat. Die Liste wird mit deinem Konto gelöscht, spätestens 30 Tage nach
+dessen Löschung; eine Prüfung, von der du dich abmeldest, verschwindet beim nächsten Abruf auch im Dienst.
+Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
 ## 7a. Kursdateien an StudiNow (Datei-Eingang)
 
@@ -437,6 +454,15 @@ ohne sie funktioniert StudiNow genauso.
 - **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO, weil du die KI-Funktion deines Tarifs nutzt. Mit beiden
   Anbietern besteht ein Vertrag zur Auftragsverarbeitung nach Art. 28 DSGVO; sie dürfen die Daten nur für uns
   verarbeiten.
+
+## 8d. Klausur-Generator (Tarif Pro AI)
+
+Erstellst du Probeklausuren, schickt die App den Text der gewählten Seiten
+(Vorlesungen, Altklausuren, Übungen) einmal an den StudiNow-Dienst. Der Dienst gibt ihn zum Erzeugen an einen
+KI-Auftragsverarbeiter weiter (Abschnitt 8c) und löscht die Seitentexte spätestens 3 Stunden danach. Gespeichert
+bleiben die erzeugten Probeklausuren und eine Themenübersicht, ohne Bezug zu deinem Konto; wer dieselben Unterlagen
+hat, kann dieselben Probeklausuren kaufen. Zu deinem Konto speichern wir nur, welche Probeklausuren du gekauft hast
+(für den Zugriff und eine Erstattung). Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
 ## 9. Käufe und Abos
 

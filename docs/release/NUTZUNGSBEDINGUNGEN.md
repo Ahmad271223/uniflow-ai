@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Stand 18.11.2026.**
+**Stand 20.11.2026.**
 
 ## 1. Geltung und Vertragspartner
 
@@ -113,6 +113,10 @@ Mit StudiNow-Konto gelten im Dienst monatliche Grenzen, die die App anzeigt:
 Ein gemeinsamer Wochentest, den andere schon erstellt haben, zählt nicht; derselbe Karteikarten-Stapel zählt im Monat
 nur einmal. Die Testliste im Dienst zeigt in Free und
 Plus die letzten 10 Tests, in Pro AI alle; ältere Tests bleiben gespeichert und zählen weiter für den Lernstand.
+- **Probeklausuren:** Eine Probeklausur aus dem Klausur-Generator kostet 15 Credits. Kann sie nicht erstellt werden,
+  wird nichts abgebucht. Probeklausuren sind eine Lernhilfe, von einer KI erstellt und geprüft, aber nicht fehlerfrei;
+  sie sagen nichts darüber, was in deiner echten Klausur drankommt.
+
 Wochentests über dein eigenes ChatGPT laufen auf deinem Gerät und kosten keine Credits.
 
 ## 6. Deine Inhalte und die Inhalte deiner Hochschule

@@ -253,22 +253,22 @@ Neu in 1.0.4:
 • Viele kleine Verbesserungen und Fehler behoben.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, zehn Punkte) – 2109 Zeichen
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, zehn Punkte) – 1464 Zeichen
 
 Die Fassung von 1.0.4 steht in `EINREICHUNG-1-0-4.md`. „Lernkalender … vorerst ausgeblendet“ steht bewusst drin: Wer 1.0.4 hatte, vermisst ihn sonst ohne Erklärung.
 
 ```text whats-new-proai
-Neu in 1.0.6:
-• Klausuren und Tests: StudiNow erkennt Termine jetzt auch in Folien – auch in PowerPoint und Word und auf Folien, die nur ein Bild sind (Texterkennung auf dem Gerät). Neue Karte oben auf der Übersicht: „Klausuren und Tests: bald und neu erkannt“.
-• Der Stundenplan ist dein Kalender: Oben stehen Hinweise zu Terminen, Anmeldungen, Kurztests und Klausuren. Lernkalender, Lernpakete und automatische Lernplanung sind vorerst ausgeblendet.
-• Abgleich von selbst: zwischen 8 und 18 Uhr alle 30 Minuten (bei geschlossener App, wann iOS es zulässt), sonst mit „Sync“. Neue Karte „Mitteilungen“: neue Dateien, Nachrichten, Ausfall oder Raumänderung heute und morgen, „Neue Note eingetragen“ – jede Art mit eigenem Schalter.
-• Apple Pencil: neues Werkzeug „Füller“, feinere Fineliner-Stufen, der Textmarker lässt den Text lesbar und wird beim Halten gerade, Viereck, Dreieck und Linie werden zuverlässiger erkannt. Striche blitzen nicht mehr auf und gehen nicht mehr verloren.
-• Dokument: Die obere Leiste ist eine flache Zeile, die Seite hat mehr Platz. Behoben: Hänger nach „Seite drehen“, der Griff der geteilten Ansicht neben der KI-Hilfe und ein Absturz am iPad in der geteilten Ansicht.
-• Video neben dem Dokument (mit Plus): YouTube direkt öffnen, suchen und schauen – nur YouTube, ohne Adresszeile –, dazu ein Video per Link, eine Vorlesungsaufzeichnung oder eine Lernseite. Neu auch am iPhone, über dem Dokument.
-• KI-Credits nachkaufen: 100 oder 200 Credits als einmaliger Kauf, mit Plus oder Pro AI und StudiNow-Konto. Mit Plus stellst du der KI damit Fragen (KI-Chat).
-• Erinnerungen an Abgaben, Tests und Klausuren (auch „Neuer Klausurtermin erkannt“) gibt es jetzt mit Pro AI.
-• Altklausuren sind nach Jahrgang geordnet, jede mit ihrer Lösung. „Neu“ steht an Dateien nur noch 24 Stunden; was beim ersten Einlesen eines Kurses kommt, gilt nicht als neu.
-• Übersichtlicher: Das Logo führt zur Übersicht, die Profilkarte öffnet die Einstellungen, die Einstellungen sind in Bereiche gegliedert. Community: Antworten, Kommentare und „Gefällt mir“ klappen zuverlässiger, Melden mit Rückmeldung.
+Neu in 1.0.7:
+• Klausur-Generator (Pro AI): Wähle in einem Modul Vorlesungen, Altklausuren und Übungen – StudiNow erstellt bis zu zehn Probeklausuren im Stil deiner echten Klausur, mit ausführlichen Lösungen als PDF. Jede Probeklausur kostet 15 Credits; geht etwas schief, wird nichts berechnet.
+• Noten selbst eintragen: Fehlt eine bestandene Prüfung in QIS, hakst du sie im Studienverlauf ab oder trägst die Note ein. Sie zählt bei den LP mit, als „selbst eingetragen“ – meldet QIS sie später, gilt der Wert aus QIS.
+• Prüfungsanmeldungen auf allen Geräten: Was ein Gerät aus QIS holt, siehst du auch auf iPhone, iPad und Mac – ohne Noten und Ergebnisse.
+• Anmeldung im Hintergrund: QIS, Stud.IP und LSF melden sich auch bei geschlossener App neu an – höchstens ein Versuch, damit dein Uni-Konto nie gesperrt wird.
+• Mensa mit Fotos: In Hannover siehst du zu den meisten Gerichten ein Foto vom Studentenwerk.
+• Lösung daneben: sieht jetzt genau aus wie beim Verfasser und lässt sich mit zwei Fingern zoomen. Eingeblendete Lösungen blendest du mit einem Tipp wieder aus.
+• KI-Hilfe zuverlässiger: Fragst du gleich nach dem Öffnen, hängt das Dokument immer an. „Ganzes Dokument“ und Verweise gehen auch mit VoiceOver.
+• Abo-Wechsel: Wechselst du von Pro AI zu Plus, zeigt StudiNow sofort „ab der nächsten Verlängerung Plus“.
+• Textmarker: blitzt beim Geradeziehen nicht mehr kurz weg.
+• Dazu kleinere Verbesserungen, etwa im Wochenkopf der Module („1/4 erledigt“).
 ```
 
 ## Weitere Angaben
@@ -528,7 +528,7 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3887 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3992 Zeichen (max. 4000)
 
 **1.0.6:** Wege in den Einstellungen nach der neuen Gliederung („Konto & Tarif“, „Uni-Zugang & Abgleich“), dazu
 Credit-Pakete (wo, wer darf), Lernkalender bewusst aus, Hintergrund-Modi (`fetch`/`processing` für den Abgleich 8–18 Uhr,
@@ -537,7 +537,7 @@ dem Gerät, „YouTube öffnen“. Gestrichen gegenüber 1.0.4: der eigene OpenA
 die Geräte-Regel im Einzelnen. Die Fassung von 1.0.4 steht in `EINREICHUNG-1-0-4.md`.
 
 ```text review-notes-proai
-New in 1.0.6: AI credit packs (two consumables), exam dates found in slides, automatic sync 8:00-18:00, YouTube next to a document (Plus). The study calendar (study packages, auto planning) is switched off on purpose; the timetable is the calendar.
+New in 1.0.7: exam generator (Pro AI, see end), own grades in "Studienverlauf", exam registrations on all devices (no grades), background re-login (one attempt, never resends a rejected password), Mensa dish photos (from Studentenwerk Hannover). Since 1.0.6: credit packs, exam dates from slides, sync 8:00-18:00, YouTube (Plus); The study calendar (study packages, auto planning) is switched off on purpose; the timetable is the calendar.
 
 Connected today: Leibniz Universität Hannover and Universität Hildesheim. University features need a personal account. Please use the demo:
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account.
@@ -548,17 +548,17 @@ After the trial "Deine Probe ist vorbei" shows Free, Plus and Pro AI (yearly) an
 
 iPhone support: The Pencil editor stays on iPad; documents open in a reader.
 
-University password: "Passwort auf diesem iPad merken" keeps it only in this device's Keychain (not synced to iCloud); it is never sent to our servers. "Einstellungen" → "Uni-Zugang & Abgleich" → "Uni-Zugang".
+University password: "Passwort auf diesem iPad merken" keeps it only in this device's Keychain (not synced to iCloud), never sent to our servers ("Einstellungen" → "Uni-Zugang & Abgleich" → "Uni-Zugang").
 
-Background modes: "fetch" (lists) and "processing" (new files) sync due portals between 8:00 and 18:00 local time, every 30 minutes at most; iOS decides when. Otherwise only "Sync". Only the saved session or the login saved on the device is used.
+Background modes "fetch"/"processing": due portals sync between 8:00 and 18:00, at most every 30 minutes, iOS decides when; only the device's saved session or login is used.
 
-Text recognition: exam dates are also read from slides (PDF, PowerPoint, Word); image-only slides use Apple's on-device text recognition. Nothing is uploaded; found dates say "bitte prüfen".
+Exam dates in slides: on-device text recognition. Nothing is uploaded; found dates say "bitte prüfen".
 
-YouTube (Plus): document → "Mehr" → "Video oder Lernseite daneben …" → "YouTube öffnen" (iPhone: "Video oder Lernseite"). After a notice that data goes to Google and "Öffnen", the column loads only youtube.com / m.youtube.com: no address bar, other links open outside in Safari, Google sign-in blocked, YouTube's ads and cookie choice unchanged, nothing downloaded.
+YouTube (Plus): document → "Mehr" → "Video oder Lernseite daneben …" → "YouTube öffnen". After a notice and "Öffnen" only youtube.com loads: no address bar, other links open in Safari, Google sign-in blocked, YouTube's ads and cookie choice unchanged, nothing downloaded.
 
 Subscriptions (yearly only, no introductory offers; monthly products are removed from sale; 19.99 € and 39.99 € from 11 Nov 2026): "Einstellungen" → "Konto & Tarif" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen".
 
-Credit packs "100 Credits" (de.uniflow.credits.klein), "200 Credits" (de.uniflow.credits.gross): need paid Plus or Pro AI (not the trial) and the StudiNow account. Sandbox: "Einstellungen" → "Konto & Tarif" → "Tarif" → "Credits kaufen"; the sheet also opens in "KI-Hilfe" when credits run out. Our service verifies and credits each transaction once, then the app finishes it. Credits never expire and stay with the account (nothing to restore). With Plus they pay only for questions (AI chat).
+Credit packs "100 Credits" (de.uniflow.credits.klein), "200 Credits" (de.uniflow.credits.gross): need paid Plus or Pro AI (not the trial) and the StudiNow account. Sandbox: "Einstellungen" → "Konto & Tarif" → "Tarif" → "Credits kaufen"; the sheet also opens in "KI-Hilfe" when credits run out. Each transaction is verified and credited once; credits never expire and stay with the account. With Plus they pay only for questions (AI chat).
 
 AI (Pro AI, 100 credits per month) runs on https://app.studinow.app with the StudiNow account (fallback "StudiNow-Konto" → "Mit Apple anmelden"). In the sandbox or trial open a demo PDF, tap "KI-Hilfe", ask. "KI-Hilfe: Was wird gesendet?" comes first: page text or image of a circled area, question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Okay, los". Uni-Mail "Mit KI verbessern" (Pro AI) only proposes; sent only with "Senden". No own API key and no ChatGPT login in this build.
 
@@ -566,7 +566,9 @@ Account deletion: "Einstellungen" → "Konto & Tarif" → "Konto löschen" (also
 
 Community (1.2): pseudonyms, "Melden", "Blockieren", reports reviewed within 24 hours; support@studinow.app.
 
-No tracking, no analytics. Not endorsed by universities; writes there only on user action.
+No tracking, no analytics. Not endorsed by universities.
+
+Exam generator: module (also demo module) → "Klausur-Generator" → pick slides, past exams, exercises. Up to ten practice exams with solutions as PDF, 15 AI credits each (no new in-app purchase); nothing charged if it fails. Without Pro AI the card shows a lock.
 ```
 
 ## Bildschirmfotos
