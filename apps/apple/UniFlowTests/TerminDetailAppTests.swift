@@ -247,7 +247,10 @@ final class TerminDetailAppTests: XCTestCase {
     func testDetailShowsRoomAndBothLecturers() throws {
         let (_, api, id) = try device()
         let w = try show(EventDrawer(eventID: id, date: "2026-11-05"), api: api)
-        XCTAssertTrue(pump { self.shows(w, "Dr. Max Muster") }, dump(w))
+        // Lehrende und Raumfinder kommen aus zwei getrennten Anfragen (Lehrende, GET /api/rooms/campuses): auf beide warten.
+        // Vorher nur auf die Lehrenden; kam /api/rooms/campuses spaeter, stand der Raum noch als Text da (wackelig, auch auf
+        // release/1.0.7 2 von 5 Laeufen rot)
+        XCTAssertTrue(pump { self.shows(w, "Dr. Max Muster") && self.shows(w, "Raum 1101 - F102, Route zu Fuß starten") }, dump(w))
         for t in ["Zum Modul", "Raum", "Raum 1101 - F102, Route zu Fuß starten", "Raum 1101 - F102 im Raumfinder anzeigen", "Lehrende",
                   "Prof. Dr. Erika Beispiel", "E-Mail an erika.beispiel@example.org", "E-Mail an max.muster@example.org",
                   "Sprechstunde Di 10–11 Uhr", "Allen Lehrenden schreiben", "Tutor/innen (1)"] {
