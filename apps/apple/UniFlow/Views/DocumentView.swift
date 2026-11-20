@@ -3132,6 +3132,7 @@ struct InfoSheet: View {
                         if let s = i.subject { LabeledContent("Veranstaltung", value: s) }
                         if let f = i.folder { LabeledContent("Stud.IP-Ordner", value: f) }
                     }
+                    KnowledgeSourceLinkSection(title: i.title, fileName: i.fileName)   // Wissensbibliothek (nur mit Schalter)
                     Section("Seiten") {
                         LabeledContent("Angezeigt", value: "\(i.displayPages)")
                         LabeledContent("Im PDF", value: "\(i.pdfPages)")

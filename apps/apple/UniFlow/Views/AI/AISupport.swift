@@ -474,8 +474,10 @@ enum AIMarkdown {
     /// Wie `inline`, aber Fett und Code mit ausdruecklicher Schrift (Inter als variable Schrift kennt kein
     /// automatisches Fett: ohne das blieb **fett** bei manchen Groessen normal). `size` ist die schon skalierte Groesse.
     /// Formeln (07.11.2026) vorher lesbar: `MathText` (x², ε, ∫ …), Hoch-/Tiefstellung danach (`FormulaText.scripted`)
-    static func styled(_ s: String, size: CGFloat) -> AttributedString {
-        var a = inline(MathText.render(s))
+    /// `formulasOnly` (Wissensbibliothek, 20.11.2026): nur Formeln zwischen `$…$` umformen; der uebrige Text ist dort
+    /// schon Unicode und bleibt, wie er ist (sonst wuerden Dateinamen wie "ET2_22_F" tiefgestellt)
+    static func styled(_ s: String, size: CGFloat, formulasOnly: Bool = false) -> AttributedString {
+        var a = inline(formulasOnly ? dollarFormulas(s) : MathText.render(s))
         for run in a.runs {
             guard let intent = run.inlinePresentationIntent else { continue }
             if intent.contains(.code) {
@@ -485,6 +487,34 @@ enum AIMarkdown {
             }
         }
         return FormulaText.scripted(a, size: size)
+    }
+
+    /// Nur die Stuecke `$…$` mit `MathText` umformen, den Text dazwischen unveraendert lassen. `$$…$$` bleibt stehen
+    /// (Block-Formeln setzt `blocks`); ein `$` mit Leerzeichen dahinter (Preis "5 $") oeffnet keine Formel.
+    static func dollarFormulas(_ s: String) -> String {
+        guard s.contains("$") else { return s }
+        let c = Array(s)
+        var out = ""
+        var i = 0
+        while i < c.count {
+            guard c[i] == "$" else { out.append(c[i]); i += 1; continue }
+            if i + 1 < c.count, c[i + 1] == "$" {
+                // $$…$$ unveraendert uebernehmen
+                var j = i + 2
+                while j + 1 < c.count, !(c[j] == "$" && c[j + 1] == "$") { j += 1 }
+                let stop = min(c.count, j + 2)
+                out += String(c[i..<stop])
+                i = stop
+                continue
+            }
+            guard i + 1 < c.count, !c[i + 1].isWhitespace, let close = (i + 1..<c.count).first(where: { c[$0] == "$" }),
+                  close > i + 1, !c[close - 1].isWhitespace else {
+                out.append("$"); i += 1; continue
+            }
+            out += MathText.render(String(c[i...close]))
+            i = close + 1
+        }
+        return out
     }
 
     /// Quellenmarken [n] der genannten Quellen aus dem Text (die Quelle steht klein unter der Antwort, 18.11.2026)
@@ -511,10 +541,13 @@ enum AIMarkdown {
 struct AIMarkdownText: View {
     let text: String
     var size: CGFloat = 13.76
+    /// nur `$…$` als Formel umformen, sonst Text wie geschrieben (Wissensbibliothek)
+    var formulasOnly = false
 
-    init(_ text: String, size: CGFloat = 13.76) {
+    init(_ text: String, size: CGFloat = 13.76, formulasOnly: Bool = false) {
         self.text = text
         self.size = size
+        self.formulasOnly = formulasOnly
     }
 
     /// Schriftgroesse eines Abschnittstitels (# und ## = h2 17.6, ### = h3 15.2, tiefer = h4 13.6), nie kleiner als
@@ -528,7 +561,7 @@ struct AIMarkdownText: View {
     static func formulaSize(body: CGFloat) -> CGFloat { (body * 1.12).rounded() }
 
     var body: some View {
-        AIMarkdownBlocks(blocks: AIMarkdown.cachedBlocks(text), size: size)
+        AIMarkdownBlocks(blocks: AIMarkdown.cachedBlocks(text), size: size, formulasOnly: formulasOnly)
             .frame(maxWidth: .infinity, alignment: .leading)
             .textSelection(.enabled)
     }
@@ -538,6 +571,7 @@ struct AIMarkdownText: View {
 struct AIMarkdownBlocks: View {
     let blocks: [AIMarkdown.Block]
     let size: CGFloat
+    var formulasOnly = false
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -551,7 +585,7 @@ struct AIMarkdownBlocks: View {
 
     /// Zeile mit Fett und Code in der skalierten Groesse (Dynamic Type wie `ufFont`)
     private func rich(_ s: String, _ base: CGFloat) -> AttributedString {
-        AIMarkdown.styled(s, size: UFScaledFont.scaled(base, typeSize))
+        AIMarkdown.styled(s, size: UFScaledFont.scaled(base, typeSize), formulasOnly: formulasOnly)
     }
 
     private static func isHeading(_ b: AIMarkdown.Block) -> Bool {
@@ -602,7 +636,7 @@ struct AIMarkdownBlocks: View {
         case .quote(let inner):
             // Merke-Kasten (wie ChatGPT): weiche Akzentflaeche mit Rand, darin die Bloecke
             // `AnyView`: bricht die Rekursion des Typs (sonst `_viewListCount` endlos, Absturz wie bei `MathNodeView`)
-            AnyView(AIMarkdownBlocks(blocks: inner, size: size))
+            AnyView(AIMarkdownBlocks(blocks: inner, size: size, formulasOnly: formulasOnly))
                 .padding(.horizontal, 14).padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.accentSoft))
@@ -610,7 +644,7 @@ struct AIMarkdownBlocks: View {
                 .accessibilityElement(children: .contain)
                 .accessibilityIdentifier("ai.quote")
         case .table(let header, let rows):
-            AIMarkdownTable(header: header, rows: rows, size: size)
+            AIMarkdownTable(header: header, rows: rows, size: size, formulasOnly: formulasOnly)
         }
     }
 }
@@ -621,6 +655,7 @@ struct AIMarkdownTable: View {
     let header: [String]
     let rows: [[String]]
     let size: CGFloat
+    var formulasOnly = false
 
     @Environment(\.dynamicTypeSize) private var typeSize
 
@@ -656,7 +691,7 @@ struct AIMarkdownTable: View {
                 MathNodeView(node: lines[0], size: scaled).foregroundStyle(UF.text)
                     .accessibilityElement(children: .ignore).accessibilityLabel(lines[0].plain)
             } else {
-                Text(AIMarkdown.styled(bold ? "**\(s)**" : s, size: scaled)).ufFont(size, bold ? 700 : 400, lh: 1.45)
+                Text(AIMarkdown.styled(bold ? "**\(s)**" : s, size: scaled, formulasOnly: formulasOnly)).ufFont(size, bold ? 700 : 400, lh: 1.45)
                     .foregroundStyle(UF.text)
             }
         }

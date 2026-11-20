@@ -41,6 +41,9 @@ enum UFRoute: Hashable {
     case lecturers
     /// Bescheinigungen (06.11.2026, Views/Services/CertificatesPage.swift): alle Dokumente des Portals, unter Uni & Noten
     case certificates
+    /// Wissensbibliothek (20.11.2026, Views/Knowledge): eigene Erklaerungen und Loesungen aus einem eingelesenen Ordner;
+    /// nur mit dem Schalter in Einstellungen -> Erweitert. `anchor`: Abschnitt ("s12") oder Text ("Seite 3")
+    case knowledge(subject: String? = nil, unit: String? = nil, file: String? = nil, anchor: String? = nil)
 
     /// Menuepunkt, der markiert wird (Dokument -> "Dokumente & Notizen", wie route() in app.js)
     var navKey: String {
@@ -61,6 +64,7 @@ enum UFRoute: Hashable {
         case .uniMail: return "unimail"
         case .lecturers: return "lecturers"
         case .certificates: return "services"
+        case .knowledge: return "knowledge"
         }
     }
 
@@ -96,6 +100,9 @@ enum UFRoute: Hashable {
         case .uniMail: return "#/unimail"
         case .lecturers: return "#/lehrende"
         case .certificates: return "#/bescheinigungen"
+        case .knowledge(let s, let u, let f, let a):
+            func enc(_ v: String?) -> String? { v.map { $0.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? $0 } }
+            return "#/wissen" + q([("fach", enc(s)), ("einheit", enc(u)), ("datei", enc(f)), ("anker", enc(a))])
         }
     }
 
@@ -135,6 +142,8 @@ enum UFRoute: Hashable {
         case "unimail", "uni-mail": self = .uniMail
         case "lehrende", "lecturers": self = .lecturers
         case "bescheinigungen", "certificates": self = .certificates
+        case "wissen", "wissensbibliothek":
+            self = .knowledge(subject: q["fach"], unit: q["einheit"], file: q["datei"], anchor: q["anker"])
         default: self = .dashboard
         }
     }
@@ -318,6 +327,10 @@ struct UFNavItem: Identifiable {
     /// (`uniMail`: Verbindung des Containers vorhanden und lokales Backend)
     static let uniMail = UFNavItem(id: "unimail", title: "Uni-Mail", icon: "mail", route: .uniMail)
 
+    /// Wissensbibliothek (20.11.2026): nur mit dem Schalter in Einstellungen -> Erweitert (`KnowledgeLibrarySetting`),
+    /// in "Lernen" nach den Karteikarten; ohne Schalter nirgends zu sehen
+    static let knowledge = UFNavItem(id: "knowledge", title: "Wissensbibliothek", icon: "bookmark", route: .knowledge())
+
     /// Eigene Karteikarten ohne PC: Eintrag an Stelle von "Tests & Wiederholung"
     static let cards = UFNavItem(id: "cards", title: "Karteikarten", icon: "cards", route: .cards)
 
@@ -338,7 +351,8 @@ struct UFNavItem: Identifiable {
     /// Schloesser wie bisher (Tests, eigener Server).
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
                         flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false,
-                        uniMail: Bool = false, plan: UFPlan? = nil, proAIHidden: Bool = false) -> [UFNavItem] {
+                        uniMail: Bool = false, plan: UFPlan? = nil, proAIHidden: Bool = false,
+                        knowledge: Bool = false) -> [UFNavItem] {
         func locked(_ item: UFNavItem, _ f: UFFeature) -> UFNavItem {
             var i = item
             i.lock = plan.flatMap { UFLock.plan(f, plan: $0) }
@@ -358,8 +372,9 @@ struct UFNavItem: Identifiable {
             }
         } : main
         let extra = (messages ? [Self.messages] : []) + (uniMail && local ? [Self.uniMail] : [])
-        guard !extra.isEmpty else { return base }
-        return base.flatMap { $0.id == "dashboard" ? [$0] + extra : [$0] }
+        let withLibrary = knowledge ? base + [Self.knowledge] : base
+        guard !extra.isEmpty else { return withLibrary }
+        return withLibrary.flatMap { $0.id == "dashboard" ? [$0] + extra : [$0] }
     }
 
     /// Markiert: "Karteikarten" auf der Karteikarten-Seite, sonst nach `UFRoute.navKey` (am eigenen Server fuehrt
@@ -457,7 +472,7 @@ struct UFNavGroup: Identifiable, Equatable {
     /// eigener Menuepunkt wird
     static let layout: [(id: String, title: String, members: [String])] = [
         ("study", "Studium", ["dashboard", "messages", "unimail", "plan", "timetable", "modules", "studyplan", "files", "services"]),
-        ("learn", "Lernen", ["aiStart", "exams", "cards"]),
+        ("learn", "Lernen", ["aiStart", "exams", "cards", "knowledge"]),
         // Mensa (05.11.2026): Alltag neben dem Studium, auf jedem Geraet und in jedem Tarif
         // Raumfinder (05.11.2026) neben der Mensa
         ("everyday", "Alltag", ["mensa", "rooms"]),
@@ -545,6 +560,8 @@ extension UFGreeting {
 // MARK: - Rahmen
 
 struct AppShell<Content: View>: View {
+    /// Wissensbibliothek eingeschaltet (Einstellungen -> Erweitert); aus = kein Menuepunkt
+    @AppStorage(KnowledgeLibrarySetting.key) private var knowledgeOn = false
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var overlay: UFOverlay
     @EnvironmentObject private var session: Session
@@ -646,7 +663,7 @@ struct AppShell<Content: View>: View {
                 items: UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                          community: SolutionSharing.community.isConnected, ai: aiEnabled,
                                          messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil,
-                                         plan: ent.plan, proAIHidden: proAIOfferHidden).map { ($0.menuTitle, $0.route) },
+                                         plan: ent.plan, proAIHidden: proAIOfferHidden, knowledge: knowledgeOn).map { ($0.menuTitle, $0.route) },
                 go: { [router] r in router.go(r) }))
             .environment(\.ufBack, { [router] in router.goBack() })
         }
@@ -797,6 +814,8 @@ extension EnvironmentValues {
 /// bzw. "Pro AI holen", dann Einklappen. Das Logo oben fuehrt zur Übersicht. Eingeklappt nur Symbole (unten der Avatar). Welche Eintraege erscheinen und welcher markiert ist,
 /// bleibt bei `UFNavItem.visible` und `UFNavItem.active`.
 struct UFSidebar: View {
+    /// Wissensbibliothek eingeschaltet (Einstellungen -> Erweitert); aus = kein Menuepunkt
+    @AppStorage(KnowledgeLibrarySetting.key) private var knowledgeOn = false
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var shell: ShellState
@@ -822,7 +841,7 @@ struct UFSidebar: View {
         let items = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                       community: SolutionSharing.community.isConnected, ai: aiEnabled,
                                       messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil,
-                                      plan: ent.plan, proAIHidden: proAIOfferHidden)
+                                      plan: ent.plan, proAIHidden: proAIOfferHidden, knowledge: knowledgeOn)
         let groups = UFNavGroup.groups(items)
         VStack(alignment: .leading, spacing: 4) {
             // Logo und Name fuehren immer zur Übersicht (Auftrag des Inhabers 17.11.2026), auch eingeklappt
@@ -1142,6 +1161,8 @@ struct UFNavBadge: View {
 /// .mobile-nav: fuenf gleich breite Eintraege, aktiv mit --accent-soft; Abzeichen klein am Symbol. "Mehr" oeffnet die
 /// Liste der uebrigen Bereiche (`UFMoreSheet`) mit ihren Abzeichen; markiert, wenn einer davon offen ist.
 struct UFMobileNav: View {
+    /// Wissensbibliothek eingeschaltet (Einstellungen -> Erweitert); aus = kein Menuepunkt
+    @AppStorage(KnowledgeLibrarySetting.key) private var knowledgeOn = false
     /// kompakt (iPhone): etwas hoeher und mit groesseren Symbolen wie eine Tab-Leiste des Systems
     var compact = false
     /// iPhone quer: Symbol neben dem Namen, flach (wie die Tab-Leiste des Systems quer)
@@ -1161,7 +1182,7 @@ struct UFMobileNav: View {
         let visible = UFNavItem.visible(local: session.api?.isLocal ?? true, gradesOnDevice: true,
                                         community: SolutionSharing.community.isConnected, ai: aiEnabled,
                                         messages: inbox.showsNavItem(api: session.api, studip: studip), uniMail: uniMail != nil,
-                                        plan: ent.plan, proAIHidden: proAIOfferHidden)
+                                        plan: ent.plan, proAIHidden: proAIOfferHidden, knowledge: knowledgeOn)
         return UFNavItem.more(visible: visible)
     }
 

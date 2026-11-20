@@ -78,6 +78,9 @@ struct MainView: View {
             case .certificates:
                 // Bescheinigungen (06.11.2026): Liste aus QIS, Campusmanagement bzw. PLuS, PDF nur auf Tippen
                 UFServerGate(.services) { CertificatesPage() }.id(session.api?.base)
+            case .knowledge(let s, let u, let f, let a):
+                // Wissensbibliothek (20.11.2026): nur lokal aus dem Container, nur mit dem Schalter (sonst Hinweis)
+                KnowledgeLibraryPage(subject: s, unit: u, file: f, anchor: a)
             }
         }
         .onAppear { shell.attach(session.api); UFSessionState.reset() }
@@ -95,6 +98,7 @@ struct MainView: View {
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"
         .modifier(StudIPQuestionsHost())                                     // einmal: Studiengruppen, Fächer im Lernkalender (nur mit Lernkalender)
         .modifier(OlderSemesterLoaderHost())                                 // fruehere Semester im Hintergrund (SyncOrder, Stufe d)
+        .modifier(KnowledgeLibraryPreload())                                 // Wissensbibliothek laden, wenn eingeschaltet
         // andere Datenquelle (eigener Server verbunden/getrennt): Kopfzeile neu, Anzeigezustaende von vorn, offene
         // Dialoge und Drawer zu – eine Aktion darin traefe sonst die neue Quelle
         .onChange(of: session.api?.base) { _, _ in shell.attach(session.api); UFSessionState.reset(); overlay.closeAll() }

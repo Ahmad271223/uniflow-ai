@@ -1289,6 +1289,7 @@ private struct LocalAdvancedTab: View {
                 if ChatGPTLink.isEnabled { ChatGPTCard(link: chatgpt) }
                 DocIndexPrewarmCard()
             }
+            KnowledgeSettingsCard()                                         // Wissensbibliothek (Standard aus, 20.11.2026)
             DevelopmentFold(error: error, open: openDev)
         }
         .frame(maxWidth: 720, alignment: .leading)

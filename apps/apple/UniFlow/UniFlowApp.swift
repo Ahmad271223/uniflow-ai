@@ -230,6 +230,8 @@ struct UniFlowApp: App {
                             let on = (try? await containers.active?.api.value("/api/demo"))?["enabled"]?.bool == true
                             if !on { _ = try? await containers.setDemo(true) }
                         }
+                        // -UFKnowledgeImport <Ordner>: Wissensbibliothek einlesen (nur Debug, KnowledgeLibraryCenter)
+                        await KnowledgeLibraryCenter.shared.applyDebugLaunch()
                         #endif
                         await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer)
                     }

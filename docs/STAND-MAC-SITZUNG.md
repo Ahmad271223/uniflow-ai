@@ -2,6 +2,54 @@
 
 > 03.11.2026: Die App heißt jetzt **StudiNow** (vorher Studora). Die datierten Abschnitte unten behalten den damaligen Namen.
 
+## Wissensbibliothek in der Apple-App (20.11.2026, Zweig `app/wissensbibliothek` von `release/1.0.7`)
+
+Auftrag des Inhabers 20.11.2026, Vorgaben aus `MAC-ANLEITUNG.md` im privaten Repo `uniflow-wissensbibliothek`.
+**Im Repo `uniflow-ai` liegt nur Code und eine kleine, erfundene Testbibliothek.** Kein Text aus der echten
+Bibliothek, nichts davon im App-Bundle, nichts auf Servern, in CloudKit, in der Community oder bei einer KI.
+
+**Was gebaut ist (implementiert):**
+
+| Teil | Wo | Stand |
+| --- | --- | --- |
+| Schalter „Wissensbibliothek“, Standard **aus**, nur dieses Gerät (`knowledgeLibrary.enabled`) | Einstellungen → Erweitert (Karte unter „Vorab einordnen“) | gebaut, im Simulator gesehen |
+| Einlesen: Ordner wählen (Mac: Klon des Repos, iPad/iPhone: Dateien-App), ZIP wählen, „Neu einlesen“ aus dem gemerkten Ordner, „Trotzdem ersetzen“ | Seite „Wissensbibliothek“ und Einstellungs-Karte | Kern getestet; der Weg über den Dateien-Dialog ist **nicht** von Hand probiert (nur der Debug-Startparameter) |
+| Ablage im Container des Nutzers: `<Container>/Wissensbibliothek/aktuell/` (Kopie der .md/.c/.csv/.json/.pf, ohne `_pruefung.py`), `wb-meta.json`, `wb-suche.sqlite`, `wb-import.json`; vom iCloud-Backup ausgenommen | `UniFlowCore/KnowledgeLibrary/KnowledgeLibraryStore.swift` | getestet (Kern) |
+| Neuer Stand (`stand` in katalog.json) ersetzt den alten ganz (nicht zusammenführen); gleicher Stand: „ist aktuell“; älterer: „schon neuer eingelesen“ | dito | getestet (Kern) |
+| Katalog tolerant lesen, Schlüssel `ordner/id`, bei Mathe-I-Wochen der Pfad; NFC/NFD-sichere Pfade, Unicode-Namen; Kopfdaten (YAML) tolerant, auch Listen, Unterfelder, Blocktext, CRLF | `KnowledgeCatalog.swift`, `KnowledgeDocument.swift` | getestet (Kern) |
+| Menüpunkt „Wissensbibliothek“ in „Lernen“ (iPhone: unter „Mehr“), nur mit Schalter | `AppShell.swift` (`UFNavItem.knowledge`, Route `#/wissen`) | getestet (App-Test) |
+| Ansicht Fach → Semester (aktuelles Semester `_aeltere-PC-Version` = „Aktuelles Semester (WiSe 2026/27)“ zuerst) → Rolle → Einheit → Dateien (Überblick, Erklärung, Lösungen, weitere .md, Hilfsdateien als Text) | `UniFlow/Views/Knowledge/KnowledgeLibraryPage.swift` | im Simulator mit der echten Bibliothek angesehen |
+| Kopfzeile: Quellen, Typ, Lösung von, Abgleich, Rechenprobe; Abzeichen „KI-Lösung, ungeprüft“ (rot, mit Warnkasten), „unabhängig gelöst“, „nachgerechnet“, „[sic] n“, „maschinell nachgeprüft“ (nur Hinweis, das Skript wird nie kopiert, gezeigt oder ausgeführt) | dito | im Simulator angesehen |
+| „identisch mit G00xx Seite M“ als Knopf zur anderen Einheit, springt zur passenden Überschrift | dito | getestet (Kern), im Simulator angesehen |
+| Markdown mit Tabellen, Zitaten, Code; Formeln: `$…$` und `$$…$$` über die vorhandene Formelanzeige, der übrige Text bleibt unverändert (`formulasOnly` in `AIMarkdownText`) | `AISupport.swift` (neuer Schalter, Standard wie bisher) | getestet (App-Test) |
+| Volltextsuche über alle .md (ohne Prüfskripte) in der vorhandenen Suche (⌘K / Suchleiste), Treffer springen zum Abschnitt `## [Qk] Seite N` | `ShellState.search`, `KnowledgeLibrary.search` | getestet (Kern, App), im Simulator über den Debug-Parameter geprüft |
+| Verknüpfung: geöffnete Datei → Dokumentinformation (ⓘ) zeigt „Erklärung/Lösung ansehen“, wenn Titel oder Dateiname in `quellen` einer Einheit steht | `KnowledgeSourceLinkSection` in `InfoSheet` (eine Zeile in `DocumentView.swift`, Editor sonst unberührt) | gebaut, **nicht** am Gerät oder im Simulator mit einer echten Stud.IP-Datei probiert |
+| Nur Debug: `-UFKnowledgeImport <Ordner>` (einlesen), `-UFKnowledgeForce YES`, `-UFKnowledgeSearch <Begriff>` (Treffer in der Konsole) | `KnowledgeLibraryCenter.applyDebugLaunch` | Release-Build kennt sie nicht (`#if DEBUG`) |
+
+**Was getestet ist und wo:**
+
+- Mac, `swift test` (UniFlowCore): `KnowledgeLibraryTests` 13 Tests grün (ein 14. nur mit echter Bibliothek, sonst übersprungen) mit der erfundenen Bibliothek
+  `packages/shared-contracts/fixtures/wissensbibliothek` (2 Fächer, 3 Einheiten); ganzer Kern 1778 Tests grün.
+- Mac, `swift test` mit der **echten** Bibliothek nur zur Laufzeit (`UF_WISSENSBIBLIOTHEK=<Ordner> swift test --filter
+  KnowledgeLibraryTests/testRealLibraryIfGiven`, importiert in einen Temp-Ordner): 13 Fächer, 850 Einheiten,
+  1.782 Dateien kopiert (2.632 laut Katalog minus 850 Prüfskripte), 0 fehlend, 1.775 .md, 30.334 Abschnitte, 36 MB;
+  Import 9–10 s (Debug-Build), Laden 0,02 s, Suche „Kirchhoff“ 0,09 s.
+- Simulator (eigener Klon `fix-biblio` von „iPad (A16)“, Debug-Build): Import der echten Bibliothek über
+  `-UFKnowledgeImport` 11,4 s; Startseite, Fach, Einheit mit Sprung zur Seite, größte Datei (177 KB), Suche
+  („Kirchhoff“: 6 Treffer in 0,25 s inkl. erstem Laden, Sprung auf „[Q1] Seite 94“), Einstellungen angesehen.
+  Speicher der App beim Anzeigen der größten Datei etwa 380 MB (ganzer Simulator-Prozess, Debug). Bilder nur in /tmp.
+- Simulator, App-Tests: `KnowledgeLibraryAppTests` (7) und die betroffenen Suiten (Navigation, Einstellungen,
+  KI-Antworten, Formeln) grün. `AIStartPolishAppTests.testTutorPanelTabsSendTheirModes` schlug in einem langen Lauf
+  einmal fehl und lief allein und im nächsten Lauf grün (wackelig, nicht von dieser Änderung).
+- Python: `tools/pruefe-rekursive-ansichten.py` ohne Fund; `tests/test_release_gate.py`, `tests/test_rekursive_ansichten.py`
+  und weitere Tests, die Swift-Dateien lesen: grün.
+- **Nicht getestet:** echtes iPad, echtes iPhone, Mac („Designed for iPad“, kein Lauf über `tools/mac-test.sh`),
+  der Dateien-Dialog (Ordner/ZIP) von Hand, ZIP mit der echten Bibliothek, Knopf an einer echten Stud.IP-Datei.
+
+**Offen für den Inhaber:** Abo-Stufe (bis dahin nur hinter dem Schalter, nirgends beworben); ob der Menüpunkt in
+„Lernen“ richtig steht; ob die Bibliothek auch auf das iPad soll (dort nur per Dateien-App/ZIP, nicht automatisch).
+
+
 Stand 26.10.2026 (Zusammenführen mit dem PC-Kern ergänzt, Hildesheim in der App; Endstand V1 mit S6, S7, Opencast
 und dem Ende-zu-Ende-Test auf `develop` in `wip/v1-final`). Damit nichts doppelt entsteht: Daran arbeitet die Mac-Sitzung gerade (Zweige nur lokal,
 kommen nach vollständiger Prüfung auf `develop`).

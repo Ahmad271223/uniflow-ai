@@ -198,7 +198,24 @@ final class ShellState: ObservableObject {
                 hits.append(SearchHit(id: "r\(id)", title: "\(x.s("title") ?? "Aufnahme") · \(TranscriptSections.timestamp(x.n("start") ?? 0))",
                                       sub: x.s("snippet") ?? "", icon: "circle", color: nil, route: .module(module)))
             }
+            // Wissensbibliothek (20.11.2026): nur mit Schalter, Treffer springen zum Abschnitt ("## [Q1] Seite 3")
+            if KnowledgeLibrarySetting.isEnabled {
+                let found = await KnowledgeLibraryCenter.shared.search(text, limit: 6)
+                guard !Task.isCancelled, mine == generation else { return }
+                hits += Self.knowledgeHits(found, library: KnowledgeLibraryCenter.shared.current)
+            }
             searchHits = hits
+        }
+    }
+
+    /// Treffer der Wissensbibliothek: Ueberschrift des Abschnitts, darunter Einheit und Ausschnitt
+    static func knowledgeHits(_ found: [KnowledgeSearchHit], library: KnowledgeLibrary?) -> [SearchHit] {
+        found.map { h in
+            let unit = library?.catalog.unit(key: h.unitKey)
+            let title = h.heading ?? unit?.title ?? "Wissensbibliothek"
+            let sub = ["Wissensbibliothek", unit?.id, h.snippet.isEmpty ? nil : h.snippet].compactMap { $0 }.joined(separator: " · ")
+            return SearchHit(id: "wb|" + h.id, title: title, sub: sub, icon: "bookmark", color: nil,
+                             route: .knowledge(unit: h.unitKey, file: h.file, anchor: "s\(h.section)"))
         }
     }
 

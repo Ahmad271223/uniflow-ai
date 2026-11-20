@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "stand": "2026-01-15",
+  "unbekanntesFeld": "wird ignoriert",
+  "faecher": [
+    {
+      "ordner": "Beispielkunde-für-Tests",
+      "einheiten": [
+        {
+          "id": "G0001",
+          "pfad": "Bibliothek/Beispielkunde-für-Tests/Einheiten/_aeltere-PC-Version/direkt/G0001",
+          "titel": "G0001: Folien Beispielkunde, Seiten 1–3",
+          "dateien": ["01-erklaert.md", "README.md", "_pruefung.py"]
+        },
+        {
+          "id": "G0002",
+          "pfad": "Bibliothek/Beispielkunde-für-Tests/Einheiten/WiSe_2024_25/Alte-Klausuren/G0002",
+          "titel": "G0002: Probeklausur Beispielkunde (erfunden)",
+          "dateien": ["02-geloest.md", "README.md", "notizen.csv"]
+        }
+      ]
+    },
+    {
+      "ordner": "Rechnen-Übungsfach",
+      "einheiten": [
+        {
+          "id": "Woche 01",
+          "pfad": "Bibliothek/Rechnen-Übungsfach/Wochen/SoSe 2026/Woche 01",
+          "titel": "Rechnen-Übungsfach, SoSe 2026, Woche 01",
+          "dateien": ["01-Vorlesung-erklaert.md", "02-Uebungsblatt-01-geloest.md", "README.md", "_pruefung.py"]
+        }
+      ]
+    }
+  ]
+}
