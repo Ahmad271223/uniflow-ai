@@ -111,6 +111,8 @@ app.include_router(account_mode_api.router)     # Windows-App: Anmelden, Abo, Ex
 app.include_router(app_login_api.router)        # Dienst: Anmeldung der Windows-App ueber den Browser (/api/app-login)
 from . import ai_relay  # noqa: E402 - StudiNow-KI am PC ueber das Konto (/api/ai/relay im Dienst, /api/ai/source)
 app.include_router(ai_relay.router)
+from . import wissensbank  # noqa: E402 - StudiNow-Wissensbank: POST /api/ai/feedback (Ja/Nein nach einer Wiederholung)
+app.include_router(wissensbank.router)
 from . import ai_consent  # noqa: E402 - Einwilligung vor der StudiNow-KI (Web, Windows), 06.11.2026
 app.include_router(ai_consent.router)
 from . import mensa_api  # noqa: E402 - Mensa: Speiseplaene LUH/HsH/Hildesheim, frei in jedem Tarif (/api/mensa, docs/MENSA-2026-11-05.md)

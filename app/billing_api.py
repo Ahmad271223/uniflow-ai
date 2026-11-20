@@ -96,6 +96,11 @@ def get_entitlements(request: Request):
         # dazu der gekaufte Topf (15.11.2026): purchased, purchased_usable, available, can_buy - zusaetzliche Felder
         out["credits"] = ai_backend.credits_balance(u["id"])
         out["credit_packs"] = credit_pack_info()
+        # Wissensbank (20.11.2026, app/wissensbank.py): nur Pro AI an der LUH und nur mit LERNAPP_WISSENSBANK=1; ohne das
+        # Feld schickt die App keine Angaben zur Stelle mit
+        from . import wissensbank
+        if wissensbank.announce(u):
+            out["wissensbank"] = True
         out["access"] = access.for_status(out, access.client_type(request), u.get("role"))
         # Geraete-Regel (14.11.2026, app/device_limit.py): nur fuer Apple-Apps mit der Faehigkeit `device_limit`;
         # aeltere Apps, Web und Windows bekommen das Feld nicht. Ein Fehler laesst es weg (die App sperrt dann nie).

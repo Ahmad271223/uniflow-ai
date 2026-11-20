@@ -388,7 +388,7 @@ def reserve(conn: sqlite3.Connection, user_id: str, request_id: str, purpose: st
 
 def settle(conn: sqlite3.Connection, user_id: str, request_id: str, cost_microeur: int, *, model: str | None = None,
            input_tokens: int = 0, cached_tokens: int = 0, output_tokens: int = 0, images: int = 0, result: str | None = None,
-           now: datetime | None = None) -> int:
+           now: datetime | None = None, fixed_credits: int | None = None) -> int:
     """Mit der echten Nutzung abrechnen: Credits = Kosten in Cent, aufgerundet. Die Reservierung wird frei. Eine schon
     abgerechnete ID bleibt, wie sie ist (liefert ihre Credits). Liefert die berechneten Credits.
 
@@ -398,9 +398,12 @@ def settle(conn: sqlite3.Connection, user_id: str, request_id: str, cost_microeu
 
     Zwei Toepfe (15.11.2026): zuerst wird der Monats-Teil der Reservierung belastet, erst danach der gekaufte Teil
     (aeltester Kauf zuerst), nie mehr, als im gekauften Topf noch liegt. `purchased_microeur` haelt fest, welchen Teil der
-    Kosten die gekauften Credits bezahlt haben (zaehlt nicht gegen das Monats-Budget, `purchased_share`)."""
+    Kosten die gekauften Credits bezahlt haben (zaehlt nicht gegen das Monats-Budget, `purchased_share`).
+
+    `fixed_credits` (Wissensbank, 20.11.2026, app/wissensbank.py): feste Zahl Credits statt aus den Kosten; die echten
+    Kosten (`cost_microeur`, hier 0) bleiben fuer die Kostenansicht."""
     uid, t = str(user_id), _now(now)
-    charged = ai_prices.credits_for(cost_microeur, model)        # starke Modelle mit Aufschlag (ai_prices.credit_factor)
+    charged = ai_prices.credits_for(cost_microeur, model) if fixed_credits is None else max(0, int(fixed_credits))
     conn.execute("BEGIN IMMEDIATE")
     try:
         old = conn.execute("SELECT state, period, reserved, charged, reserved_purchased FROM credit_ledger WHERE user_id=? AND request_id=?",

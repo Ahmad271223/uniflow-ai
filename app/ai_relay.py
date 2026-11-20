@@ -114,11 +114,22 @@ async def relay(request: Request, body: dict = Body(...)):
     async with ai_async.slot():
         pre = await ai_async.db(_relay_prepare, request, body)
         user, task, name, prompt, rid, image, c = (pre[k] for k in ("user", "task", "name", "prompt", "rid", "image", "c"))
-        if c is None:
+        extra: dict = {}
+        if c is not None:
+            if name.startswith("tutor:") and getattr(c, "replay", False):
+                extra = await ai_async.db(_wissensbank_replay, user, rid)
+        else:
+            # Wissensbank (20.11.2026, app/wissensbank.py): passt der Wortlaut zu einer Stelle, bekommt das Konto beim
+            # ersten Mal die Antwort daraus (1 Credit), bei einer Wiederholung die KI und die Ja/Nein-Frage
+            wb = await ai_async.db(_wissensbank_plan, user, name, body)
             if task.quota:
                 await ai_async.db(entitlements_consume, request, task.quota, rid)
             try:
-                c = await _complete_async(user, task, name, prompt, rid, body, image)
+                if wb is not None and wb.deliver:
+                    from . import wissensbank
+                    c = await ai_async.db(wissensbank.deliver, user, wb, rid)
+                else:
+                    c = await _complete_async(user, task, name, prompt, rid, body, image)
             except HTTPException:
                 if task.quota:
                     await ai_async.db(entitlements_refund, request, task.quota, rid)
@@ -131,7 +142,36 @@ async def relay(request: Request, body: dict = Body(...)):
                 if task.quota:
                     await ai_async.db(entitlements_refund, request, task.quota, rid)
                 raise
-        return await ai_async.db(_relay_answer, user, name, c)
+            if name.startswith("tutor:"):
+                extra = await ai_async.db(_wissensbank_fields, user, wb, c)
+        return await ai_async.db(_relay_answer, user, name, c, extra)
+
+
+def _wissensbank_plan(user: dict, name: str, body: dict):
+    """Vorpruefung der Wissensbank; ein Fehler darin laesst die KI wie bisher antworten (nie ein Abbruch)."""
+    try:
+        from . import wissensbank
+        return wissensbank.plan(user, name, body)
+    except Exception:  # noqa: BLE001 - KI-Module protokollieren nichts (P80-F3/F4)
+        return None
+
+
+def _wissensbank_fields(user: dict, wb, c) -> dict:
+    try:
+        from . import wissensbank
+        delivered = wb is not None and wb.deliver
+        token = wissensbank.offer_feedback(user, wb, c) if wb is not None and not wb.deliver else None
+        return wissensbank.response_fields(wb, delivered=delivered, token=token)
+    except Exception:  # noqa: BLE001 - KI-Module protokollieren nichts (P80-F3/F4)
+        return {}
+
+
+def _wissensbank_replay(user: dict, rid: str) -> dict:
+    try:
+        from . import wissensbank
+        return wissensbank.replay_info(user, rid) or {}
+    except Exception:  # noqa: BLE001
+        return {}
 
 
 def entitlements_consume(request: Request, quota: str, rid: str) -> None:
@@ -188,12 +228,13 @@ def _relay_prepare(request: Request, body: dict) -> dict:
     return {"user": user, "task": task, "name": name, "prompt": prompt, "rid": rid, "image": image, "c": c}
 
 
-def _relay_answer(user: dict, name: str, c) -> dict:
+def _relay_answer(user: dict, name: str, c, extra: dict | None = None) -> dict:
+    """`extra`: Felder der Wissensbank (`source`, `wissensbank_key`, `wissensbank`, `feedback_token`), nur bei tutor:*"""
     from . import ai_backend
     state = ai_backend.credits_balance(user["id"])
     credits = {**state, "charged": int(getattr(c, "credits_charged", 0) or 0), "replay": bool(getattr(c, "replay", False))} if state else None
     return {"answer": c.text, "model": "cache" if c.model == "cache" else (c.source_model or c.model), "shared": c.model == "cache",
-            "replay": bool(c.replay), "credits": credits, "task": name}
+            "replay": bool(c.replay), "credits": credits, "task": name, **(extra or {})}
 
 
 def _complete_kwargs(task: Task, name: str, rid: str, body: dict, image: bytes | None,
