@@ -39,6 +39,10 @@ enum PencilTuning {
     /// "Glaettung" ist ausgeblendet. `true`: wie bis 17.11. (mit Deckbild und den Sicherungen dieses Tages), fuer die
     /// Gegenprobe im Test und falls der Inhaber die Glaettung trotz des Risikos zurueck will.
     static var rebuildFromRawPointsAfterLift = false
+    /// Meldung des Inhabers 20.11.2026 ("Lasso: haengt kurz, unten kommt ein blaeuliches Fenster"): Die Lasso-Auswahl
+    /// von PencilKit bekommt eine leere Eingabeansicht, iPadOS zeigt keine Bildschirmtastatur (`InkSelectionKeyboard`).
+    /// `false`: wie bis 1.0.7 - die Tastatur kommt (Gegenprobe im Test `EditorStrichBleibtTests`, testLasso...).
+    static var inkSelectionWithoutKeyboard = true
     /// So lange muss die Zeichenflaeche unberuehrt sein, bevor eine geladene Seite aus dem Speicher neu gesetzt wird
     /// (fremde Aenderung): nie mitten im Schreibfluss
     static let reloadQuietSeconds: CFTimeInterval = 1

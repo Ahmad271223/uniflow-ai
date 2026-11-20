@@ -837,6 +837,15 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
                 }
             })
         }
+        // Lasso-Auswahl von PencilKit ohne Bildschirmtastatur (Meldung 20.11.2026, `InkSelectionKeyboard`): vorab, und
+        // falls die Auswahl in einer neuen iPadOS-Fassung anders heisst, beim ersten Erscheinen der Tastatur
+        InkSelectionKeyboard.install()
+        observers.append(center.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, let v = UIResponder.uf_current as? UIView, v.isDescendant(of: self.view) else { return }
+                InkSelectionKeyboard.suppress(for: v)
+            }
+        })
         // Auswahl von PDF-Text aufgehoben: der Fokus darf zurueck (waehrend der Auswahl haelt PDFKit ihn)
         observers.append(center.addObserver(forName: .PDFViewSelectionChanged, object: pdfView, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
@@ -2158,8 +2167,16 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// die Textauswahl von PDFKit zaehlen nicht: sie halten den Fokus nur voruebergehend (`EditorPalette.Blocker`).
     var editorHoldsFocus: Bool {
         if anchor.isFirstResponder { return true }
-        guard let canvas = UIResponder.uf_current as? PKCanvasView else { return false }
-        return canvas.isDescendant(of: view)
+        // eine Zeichenflaeche oder ein Teil davon: die Lasso-Auswahl von PencilKit haelt den Fokus selbst (Kopieren,
+        // Einfuegen, Loeschen erreichen sie nur so). Vorher zaehlte nur die Zeichenflaeche, und der Anker nahm der Auswahl
+        // den Fokus, sobald sich die Tastatur oder ein Fenster meldete (Meldung 20.11.2026)
+        guard let v = UIResponder.uf_current as? UIView, v.isDescendant(of: view) else { return false }
+        var cur: UIView? = v
+        while let c = cur {
+            if c is PKCanvasView { return true }
+            cur = c.superview
+        }
+        return false
     }
 
     /// Im naechsten Durchlauf zurueckholen (UIKit hat den Fokuswechsel dann abgeschlossen)

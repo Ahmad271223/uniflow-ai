@@ -60,8 +60,9 @@ final class TestFinger {
             && symbol("IOHIDEventSetIntegerValue", as: SetField.self) != nil
     }
 
-    /// Finger setzt bei `point` (Punkte des Fensters) auf
-    init(at point: CGPoint, in window: UIWindow) {
+    /// Finger setzt bei `point` (Punkte des Fensters) auf. `ziel`: diese Ansicht bekommt die Beruehrung (z. B. die Flaeche
+    /// des Lassos von PencilKit, `PKSelectionGestureView`); sonst wie vom Bildschirm getroffen.
+    init(at point: CGPoint, in window: UIWindow, ziel: UIView? = nil) {
         self.window = window
         self.point = point
         touch = UITouch()
@@ -74,6 +75,7 @@ final class TestFinger {
            !(view?.isDescendant(of: drawing) ?? false) {
             view = drawing
         }
+        if let ziel { view = ziel }
         Self.method(touch, "setWindow:", as: SetObject.self)?(touch, NSSelectorFromString("setWindow:"), window)
         Self.method(touch, "setTapCount:", as: SetInt.self)?(touch, NSSelectorFromString("setTapCount:"), 1)
         Self.method(touch, "_setLocationInWindow:resetPrevious:", as: SetPoint.self)?(touch, NSSelectorFromString("_setLocationInWindow:resetPrevious:"), point, true)
@@ -90,8 +92,15 @@ final class TestFinger {
         return nil
     }
 
+    /// Flaeche von PencilKit, an der das Lasso haengt (Auswaehlen, Verschieben der Auswahl)
+    static func selectionView(in view: UIView) -> UIView? {
+        if String(describing: type(of: view)).contains("SelectionGestureView") { return view }
+        for s in view.subviews { if let found = selectionView(in: s) { return found } }
+        return nil
+    }
+
     /// Flaeche von PencilKit, an der der Erkenner fuer den Strich haengt
-    private static func drawingView(in view: UIView) -> UIView? {
+    static func drawingView(in view: UIView) -> UIView? {
         if (view.gestureRecognizers ?? []).contains(where: { String(describing: type(of: $0)).contains("DrawingGestureRecognizer") }) { return view }
         for s in view.subviews { if let found = drawingView(in: s) { return found } }
         return nil
@@ -156,9 +165,10 @@ final class TestFinger {
     /// Ein Strich mit dem Finger ueber `points` (Punkte des Fensters), je Punkt eine Pause von `step` Sekunden
     /// - Returns: Art der Ansicht, die die Beruehrung beim Aufsetzen getroffen hat (fuer die Fehlersuche)
     @discardableResult
-    static func strich(_ points: [CGPoint], in window: UIWindow, step: Double = 0.012, haltenAmEnde: Double = 0) async throws -> String {
+    static func strich(_ points: [CGPoint], in window: UIWindow, step: Double = 0.012, haltenAmEnde: Double = 0,
+                       ziel: UIView? = nil) async throws -> String {
         guard let first = points.first else { return "-" }
-        let finger = TestFinger(at: first, in: window)
+        let finger = TestFinger(at: first, in: window, ziel: ziel)
         let hit = finger.view.map { String(describing: type(of: $0)) } ?? "nichts"
         for p in points.dropFirst() {
             try await Task.sleep(nanoseconds: UInt64(step * 1_000_000_000))
