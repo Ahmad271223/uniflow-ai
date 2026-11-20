@@ -94,3 +94,49 @@ Was im Code dazu gilt (geprüft 20.11.2026, Zweig `sync-pruefungsanmeldungen`):
   Gerät, <Datum Uhrzeit>“ (letzte Änderung im Dienst).
 - Android gleicht die Tabelle noch nicht ab (die Android-App liest keine Prüfungsanmeldungen und überspringt unbekannte
   Tabellen); der Satz „auf deinen anderen Geräten“ stimmt für iPad, iPhone, Mac und Windows.
+
+## StudiNow-Wissensbank (Entwurf 20.11.2026, Zweig `server/wissensbank`)
+
+Funktion im Dienst hinter dem Schalter `LERNAPP_WISSENSBANK` (Standard aus). Die App zeigt nichts, solange der Dienst
+sie nicht meldet. Gilt nur für Pro AI und nur für Konten der Leibniz Universität Hannover (Hochschule am Konto).
+
+**Datenschutz (neu, z. B. als Ergänzung zu Abschnitt 8c „KI-Hilfe“):**
+
+> **StudiNow-Wissensbank (Pro AI, Leibniz Universität Hannover).** Fragst du die KI-Hilfe nach einer Erklärung
+> („Erklären“) oder einer Lösung („Lösen“), schickt die App zusätzlich den Dateinamen, wie er in Stud.IP heißt, den
+> Kursnamen, die Seitenzahl und den Text der Seite bzw. den markierten Text an den StudiNow-Dienst. Diese Angaben
+> stehen ohnehin schon in der Anfrage an die KI. Der Dienst vergleicht den Text mit der StudiNow-Wissensbank, einer
+> von uns erstellten Sammlung von Erklärungen und Lösungen. Passt der Wortlaut, bekommst du die Antwort aus der
+> Wissensbank statt einer neuen KI-Antwort; sie ist mit „Aus der StudiNow-Wissensbank“ gekennzeichnet. Der Text deiner
+> Seite wird dafür nicht gespeichert. Zu deinem Konto speichern wir, welche Stellen der Wissensbank du schon bekommen
+> hast (Stelle und Zeitpunkt), damit du beim nächsten Mal eine neue KI-Antwort bekommst. Danach fragt die App: „Gefällt
+> dir diese Antwort besser?“ Tippst du „Ja“, speichern wir die neue KI-Antwort als Vorschlag für die Wissensbank –
+> ohne Bezug zu deinem Konto und ohne deine Frage. Wir prüfen solche Vorschläge, bevor andere Nutzer sie bekommen
+> können. Bis du antwortest, höchstens 7 Tage, liegt die KI-Antwort mit deinem Konto verknüpft beim Dienst; danach
+> wird diese Verknüpfung gelöscht. Die Liste der bekommenen Stellen wird mit deinem Konto gelöscht und ist im
+> Datenexport enthalten. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Erklärungen und Lösungen der KI-Hilfe), für die
+> Vorschläge Art. 6 Abs. 1 lit. f DSGVO (Verbesserung der Wissensbank).
+
+**Nutzungsbedingungen (neuer Punkt im § Credits):**
+
+> **Antworten aus der StudiNow-Wissensbank:** Eine Antwort aus der Wissensbank kostet 1 Credit, wie eine einfache
+> KI-Antwort. Fragst du dieselbe Stelle noch einmal, bekommst du eine neue KI-Antwort, die wie üblich berechnet wird.
+> Auch Antworten aus der Wissensbank können Fehler enthalten; Lösungen mit dem Hinweis „KI-Lösung, ungeprüft“ sind
+> nicht mit einer offiziellen Musterlösung verglichen.
+
+**Für den Inhaber (nicht veröffentlichen):**
+
+- **Urheberrecht – vor dem Einschalten rechtlich prüfen lassen.** Die Wissensbank enthält wörtliche Übertragungen von
+  Folien- und Aufgabentexten (`>`-Zitate, „Folientext“, „Aufgabentext“) und Lösungen zu Übungsblättern und
+  Altklausuren der Lehrenden. Mit der Wissensbank gehen diese Texte an andere Studierende, die dieselbe Datei geöffnet
+  haben – also an Personen, die das Material über Stud.IP schon haben, aber trotzdem als Weitergabe durch StudiNow. Die
+  frühere Regel der Bibliothek („nicht auf Server, nur für den Inhaber“, MAC-ANLEITUNG.md Abschnitt 2) ist mit dieser
+  Entscheidung überholt; das sollte in der privaten Bibliothek auch so vermerkt werden. Offene Fragen: Zitatrecht /
+  § 60a UrhG (Unterricht und Lehre) für ein kommerzielles Angebot? Musterlösungen der Lehrenden weitergeben? Vorschlag
+  bis zur Klärung: nur Erklärungen und selbst gelöste Aufgaben ausliefern, keine Musterlösungen der Lehrenden.
+- **Nur LUH:** Der Dienst prüft die Hochschule am Konto (`users.university == "luh"`), nicht die Angabe der App.
+- **Prüfen der Vorschläge:** `docker compose exec app python -m app.wissensbank_pruefen --liste` (dann `--zeigen ID`,
+  `--freigeben ID`, `--ablehnen ID`, je Stelle `--waehlen SCHLÜSSEL --antwort bibliothek|ID|auto`).
+- **Hochladen:** `tools/wissensbank-hochladen.sh SERVER_IP` (nur `katalog.json` und die `.md`-Dateien, keine Prüfskripte,
+  keine PDFs) nach `/data/wissensbank` im Daten-Volume; damit liegt die Bibliothek auch in den Sicherungen des Servers.
+  Einschalten: `LERNAPP_WISSENSBANK=1` in `deploy/.env`, Dienst neu starten.

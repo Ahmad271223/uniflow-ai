@@ -110,12 +110,17 @@ enum AIEndpoints: LocalEndpointModule {
             // StudiNow-KI (StudiNowAI.swift): Aufgabe `tutor:<modus>`; Zwischenspeicher des Dienstes nur fuer geteilte ganze
             // Seiten (wie app/ai.py), "Neu erklaeren lassen" = `fresh`; das Bild geht als `image` mit (nur tutor:*)
             let routeText = [text("selection"), text("question")].filter { !$0.isEmpty }.joined(separator: " ")
+            // StudiNow-Wissensbank (20.11.2026): Angaben zur Stelle fuer den Dienst (nur explain/steps, nur mit Datei, nie
+            // mit Bild); StudiNowAI schickt sie nur, wenn der Dienst die Funktion meldet
+            let wbRequest = fileID == nil || imageJPEG != nil ? nil
+                : Wissensbank.request(mode: mode, fileName: fileName, course: course, page: page, pageText: pageText, selection: text("selection"))
             let task = AIRelayTask(AIRelayTask.tutor(mode), cache: shareable && !force, fresh: force,
-                                   routeText: routeText.isEmpty ? nil : routeText, image: imageJPEG)
+                                   routeText: routeText.isEmpty ? nil : routeText, image: imageJPEG, wissensbank: wbRequest)
             var credits: JSONValue = .null
+            var wissensbank: JSONValue = .null
             do {
                 let finalPrompt = prompt
-                let r = try await AIRelayTask.run(task) {
+                let r = try await AIRelayTask.runReport(task) {
                     if let imageJPEG, let vision = ctx.docIndex.aiOnTap(from: ai) {
                         // Bild und Text in einer Anfrage (`ChatGPTVisionAI`); eine KI ohne Bilder antwortet auf den Text
                         return try await vision.index(system: AIPromptTexts.tutorSystem, prompt: finalPrompt, imageJPEG: imageJPEG, schema: .null, small: false)
@@ -124,6 +129,7 @@ enum AIEndpoints: LocalEndpointModule {
                 }
                 answer = r.value
                 credits = r.credits
+                wissensbank = r.wissensbank
             } catch let e as AIError {
                 throw LocalHTTPError(status: e.code == "chatgpt_limit" ? 429 : 503, detail: ["detail": .string(e.message), "code": .string(e.code)])
             }
@@ -136,12 +142,26 @@ enum AIEndpoints: LocalEndpointModule {
                 return .object(o)
             }
             var explain: JSONValue = .null
-            if shareable, let key = explainKey {
+            // eine Antwort aus der Wissensbank geht nur an diesen Nutzer: nie in den (geteilten) Erklaerungsspeicher
+            if shareable, let key = explainKey, !Wissensbank.isFromWissensbank(wissensbank) {
                 explain = await PageExplainBuilder.store(answer: answer, key: key, mode: mode, model: nil, ctx: ctx, cloud: ctx.docIndex.explainCloud,
                                                          cipher: ctx.docIndex.cipher).json
             }
             // `credits`: Stand mit `charged`/`replay` der StudiNow-KI (null mit eigenem ChatGPT), fuer die Kostenzeile
-            return .json(["answer": .string(answer), "cards": cards, "sources": .array(withCited), "explain": explain, "credits": credits])
+            return .json(["answer": .string(answer), "cards": cards, "sources": .array(withCited), "explain": explain, "credits": credits,
+                          "wissensbank": wissensbank])
+        }
+
+        // Ja/Nein nach einer Wiederholung ("Gefaellt dir diese Antwort besser?", 20.11.2026): {token, better} an den
+        // Dienst (`POST /api/ai/feedback`). Nur mit der StudiNow-KI; ohne sie gibt es die Frage nicht.
+        router.post("/api/ai/feedback") { req, ctx in
+            guard let service = ctx.ai.serviceProvider as? StudiNowAI else { throw LocalHTTPError.notFound(DroppedEndpoints.noAI) }
+            let body = try req.pythonObjectBody()
+            guard case .string(let token)? = body.value("token"), !token.isEmpty, case .bool(let better)? = body.value("better") else {
+                throw LocalHTTPError(status: 400, detail: ["detail": "token und better (ja/nein) fehlen.", "code": "feedback_invalid"])
+            }
+            let d = try await service.json("POST", "/api/ai/feedback", body: .object(["token": .string(token), "better": .bool(better)]))
+            return .json(d)
         }
 
         router.post("/api/files/{file_id}/analyze") { req, ctx in

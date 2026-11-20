@@ -357,3 +357,23 @@ def test_fixture_is_invented_and_small():
     kat = json.loads((FIXTURE / "katalog.json").read_text(encoding="utf-8"))
     assert "ERFUNDENES" in kat["hinweis"] and len(kat["faecher"]) == 2
     assert sum(len(f["einheiten"]) for f in kat["faecher"]) == 3
+
+
+def test_open_questions_expire_after_seven_days(wb):
+    from datetime import datetime, timedelta, timezone
+
+    from app import wissensbank
+    app, _ = wb
+    _u, h = user(app, "luh-alt@beispiel.de", plan="pro_ai")
+    ask(app, h)
+    _, d = ask(app, h)
+    conn = wissensbank.connect()
+    try:
+        old = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
+        conn.execute("UPDATE wissensbank_feedback SET created_at=?", (old,))
+        conn.commit()
+        wissensbank._expire_feedback(conn)
+        assert conn.execute("SELECT COUNT(*) FROM wissensbank_feedback").fetchone()[0] == 0
+    finally:
+        conn.close()
+    assert feedback(app, h, d["feedback_token"], True)[0] == 404

@@ -663,6 +663,7 @@ CREATE TABLE IF NOT EXISTS wissensbank_feedback (
     served TEXT,
     created_at TEXT NOT NULL
 );
+CREATE INDEX IF NOT EXISTS idx_wb_feedback_time ON wissensbank_feedback(created_at);
 -- je Stelle: Wahl des Inhabers (bibliothek | <Kandidat-ID>) und Stimmen fuer die Bibliothek ("Nein" nach ihr)
 CREATE TABLE IF NOT EXISTS wissensbank_keys (
     wb_key TEXT PRIMARY KEY,
@@ -748,6 +749,7 @@ def plan(user: dict, task: str, body: dict) -> Plan | None:
         return None
     conn = connect()
     try:
+        _expire_feedback(conn)
         done = conn.execute("SELECT 1 FROM wissensbank_delivered WHERE user_id=? AND wb_key=?", (str(user["id"]), hit.key)).fetchone()
         if done or body.get("fresh"):
             # Wiederholung: normale KI und die Frage; "Neu erklaeren" ohne vorherige Lieferung: normale KI ohne Frage
@@ -761,6 +763,12 @@ def plan(user: dict, task: str, body: dict) -> Plan | None:
     if not text:
         return None
     return Plan(hit.key, True, text, hints(hit.unit, hit.sections, text), "bibliothek", "")
+
+
+def _expire_feedback(conn: sqlite3.Connection, now: datetime | None = None) -> None:
+    """Offene Ja/Nein-Fragen (mit Konto und KI-Antwort) nach FEEDBACK_DAYS loeschen."""
+    conn.execute("DELETE FROM wissensbank_feedback WHERE created_at<?", ((_now(now) - timedelta(days=FEEDBACK_DAYS)).isoformat(),))
+    conn.commit()
 
 
 def _rate_limited(conn: sqlite3.Connection, user_id: str, t: datetime) -> bool:
