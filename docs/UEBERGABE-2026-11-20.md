@@ -74,3 +74,21 @@ Schlüssel/Zugänge liegen in `~/Studora-Builds/private_keys/` (App-Store-API-Sc
 (Server). Arbeits-Worktree mit `release/1.0.7`: `~/Studora-Builds/wt-aufraeumen`. Private Bibliothek:
 `~/UniFlow/uniflow-wissensbibliothek`. Tester-Build per Kabel: Release-Build mit `-allowProvisioningUpdates` und
 `xcrun devicectl device install app --device <UDID> <App>`; iPad des Inhabers: siehe `xcrun devicectl list devices`.
+
+## 7. Andere Sitzungen und Hintergrundaufgaben (Stand 20.11. abends)
+
+Alle Hintergrund-Helfer dieser Sitzung sind beendet; ihre Arbeit ist committet und gepusht (Zweige oben).
+Der letzte laufende Testlauf (20 KI-Hilfe-Testklassen für die Wissensbank) wurde abgebrochen → in Punkt 3.2 neu laufen
+lassen. Weitere Sitzungen in der Seitenleiste (Claude Desktop):
+
+| Sitzung | Stand | Was noch zu tun ist |
+|---|---|---|
+| Klausur-Generator in der App | fertig, in `release/1.0.7` (über `app/klausur-generator` @ `229eb3b7`) | nichts; nach 1.0.7 archivieren |
+| Mac-Version prüfen (Zweig `mac/lesbarkeit`, Worktree `claude/quizzical-mclean-f3e77a`) | Mac-Lesbarkeit + Demo hinter „Hilfe“ sind in 1.0.6/1.0.7 | offen nur: Inhaber soll sagen, **wo es am Mac ruckelt**; Mac auf App-Store-1.0.6 aktualisieren |
+| Klausur-Generator auf dem Mac prüfen, Altklausur-Lösungen erkennen | alt (18.11.), Ergebnis im Klausur-Generator enthalten | archivieren |
+| iPhone-Version, iPhone-Store-Bilder, Uni Hildesheim, Startseite, Smart Planner, Geteilte Ansicht, Verbundenes iPad, Mac-Tests Datenordner | alt (13.–15.11.), Inhalte längst in develop/1.0.6 | archivieren |
+| Windows-App für den Microsoft Store (13.11.) | nicht abgeschlossen (Store-Upload) | nur wenn der Inhaber es wieder aufnimmt; Stand in jener Sitzung |
+
+Worktrees mit ungesicherten Änderungen (alt, nicht wichtig, vor dem Löschen kurz ansehen):
+`~/Studora-Builds/wt-absturz`, `~/Studora-Builds/wt-site-eingang`, `.claude/worktrees/confident-feynman-ae4f01`,
+`.claude/worktrees/agent-a384073a1c5515e76`, `.claude/worktrees/agent-ac4e094ef6068094e`.
