@@ -22,7 +22,10 @@ Ablauf je Lauf (`run`): abrufen -> senden -> noch einmal abrufen (Ergebnisse von
 - **Noch nicht passend:** Zeilen, deren Eltern oder Datei es hier (noch) nicht gibt (z. B. Notizen zu einer PDF, die
   der Stud.IP-Abgleich dieses PCs noch nicht geladen hat), warten in `sync_link_pending` und werden bei jedem Lauf
   erneut versucht.
-Nie abgeglichen: Einstellungen dieses Geraets (`LOCAL_SETTINGS`), Hochschuldateien selbst, Zugangsdaten.
+- **Angemeldete Pruefungen** (`exam_registrations`, 20.11.2026): ohne Name der Pruefenden, Rohtext und Abrufzeit
+  (`sync.DEVICE_ONLY_COLUMNS`); die Tabelle entsteht beim ersten Abgleich auch auf einem PC, der das QIS nie gelesen hat.
+  Der eigene Abruf (`qis_registrations.store`) fuehrt ueber denselben fachlichen Schluessel zusammen, statt zu ersetzen.
+Nie abgeglichen: Einstellungen dieses Geraets (`LOCAL_SETTINGS`), Hochschuldateien selbst, Zugangsdaten, Noten.
 
 Raum je Uni-Konto (14.11.2026, docs/ABGLEICH-UNI-KONTO-2026-11-14.md): kennt dieser PC seinen Stud.IP-Benutzer (Hash in
 `settings.studip_user_hash`, vom Stud.IP-Abgleich), schickt der Client `uni_key` und `studip_user` mit; der Dienst
@@ -39,7 +42,8 @@ import time
 
 from . import config, db, service_link
 from .annotation_merge import merge_document
-from .sync import ENTITIES, SYNC_COLS
+from . import sync as _sync
+from .sync import DEVICE_ONLY_COLUMNS, ENTITIES, SYNC_COLS
 
 APPLIED_DEVICE = "~dienst"
 # Loeschmarke, deren Zeile im Dienst noch keinem Uni-Konto zugeordnet ist (`room_pending`): geht bei jedem Abgleich
@@ -56,7 +60,7 @@ REF_COLUMNS = {"modules": ("module_id",), "folders": ("folder_id",), "course_eve
 # Karteikarten haengen ueber den Namen am Fach
 MODULE_NAME_REFS = ("flashcard_stacks", "flashcards")
 # Spalten, die nur auf diesem Geraet etwas bedeuten (IDs von Tabellen ausserhalb des Abgleichs)
-LOCAL_COLS = {"study_tasks": {"test_id"}}
+LOCAL_COLS = {"study_tasks": {"test_id"}, **{t: set(c) for t, c in DEVICE_ONLY_COLUMNS.items()}}
 _SECRET_RE = re.compile(r"token|secret|passw|pin$|_path$|_dir$|service", re.I)
 
 
@@ -168,6 +172,8 @@ def natural_key(table: str, row: dict, fk_local: dict | None = None) -> tuple | 
         return (_norm(row.get("name")), _norm(row.get("subject")), _norm(row.get("file_id")))
     if table == "flashcards":
         return (_norm(row.get("question")), _norm(row.get("file_id")))
+    if table == "exam_registrations":               # Pruefungsnummer, Titel, Semester, Datum (wie qis_registrations.key)
+        return _sync.natural_key(table, row)
     return None
 
 
@@ -470,6 +476,9 @@ class Client:
             self.conn.execute("BEGIN IMMEDIATE")
             try:
                 mark = service_now_sql(self.conn)
+                for table in _sync.LAZY_TABLES:
+                    if (d.get("changes") or {}).get(table):
+                        _sync.ensure_entity(self.conn, table)   # z. B. angemeldete Pruefungen auf einem PC ohne eigenen Abruf
                 for table in ENTITIES:
                     for row in (d.get("changes") or {}).get(table, []):
                         self.stats["pulled"] += 1
@@ -520,6 +529,8 @@ class Client:
         neg = {}
         for table in ENTITIES:
             pk = ENTITIES[table]["pk"]
+            if table in _sync.LAZY_TABLES and not _sync.table_exists(self.conn, table):
+                continue                                        # nie gelesen, nichts zu senden
             for r in db.rows(self.conn, f"SELECT * FROM {table}"):
                 lid = str(r[pk])
                 if table == "settings" and _setting_local(lid):

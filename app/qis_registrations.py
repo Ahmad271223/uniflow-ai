@@ -557,20 +557,77 @@ def walk(get, start: str, max_pages: int = MAX_PAGES, profile: str = "luh") -> d
     return {"registrations": merge(rows), "pages": pages, "tables": n_tables}
 
 
-# ---------------------------------------------------------------------------- Speicher (nur dieser PC)
+# ---------------------------------------------------------------------------- Speicher (dieser PC; mit Konto im Geraeteabgleich ohne Pruefende)
 
 def message(count: int, system: str = "QIS") -> str:
     return f"Im {system} sind keine Prüfungen angemeldet." if count == 0 else \
         "1 angemeldete Prüfung gelesen." if count == 1 else f"{count} angemeldete Prüfungen gelesen."
 
 
+def key(r: dict) -> tuple:
+    """Fachlicher Schluessel einer Anmeldung: Pruefungsnummer, Titel, Semester, Datum (Leerraum zusammengefasst, klein).
+    Gleich in `sync.NATURAL_KEYS` (Dienst), `sync_client.natural_key` und `QISRegistrationsSync.key` (Swift)."""
+    from . import sync
+    return sync.natural_key("exam_registrations", r)
+
+
+def _loose(r: dict) -> tuple:
+    """Schluessel ohne Datum: dieselbe Pruefung, deren Datum das QIS nachgetragen oder verschoben hat"""
+    return key(r)[:3]
+
+
+STORED = FIELDS + ("raw",)
+
+
 def store(conn, rows: list[dict], now: str) -> None:
+    """Abgleich der Tabelle mit dem Abruf (20.11.2026, statt alles zu ersetzen): gleiche Pruefung (`key`) -> Zeile
+    bleibt und wird nur bei einer Aenderung geschrieben; sonst dieselbe Pruefung mit anderem Datum (eindeutig, ohne
+    Datum gleich) -> Zeile bleibt mit neuem Datum; neue -> einfuegen; nicht mehr gelistete (auch doppelte) -> loeschen.
+    So bleiben die IDs, die der Geraeteabgleich kennt: ein zweiter Abruf ist ohne Wirkung, eine Zeile von einem anderen
+    Geraet wird uebernommen statt verdoppelt, und es entstehen nur fuer wirklich verschwundene Anmeldungen Loeschmarken."""
+    from . import sync
     conn.execute(TABLE_SQL)
-    conn.execute("DELETE FROM exam_registrations")
+    sync.ensure_entity(conn, "exam_registrations")       # Trigger des Abgleichs auch fuer eine eben angelegte Tabelle
+    fresh, seen = [], set()
     for r in rows:
-        conn.execute("""INSERT INTO exam_registrations(pruefungsnr, text, semester, datum, time, room, pruefer, versuch, status,
-                        withdraw, form, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                     tuple(r.get(k) for k in FIELDS) + (r.get("raw") or "", now))
+        if key(r) not in seen:
+            seen.add(key(r))
+            fresh.append(r)
+    old = db.rows(conn, "SELECT * FROM exam_registrations ORDER BY id")
+    used: set[int] = set()
+    pairs: list[tuple[dict, dict | None]] = []
+    rest: list[dict] = []
+    for r in fresh:
+        hit = next((o for o in old if o["id"] not in used and key(o) == key(r)), None)
+        if hit is None:
+            rest.append(r)
+            continue
+        used.add(hit["id"])
+        pairs.append((r, hit))
+    for r in rest:
+        lk = _loose(r)
+        cands = [o for o in old if o["id"] not in used and _loose(o) == lk]
+        twins = [x for x in rest if _loose(x) == lk]
+        hit = cands[0] if len(cands) == 1 and len(twins) == 1 else None
+        if hit is not None:
+            used.add(hit["id"])
+        pairs.append((r, hit))
+    for o in old:
+        if o["id"] not in used:
+            conn.execute("DELETE FROM exam_registrations WHERE id=?", (o["id"],))
+    for r, o in pairs:
+        vals = {k: (r.get(k) or None) for k in FIELDS}
+        vals["text"] = r.get("text") or ""
+        vals["raw"] = r.get("raw") or ""
+        if o is None:
+            conn.execute("""INSERT INTO exam_registrations(pruefungsnr, text, semester, datum, time, room, pruefer, versuch, status,
+                            withdraw, form, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                         tuple(vals[k] for k in STORED) + (now,))
+            continue
+        changed = {k: v for k, v in vals.items() if (o.get(k) or None) != (v or None)}
+        if changed:
+            sets = ", ".join(f"{k}=?" for k in changed)
+            conn.execute(f"UPDATE exam_registrations SET {sets}, fetched_at=? WHERE id=?", (*changed.values(), now, o["id"]))
 
 
 def rows(conn) -> list[dict]:

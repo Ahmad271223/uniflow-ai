@@ -62,6 +62,8 @@ public enum DeviceSyncSchema {
         Entity(name: "study_sessions", pk: "id", fk: [("module_id", "modules"), ("package_id", "study_packages")]),
         Entity(name: "flashcard_stacks", pk: "id", fk: []),
         Entity(name: "flashcards", pk: "id", fk: [("stack_id", "flashcard_stacks")]),
+        // angemeldete Pruefungen (20.11.2026): ohne Pruefer, Rohtext, Abrufzeit (`DeviceSyncCore.localColumns`)
+        Entity(name: "exam_registrations", pk: "id", fk: []),
         Entity(name: "settings", pk: "key", fk: []),
         Entity(name: "annotations", pk: "file_id", fk: []),
     ]
@@ -76,32 +78,10 @@ public enum DeviceSyncSchema {
             PRIMARY KEY (entity, entity_id))
             """)
         try c.execute("CREATE INDEX IF NOT EXISTS idx_tombstones_time ON sync_tombstones(deleted_at)")
-        for e in entities {
-            let table = e.name
-            let cols = Set(try c.columnNames(table))
-            if cols.isEmpty { continue }
-            for (col, decl) in [("sync_version", "INTEGER DEFAULT 1"), ("sync_updated_at", "TEXT"), ("sync_device", "TEXT")] where !cols.contains(col) {
-                try c.execute("ALTER TABLE \(table) ADD COLUMN \(col) \(decl)")
-            }
-            try c.execute("""
-                CREATE TRIGGER IF NOT EXISTS sync_ins_\(table) AFTER INSERT ON \(table)
-                WHEN NEW.sync_updated_at IS NULL
-                BEGIN UPDATE \(table) SET sync_updated_at = \(nowSQL), sync_version = COALESCE(NEW.sync_version, 1)
-                      WHERE rowid = NEW.rowid; END
-                """)
-            try c.execute("""
-                CREATE TRIGGER IF NOT EXISTS sync_upd_\(table) AFTER UPDATE ON \(table)
-                WHEN NEW.sync_version IS OLD.sync_version AND NEW.sync_updated_at IS OLD.sync_updated_at
-                BEGIN UPDATE \(table) SET sync_version = COALESCE(OLD.sync_version, 0) + 1, sync_updated_at = \(nowSQL),
-                                          sync_device = NULL WHERE rowid = NEW.rowid; END
-                """)
-            try c.execute("""
-                CREATE TRIGGER IF NOT EXISTS sync_del_\(table) AFTER DELETE ON \(table)
-                BEGIN INSERT OR REPLACE INTO sync_tombstones(entity, entity_id, deleted_at, device)
-                      VALUES ('\(table)', CAST(OLD.\(e.pk) AS TEXT), \(nowSQL), NULL); END
-                """)
-            try c.execute("UPDATE \(table) SET sync_updated_at = \(nowSQL), sync_version = COALESCE(sync_version, 1) WHERE sync_updated_at IS NULL")
-        }
+        // Tabellen, die sonst erst mit ihrer ersten Zeile entstehen (`sync.LAZY_TABLES`): ein Geraet, das das QIS nie
+        // gelesen hat (Mac ohne gespeichertes Passwort), zeigt so die angemeldeten Pruefungen der anderen Geraete
+        try c.executeScript(QISRegistrationsSync.tableSQL)
+        for e in entities { try ensureEntity(c, e) }
         // Zuordnung (`sync_client.ensure_tables`)
         try c.execute("""
             CREATE TABLE IF NOT EXISTS sync_link_map (
@@ -114,6 +94,39 @@ public enum DeviceSyncSchema {
             CREATE TABLE IF NOT EXISTS sync_link_pending (
             entity TEXT NOT NULL, remote_id TEXT NOT NULL, payload TEXT NOT NULL, reason TEXT, PRIMARY KEY (entity, remote_id))
             """)
+    }
+
+    /// Versionsspalten und Trigger einer Tabelle des Abgleichs (`sync.ensure_entity`); ohne Tabelle nichts
+    static func ensureEntity(_ c: SQLiteConnection, table: String) throws {
+        guard let e = entities.first(where: { $0.name == table }) else { return }
+        try ensureEntity(c, e)
+    }
+
+    private static func ensureEntity(_ c: SQLiteConnection, _ e: Entity) throws {
+        let table = e.name
+        let cols = Set(try c.columnNames(table))
+        if cols.isEmpty { return }
+        for (col, decl) in [("sync_version", "INTEGER DEFAULT 1"), ("sync_updated_at", "TEXT"), ("sync_device", "TEXT")] where !cols.contains(col) {
+            try c.execute("ALTER TABLE \(table) ADD COLUMN \(col) \(decl)")
+        }
+        try c.execute("""
+            CREATE TRIGGER IF NOT EXISTS sync_ins_\(table) AFTER INSERT ON \(table)
+            WHEN NEW.sync_updated_at IS NULL
+            BEGIN UPDATE \(table) SET sync_updated_at = \(nowSQL), sync_version = COALESCE(NEW.sync_version, 1)
+                  WHERE rowid = NEW.rowid; END
+            """)
+        try c.execute("""
+            CREATE TRIGGER IF NOT EXISTS sync_upd_\(table) AFTER UPDATE ON \(table)
+            WHEN NEW.sync_version IS OLD.sync_version AND NEW.sync_updated_at IS OLD.sync_updated_at
+            BEGIN UPDATE \(table) SET sync_version = COALESCE(OLD.sync_version, 0) + 1, sync_updated_at = \(nowSQL),
+                                      sync_device = NULL WHERE rowid = NEW.rowid; END
+            """)
+        try c.execute("""
+            CREATE TRIGGER IF NOT EXISTS sync_del_\(table) AFTER DELETE ON \(table)
+            BEGIN INSERT OR REPLACE INTO sync_tombstones(entity, entity_id, deleted_at, device)
+                  VALUES ('\(table)', CAST(OLD.\(e.pk) AS TEXT), \(nowSQL), NULL); END
+            """)
+        try c.execute("UPDATE \(table) SET sync_updated_at = \(nowSQL), sync_version = COALESCE(sync_version, 1) WHERE sync_updated_at IS NULL")
     }
 }
 
@@ -292,7 +305,8 @@ final class DeviceSyncCore: @unchecked Sendable {
     static let pushBatch = 400
     /// Einstellungen nur dieses Geraets (gehen nicht in den Abgleich, kommen nicht an): die zehn der Windows-App
     /// (app/sync_client.py `LOCAL_SETTINGS`) und dazu der Stand der eigenen Abrufe von Schwarzem Brett und Blubber
-    /// (Paritaet 09.11.2026, K3): `exam_registration_run` gehoert zur nicht abgeglichenen Tabelle `exam_registrations`;
+    /// (Paritaet 09.11.2026, K3): `exam_registration_run` ist der Stand des eigenen QIS-Abrufs (die Zeilen von
+    /// `exam_registrations` gleichen seit 20.11.2026 ab, der Stand des Abrufs bleibt je Geraet);
     /// `studip_bulletin_fetched_at_v2` vom iPad liess den Mac desselben Kontos den Abruf des Schwarzen Bretts stundenlang
     /// auslassen (`StudIPBulletin.fetch`, `minHours`), obwohl seine eigene Tabelle leer war.
     static let localSettings: Set<String> = ["lan_pin", "university", "demo_content", "semester_rule_applied", "pen_input",
@@ -300,7 +314,10 @@ final class DeviceSyncCore: @unchecked Sendable {
                                              "exam_registration_run",
                                              "studip_bulletin_fetched_at_v2", "studip_blubber_fetched_at", "studip_blubber_activity",
                                              StudIPUserMark.key]
-    static let localColumns: [String: Set<String>] = ["study_tasks": ["test_id"]]
+    /// Spalten nur dieses Geraets (wie `LOCAL_COLS` bzw. `sync.DEVICE_ONLY_COLUMNS`): nie gesendet, nie ueberschrieben.
+    /// Angemeldete Pruefungen: `pruefer` ist der Name einer dritten Person, `raw` die ganze QIS-Zeile (enthaelt ihn mit),
+    /// `fetched_at` aendert sich mit jedem Abruf.
+    static let localColumns: [String: Set<String>] = ["study_tasks": ["test_id"], "exam_registrations": ["pruefer", "raw", "fetched_at"]]
     /// NOT NULL in der Datenbank: ohne Elternteil wartet die Zeile
     static let requiredParents: Set<String> = ["package_id", "event_id"]
 
@@ -398,6 +415,9 @@ final class DeviceSyncCore: @unchecked Sendable {
         case "study_sessions": parts = [Self.norm(row["uuid"])]          // vom Geraet vergebene uuid
         case "flashcard_stacks": parts = [Self.norm(row["name"]), Self.norm(row["subject"]), Self.norm(row["file_id"])]
         case "flashcards": parts = [Self.norm(row["question"]), Self.norm(row["file_id"])]
+        case "exam_registrations":                                       // wie `QISRegistrationsSync.store`
+            return QISRegistrationsSync.key(pruefungsnr: Self.text(row["pruefungsnr"]), text: Self.text(row["text"]),
+                                            semester: Self.text(row["semester"]), datum: Self.text(row["datum"]))
         default: return nil
         }
         return parts.joined(separator: "\u{1f}")

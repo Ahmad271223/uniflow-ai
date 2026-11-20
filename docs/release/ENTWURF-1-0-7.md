@@ -60,3 +60,31 @@ New in 1.0.7 – Exam generator (Pro AI): In a module, tap "Klausur-Generator", 
   Start rechtlich prüfen lassen (Inhaber weiß Bescheid).
 - Server-Update mit neuem Docker-Bild (`reportlab`, Schriften, `tools/klausur_pdf`) und Prüfung im Container.
 - Bildschirmfoto für den Klausur-Generator (optional).
+
+## Datenschutz – Prüfungsanmeldungen im Geräteabgleich
+
+Entwurf (20.11.2026, Entscheidung des Inhabers „Ja, abgleichen“), z. B. als Ergänzung in Abschnitt 7 nach „… Karteikarten
+und Einstellungen“:
+
+> **Angemeldete Prüfungen.** Mit dem StudiNow-Konto speichert der Dienst die Liste deiner angemeldeten Prüfungen, wie
+> die App sie im QIS, LSF oder Campusmanagement deiner Hochschule gelesen hat, im Datenbereich deines Uni-Kontos, damit
+> sie auch auf deinen anderen Geräten erscheint. Gespeichert werden je Prüfung: Prüfungsnummer, Bezeichnung, Semester,
+> Datum, Uhrzeit, Raum, Versuch, Status, Rücktrittsfrist, Prüfungsform und der Abschluss bzw. Studiengang, wie die
+> Seite ihn nennt. Nicht gespeichert werden Noten und der Name der Prüferin oder des Prüfers; beides bleibt nur auf dem
+> Gerät, das die Liste gelesen hat. Die Liste wird mit deinem Konto gelöscht, spätestens 30 Tage nach dessen Löschung;
+> eine Prüfung, von der du dich abmeldest, verschwindet beim nächsten Abruf auch im Dienst. Rechtsgrundlage: Art. 6
+> Abs. 1 lit. b DSGVO.
+
+Was im Code dazu gilt (geprüft 20.11.2026, Zweig `sync-pruefungsanmeldungen`):
+
+- Abgeglichene Spalten von `exam_registrations`: `pruefungsnr`, `text`, `semester`, `datum`, `time`, `room`, `versuch`,
+  `status`, `withdraw`, `form`, `abschluss`. Nur auf dem Gerät: `pruefer`, `raw` (ganze Zeile der QIS-Seite, enthält
+  den Prüfer mit) und `fetched_at` (`sync.DEVICE_ONLY_COLUMNS`, Swift `DeviceSyncCore.localColumns`). Der Dienst
+  verwirft diese Spalten auch, wenn ein Gerät sie doch schickt. Eine Notenspalte hat die Tabelle nicht.
+- Prüfer: bewusst **nicht** abgeglichen. Es ist der Name einer dritten Person, und die App zeigt ihn nirgends an.
+  Soll er auf den anderen Geräten erscheinen, müsste er im Text oben genannt werden (Daten Dritter) – Entscheidung des
+  Inhabers.
+- `status` kann im LSF auch „zugelassen“, „storniert“ oder – falls eine Hochschule es dort zeigt – „bestanden“ /
+  „nicht bestanden“ enthalten. Das ist keine Note, aber ein Prüfungsergebnis; bitte bestätigen, dass das so in Ordnung ist.
+- Android gleicht die Tabelle noch nicht ab (die Android-App liest keine Prüfungsanmeldungen und überspringt unbekannte
+  Tabellen); der Satz „auf deinen anderen Geräten“ stimmt für iPad, iPhone, Mac und Windows.

@@ -18,6 +18,14 @@ Abruf: `changes(conn, since)` liefert alle Zeilen und Tombstones nach dem Cursor
    (Konflikt `edit_wins`); eine Aenderung nach einem Tombstone stellt die Zeile wieder her
 Eigene Dokumente mit Inhalt (Notizbuecher, importierte PDFs) folgen spaeter; Hochschuldateien laedt jedes Geraet selbst.
 
+Angemeldete Pruefungen (`exam_registrations`, Entscheidung des Inhabers 20.11.2026 "Ja, abgleichen"): die Liste aus
+"Info ueber angemeldete Pruefungen" (QIS/LSF/HISinOne) erscheint auch auf den anderen Geraeten desselben Uni-Kontos.
+Ohne Noten (die Tabelle hat keine), ohne Name der Pruefenden, ohne Rohtext der Zeile und ohne Abrufzeit
+(`DEVICE_ONLY_COLUMNS`: nie gesendet, im Dienst nie gespeichert, nie geliefert). Die Tabelle entsteht erst mit ihrer
+ersten Zeile (`LAZY_TABLES`, nicht in init_db). Zwei Geraete, die gleichzeitig dieselbe Pruefung lesen, legen sie nicht
+doppelt an: eine neue Zeile mit demselben fachlichen Schluessel (`NATURAL_KEYS`) wie eine Zeile im Raum des Geraets
+wird mit ihr zusammengefuehrt (Ergebnis mit deren ID).
+
 Raeume je Uni-Konto (14.11.2026, docs/ABGLEICH-UNI-KONTO-2026-11-14.md): Geraete desselben StudiNow-Kontos teilen nur,
 wenn sie zum selben Uni-Konto gehoeren. Das Geraet meldet einen Hash (`uni_key`, aeltere Apple-Apps `studip_user`);
 je Uni-Konto gibt es einen Raum (`sync_rooms`), je Zeile Raum und Ursprungsgeraet (`sync_row_room`). Regeln: `Rooms`.
@@ -45,10 +53,20 @@ ENTITIES: dict[str, dict] = {
     "study_sessions": {"pk": "id", "fk": {"module_id": "modules", "package_id": "study_packages"}},
     "flashcard_stacks": {"pk": "id", "fk": {}},
     "flashcards": {"pk": "id", "fk": {"stack_id": "flashcard_stacks"}},
+    "exam_registrations": {"pk": "id", "fk": {}},
     "settings": {"pk": "key", "fk": {}},
     "annotations": {"pk": "file_id", "fk": {}},
 }
 SYNC_COLS = ("sync_version", "sync_updated_at", "sync_device")
+# Spalten nur auf dem Geraet: der Client sendet sie nicht, der Dienst speichert und liefert sie nie. Angemeldete
+# Pruefungen: `pruefer` ist der Name einer dritten Person (fuer die Anzeige nicht noetig), `raw` die ganze Zeile der
+# QIS-Seite (enthaelt ihn mit), `fetched_at` aendert sich mit jedem Abruf.
+DEVICE_ONLY_COLUMNS: dict[str, tuple[str, ...]] = {"exam_registrations": ("pruefer", "raw", "fetched_at")}
+# Tabellen, die nicht in init_db entstehen, sondern mit ihrer ersten Zeile (Abruf am Geraet, Abgleich, Push im Dienst)
+LAZY_TABLES = ("exam_registrations",)
+# Fachlicher Schluessel, ueber den der Dienst eine neue Zeile mit einer vorhandenen zusammenfuehrt (gleichzeitiger
+# Abruf auf zwei Geraeten); dieselben Spalten wie `qis_registrations.key` und `QISRegistrationsSync.key`
+NATURAL_KEYS: dict[str, tuple[str, ...]] = {"exam_registrations": ("pruefungsnr", "text", "semester", "datum")}
 # nie zwischen Geraeten. `studip_user_hash`: Hash der Stud.IP-Benutzerkennung des Geraets (lokal, `StudIPUserMark`); im
 # Dienst stand er vom 12. bis 14.11.2026 je Konto (erster Benutzer sperrte den zweiten aus, 409), seitdem ordnen die
 # Raeume (`Rooms`) zu. Der Schluessel bleibt privat: kein Geraet kann ihn per Push setzen oder loeschen.
@@ -108,31 +126,67 @@ def ensure_schema(conn) -> None:
         PRIMARY KEY (entity, entity_id))""")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_tombstones_time ON sync_tombstones(deleted_at)")
     for table, meta in ENTITIES.items():
-        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
-        if not cols:
-            continue
-        for col, decl in (("sync_version", "INTEGER DEFAULT 1"), ("sync_updated_at", "TEXT"), ("sync_device", "TEXT")):
-            if col not in cols:
-                from . import db
-                db.add_column(conn, table, col, decl)           # mehrere Prozesse zugleich (Audit P11-02)
-        pk = meta["pk"]
-        # Einfuegen durch die App (ohne Zeitstempel): Zeitstempel setzen. Der Push fuegt mit Zeitstempel ein, dann nichts.
-        conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_ins_{table} AFTER INSERT ON {table}
-            WHEN NEW.sync_updated_at IS NULL
-            BEGIN UPDATE {table} SET sync_updated_at = {NOW_SQL}, sync_version = COALESCE(NEW.sync_version, 1)
-                  WHERE rowid = NEW.rowid; END""")
-        # Aenderung durch die App (Version und Zeitstempel unberuehrt): Version hoch, Zeitstempel neu, Geraet = Server.
-        # Der Push setzt Version und Zeitstempel selbst, ebenso der Einfuege-Trigger: dann kein zweites Hochzaehlen.
-        conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_upd_{table} AFTER UPDATE ON {table}
-            WHEN NEW.sync_version IS OLD.sync_version AND NEW.sync_updated_at IS OLD.sync_updated_at
-            BEGIN UPDATE {table} SET sync_version = COALESCE(OLD.sync_version, 0) + 1, sync_updated_at = {NOW_SQL},
-                                     sync_device = NULL WHERE rowid = NEW.rowid; END""")
-        conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_del_{table} AFTER DELETE ON {table}
-            BEGIN INSERT OR REPLACE INTO sync_tombstones(entity, entity_id, deleted_at, device)
-                  VALUES ('{table}', CAST(OLD.{pk} AS TEXT), {NOW_SQL}, NULL); END""")
-        # Bestand ohne Zeitstempel (Datenbanken von vor der Synchronisierung)
-        conn.execute(f"UPDATE {table} SET sync_updated_at = {NOW_SQL}, sync_version = COALESCE(sync_version, 1) WHERE sync_updated_at IS NULL")
+        _ensure_sync_parts(conn, table, meta["pk"])
     ensure_rooms(conn)
+
+
+def _lazy_table_sql(table: str) -> str:
+    from . import qis_registrations
+    return {"exam_registrations": qis_registrations.TABLE_SQL}[table]
+
+
+def table_exists(conn, table: str) -> bool:
+    return bool(conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)).fetchone())
+
+
+def ensure_entity(conn, table: str) -> bool:
+    """Tabelle eines Abgleichs samt Versionsspalten, Triggern und Tombstones; legt Tabellen aus `LAZY_TABLES` an.
+    False = Tabelle fehlt und entsteht hier nicht. Idempotent."""
+    if table not in ENTITIES:
+        return False
+    if not table_exists(conn, table):
+        if table not in LAZY_TABLES:
+            return False
+        conn.execute(_lazy_table_sql(table))
+    conn.execute("""CREATE TABLE IF NOT EXISTS sync_tombstones (
+        entity TEXT NOT NULL, entity_id TEXT NOT NULL, deleted_at TEXT NOT NULL, device TEXT,
+        PRIMARY KEY (entity, entity_id))""")
+    _ensure_sync_parts(conn, table, ENTITIES[table]["pk"])
+    return True
+
+
+def natural_key(table: str, row: dict) -> tuple | None:
+    """Fachlicher Schluessel aus `NATURAL_KEYS` (Leerraum zusammengefasst, klein); None = kein Abgleich ueber Inhalt."""
+    cols = NATURAL_KEYS.get(table)
+    if not cols:
+        return None
+    return tuple(" ".join(str(row.get(c) or "").split()).lower() for c in cols)
+
+
+def _ensure_sync_parts(conn, table: str, pk: str) -> None:
+    cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})")}
+    if not cols:
+        return
+    for col, decl in (("sync_version", "INTEGER DEFAULT 1"), ("sync_updated_at", "TEXT"), ("sync_device", "TEXT")):
+        if col not in cols:
+            from . import db
+            db.add_column(conn, table, col, decl)           # mehrere Prozesse zugleich (Audit P11-02)
+    # Einfuegen durch die App (ohne Zeitstempel): Zeitstempel setzen. Der Push fuegt mit Zeitstempel ein, dann nichts.
+    conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_ins_{table} AFTER INSERT ON {table}
+        WHEN NEW.sync_updated_at IS NULL
+        BEGIN UPDATE {table} SET sync_updated_at = {NOW_SQL}, sync_version = COALESCE(NEW.sync_version, 1)
+              WHERE rowid = NEW.rowid; END""")
+    # Aenderung durch die App (Version und Zeitstempel unberuehrt): Version hoch, Zeitstempel neu, Geraet = Server.
+    # Der Push setzt Version und Zeitstempel selbst, ebenso der Einfuege-Trigger: dann kein zweites Hochzaehlen.
+    conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_upd_{table} AFTER UPDATE ON {table}
+        WHEN NEW.sync_version IS OLD.sync_version AND NEW.sync_updated_at IS OLD.sync_updated_at
+        BEGIN UPDATE {table} SET sync_version = COALESCE(OLD.sync_version, 0) + 1, sync_updated_at = {NOW_SQL},
+                                 sync_device = NULL WHERE rowid = NEW.rowid; END""")
+    conn.execute(f"""CREATE TRIGGER IF NOT EXISTS sync_del_{table} AFTER DELETE ON {table}
+        BEGIN INSERT OR REPLACE INTO sync_tombstones(entity, entity_id, deleted_at, device)
+              VALUES ('{table}', CAST(OLD.{pk} AS TEXT), {NOW_SQL}, NULL); END""")
+    # Bestand ohne Zeitstempel (Datenbanken von vor der Synchronisierung)
+    conn.execute(f"UPDATE {table} SET sync_updated_at = {NOW_SQL}, sync_version = COALESCE(sync_version, 1) WHERE sync_updated_at IS NULL")
 
 
 # ---------------------------------------------------------------- Raeume je Uni-Konto
@@ -391,7 +445,9 @@ def resolve_room(conn, device: str | None, uni_key=None, studip_user=None, now: 
 
 
 def _columns(conn, table: str) -> list[str]:
-    return [r[1] for r in conn.execute(f"PRAGMA table_info({table})") if r[1] not in SYNC_COLS]
+    """Spalten, die der Abgleich kennt: ohne Versionsspalten und ohne Spalten nur des Geraets (`DEVICE_ONLY_COLUMNS`)."""
+    local = DEVICE_ONLY_COLUMNS.get(table, ())
+    return [r[1] for r in conn.execute(f"PRAGMA table_info({table})") if r[1] not in SYNC_COLS and r[1] not in local]
 
 
 def _json_dict(value):
@@ -406,7 +462,7 @@ def _json_dict(value):
 
 
 def _row_out(table: str, r: dict) -> dict:
-    out = dict(r)
+    out = {k: v for k, v in r.items() if k not in DEVICE_ONLY_COLUMNS.get(table, ())}
     if table == "annotations":
         out["data"] = _json_dict(out.get("data"))
         out["version"] = out.get("version") or 1
@@ -454,6 +510,8 @@ def changes(conn, since: str | None, limit: int = MAX_PULL, rooms: Rooms | None 
     bounds: list[str] = []
     for table, meta in ENTITIES.items():
         pk = meta["pk"]
+        if table in LAZY_TABLES and not table_exists(conn, table):
+            continue                                            # noch keine Zeile im Dienst
         if filtered:
             ts = "MAX(COALESCE(t.sync_updated_at, ''), COALESCE(rr.assigned_at, ''))"
             join = (f"SELECT t.*, {ts} AS _ts FROM {table} t LEFT JOIN sync_row_room rr "
@@ -586,6 +644,8 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
             continue
         by_entity.setdefault(it["entity"], []).append(it)
     for table in ENTITIES:                                      # Eltern vor Kindern
+        if table in LAZY_TABLES and by_entity.get(table):
+            ensure_entity(conn, table)                          # erste Zeile dieser Tabelle im Dienst
         pk, cols = ENTITIES[table]["pk"], _columns(conn, table)
         for it in by_entity.get(table, []):
             op = it.get("op_id") if isinstance(it.get("op_id"), str) and OP_RE.match(it["op_id"]) else None
@@ -631,6 +691,30 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
                                      (it.get("local_id"), data.get("value"), 1, now, device))
                         row = db.row(conn, "SELECT * FROM settings WHERE key=?", (it.get("local_id"),))
                         results.append({"entity": table, "id": row["key"], "status": "applied", "version": row["sync_version"]})
+                        continue
+                    same = _same_row(conn, table, data, rooms, now)
+                    if same is not None:
+                        # dieselbe Zeile hat ein anderes Geraet schon gesendet (gleichzeitiger Abruf): zusammenfuehren
+                        # wie einen Konflikt, die neue Zeile bekommt deren ID
+                        sid = same[pk]
+                        data = {k: v for k, v in data.items() if k not in SYNC_COLS}
+                        merged, won = _merge_fields(same, data, client_ts, same.get("sync_updated_at") or "", cols)
+                        changed = {c: merged[c] for c in cols if c != pk and merged.get(c) != same.get(c)}
+                        sv = same.get("sync_version") or 1
+                        if changed:
+                            sets = ", ".join(f"{c}=?" for c in changed) + ", sync_version=?, sync_updated_at=?, sync_device=?"
+                            conn.execute(f"UPDATE {table} SET {sets} WHERE {pk}=?", [*changed.values(), sv + 1, now, device, sid])
+                            sv += 1
+                        if isinstance(it.get("local_id"), int) and it["local_id"] < 0:
+                            mapping[(table, it["local_id"])] = sid
+                        res = {"entity": table, "local_id": it.get("local_id"), "id": sid, "status": "created", "version": sv,
+                               "same_as": sid}
+                        if any(merged.get(c) != data.get(c) for c in data if c in cols and c != pk):
+                            # der Dienst hat Felder behalten: das Geraet uebernimmt sie (wie bei einem Konflikt)
+                            res["status"] = "conflict"
+                            res["client_won"] = won
+                            conflicts.append({"entity": table, "id": sid, "server": _row_out(table, same), "client": data, "client_won": won})
+                        results.append(res)
                         continue
                     cur = conn.execute(f"INSERT INTO {table}({','.join(keys)}) VALUES ({','.join('?' * len(keys))})", [data[k] for k in keys])
                     new_id = cur.lastrowid
@@ -708,6 +792,9 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
         try:
             rid = _coerce_id(table, d.get("id"))
             when = d.get("deleted_at") if TS_RE.match(d.get("deleted_at") or "") else now
+            if table in LAZY_TABLES and not table_exists(conn, table):
+                results.append({"entity": table, "id": rid, "status": "deleted"})
+                continue
             server = db.row(conn, f"SELECT * FROM {table} WHERE {pk}=?", (rid,))
             if server is None:
                 results.append({"entity": table, "id": rid, "status": "deleted"})
@@ -729,6 +816,21 @@ def push(conn, device: str | None, items: list[dict], deletes: list[dict] | None
             results.append({"entity": table, "id": d.get("id"), "status": "error", "message": f"{table}: {e}"})
     return {"results": results, "mapping": [{"entity": e, "local_id": l, "id": i} for (e, l), i in mapping.items()],
             "conflicts": conflicts, "server_time": now}
+
+
+def _same_row(conn, table: str, data: dict, rooms: Rooms, now: str) -> dict | None:
+    """Vorhandene Zeile mit demselben fachlichen Schluessel (`NATURAL_KEYS`), die dieses Geraet aendern darf; sonst None.
+    Nur fuer Tabellen mit Schluessel (angemeldete Pruefungen: wenige Zeilen je Konto)."""
+    nk = natural_key(table, data)
+    if nk is None or not any(nk):
+        return None
+    pk = ENTITIES[table]["pk"]
+    for r in db.rows(conn, f"SELECT * FROM {table} ORDER BY {pk}"):
+        if natural_key(table, r) != nk:
+            continue
+        if rooms.deny_update(table, r[pk], now) is None:
+            return r
+    return None
 
 
 def _push_annotation(conn, it: dict, device: str | None, now: str, rooms: Rooms | None = None) -> dict:
