@@ -498,6 +498,107 @@ final class EditorScaleTests: XCTestCase {
         m.finish()
     }
 
+    // MARK: Tinte beim Maximum so glatt wie Vektor (Meldung des Inhabers 20.11.2026)
+
+    /// Meldung des Inhabers 20.11.2026 (iPad A16, 1.0.7): bei 600 % ist die PDF-Schrift scharf, die Handschrift
+    /// verpixelt. Strich schreiben, auf das Maximum zoomen (6-fach der Einpassung), erst an den Seitenanfang (Strich nicht
+    /// im Bild), dann zum Strich verschieben, Bild des Fensters, Kante des Strichs messen. Bezug: derselbe Strich, von
+    /// PencilKit als Vektor in genau der Aufloesung des Bildschirms gezeichnet. Dazu Aufloesung und Flaeche der
+    /// Zeichenflaeche beim Maximum (Speicher) und: Der sichtbare Teil der Seite liegt ganz auf der Zeichenflaeche (der
+    /// Stift schreibt ueberall, wo die Seite zu sehen ist).
+    func testTinteBeimMaximumScharfWieVektor() async throws {
+        let m = Messwerte("Tinte scharf beim Maximum")
+        let base = Speicher.now()
+        let fx = try await makeFixture(pdf: Skript.pdf(pages: 3, .schlicht), pageCount: 3)
+        let store = try await openStore(fx)
+        let shown = show(store)
+        defer { hide(shown) }
+        let editor = shown.editor, window = shown.window
+        var overlay = try await waitForOverlay(editor, page: 0, timeout: 20)
+        let stroke = Handschrift.line(from: CGPoint(x: Skript.rule.minX + 20, y: Skript.inkY),
+                                      to: CGPoint(x: Skript.rule.maxX - 20, y: Skript.inkY))
+        drawStroke(editor, on: overlay, stroke)
+        // Kreis ueber dem Strich: Kanten in jeder Richtung (ein vergroessertes Bild zeigt dort Treppen)
+        let ring = Handschrift.circle(center: ringCenter, radius: 14)
+        drawStroke(editor, on: overlay, ring)
+        await store.flush()
+        try await Task.sleep(nanoseconds: 800_000_000)
+        let fit = editor.pdfView.scaleFactor
+        let screen = window.screen.scale
+        m.sharpness("eingepasst", try await sharpness(shown, page: 0, waitForPDF: 10))
+        let beforeZoom = Speicher.now()
+
+        editor.pdfView.scaleFactor = editor.pdfView.maxScaleFactor
+        let zoom = editor.pdfView.scaleFactor
+        m.add("Zoom beim Maximum (scaleFactor)", Double(zoom), "")
+        m.add("Zoom relativ zur Einpassung", Double(zoom / fit * 100), "%")
+        try await Task.sleep(nanoseconds: 700_000_000)
+        let scroll = try XCTUnwrap(scrollView(editor), "Scroll-Ansicht der PDFView")
+        overlay = try await waitForOverlay(editor, page: 0, timeout: 15)
+        let corner = overlay.content.convert(CGPoint.zero, to: scroll)
+        scroll.setContentOffset(CGPoint(x: min(max(0, corner.x), scroll.contentSize.width - scroll.bounds.width),
+                                        y: min(max(0, corner.y), scroll.contentSize.height - scroll.bounds.height)), animated: false)
+        try await Task.sleep(nanoseconds: 700_000_000)
+        let sharp = try await sharpness(shown, page: 0, waitForPDF: 15)
+        m.sharpness("Maximum", sharp)
+        overlay = try await waitForOverlay(editor, page: 0, timeout: 15)
+        let ringRect = CGRect(x: ringCenter.x - 20, y: ringCenter.y - 20, width: 40, height: 40)
+        let ringOnScreen = try XCTUnwrap(Bild.snapshot(window).flatMap {
+            Bild.grays($0, scale: screen, rect: overlay.content.convert(ringRect, to: window).intersection(window.bounds))
+        }, "Kreis beim Maximum im Bild des Fensters")
+
+        // Bezug: Vektor in der Aufloesung des Bildschirms (Bildpunkte je Seitenpunkt wie im Fenster)
+        let shownScale = overlay.content.convert(CGRect(x: 0, y: 0, width: 100, height: 1), to: window).width / 100
+        let pixelsPerPoint = shownScale * screen
+        let refRect = CGRect(x: Skript.rule.minX + 60, y: Skript.inkY - 12, width: 40, height: 24)
+        let ref = try XCTUnwrap(Bild.edge(Bild.vector(PKDrawing(strokes: [stroke]), rect: refRect, pixelsPerPoint: pixelsPerPoint),
+                                          scale: pixelsPerPoint, rect: CGRect(origin: .zero, size: refRect.size)), "Bezug gemessen")
+        m.add("Bezug (Vektor): Kante", ref.edge, "px")
+        m.add("Bezug (Vektor): Dicke", ref.thickness, "px")
+        let ringRef = try XCTUnwrap(Bild.grays(Bild.vector(PKDrawing(strokes: [ring]), rect: ringRect, pixelsPerPoint: pixelsPerPoint),
+                                               scale: pixelsPerPoint, rect: CGRect(origin: .zero, size: ringRect.size)))
+        m.add("Kreis im Fenster: Graustufen-Pixel je dunklem Pixel", ringOnScreen.ratio, "")
+        m.add("Kreis als Vektor (Bezug): Graustufen-Pixel je dunklem Pixel", ringRef.ratio, "")
+        m.add("Kreis im Fenster: dunkle Pixel", Double(ringOnScreen.dark), "")
+        m.add("Kreis als Vektor (Bezug): dunkle Pixel", Double(ringRef.dark), "")
+        let canvas = overlay.canvas
+        // PencilKit zeichnet mit der Aufloesung des Bildschirms in Punkten der (gezoomten) Zeichenflaeche
+        let inkPixelsPerPoint = canvas.zoomScale * screen
+        m.add("Zeichenflaeche: Bildpunkte je Seitenpunkt", Double(inkPixelsPerPoint), "px")
+        m.add("Bildschirm: Bildpunkte je Seitenpunkt", Double(pixelsPerPoint), "px")
+        // Flaeche der Zeichenflaechen aller eingesetzten Seiten (Kacheln von PencilKit), in Bildpunkten
+        let backing = installedOverlays(editor).reduce(CGFloat(0)) { sum, o in
+            sum + o.canvas.bounds.width * o.canvas.bounds.height * screen * screen
+        }
+        m.add("Zeichenflaechen beim Maximum: Bildpunkte", Double(backing) / 1_000_000, "Mio.")
+        m.add("Zeichenflaechen beim Maximum: bei 4 Byte je Bildpunkt", Double(backing) * 4 / 1_048_576, "MB")
+        let now = Speicher.now()
+        m.add("Zuwachs phys_footprint eingepasst -> Maximum", Double(Int64(now.footprint) - Int64(beforeZoom.footprint)) / 1_048_576, "MB")
+        m.memory("beim Maximum", now, since: base)
+        m.text("Ebenen der Canvas", Bild.layerInfo(canvas))
+
+        let ink = try XCTUnwrap(sharp.ink, "Tinte beim Maximum im Bild des Fensters")
+        let pdf = try XCTUnwrap(sharp.pdf, "PDF-Linie beim Maximum")
+        XCTAssertLessThan(pdf.edge, 4, "PDFKit zeichnet beim Zoom scharf nach (Messaufbau)")
+        XCTAssertLessThanOrEqual(ink.edge, ref.edge + 1, "Handschrift beim Maximum so glatt wie der Vektor (Bezug \(ref.edge) px, gemessen \(ink.edge) px)")
+        XCTAssertEqual(ink.thickness, ref.thickness, accuracy: max(3, ref.thickness * 0.1), "Strich gleich dick wie der Vektor")
+        XCTAssertLessThanOrEqual(ringOnScreen.ratio, ringRef.ratio * 1.3, "Rundung so glatt wie der Vektor (kein vergroessertes Bild)")
+        XCTAssertEqual(Double(ringOnScreen.dark), Double(ringRef.dark), accuracy: Double(ringRef.dark) * 0.15, "Kreis vollstaendig")
+        XCTAssertGreaterThanOrEqual(inkPixelsPerPoint, pixelsPerPoint * 0.98, "Zeichenflaeche mindestens so fein wie der Bildschirm")
+        XCTAssertLessThanOrEqual(backing, PageInkView.inkPixelBudget, "Zeichenflaechen beim Maximum zusammen nicht groesser als bisher EINE Seite beim 4-fachen")
+        // der sichtbare Teil der Seite liegt ganz auf der Zeichenflaeche
+        let pageInWindow = overlay.content.convert(CGRect(origin: .zero, size: overlay.geometry.pageSize), to: window)
+        let visible = pageInWindow.intersection(editor.pdfView.convert(editor.pdfView.bounds, to: window))
+        let onCanvas = canvas.convert(canvas.bounds, to: window).insetBy(dx: -1, dy: -1)
+        XCTAssertTrue(onCanvas.contains(visible), "Stift schreibt ueberall auf der sichtbaren Seite: \(visible) in \(onCanvas)")
+        let objects = await store.objects(forPageKey: "p1")
+        XCTAssertEqual(objects.filter { $0["type"]?.string == "stroke" }.count, 2, "Zoomen schreibt nichts")
+        await store.close()
+        m.finish()
+    }
+
+    private let ringCenter = CGPoint(x: 210, y: 645)
+
     // MARK: Eingefuegte Seiten A6 bis A0
 
     /// Leerseiten in den Formaten des Web-Editors (formats.js: A6 bis A2 hoch, Whiteboard A1 und A0 quer) zwischen
@@ -1405,6 +1506,16 @@ enum Handschrift {
     }
 
     /// Gerader Strich (Stift, schwarz, Breite 2,5) mit 40 Punkten.
+    /// Kreis aus einem Strich (Kanten in jeder Richtung)
+    static func circle(center c: CGPoint, radius r: CGFloat, created: Date = Date()) -> PKStroke {
+        let pts = (0...72).map { i -> PKStrokePoint in
+            let a = CGFloat(i) / 72 * 2 * .pi
+            return PKStrokePoint(location: CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a)), timeOffset: Double(i) * 0.01,
+                                 size: CGSize(width: 2.5, height: 2.5), opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
+        }
+        return PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: pts, creationDate: created))
+    }
+
     static func line(from a: CGPoint, to b: CGPoint, created: Date = Date()) -> PKStroke {
         let pts = (0..<40).map { i -> PKStrokePoint in
             let t = CGFloat(i) / 39
@@ -1418,6 +1529,23 @@ enum Handschrift {
 /// Bild des Fensters und Kantenmessung.
 @MainActor
 enum Bild {
+    /// Bezug: `drawing` von PencilKit als Vektor gezeichnet, Ausschnitt `rect` (Seitenpunkte) auf weissem Grund
+    static func vector(_ drawing: PKDrawing, rect: CGRect, pixelsPerPoint: CGFloat) -> CGImage {
+        var ink = UIImage()
+        UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+            ink = drawing.image(from: rect, scale: pixelsPerPoint)
+        }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = pixelsPerPoint
+        format.opaque = true
+        format.preferredRange = .standard
+        return UIGraphicsImageRenderer(size: rect.size, format: format).image { ctx in
+            UIColor.white.setFill()
+            ctx.fill(CGRect(origin: .zero, size: rect.size))
+            ink.draw(in: CGRect(origin: .zero, size: rect.size))
+        }.cgImage!
+    }
+
     /// Bild des Fensters, wie es auf dem Bildschirm steht (drawHierarchy erfasst auch die Kacheln von PencilKit).
     static func snapshot(_ window: UIWindow) -> CGImage? {
         let format = UIGraphicsImageRendererFormat()
@@ -1442,6 +1570,37 @@ enum Bild {
         }
         walk(view.layer)
         return "\(count) Ebenen, contentsScale bis \(String(format: "%.2f", maxScale)), " + classes.sorted().joined(separator: " ")
+    }
+
+    struct Grays {
+        var gray: Int
+        var dark: Int
+        /// Graustufen-Pixel (Helligkeit 10 bis 90 %) je dunklem Pixel: ein vergroessertes Bild hat breitere, treppige
+        /// Uebergaenge und damit mehr Graustufen am Rand
+        var ratio: Double { dark > 0 ? Double(gray) / Double(dark) : .infinity }
+    }
+
+    /// Graustufen- und dunkle Pixel in `rect` (Punkte des Bildes)
+    static func grays(_ image: CGImage, scale: CGFloat, rect: CGRect) -> Grays? {
+        guard !rect.isNull, rect.width > 4, rect.height > 4 else { return nil }
+        let w = image.width, h = image.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var out = Grays(gray: 0, dark: 0)
+        let x0 = max(0, Int(rect.minX * scale)), x1 = min(w - 1, Int(rect.maxX * scale))
+        let y0 = max(0, Int(rect.minY * scale)), y1 = min(h - 1, Int(rect.maxY * scale))
+        guard x1 > x0, y1 > y0 else { return nil }
+        for y in y0...y1 {
+            for x in x0...x1 {
+                let i = (y * w + x) * 4
+                let l = (0.299 * Double(px[i]) + 0.587 * Double(px[i + 1]) + 0.114 * Double(px[i + 2])) / 255
+                if l < 0.5 { out.dark += 1 }
+                if l > 0.1 && l < 0.9 { out.gray += 1 }
+            }
+        }
+        return out
     }
 
     /// Kanten einer waagrechten dunklen Linie in `rect` (Fensterpunkte): in 15 Spalten die laengste dunkle Folge
