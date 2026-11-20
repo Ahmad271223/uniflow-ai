@@ -264,6 +264,8 @@ def response(conn, today: str, data: dict | None = None, source=None) -> dict:
                         "form": r.get("form")} for r in regs],
         "registrations_checked_at": run.get("at"), "registrations_ok": run.get("ok"),
         "registrations_message": run.get("message"),
+        # ohne eigenen erfolgreichen Abruf: Zeilen vom anderen Geraet (Geraeteabgleich, 20.11.2026) mit ihrem Stand
+        "registrations_synced_at": qis_registrations.synced_at(conn) if run.get("ok") is not True else None,
         "warnings": warnings, "qis_url": data.get("qis_menu"), "hint": data.get("hint") or HINT,
         "rules": [r.get("text") for r in rules], "disclaimer": data.get("disclaimer") or DISCLAIMER,
         "system": system, "open_label": open_label(system), "period_note": data.get("period_note"),

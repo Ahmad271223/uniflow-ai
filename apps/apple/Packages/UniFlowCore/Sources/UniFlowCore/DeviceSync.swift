@@ -318,6 +318,22 @@ final class DeviceSyncCore: @unchecked Sendable {
     /// Angemeldete Pruefungen: `pruefer` ist der Name einer dritten Person, `raw` die ganze QIS-Zeile (enthaelt ihn mit),
     /// `fetched_at` aendert sich mit jedem Abruf.
     static let localColumns: [String: Set<String>] = ["study_tasks": ["test_id"], "exam_registrations": ["pruefer", "raw", "fetched_at"]]
+    /// Werte nur dieses Geraets (wie `sync.DEVICE_ONLY_VALUES`, 20.11.2026 "Ja, aber ohne bestanden"): ein Ergebnis im
+    /// Status einer Anmeldung geht leer in den Abgleich, und ein eigenes Ergebnis wird beim Empfangen nicht ueberschrieben
+    static let deviceOnlyValues: [String: [String]] = ["exam_registrations": ["status"]]
+
+    static func isDeviceOnlyValue(_ table: String, _ col: String, _ v: JSONValue?) -> Bool {
+        guard deviceOnlyValues[table]?.contains(col) == true, case .string(let s)? = v else { return false }
+        return QISRegistrationsSync.isResultStatus(s)
+    }
+
+    /// `sync.scrub_values`: Werte nur des Geraets -> null
+    static func scrubbed(_ table: String, _ row: Row) -> Row {
+        var out = row
+        for col in deviceOnlyValues[table] ?? [] where isDeviceOnlyValue(table, col, row[col]) { out[col] = .null }
+        return out
+    }
+
     /// NOT NULL in der Datenbank: ohne Elternteil wartet die Zeile
     static let requiredParents: Set<String> = ["package_id", "event_id"]
 
@@ -493,8 +509,9 @@ final class DeviceSyncCore: @unchecked Sendable {
 
     /// `apply_row`: applied | skipped | pending | own
     @discardableResult
-    func applyRow(_ c: SQLiteConnection, _ table: String, _ row: Row) throws -> String {
+    func applyRow(_ c: SQLiteConnection, _ table: String, _ incoming: Row) throws -> String {
         let pk = meta(table).pk
+        let row = Self.scrubbed(table, incoming)
         guard let rid = Self.text(row[pk]) else { return "skipped" }
         if table == "settings" && Self.settingIsLocal(rid) { return "skipped" }
         if table == "annotations" { return try applyAnnotation(c, row) }
@@ -520,6 +537,8 @@ final class DeviceSyncCore: @unchecked Sendable {
             let cur = try localRow(c, table, found)
             let m = try map(c, table, remote: rid)
             if let cur {
+                // eigenes Ergebnis (z. B. Status "bestanden") bleibt; der Dienst kennt es nicht
+                for col in Self.deviceOnlyValues[table] ?? [] where Self.isDeviceOnlyValue(table, col, cur[col]) { vals[col] = nil }
                 let dirty = m != nil && cur["sync_version"]?.int != m?["local_version"]?.int
                 if m == nil {
                     // erster Abgleich mit gleicher Zeile: der spaetere Stand gewinnt; bei Einstellungen schlaegt ein
@@ -767,6 +786,7 @@ final class DeviceSyncCore: @unchecked Sendable {
                     data = Self.parsed(r["data"]).object ?? [:]
                 } else {
                     for col in columns { data[col] = r[col] ?? .null }
+                    data = Self.scrubbed(table, data)           // Ergebnis im Status der Anmeldung: nur hier
                     for (col, target) in e.fk {
                         guard let v = Self.text(data[col]) else { continue }
                         if let remote = try map(c, target, local: v)?["remote_id"]?.string, let id = Int64(remote) {

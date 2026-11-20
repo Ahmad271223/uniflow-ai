@@ -102,12 +102,21 @@ export function actionsHtml(r, icon = () => "") {
     + `<p class="tiny muted">${esc(r.hint || "")}</p>`;
 }
 
-/** Stand des letzten Abrufs */
+/** "2026-11-20T11:05:00" (Ortszeit) -> "20.11.2026 11:05" */
+function stampText(at) {
+  const d = new Date(at);
+  return Number.isNaN(d.getTime()) ? "" : `${d.toLocaleDateString("de-DE")} ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })}`;
+}
+
+/** Stand des letzten Abrufs; ohne eigenen Abruf der Stand vom anderen Geraet (Geraeteabgleich, 20.11.2026) */
 export function runLine(r) {
+  if (r?.registrations_synced_at) {
+    const own = r.registrations_checked_at ? ` · Eigener Abruf ${stampText(r.registrations_checked_at)}${r.registrations_message ? `: ${r.registrations_message}` : ""}` : "";
+    return `Stand von deinem anderen Gerät, ${stampText(r.registrations_synced_at)} Uhr${own}`;
+  }
   if (!r?.registrations_checked_at) return "";
-  const d = new Date(r.registrations_checked_at);
-  const when = Number.isNaN(d.getTime()) ? "" : ` (${d.toLocaleDateString("de-DE")} ${d.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" })})`;
-  return `${r.registrations_message || ""}${when}`;
+  const when = stampText(r.registrations_checked_at);
+  return `${r.registrations_message || ""}${when ? ` (${when})` : ""}`;
 }
 
 /** Ganze Karte bzw. Abschnitt; `limit` Vorschlaege (Uebersicht 4, Studienverlauf alle) */

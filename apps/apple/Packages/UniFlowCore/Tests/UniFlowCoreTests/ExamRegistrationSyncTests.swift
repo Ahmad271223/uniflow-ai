@@ -10,9 +10,10 @@ final class ExamRegistrationSyncTests: XCTestCase {
     private static let clock = UniFlowClock.fixed(berlin: "2026-11-20T09:00:00")!
     private static let privateColumns = ["pruefer", "raw", "fetched_at"]
 
-    private func reg(_ nr: String = "4711", _ text: String = "Rechnernetze", datum: String? = "01.03.2027", room: String = "HS A") -> QISRegistration {
+    private func reg(_ nr: String = "4711", _ text: String = "Rechnernetze", datum: String? = "01.03.2027", room: String = "HS A",
+                     status: String = "AN") -> QISRegistration {
         QISRegistration(pruefungsnr: nr, text: text, semester: "WiSe 26/27", datum: datum, time: "09:00", room: room,
-                        pruefer: "Prof. Dr. Erika Beispiel", versuch: "1", status: "AN", form: "Klausur",
+                        pruefer: "Prof. Dr. Erika Beispiel", versuch: "1", status: status, form: "Klausur",
                         abschluss: "Abschluss 82 Bachelor of Science", raw: "\(nr) | \(text) | Prof. Dr. Erika Beispiel")
     }
 
@@ -85,10 +86,30 @@ final class ExamRegistrationSyncTests: XCTestCase {
         XCTAssertEqual(rules?["natural_keys"]?["exam_registrations"]?.array?.compactMap(\.string), ["pruefungsnr", "text", "semester", "datum"])
     }
 
+    /// Ergebnis im Status (20.11.2026 "Ja, aber ohne bestanden"): gleiche Faelle wie Python (cases.json)
+    func testResultStatusLikePython() throws {
+        var url = URL(fileURLWithPath: #filePath)
+        for _ in 0..<7 { url.deleteLastPathComponent() }
+        let rules = try JSONValue.parse(Data(contentsOf: url.appendingPathComponent("packages/shared-contracts/fixtures/sync/cases.json")))["rules"]
+        let examples = rules?["result_status_examples"]?.object ?? [:]
+        XCTAssertGreaterThan(examples.count, 10)
+        for (status, want) in examples {
+            XCTAssertEqual(QISRegistrationsSync.isResultStatus(status), want.bool, status)
+        }
+        XCTAssertEqual(rules?["device_only_values"]?["exam_registrations"]?.array?.compactMap(\.string), DeviceSyncCore.deviceOnlyValues["exam_registrations"])
+    }
+
     func testKeyLikePython() {
         // `sync.natural_key`: Leerraum zusammengefasst, klein; Teile mit U+001F verbunden
         XCTAssertEqual(QISRegistrationsSync.key(pruefungsnr: " 4711", text: "Rechnernetze  I ", semester: "WiSe 26/27", datum: nil),
                        ["4711", "rechnernetze i", "wise 26/27", ""].joined(separator: "\u{1f}"))
+    }
+
+    private func examRegistration(_ db: SQLiteDatabase) async throws -> JSONValue {
+        let backend = try LocalBackend(database: db, clock: Self.clock)
+        let r = await backend.handle(LocalRequest(method: "GET", path: "/api/exam-registration"))
+        XCTAssertEqual(r.status, 200)
+        return try XCTUnwrap(r.json)
     }
 
     // MARK: zwei Geraete an einem Schein-Dienst
@@ -102,6 +123,18 @@ final class ExamRegistrationSyncTests: XCTestCase {
         private var nextID = 100
         private var tick = 0
         private(set) var sentPrivate: [String] = []
+        /// Status je Pruefungsnummer, wie die Geraete ihn geschickt haben
+        private(set) var sentStatus: [String: JSONValue] = [:]
+
+        /// ein anderes Geraet aendert eine Zeile im Dienst
+        func change(_ nr: String, _ fields: [String: JSONValue]) {
+            guard let id = rows.first(where: { $0.value["pruefungsnr"]?.string == nr })?.key, var r = rows[id] else { return }
+            for (k, v) in fields { r[k] = v }
+            r["sync_version"] = .number(Double((r["sync_version"]?.int ?? 1) + 1))
+            r["sync_updated_at"] = .string(stamp())
+            r["sync_device"] = "anderes"
+            rows[id] = r
+        }
         private(set) var deletesSeen = 0
 
         private func stamp() -> String {
@@ -133,6 +166,7 @@ final class ExamRegistrationSyncTests: XCTestCase {
                     results.append(["entity": .string(entity), "id": it["id"] ?? it["local_id"] ?? .null, "status": "ignored"])
                     continue
                 }
+                if let nr = data["pruefungsnr"]?.string { sentStatus[nr] = data["status"] ?? .null }
                 for col in ExamRegistrationSyncTests.privateColumns where data[col] != nil {
                     sentPrivate.append(col)
                     data[col] = nil
@@ -209,6 +243,13 @@ final class ExamRegistrationSyncTests: XCTestCase {
         XCTAssertEqual(seen.first?.isoDate, "2027-03-01")
         XCTAssertTrue(seen.allSatisfy(\.registered))
         XCTAssertEqual(seen.map(\.pruefer), [nil, nil], "der Pruefer kommt nicht ueber den Abgleich")
+        // Hinweis "Stand von deinem anderen Gerät": Zeit der letzten Aenderung im Dienst, als Ortszeit
+        let macView = try await examRegistration(macDB)
+        XCTAssertEqual(macView["registrations_checked_at"], .null)
+        let syncedAt = try XCTUnwrap(macView["registrations_synced_at"]?.string)
+        XCTAssertTrue(syncedAt.hasPrefix("2026-11-20T09:00:0"), syncedAt)                // 08:00 UTC = 09:00 in Berlin
+        let ipadView = try await examRegistration(ipadDB)
+        XCTAssertEqual(ipadView["registrations_synced_at"], .null, "selbst abgerufen: Anzeige wie bisher")
 
         // der Mac liest selbst (Schreibweise leicht anders) und findet dazu eine neue Pruefung
         try await store(macDB, [reg("4711", "Rechnernetze "), reg("4712", "Datenbanken", datum: nil), reg("4714", "Mathematik I")],
@@ -218,6 +259,8 @@ final class ExamRegistrationSyncTests: XCTestCase {
         XCTAssertEqual(macRows.first?["pruefer"]?.string, "Prof. Dr. Erika Beispiel", "Pruefer nur lokal ergaenzt")
         let macTombs = try await tombstones(macDB)
         XCTAssertEqual(macTombs, 0)
+        let ownSynced = try await macDB.withConnection { try QISRegistrationsSync.syncedAt($0) }
+        XCTAssertNil(ownSynced, "nach dem eigenen Abruf kein Hinweis mehr")
         _ = await run(mac)
         _ = await run(ipad)
         let total = await service.rows.count
@@ -239,6 +282,28 @@ final class ExamRegistrationSyncTests: XCTestCase {
         XCTAssertEqual([again.pushed, again.deleted], [0, 0], "danach Ruhe")
         let stillPrivate = await service.sentPrivate
         XCTAssertEqual(stillPrivate, [])
+    }
+
+    /// Das iPad liest "BE" (bestanden): der Status geht leer an den Dienst, "AN" der anderen Pruefung geht mit. Aendert ein
+    /// anderes Geraet die Zeile (Raum, Status "AN"), kommt der Raum an und das eigene Ergebnis bleibt.
+    func testResultStatusStaysOnTheDevice() async throws {
+        let service = Service()
+        let ipadDB = try await database()
+        let ipad = DeviceSync(database: ipadDB, transport: service, device: "ipad", clock: Self.clock)
+        try await store(ipadDB, [reg(status: "BE"), reg("4712", "Datenbanken", status: "AN")], at: "2026-11-20T10:00:00")
+        _ = await run(ipad)
+        let sent = await service.sentStatus
+        XCTAssertEqual(sent, ["4711": .null, "4712": "AN"])
+        await service.change("4711", ["room": "HS C", "status": "AN"])
+        _ = await run(ipad)
+        let row = try await table(ipadDB).first { $0["pruefungsnr"]?.string == "4711" }
+        XCTAssertEqual(row?["room"]?.string, "HS C", "Aenderung des anderen Geraets kommt an")
+        XCTAssertEqual(row?["status"]?.string, "BE", "das eigene Ergebnis bleibt")
+        // ein Ergebnis aus dem Dienst (aeltere App) wird nicht uebernommen
+        await service.change("4712", ["status": "nicht bestanden"])
+        _ = await run(ipad)
+        let other = try await table(ipadDB).first { $0["pruefungsnr"]?.string == "4712" }
+        XCTAssertEqual(other?["status"], .null)
     }
 
     /// Beide Geraete lesen dieselbe Pruefung, bevor sie die Zeile des anderen kennen: der Dienst ordnet die zweite der

@@ -438,6 +438,20 @@ public enum QISRegistrationsSync {
         (s ?? "").split(whereSeparator: { $0.isWhitespace }).joined(separator: " ").lowercased()
     }
 
+    /// Ergebnis einer Pruefung im Status (Entscheidung des Inhabers 20.11.2026 "Ja, aber ohne bestanden"): bleibt wie
+    /// Noten nur auf dem Geraet (`DeviceSyncCore.deviceOnlyValues`); ausgeschrieben, als Teil ("endgültig nicht
+    /// bestanden") oder als Kuerzel BE / NB / EN. Wie `qis_registrations.is_result_status`.
+    public static func isResultStatus(_ status: String?) -> Bool {
+        let s = ExamRegistrationPeriods.fold((status ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
+        if s.isEmpty { return false }
+        if s.contains("bestanden") { return true }
+        for prefix in ["be", "nb", "en"] where s.hasPrefix(prefix) {
+            guard let next = s.dropFirst(2).first else { return true }
+            if !(next.isASCII && (next.isLetter || next.isNumber)) { return true }
+        }
+        return false
+    }
+
     static func key(_ r: QISRegistration) -> String { key(pruefungsnr: r.pruefungsnr, text: r.text, semester: r.semester, datum: r.datum) }
 
     /// ohne Datum: dieselbe Pruefung, deren Datum das QIS nachgetragen oder verschoben hat
@@ -522,6 +536,25 @@ public enum QISRegistrationsSync {
                                    time: s("time"), room: s("room"), pruefer: s("pruefer"), versuch: s("versuch"), status: s("status"),
                                    withdraw: s("withdraw"), form: s("form"), abschluss: s("abschluss"), raw: s("raw") ?? "")
         }
+    }
+
+    /// Stand der Zeilen, wenn alle vom Geraeteabgleich kamen (20.11.2026; `sync_device` = "~dienst", also hier nie selbst
+    /// gelesen oder geaendert): letzte Aenderung (`sync_updated_at`, UTC) als Ortszeit "YYYY-MM-DDTHH:MM:SS" (Europe/Berlin,
+    /// wie `exam_registration_run.at`). nil ohne Zeilen, ohne Abgleich oder wenn eine Zeile von hier stammt. Wie
+    /// `qis_registrations.synced_at`.
+    public static func syncedAt(_ c: SQLiteConnection) throws -> String? {
+        guard try hasTable(c), Set(try c.columnNames("exam_registrations")).isSuperset(of: ["sync_updated_at", "sync_device"]),
+              let r = try c.queryOne("SELECT MAX(sync_updated_at) AS at, SUM(COALESCE(sync_device, '') != ?) AS own FROM exam_registrations",
+                                     [.text(DeviceSyncCore.appliedDevice)]),
+              let raw = r["at"]?.string, !raw.isEmpty, (r["own"]?.int ?? 0) == 0 else { return nil }
+        let parser = ISO8601DateFormatter()
+        parser.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        guard let date = parser.date(from: raw) ?? ISO8601DateFormatter().date(from: raw) else { return nil }
+        let out = DateFormatter()
+        out.locale = Locale(identifier: "en_US_POSIX")
+        out.timeZone = TimeZone(identifier: "Europe/Berlin")
+        out.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return out.string(from: date)
     }
 
     /// Stand des letzten Abrufs oder nil

@@ -124,6 +124,8 @@ struct ExamRegistrationState: Equatable {
     let registrationsCheckedAt: String?
     let registrationsMessage: String?
     let registrationsOK: Bool
+    /// Ohne eigenen Abruf: Stand der Zeilen von einem anderen Geraet (Geraeteabgleich, 20.11.2026), Ortszeit
+    let registrationsSyncedAt: String?
     let warnings: [(tone: String, text: String)]
     let qisURL: URL?
     let hint: String
@@ -161,6 +163,7 @@ struct ExamRegistrationState: Equatable {
         registrationsCheckedAt = v.s("registrations_checked_at")
         registrationsMessage = v.s("registrations_message")
         registrationsOK = v["registrations_ok"]?.bool ?? false
+        registrationsSyncedAt = v.s("registrations_synced_at")
         warnings = v.list("warnings").map { ($0.s("tone") ?? "warn", $0.s("text") ?? "") }
         qisURL = UFDayExtras.safeURL(v.s("qis_url"))
         hint = v.s("hint") ?? ExamRegistrationAPI.hint
@@ -181,7 +184,7 @@ struct ExamRegistrationState: Equatable {
 
     static func == (a: Self, b: Self) -> Bool {
         a.suggestions == b.suggestions && a.window == b.window && a.registered == b.registered && a.showCard == b.showCard
-            && a.registrationsCheckedAt == b.registrationsCheckedAt && a.warnings.map(\.text) == b.warnings.map(\.text)
+            && a.registrationsCheckedAt == b.registrationsCheckedAt && a.registrationsSyncedAt == b.registrationsSyncedAt && a.warnings.map(\.text) == b.warnings.map(\.text)
     }
 
     /// Antwort laden; nil ohne Verbindung, bei Fehler oder am PC-Server ohne den Pfad
@@ -279,16 +282,24 @@ enum ExamRegistrationText {
         p.openEnd ? "ab \(UFFmt.date(p.start))" : range(p.start, p.end)
     }
 
-    /// Stand des letzten Abrufs der Info-Seite
+    /// Stand des letzten Abrufs der Info-Seite. Ohne eigenen Abruf, mit Zeilen vom anderen Geraet (Geraeteabgleich,
+    /// Entscheidung des Inhabers 20.11.2026): "Stand von deinem anderen Gerät, 20.11.2026 11:05 Uhr"; ein eigener
+    /// Abruf, der nicht klappte, steht dahinter.
     static func checked(_ st: ExamRegistrationState) -> String {
+        if let synced = st.registrationsSyncedAt {
+            let own = st.registrationsCheckedAt.map { " · Eigener Abruf \(stamp($0))" + (st.registrationsMessage.map { ": \($0)" } ?? "") } ?? ""
+            return "Stand von deinem anderen Gerät, \(stamp(synced))" + own
+        }
         guard let at = st.registrationsCheckedAt else {
             return st.system == "LSF"
                 ? "Angemeldete Prüfungen noch nicht abgerufen. Abgehakt wird schon, was der Notenspiegel als angemeldet führt."
                 : "Angemeldete Prüfungen noch nicht abgerufen. Abgehakt wird schon, was der Notenspiegel als „AN“ führt."
         }
-        let when = "\(UFFmt.date(String(at.prefix(10)))) \(at.dropFirst(11).prefix(5)) Uhr"
-        return "Zuletzt abgerufen \(when)" + (st.registrationsMessage.map { ": \($0)" } ?? "")
+        return "Zuletzt abgerufen \(stamp(at))" + (st.registrationsMessage.map { ": \($0)" } ?? "")
     }
+
+    /// "2026-11-20T11:05:00" -> "20.11.2026 11:05 Uhr"
+    static func stamp(_ at: String) -> String { "\(UFFmt.date(String(at.prefix(10)))) \(at.dropFirst(11).prefix(5)) Uhr" }
 }
 
 // MARK: - Knoepfe

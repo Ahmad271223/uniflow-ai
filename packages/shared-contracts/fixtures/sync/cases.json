@@ -42,6 +42,38 @@
     "datum"
    ]
   },
+  "device_only_values": {
+   "exam_registrations": [
+    "status"
+   ]
+  },
+  "device_only_value_rule": "exam_registrations.status mit einem Pruefungsergebnis (bestanden, nicht bestanden, endgueltig nicht bestanden, Kuerzel BE/NB/EN): beim Senden null, im Dienst nie gespeichert oder geliefert; ein Geraet ueberschreibt ein eigenes Ergebnis nicht",
+  "result_status_examples": {
+   "BE": true,
+   "be": true,
+   "NB": true,
+   "EN": true,
+   "bestanden": true,
+   "Bestanden": true,
+   "nicht bestanden": true,
+   "endgültig nicht bestanden": true,
+   "Endgueltig nicht bestanden": true,
+   "BE (2. Versuch)": true,
+   "NB.": true,
+   "AN": false,
+   "an": false,
+   "angemeldet": false,
+   "zugelassen": false,
+   "storniert": false,
+   "nicht zugelassen": false,
+   "abgemeldet": false,
+   "RT": false,
+   "bestätigt": false,
+   "Beginn": false,
+   "entschuldigt": false,
+   "Nbx": false,
+   "": false
+  },
   "same_row": "neue Zeile (local_id) einer Tabelle mit natural_keys, deren Schluessel (Leerraum zusammengefasst, klein) eine Zeile im Raum des Geraets schon hat: keine zweite Zeile, Ergebnis created mit deren id und mapping (oder conflict mit client_won, wenn der Dienst Felder behielt); device_only_columns sendet kein Geraet, der Dienst speichert und liefert sie nie",
   "timestamp": "UTC, YYYY-MM-DDTHH:MM:SS.mmmZ, Vergleich als Text",
   "new_rows": "id weglassen, local_id negativ; Antwort mapping; Fremdschluessel mit negativen IDs werden im selben Push aufgeloest",

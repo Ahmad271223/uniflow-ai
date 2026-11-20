@@ -134,6 +134,15 @@ test("Pruefungsanmeldung: Hinweis in der App an den Erinnerungstagen (statt Syst
   assert.match(src("study-plan.js"), /renderModuleBlock\(box, \{ catalogId: cur \}\)/); assert.match(src("views-misc.js"), /renderModuleBlock/);
 });
 
+test("Pruefungsanmeldung: Stand vom anderen Geraet (Geraeteabgleich, 20.11.2026)", () => {
+  assert.equal(X.runLine({ registrations_synced_at: "2026-11-20T11:05:00" }), "Stand von deinem anderen Gerät, 20.11.2026 11:05 Uhr");
+  assert.match(X.runLine({ registrations_synced_at: "2026-11-20T11:05:00", registrations_checked_at: "2026-11-20T12:00:00",
+                           registrations_message: "Bitte im QIS anmelden." }), /· Eigener Abruf 20\.11\.2026 12:00: Bitte im QIS anmelden\.$/);
+  assert.equal(X.runLine({ registrations_checked_at: "2026-11-20T12:00:00", registrations_message: "2 angemeldete Prüfungen gelesen." }),
+               "2 angemeldete Prüfungen gelesen. (20.11.2026 12:00)", "eigener Abruf: wie bisher");
+  assert.equal(X.runLine({}), "");
+});
+
 test("Nie im Offline-Speicher: Abgeben und Pruefungsanmeldung", () => {
   const p = src("sw-policy.js");
   assert.match(p, /studip\\\/submit/); assert.match(p, /exam-registration/);

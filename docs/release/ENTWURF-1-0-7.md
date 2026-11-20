@@ -63,28 +63,33 @@ New in 1.0.7 – Exam generator (Pro AI): In a module, tap "Klausur-Generator", 
 
 ## Datenschutz – Prüfungsanmeldungen im Geräteabgleich
 
-Entwurf (20.11.2026, Entscheidung des Inhabers „Ja, abgleichen“), z. B. als Ergänzung in Abschnitt 7 nach „… Karteikarten
-und Einstellungen“:
+Entwurf (20.11.2026, Entscheidungen des Inhabers „Ja, abgleichen“, „Status ja, aber ohne bestanden“, „Prüfer bleibt nur
+auf dem Gerät“), z. B. als Ergänzung in Abschnitt 7 nach „… Karteikarten und Einstellungen“:
 
 > **Angemeldete Prüfungen.** Mit dem StudiNow-Konto speichert der Dienst die Liste deiner angemeldeten Prüfungen, wie
 > die App sie im QIS, LSF oder Campusmanagement deiner Hochschule gelesen hat, im Datenbereich deines Uni-Kontos, damit
 > sie auch auf deinen anderen Geräten erscheint. Gespeichert werden je Prüfung: Prüfungsnummer, Bezeichnung, Semester,
-> Datum, Uhrzeit, Raum, Versuch, Status, Rücktrittsfrist, Prüfungsform und der Abschluss bzw. Studiengang, wie die
-> Seite ihn nennt. Nicht gespeichert werden Noten und der Name der Prüferin oder des Prüfers; beides bleibt nur auf dem
-> Gerät, das die Liste gelesen hat. Die Liste wird mit deinem Konto gelöscht, spätestens 30 Tage nach dessen Löschung;
-> eine Prüfung, von der du dich abmeldest, verschwindet beim nächsten Abruf auch im Dienst. Rechtsgrundlage: Art. 6
-> Abs. 1 lit. b DSGVO.
+> Datum, Uhrzeit, Raum, Versuch, Status der Anmeldung (z. B. angemeldet, zugelassen, storniert), Rücktrittsfrist,
+> Prüfungsform und der Abschluss bzw. Studiengang, wie die Seite ihn nennt. Nicht gespeichert werden Noten,
+> Prüfungsergebnisse (etwa „bestanden“ oder „nicht bestanden“) und der Name der Prüferin oder des Prüfers; das bleibt
+> nur auf dem Gerät, das die Liste gelesen hat. Die Liste wird mit deinem Konto gelöscht, spätestens 30 Tage nach
+> dessen Löschung; eine Prüfung, von der du dich abmeldest, verschwindet beim nächsten Abruf auch im Dienst.
+> Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
 Was im Code dazu gilt (geprüft 20.11.2026, Zweig `sync-pruefungsanmeldungen`):
 
 - Abgeglichene Spalten von `exam_registrations`: `pruefungsnr`, `text`, `semester`, `datum`, `time`, `room`, `versuch`,
-  `status`, `withdraw`, `form`, `abschluss`. Nur auf dem Gerät: `pruefer`, `raw` (ganze Zeile der QIS-Seite, enthält
-  den Prüfer mit) und `fetched_at` (`sync.DEVICE_ONLY_COLUMNS`, Swift `DeviceSyncCore.localColumns`). Der Dienst
-  verwirft diese Spalten auch, wenn ein Gerät sie doch schickt. Eine Notenspalte hat die Tabelle nicht.
-- Prüfer: bewusst **nicht** abgeglichen. Es ist der Name einer dritten Person, und die App zeigt ihn nirgends an.
-  Soll er auf den anderen Geräten erscheinen, müsste er im Text oben genannt werden (Daten Dritter) – Entscheidung des
-  Inhabers.
-- `status` kann im LSF auch „zugelassen“, „storniert“ oder – falls eine Hochschule es dort zeigt – „bestanden“ /
-  „nicht bestanden“ enthalten. Das ist keine Note, aber ein Prüfungsergebnis; bitte bestätigen, dass das so in Ordnung ist.
+  `status` (ohne Ergebnis, siehe unten), `withdraw`, `form`, `abschluss`. Nur auf dem Gerät: `pruefer`, `raw` (ganze
+  Zeile der QIS-Seite, enthält den Prüfer mit) und `fetched_at` (`sync.DEVICE_ONLY_COLUMNS`, Swift
+  `DeviceSyncCore.localColumns`). Der Dienst verwirft diese Spalten auch, wenn ein Gerät sie doch schickt. Eine
+  Notenspalte hat die Tabelle nicht.
+- Status ohne Ergebnis: steht im Status ein Ergebnis („bestanden“, „nicht bestanden“, „endgültig nicht bestanden“,
+  Kürzel BE / NB / EN), schickt das Gerät den Status leer; der Dienst speichert und liefert so einen Wert nie, und ein
+  Gerät überschreibt sein eigenes Ergebnis nicht mit dem Stand des Dienstes (`sync.DEVICE_ONLY_VALUES`,
+  `qis_registrations.is_result_status`, Swift `QISRegistrationsSync.isResultStatus`; gleiche Beispiele in
+  `fixtures/sync/cases.json`).
+- Prüfer: bleibt nur auf dem Gerät (Entscheidung des Inhabers); die App zeigt ihn nirgends an.
+- Anzeige: Ein Gerät, das die Liste nie selbst gelesen hat, zeigt bei den Prüfungsanmeldungen „Stand von deinem anderen
+  Gerät, <Datum Uhrzeit>“ (letzte Änderung im Dienst).
 - Android gleicht die Tabelle noch nicht ab (die Android-App liest keine Prüfungsanmeldungen und überspringt unbekannte
   Tabellen); der Satz „auf deinen anderen Geräten“ stimmt für iPad, iPhone, Mac und Windows.

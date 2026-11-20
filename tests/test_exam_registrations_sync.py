@@ -141,6 +141,12 @@ def test_device_without_own_fetch_shows_rows_and_own_fetch_merges(two_devices):
         rows = Q.rows(conn)
         assert [(x["pruefungsnr"], x["registered"], x["iso_date"], x["clock"]) for x in rows] == [("4711", True, "2027-03-01", "09:00")]
         assert rows[0]["pruefer"] is None, "der Pruefer kommt nicht ueber den Abgleich"
+        # Hinweis "Stand von deinem anderen Gerät" mit der Zeit der letzten Aenderung im Dienst (Ortszeit)
+        stamp = Q.synced_at(conn)
+        assert stamp and len(stamp) == 19 and stamp[10] == "T", stamp
+        from app import exam_registration_api
+        view = exam_registration_api.response(conn, "2026-11-20")
+        assert view["registrations_synced_at"] == stamp and view["registrations_checked_at"] is None
         assert any(e.get("title", "").startswith("Rechnernetze") or "Rechnernetze" in json.dumps(e, ensure_ascii=False)
                    for e in exams.upcoming(conn, date(2026, 11, 20))), "Termin erscheint wie nach einem eigenen Abruf"
         # eigener Abruf des PCs: dieselbe Pruefung (anders geschrieben) plus eine neue
@@ -269,3 +275,41 @@ def test_same_exam_of_two_uni_accounts_stays_apart(tmp_path):
     seen = sync.changes(c, None, rooms=sync.resolve_room(c, "iphone-a", ka))["changes"]["exam_registrations"]
     assert [r["id"] for r in seen] == [a["id"]]
     c.close()
+
+
+# ---------------------------------------------------------------- Status ja, Ergebnis nein (20.11.2026)
+
+def test_result_status_rule():
+    from app import qis_registrations as Q
+    for s in ("BE", "nb", "EN", "bestanden", "Nicht bestanden", "endgültig nicht bestanden", "BE (2. Versuch)"):
+        assert Q.is_result_status(s), s
+    for s in (None, "", "AN", "angemeldet", "zugelassen", "storniert", "nicht zugelassen", "abgemeldet", "RT", "bestätigt", "entschuldigt"):
+        assert not Q.is_result_status(s), s
+
+
+def test_result_status_stays_on_the_device(two_devices):
+    """Der PC liest "BE" (bestanden) fuer 4711: gesendet wird der Status leer, "AN" fuer 4712 geht mit. Aendert das iPad
+    die Zeile, bleibt das Ergebnis auf dem PC stehen. Schickt ein Geraet doch ein Ergebnis, speichert der Dienst es nicht."""
+    app, ipad = two_devices
+    from app import db, qis_registrations as Q, sync_client
+    with db.cursor() as conn:
+        Q.store(conn, [reg(status="BE"), reg("4712", "Datenbanken", status="AN")], "t")
+    assert sync_client.run()["ok"]
+    srv = {x["pruefungsnr"]: x for x in _server_regs(app, ipad)}
+    assert (srv["4711"]["status"], srv["4712"]["status"]) == (None, "AN")
+    assert "BE" not in json.dumps(list(srv.values()))
+    # das iPad aendert den Raum (sein eigener Abruf); dabei kaeme auch ein anderer Status, z. B. ein altes "AN"
+    r = ipad_push(app, ipad, [{"entity": "exam_registrations", "id": srv["4711"]["id"], "base_version": srv["4711"]["sync_version"],
+                               "updated_at": "2099-01-01T00:00:00.000Z", "data": {**srv["4711"], "room": "HS C", "status": "AN"}}])
+    assert r["results"][0]["status"] == "applied"
+    assert sync_client.run()["ok"]
+    with db.cursor() as conn:
+        row = next(x for x in _table(conn) if x["pruefungsnr"] == "4711")
+        assert (row["room"], row["status"]) == ("HS C", "BE"), "Raum kommt an, das eigene Ergebnis bleibt"
+    # ein Geraet schickt doch ein Ergebnis: der Dienst verwirft es
+    r = ipad_push(app, ipad, [{"entity": "exam_registrations", "local_id": -5, "updated_at": "2099-01-01T00:00:00.000Z",
+                               "data": {k: v for k, v in reg("4799", "Physik", status="endgültig nicht bestanden").items() if k not in PRIVATE}}])
+    assert r["results"][0]["status"] == "created"
+    assert next(x for x in _server_regs(app, ipad) if x["pruefungsnr"] == "4799")["status"] is None
+    from app import sync
+    assert sync._row_out("exam_registrations", {"id": 1, "status": "NB", "pruefer": "x"}) == {"id": 1, "status": None}

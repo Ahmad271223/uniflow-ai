@@ -130,6 +130,17 @@ def is_stammdaten_row(cells: list[str]) -> bool:
     return any(c.lower().startswith(STAMMDATEN) for c in cells)
 
 
+# Ergebnis einer Pruefung im Status (Entscheidung des Inhabers 20.11.2026 "Ja, aber ohne bestanden"): bleibt wie Noten
+# nur auf dem Geraet (`sync.device_only_value`); ausgeschrieben, als Teil ("endgueltig nicht bestanden") oder als Kuerzel
+# BE / NB / EN. Gleiche Regel in Swift: `QISRegistrationsSync.isResultStatus`.
+RESULT_STATUS_RE = re.compile(r"bestanden|^(?:be|nb|en)(?![a-z0-9])")
+
+
+def is_result_status(status) -> bool:
+    s = fold(str(status or "").strip())
+    return bool(s) and bool(RESULT_STATUS_RE.search(s))
+
+
 def is_registered(status) -> bool:
     """Leer gilt als angemeldet (die Seite listet nur Anmeldungen); abgemeldet, Ruecktritt und bewertet nicht"""
     s = str(status or "").strip().lower()
@@ -640,6 +651,30 @@ def rows(conn) -> list[dict]:
         d["raw"] = r.get("raw") or ""
         out.append(row_view(d))
     return out
+
+
+FROM_SERVICE = "~dienst"          # sync_client.APPLIED_DEVICE / DeviceSyncCore.appliedDevice
+
+
+def synced_at(conn) -> str | None:
+    """Stand der Zeilen, wenn alle vom Geraeteabgleich kamen (20.11.2026; `sync_device` = "~dienst", also hier nie selbst
+    gelesen oder geaendert): letzte Aenderung (`sync_updated_at`, UTC) als Ortszeit "YYYY-MM-DDTHH:MM:SS" (Europe/Berlin,
+    wie `exam_registration_run.at`). None ohne Zeilen, ohne Abgleich oder wenn eine Zeile von hier stammt."""
+    if not conn.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='exam_registrations'").fetchone():
+        return None
+    if not {"sync_updated_at", "sync_device"} <= {r[1] for r in conn.execute("PRAGMA table_info(exam_registrations)")}:
+        return None
+    r = conn.execute("""SELECT MAX(sync_updated_at), SUM(COALESCE(sync_device, '') != ?) FROM exam_registrations""",
+                     (FROM_SERVICE,)).fetchone()
+    if not r or not r[0] or r[1]:
+        return None
+    from datetime import datetime
+    from zoneinfo import ZoneInfo
+    try:
+        t = datetime.fromisoformat(r[0].replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return t.astimezone(ZoneInfo("Europe/Berlin")).strftime("%Y-%m-%dT%H:%M:%S")
 
 
 def last_run(conn) -> dict | None:

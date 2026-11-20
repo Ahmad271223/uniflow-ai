@@ -1215,6 +1215,7 @@
      "registrations_checked_at",
      "registrations_ok",
      "registrations_message",
+     "registrations_synced_at",
      "warnings",
      "qis_url",
      "hint",

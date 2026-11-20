@@ -23,7 +23,8 @@ Ablauf je Lauf (`run`): abrufen -> senden -> noch einmal abrufen (Ergebnisse von
   der Stud.IP-Abgleich dieses PCs noch nicht geladen hat), warten in `sync_link_pending` und werden bei jedem Lauf
   erneut versucht.
 - **Angemeldete Pruefungen** (`exam_registrations`, 20.11.2026): ohne Name der Pruefenden, Rohtext und Abrufzeit
-  (`sync.DEVICE_ONLY_COLUMNS`); die Tabelle entsteht beim ersten Abgleich auch auf einem PC, der das QIS nie gelesen hat.
+  (`sync.DEVICE_ONLY_COLUMNS`) und ohne Ergebnis im Status (`sync.DEVICE_ONLY_VALUES`: gesendet wird leer, ein eigenes
+  Ergebnis wird beim Empfangen nicht ueberschrieben); die Tabelle entsteht beim ersten Abgleich auch auf einem PC, der das QIS nie gelesen hat.
   Der eigene Abruf (`qis_registrations.store`) fuehrt ueber denselben fachlichen Schluessel zusammen, statt zu ersetzen.
 Nie abgeglichen: Einstellungen dieses Geraets (`LOCAL_SETTINGS`), Hochschuldateien selbst, Zugangsdaten, Noten.
 
@@ -337,6 +338,7 @@ class Client:
             self.conn.execute("INSERT OR REPLACE INTO sync_link_pending(entity, remote_id, payload, reason) VALUES (?,?,?,?)",
                               (table, rid, json.dumps(row, ensure_ascii=False), missing))
             return "pending"
+        row = _sync.scrub_values(table, row)
         cols = [c for c in _cols(self.conn, table) if c != pk and c in row and c not in LOCAL_COLS.get(table, ())]
         vals = {c: (fk[c] if c in fk else row[c]) for c in cols}
         # Stand im Dienst (IDs des Dienstes) = Basis fuer `changed` beim naechsten Senden (P73-F6)
@@ -357,6 +359,10 @@ class Client:
                     return "skipped"                            # hier geloescht, das Senden entscheidet
                 lid = None
             else:
+                # eigenes Ergebnis (z. B. Status "bestanden") bleibt; der Dienst kennt es nicht
+                for c in _sync.DEVICE_ONLY_VALUES.get(table, ()):
+                    if c in vals and _sync.device_only_value(table, c, cur.get(c)):
+                        vals.pop(c)
                 dirty = m is not None and cur.get("sync_version") != m["local_version"]
                 if m is None:
                     # erster Abgleich mit gleicher Zeile: der spaetere Stand gewinnt. Einstellungen: ein geaenderter Wert
@@ -544,6 +550,7 @@ class Client:
                 if m is None and r.get("sync_device") == APPLIED_DEVICE:
                     continue
                 data = {c: r[c] for c in _cols(self.conn, table) if c != pk and c not in LOCAL_COLS.get(table, ())}
+                data = _sync.scrub_values(table, data)          # Ergebnis im Status der Anmeldung: nur hier
                 if table == "annotations":
                     data = json.loads(r["data"] or "{}")
                 else:
