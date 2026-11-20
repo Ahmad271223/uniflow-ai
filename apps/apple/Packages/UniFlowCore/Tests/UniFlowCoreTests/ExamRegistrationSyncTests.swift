@@ -97,6 +97,12 @@ final class ExamRegistrationSyncTests: XCTestCase {
             XCTAssertEqual(QISRegistrationsSync.isResultStatus(status), want.bool, status)
         }
         XCTAssertEqual(rules?["device_only_values"]?["exam_registrations"]?.array?.compactMap(\.string), DeviceSyncCore.deviceOnlyValues["exam_registrations"])
+        XCTAssertEqual(rules?["device_only_replacement"]?["exam_registrations"]?.string, DeviceSyncCore.deviceOnlyReplacement["exam_registrations"])
+        let registered = rules?["registered_examples"]?.object ?? [:]
+        XCTAssertGreaterThan(registered.count, 5)
+        for (status, want) in registered {
+            XCTAssertEqual(RegistrationRows.isRegistered(status), want.bool, status)
+        }
     }
 
     func testKeyLikePython() {
@@ -284,7 +290,7 @@ final class ExamRegistrationSyncTests: XCTestCase {
         XCTAssertEqual(stillPrivate, [])
     }
 
-    /// Das iPad liest "BE" (bestanden): der Status geht leer an den Dienst, "AN" der anderen Pruefung geht mit. Aendert ein
+    /// Das iPad liest "BE" (bestanden): an den Dienst geht "abgeschlossen", "AN" der anderen Pruefung geht mit. Aendert ein
     /// anderes Geraet die Zeile (Raum, Status "AN"), kommt der Raum an und das eigene Ergebnis bleibt.
     func testResultStatusStaysOnTheDevice() async throws {
         let service = Service()
@@ -293,7 +299,7 @@ final class ExamRegistrationSyncTests: XCTestCase {
         try await store(ipadDB, [reg(status: "BE"), reg("4712", "Datenbanken", status: "AN")], at: "2026-11-20T10:00:00")
         _ = await run(ipad)
         let sent = await service.sentStatus
-        XCTAssertEqual(sent, ["4711": .null, "4712": "AN"])
+        XCTAssertEqual(sent, ["4711": "abgeschlossen", "4712": "AN"])
         await service.change("4711", ["room": "HS C", "status": "AN"])
         _ = await run(ipad)
         let row = try await table(ipadDB).first { $0["pruefungsnr"]?.string == "4711" }
@@ -303,7 +309,9 @@ final class ExamRegistrationSyncTests: XCTestCase {
         await service.change("4712", ["status": "nicht bestanden"])
         _ = await run(ipad)
         let other = try await table(ipadDB).first { $0["pruefungsnr"]?.string == "4712" }
-        XCTAssertEqual(other?["status"], .null)
+        XCTAssertEqual(other?["status"]?.string, "abgeschlossen")
+        let shown = try await ipadDB.withConnection { try QISRegistrationsSync.rows($0) }.first { $0.pruefungsnr == "4712" }
+        XCTAssertEqual(shown?.registered, false, "zaehlt als nicht mehr angemeldet")
     }
 
     /// Beide Geraete lesen dieselbe Pruefung, bevor sie die Zeile des anderen kennen: der Dienst ordnet die zweite der

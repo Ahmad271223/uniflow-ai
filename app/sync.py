@@ -63,9 +63,12 @@ SYNC_COLS = ("sync_version", "sync_updated_at", "sync_device")
 # QIS-Seite (enthaelt ihn mit), `fetched_at` aendert sich mit jedem Abruf.
 DEVICE_ONLY_COLUMNS: dict[str, tuple[str, ...]] = {"exam_registrations": ("pruefer", "raw", "fetched_at")}
 # Werte nur auf dem Geraet (20.11.2026, "Ja, aber ohne bestanden"): der Status einer Anmeldung geht in den Abgleich,
-# ein Ergebnis darin (bestanden, nicht bestanden, BE, NB, EN ...) nicht - es wird beim Senden leer, der Dienst speichert
-# und liefert es nie, und ein Geraet ueberschreibt sein eigenes Ergebnis nicht mit dem Stand des Dienstes.
+# ein Ergebnis darin (bestanden, nicht bestanden, BE, NB, EN ...) nicht - gesendet und gespeichert wird statt dessen
+# der neutrale Wert "abgeschlossen" (`DEVICE_ONLY_REPLACEMENT`: nicht mehr angemeldet, ohne bestanden oder nicht
+# bestanden), der Dienst speichert und liefert das Ergebnis nie, und ein Geraet ueberschreibt sein eigenes Ergebnis
+# nicht mit dem Stand des Dienstes.
 DEVICE_ONLY_VALUES: dict[str, tuple[str, ...]] = {"exam_registrations": ("status",)}
+DEVICE_ONLY_REPLACEMENT: dict[str, str] = {"exam_registrations": "abgeschlossen"}     # qis_registrations.RESULT_STATUS_NEUTRAL
 
 
 def device_only_value(table: str, col: str, value) -> bool:
@@ -76,11 +79,13 @@ def device_only_value(table: str, col: str, value) -> bool:
 
 
 def scrub_values(table: str, data: dict) -> dict:
-    """`data` ohne Werte nur des Geraets (`DEVICE_ONLY_VALUES`: Wert -> None); andere Tabellen unveraendert."""
+    """`data` ohne Werte nur des Geraets (`DEVICE_ONLY_VALUES`: Wert -> `DEVICE_ONLY_REPLACEMENT`); andere Tabellen
+    unveraendert."""
     cols = DEVICE_ONLY_VALUES.get(table)
     if not cols or not any(device_only_value(table, c, data.get(c)) for c in cols if c in data):
         return data
-    return {k: (None if k in cols and device_only_value(table, k, v) else v) for k, v in data.items()}
+    neutral = DEVICE_ONLY_REPLACEMENT.get(table)
+    return {k: (neutral if k in cols and device_only_value(table, k, v) else v) for k, v in data.items()}
 
 
 # Tabellen, die nicht in init_db entstehen, sondern mit ihrer ersten Zeile (Abruf am Geraet, Abgleich, Push im Dienst)

@@ -71,8 +71,8 @@ auf dem Gerät“), z. B. als Ergänzung in Abschnitt 7 nach „… Karteikarten
 > sie auch auf deinen anderen Geräten erscheint. Gespeichert werden je Prüfung: Prüfungsnummer, Bezeichnung, Semester,
 > Datum, Uhrzeit, Raum, Versuch, Status der Anmeldung (z. B. angemeldet, zugelassen, storniert), Rücktrittsfrist,
 > Prüfungsform und der Abschluss bzw. Studiengang, wie die Seite ihn nennt. Nicht gespeichert werden Noten,
-> Prüfungsergebnisse (etwa „bestanden“ oder „nicht bestanden“) und der Name der Prüferin oder des Prüfers; das bleibt
-> nur auf dem Gerät, das die Liste gelesen hat. Die Liste wird mit deinem Konto gelöscht, spätestens 30 Tage nach
+> Prüfungsergebnisse (etwa „bestanden“ oder „nicht bestanden“; an ihrer Stelle steht im Dienst nur „abgeschlossen“) und
+> der Name der Prüferin oder des Prüfers; das bleibt nur auf dem Gerät, das die Liste gelesen hat. Die Liste wird mit deinem Konto gelöscht, spätestens 30 Tage nach
 > dessen Löschung; eine Prüfung, von der du dich abmeldest, verschwindet beim nächsten Abruf auch im Dienst.
 > Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
@@ -84,7 +84,8 @@ Was im Code dazu gilt (geprüft 20.11.2026, Zweig `sync-pruefungsanmeldungen`):
   `DeviceSyncCore.localColumns`). Der Dienst verwirft diese Spalten auch, wenn ein Gerät sie doch schickt. Eine
   Notenspalte hat die Tabelle nicht.
 - Status ohne Ergebnis: steht im Status ein Ergebnis („bestanden“, „nicht bestanden“, „endgültig nicht bestanden“,
-  Kürzel BE / NB / EN), schickt das Gerät den Status leer; der Dienst speichert und liefert so einen Wert nie, und ein
+  Kürzel BE / NB / EN), schickt das Gerät statt dessen „abgeschlossen“ (zählt auf den anderen Geräten als „nicht mehr
+  angemeldet“, verrät weder bestanden noch nicht bestanden); der Dienst speichert und liefert das Ergebnis nie, und ein
   Gerät überschreibt sein eigenes Ergebnis nicht mit dem Stand des Dienstes (`sync.DEVICE_ONLY_VALUES`,
   `qis_registrations.is_result_status`, Swift `QISRegistrationsSync.isResultStatus`; gleiche Beispiele in
   `fixtures/sync/cases.json`).

@@ -318,19 +318,22 @@ final class DeviceSyncCore: @unchecked Sendable {
     /// Angemeldete Pruefungen: `pruefer` ist der Name einer dritten Person, `raw` die ganze QIS-Zeile (enthaelt ihn mit),
     /// `fetched_at` aendert sich mit jedem Abruf.
     static let localColumns: [String: Set<String>] = ["study_tasks": ["test_id"], "exam_registrations": ["pruefer", "raw", "fetched_at"]]
-    /// Werte nur dieses Geraets (wie `sync.DEVICE_ONLY_VALUES`, 20.11.2026 "Ja, aber ohne bestanden"): ein Ergebnis im
-    /// Status einer Anmeldung geht leer in den Abgleich, und ein eigenes Ergebnis wird beim Empfangen nicht ueberschrieben
+    /// Werte nur dieses Geraets (wie `sync.DEVICE_ONLY_VALUES`, 20.11.2026 "Ja, aber ohne bestanden"): statt eines
+    /// Ergebnisses im Status einer Anmeldung geht der neutrale Wert "abgeschlossen" in den Abgleich
+    /// (`deviceOnlyReplacement`), und ein eigenes Ergebnis wird beim Empfangen nicht ueberschrieben
     static let deviceOnlyValues: [String: [String]] = ["exam_registrations": ["status"]]
+    static let deviceOnlyReplacement: [String: String] = ["exam_registrations": QISRegistrationsSync.resultStatusNeutral]
 
     static func isDeviceOnlyValue(_ table: String, _ col: String, _ v: JSONValue?) -> Bool {
         guard deviceOnlyValues[table]?.contains(col) == true, case .string(let s)? = v else { return false }
         return QISRegistrationsSync.isResultStatus(s)
     }
 
-    /// `sync.scrub_values`: Werte nur des Geraets -> null
+    /// `sync.scrub_values`: Werte nur des Geraets -> neutraler Wert (`deviceOnlyReplacement`)
     static func scrubbed(_ table: String, _ row: Row) -> Row {
         var out = row
-        for col in deviceOnlyValues[table] ?? [] where isDeviceOnlyValue(table, col, row[col]) { out[col] = .null }
+        let neutral: JSONValue = deviceOnlyReplacement[table].map(JSONValue.string) ?? .null
+        for col in deviceOnlyValues[table] ?? [] where isDeviceOnlyValue(table, col, row[col]) { out[col] = neutral }
         return out
     }
 

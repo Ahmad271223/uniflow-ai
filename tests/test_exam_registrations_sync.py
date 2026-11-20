@@ -288,7 +288,7 @@ def test_result_status_rule():
 
 
 def test_result_status_stays_on_the_device(two_devices):
-    """Der PC liest "BE" (bestanden) fuer 4711: gesendet wird der Status leer, "AN" fuer 4712 geht mit. Aendert das iPad
+    """Der PC liest "BE" (bestanden) fuer 4711: gesendet wird "abgeschlossen", "AN" fuer 4712 geht mit. Aendert das iPad
     die Zeile, bleibt das Ergebnis auf dem PC stehen. Schickt ein Geraet doch ein Ergebnis, speichert der Dienst es nicht."""
     app, ipad = two_devices
     from app import db, qis_registrations as Q, sync_client
@@ -296,7 +296,7 @@ def test_result_status_stays_on_the_device(two_devices):
         Q.store(conn, [reg(status="BE"), reg("4712", "Datenbanken", status="AN")], "t")
     assert sync_client.run()["ok"]
     srv = {x["pruefungsnr"]: x for x in _server_regs(app, ipad)}
-    assert (srv["4711"]["status"], srv["4712"]["status"]) == (None, "AN")
+    assert (srv["4711"]["status"], srv["4712"]["status"]) == ("abgeschlossen", "AN")
     assert "BE" not in json.dumps(list(srv.values()))
     # das iPad aendert den Raum (sein eigener Abruf); dabei kaeme auch ein anderer Status, z. B. ein altes "AN"
     r = ipad_push(app, ipad, [{"entity": "exam_registrations", "id": srv["4711"]["id"], "base_version": srv["4711"]["sync_version"],
@@ -310,6 +310,8 @@ def test_result_status_stays_on_the_device(two_devices):
     r = ipad_push(app, ipad, [{"entity": "exam_registrations", "local_id": -5, "updated_at": "2099-01-01T00:00:00.000Z",
                                "data": {k: v for k, v in reg("4799", "Physik", status="endgültig nicht bestanden").items() if k not in PRIVATE}}])
     assert r["results"][0]["status"] == "created"
-    assert next(x for x in _server_regs(app, ipad) if x["pruefungsnr"] == "4799")["status"] is None
+    assert next(x for x in _server_regs(app, ipad) if x["pruefungsnr"] == "4799")["status"] == "abgeschlossen"
     from app import sync
-    assert sync._row_out("exam_registrations", {"id": 1, "status": "NB", "pruefer": "x"}) == {"id": 1, "status": None}
+    assert sync._row_out("exam_registrations", {"id": 1, "status": "NB", "pruefer": "x"}) == {"id": 1, "status": "abgeschlossen"}
+    # auf den anderen Geraeten: nicht mehr angemeldet, ohne bestanden/nicht bestanden
+    assert not Q.is_registered("abgeschlossen") and not Q.is_result_status("abgeschlossen")

@@ -101,7 +101,9 @@ HEADERS = {
 NON_WORD_RE = re.compile(r"[^\wäöüß]+")
 NEGATIVE = {"storniert", "abgelehnt", "nicht zugelassen",
             "amd", "abgemeldet", "rt", "rte", "rtu", "rücktritt", "ruecktritt", "zurückgetreten", "be", "bestanden", "nb",
-            "nicht bestanden", "en", "endgültig nicht bestanden", "ab"}
+            "nicht bestanden", "en", "endgültig nicht bestanden", "ab",
+            # neutraler Status aus dem Geraeteabgleich statt eines Ergebnisses (RESULT_STATUS_NEUTRAL, 20.11.2026)
+            "abgeschlossen"}
 STAMMDATEN = ("matrikelnummer", "matrikelnr", "geburtsdatum", "geburtsort", "anschrift")
 DMY_RE = re.compile(r"(\d{1,2})\.(\d{1,2})\.(\d{4})")
 ISO_RE = re.compile(r"(\d{4})-(\d{2})-(\d{2})")
@@ -134,6 +136,10 @@ def is_stammdaten_row(cells: list[str]) -> bool:
 # nur auf dem Geraet (`sync.device_only_value`); ausgeschrieben, als Teil ("endgueltig nicht bestanden") oder als Kuerzel
 # BE / NB / EN. Gleiche Regel in Swift: `QISRegistrationsSync.isResultStatus`.
 RESULT_STATUS_RE = re.compile(r"bestanden|^(?:be|nb|en)(?![a-z0-9])")
+
+
+# was der Abgleich statt eines Ergebnisses sendet und speichert: nicht mehr angemeldet, ohne bestanden/nicht bestanden
+RESULT_STATUS_NEUTRAL = "abgeschlossen"
 
 
 def is_result_status(status) -> bool:

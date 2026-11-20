@@ -47,7 +47,10 @@
     "status"
    ]
   },
-  "device_only_value_rule": "exam_registrations.status mit einem Pruefungsergebnis (bestanden, nicht bestanden, endgueltig nicht bestanden, Kuerzel BE/NB/EN): beim Senden null, im Dienst nie gespeichert oder geliefert; ein Geraet ueberschreibt ein eigenes Ergebnis nicht",
+  "device_only_replacement": {
+   "exam_registrations": "abgeschlossen"
+  },
+  "device_only_value_rule": "exam_registrations.status mit einem Pruefungsergebnis (bestanden, nicht bestanden, endgueltig nicht bestanden, Kuerzel BE/NB/EN): gesendet und gespeichert wird statt dessen 'abgeschlossen' (zaehlt als nicht mehr angemeldet), das Ergebnis selbst nie; ein Geraet ueberschreibt ein eigenes Ergebnis nicht",
   "result_status_examples": {
    "BE": true,
    "be": true,
@@ -72,7 +75,19 @@
    "Beginn": false,
    "entschuldigt": false,
    "Nbx": false,
-   "": false
+   "": false,
+   "abgeschlossen": false
+  },
+  "registered_examples": {
+   "": true,
+   "AN": true,
+   "angemeldet": true,
+   "zugelassen": true,
+   "abgeschlossen": false,
+   "storniert": false,
+   "abgemeldet": false,
+   "BE": false,
+   "nicht bestanden": false
   },
   "same_row": "neue Zeile (local_id) einer Tabelle mit natural_keys, deren Schluessel (Leerraum zusammengefasst, klein) eine Zeile im Raum des Geraets schon hat: keine zweite Zeile, Ergebnis created mit deren id und mapping (oder conflict mit client_won, wenn der Dienst Felder behielt); device_only_columns sendet kein Geraet, der Dienst speichert und liefert sie nie",
   "timestamp": "UTC, YYYY-MM-DDTHH:MM:SS.mmmZ, Vergleich als Text",

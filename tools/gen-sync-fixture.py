@@ -64,7 +64,7 @@ def fresh_conn():
 
 
 def build() -> dict:
-    from app import sync
+    from app import qis_registrations, sync
     cases = []
 
     def case(name, steps_fn):
@@ -210,13 +210,18 @@ def build() -> dict:
                       "device_only_columns": {t: list(c) for t, c in sync.DEVICE_ONLY_COLUMNS.items()},
                       "natural_keys": {t: list(c) for t, c in sync.NATURAL_KEYS.items()},
                       "device_only_values": {t: list(c) for t, c in sync.DEVICE_ONLY_VALUES.items()},
+                      "device_only_replacement": dict(sync.DEVICE_ONLY_REPLACEMENT),
                       "device_only_value_rule": "exam_registrations.status mit einem Pruefungsergebnis (bestanden, nicht bestanden, "
-                                                "endgueltig nicht bestanden, Kuerzel BE/NB/EN): beim Senden null, im Dienst nie "
-                                                "gespeichert oder geliefert; ein Geraet ueberschreibt ein eigenes Ergebnis nicht",
+                                                "endgueltig nicht bestanden, Kuerzel BE/NB/EN): gesendet und gespeichert wird statt "
+                                                "dessen 'abgeschlossen' (zaehlt als nicht mehr angemeldet), das Ergebnis selbst nie; "
+                                                "ein Geraet ueberschreibt ein eigenes Ergebnis nicht",
                       "result_status_examples": {s: sync.device_only_value("exam_registrations", "status", s) for s in (
                           "BE", "be", "NB", "EN", "bestanden", "Bestanden", "nicht bestanden", "endgültig nicht bestanden",
                           "Endgueltig nicht bestanden", "BE (2. Versuch)", "NB.", "AN", "an", "angemeldet", "zugelassen",
-                          "storniert", "nicht zugelassen", "abgemeldet", "RT", "bestätigt", "Beginn", "entschuldigt", "Nbx", "")},
+                          "storniert", "nicht zugelassen", "abgemeldet", "RT", "bestätigt", "Beginn", "entschuldigt", "Nbx", "",
+                          "abgeschlossen")},
+                      "registered_examples": {s: qis_registrations.is_registered(s) for s in (
+                          "", "AN", "angemeldet", "zugelassen", "abgeschlossen", "storniert", "abgemeldet", "BE", "nicht bestanden")},
                       "same_row": "neue Zeile (local_id) einer Tabelle mit natural_keys, deren Schluessel (Leerraum zusammengefasst, klein) "
                                   "eine Zeile im Raum des Geraets schon hat: keine zweite Zeile, Ergebnis created mit deren id und mapping "
                                   "(oder conflict mit client_won, wenn der Dienst Felder behielt); device_only_columns sendet kein Geraet, "

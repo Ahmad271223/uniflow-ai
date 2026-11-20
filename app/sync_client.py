@@ -23,7 +23,7 @@ Ablauf je Lauf (`run`): abrufen -> senden -> noch einmal abrufen (Ergebnisse von
   der Stud.IP-Abgleich dieses PCs noch nicht geladen hat), warten in `sync_link_pending` und werden bei jedem Lauf
   erneut versucht.
 - **Angemeldete Pruefungen** (`exam_registrations`, 20.11.2026): ohne Name der Pruefenden, Rohtext und Abrufzeit
-  (`sync.DEVICE_ONLY_COLUMNS`) und ohne Ergebnis im Status (`sync.DEVICE_ONLY_VALUES`: gesendet wird leer, ein eigenes
+  (`sync.DEVICE_ONLY_COLUMNS`) und ohne Ergebnis im Status (`sync.DEVICE_ONLY_VALUES`: gesendet wird "abgeschlossen", ein eigenes
   Ergebnis wird beim Empfangen nicht ueberschrieben); die Tabelle entsteht beim ersten Abgleich auch auf einem PC, der das QIS nie gelesen hat.
   Der eigene Abruf (`qis_registrations.store`) fuehrt ueber denselben fachlichen Schluessel zusammen, statt zu ersetzen.
 Nie abgeglichen: Einstellungen dieses Geraets (`LOCAL_SETTINGS`), Hochschuldateien selbst, Zugangsdaten, Noten.

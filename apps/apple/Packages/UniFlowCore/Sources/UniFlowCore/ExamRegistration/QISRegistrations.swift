@@ -108,7 +108,9 @@ public enum RegistrationRows {
 
     static let negative: Set<String> = ["amd", "abgemeldet", "rt", "rte", "rtu", "rücktritt", "ruecktritt", "zurückgetreten",
                                         "be", "bestanden", "nb", "nicht bestanden", "en", "endgültig nicht bestanden", "ab",
-                                        "storniert", "abgelehnt", "nicht zugelassen"]
+                                        "storniert", "abgelehnt", "nicht zugelassen",
+                                        // neutraler Status aus dem Geraeteabgleich statt eines Ergebnisses (20.11.2026)
+                                        QISRegistrationsSync.resultStatusNeutral]
 
     /// Status einer Zeile -> angemeldet? Leer gilt als angemeldet (die Seite listet nur Anmeldungen)
     public static func isRegistered(_ status: String?) -> Bool {
@@ -441,6 +443,10 @@ public enum QISRegistrationsSync {
     /// Ergebnis einer Pruefung im Status (Entscheidung des Inhabers 20.11.2026 "Ja, aber ohne bestanden"): bleibt wie
     /// Noten nur auf dem Geraet (`DeviceSyncCore.deviceOnlyValues`); ausgeschrieben, als Teil ("endgültig nicht
     /// bestanden") oder als Kuerzel BE / NB / EN. Wie `qis_registrations.is_result_status`.
+    /// was der Abgleich statt eines Ergebnisses sendet und speichert: nicht mehr angemeldet, ohne bestanden/nicht bestanden
+    /// (`qis_registrations.RESULT_STATUS_NEUTRAL`)
+    public static let resultStatusNeutral = "abgeschlossen"
+
     public static func isResultStatus(_ status: String?) -> Bool {
         let s = ExamRegistrationPeriods.fold((status ?? "").trimmingCharacters(in: .whitespacesAndNewlines))
         if s.isEmpty { return false }
