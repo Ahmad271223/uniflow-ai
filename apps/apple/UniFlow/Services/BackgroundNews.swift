@@ -17,8 +17,9 @@ import UniFlowCore
 //
 // Stille Neuanmeldung im Hintergrund (`BackgroundReloginLedger`): nur mit gespeichertem Uni-Zugang (Schluesselbund
 // dieses Geraets, `UniAutoLogin`; das Passwort geht nie an einen StudiNow-Server) und eigenem Schalter (Vorgabe an).
-// Je Dienst hoechstens ein Versuch in 30 Minuten (bis 17.11.2026: 6 Stunden), nach einem Fehlschlag erst nach 24 Stunden wieder; ein abgelehntes
-// Passwort vergisst `UniAutoLogin` sofort (nie ein zweiter Versuch damit, Schutz vor einer Kontosperre).
+// Je Dienst hoechstens ein Versuch je Lauf und in 30 Minuten (bis 17.11.2026: 6 Stunden); nach einem Fehlschlag seit
+// 20.11.2026 keiner mehr, bis die Anmeldung bei offener App gelang (vorher 24 Stunden Pause); ein abgelehntes Passwort
+// vergisst `UniAutoLogin` sofort (nie ein zweiter Versuch damit, Schutz vor einer Kontosperre).
 
 /// Schalter der Mitteilungen (UserDefaults der App, fuer dieses Geraet)
 struct BackgroundNewsSettings {
@@ -324,25 +325,58 @@ extension BackgroundNotice {
 }
 
 /// Wann im Hintergrund still neu angemeldet werden darf (je Dienst, Stand in der Einstellungs-Suite des Containers,
-/// damit er Neustarts der App durch iOS uebersteht)
+/// damit er Neustarts der App durch iOS uebersteht).
+/// Seit 20.11.2026 (docs/HINTERGRUND-ANMELDUNG-2026-11-20.md, Schutz vor einer Kontosperre): nach einem gescheiterten
+/// Versuch (abgelehnt, Captcha, zweiter Faktor, unerwartete Seite, Zeit um) gar kein Versuch im Hintergrund mehr, bis
+/// die Anmeldung dieses Dienstes bei offener App gelungen ist (`foregroundSucceeded`); vorher 24 Stunden Pause.
+/// Ein von iOS abgebrochener Versuch zaehlt nicht als Fehlschlag (nur 30 Minuten Pause); nach `maxAborts` Abbruechen in
+/// Folge gilt er doch als gescheitert (ein abgebrochener Versuch kann das Passwort schon gesendet haben).
 struct BackgroundReloginLedger {
-    /// nach einem gelungenen Versuch: seit 17.11.2026 (Abgleich alle 30 Minuten, Auftrag des Inhabers) im Takt der Regel
-    /// statt 6 Stunden - wie die Uni-Mail, die sich bei jeder Anfrage still neu anmeldet. Nach einem Fehlschlag bleibt
-    /// es bei 24 Stunden; ein abgelehntes Passwort ist ohnehin vergessen (`UniAutoLogin`).
+    /// nach einem gelungenen oder abgebrochenen Versuch: im Takt der Regel (30 Minuten, Auftrag 17.11.2026)
     static let minInterval: TimeInterval = AutoSyncSchedule.standard.interval
-    static let afterFailure: TimeInterval = 24 * 3600
+    /// so viele von iOS abgebrochene Versuche in Folge, dann wie ein Fehlschlag
+    static let maxAborts = 3
     static let prefix = "uniflow.background.relogin."
 
     let defaults: UserDefaults
 
+    private func key(_ portal: String, _ k: String) -> String { Self.prefix + portal + "." + k }
+
     func mayTry(_ portal: String, now: Date) -> Bool {
-        guard let last = defaults.object(forKey: Self.prefix + portal + ".at") as? Date else { return true }
-        let failed = defaults.bool(forKey: Self.prefix + portal + ".failed")
-        return now.timeIntervalSince(last) >= (failed ? Self.afterFailure : Self.minInterval)
+        if blocked(portal) { return false }
+        guard let last = defaults.object(forKey: key(portal, "at")) as? Date else { return true }
+        return now.timeIntervalSince(last) >= Self.minInterval
     }
 
+    /// Gesperrt bis zur naechsten gelungenen Anmeldung im Vordergrund
+    func blocked(_ portal: String) -> Bool { defaults.bool(forKey: key(portal, "failed")) }
+
     func record(_ portal: String, ok: Bool, now: Date) {
-        defaults.set(now, forKey: Self.prefix + portal + ".at")
-        defaults.set(!ok, forKey: Self.prefix + portal + ".failed")
+        defaults.set(now, forKey: key(portal, "at"))
+        defaults.set(!ok, forKey: key(portal, "failed"))
+        defaults.removeObject(forKey: key(portal, "aborts"))
+    }
+
+    /// iOS hat die Zeit beendet, waehrend der Versuch lief: kein Fehlschlag, kein weiterer Versuch in diesem Lauf
+    func recordAborted(_ portal: String, now: Date) {
+        defaults.set(now, forKey: key(portal, "at"))
+        let n = defaults.integer(forKey: key(portal, "aborts")) + 1
+        defaults.set(n, forKey: key(portal, "aborts"))
+        if n >= Self.maxAborts { defaults.set(true, forKey: key(portal, "failed")) }
+    }
+
+    /// Anmeldung dieses Dienstes bei offener App gelungen: Sperre und Pause weg
+    func foregroundSucceeded(_ portal: String) {
+        for k in ["at", "failed", "aborts"] { defaults.removeObject(forKey: key(portal, k)) }
+    }
+
+    /// Aufruf aus den Verbindungen nach jeder gelungenen Anmeldung bzw. jedem gelungenen Abruf: wirkt nur bei offener
+    /// App (`UniAutoLogin.appActive`), nie aus einem Hintergrundlauf
+    @MainActor
+    static func foregroundSuccess(_ portal: String, defaults: UserDefaults) {
+        guard UniAutoLogin.appActive else { return }
+        let l = BackgroundReloginLedger(defaults: defaults)
+        guard defaults.object(forKey: l.key(portal, "at")) != nil || l.blocked(portal) else { return }
+        l.foregroundSucceeded(portal)
     }
 }

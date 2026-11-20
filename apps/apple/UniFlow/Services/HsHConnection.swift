@@ -150,6 +150,7 @@ final class HsHConnection: ObservableObject {
     func signedIn(_ s: Source) {
         defaults.set(true, forKey: Keys.connected(s))
         set(s, .connected)
+        BackgroundReloginLedger.foregroundSuccess(s.rawValue, defaults: defaults)   // Hintergrund darf wieder (20.11.)
         let store = websiteDataStore
         UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }              // Sitzungen ueber Neustarts merken

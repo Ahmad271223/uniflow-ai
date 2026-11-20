@@ -492,6 +492,7 @@ final class StudIPSync: ObservableObject {
             let store = websiteDataStore
             UniAutoLogin.clearSignedOut(.studip, store: store) // angemeldet: die Abmelden-Sperre faellt
             UniAutoLogin.signedIn(store, portal: .studip)      // mitgelesenes Passwort jetzt merken (falls zugelassen)
+            BackgroundReloginLedger.foregroundSuccess(OpenSync.studIP, defaults: defaults)   // Hintergrund darf wieder
             Task { await UniWebSessions.save(store) }          // Uni-Anmeldung (WebSSO) ueber Neustarts merken
             return true
         } catch {
@@ -504,17 +505,48 @@ final class StudIPSync: ObservableObject {
     /// erst ueber die noch gueltige Uni-Anmeldung (WebSSO, kein Passwort), sonst mit dem gespeicherten Uni-Zugang
     /// (Schluesselbund dieses Geraets, `UniAutoLogin.handleExpiry(background:)`). Startet keinen Abgleich: den macht der
     /// Hintergrundlauf gleich danach. Ob und wie oft, entscheidet `BackgroundReloginLedger` beim Aufrufer.
+    /// Seit 20.11.2026 (docs/HINTERGRUND-ANMELDUNG-2026-11-20.md) zuerst ohne Webansicht: der WebSSO-Einstieg per
+    /// URLSession mit den Cookies des Containers (`UniDirectLogin.silent`; Pruefseite des IdP und SAML-Antwort werden
+    /// weitergereicht, nie eine Zustimmung); will der IdP das Passwort, genau ein POST des Formulars (`handleExpiry`).
+    /// Die unsichtbare Webansicht nur, wenn der Weg ohne sie eine Seite nicht kennt und nichts gesendet hat.
     @discardableResult
     func renewInBackground() async -> Bool {
-        guard sessionKnownExpired, offersStudIP, !stopped, liveSessionWorkAllowed, renewing == nil else { return false }
+        guard sessionKnownExpired, offersStudIP, !stopped, liveSessionWorkAllowed || UniDirectLogin.configurationOverride != nil,
+              renewing == nil else { return false }
         let store = websiteDataStore
         let before = signOuts
-        var fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+        let host = Self.base.host?.lowercased() ?? ""
+        var fresh: [HTTPCookie]?
+        let silent = await UniDirectLogin.silent(store: store, university: university, entry: Self.ssoLoginURL()) { url, _ in
+            url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
+        }
+        switch silent {
+        case .done:
+            fresh = await verifiedStudIPCookies(store)
+        case .unsupported:
+            // Seite ohne bekanntes Formular, nichts gesendet: wie bisher die unsichtbare Webansicht (ohne Passwort)
+            if liveSessionWorkAllowed { fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true) }
+        case .needsPassword:
+            break
+        case .cancelled, .failed, .blocked, .rejected:
+            return false                                        // nichts gesendet; kein Passwort nach einem Fehler
+        }
+        guard !Task.isCancelled, signOuts == before, !stopped else { return false }
         if fresh == nil, await autoLogin(store: store, background: true) {
-            fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+            fresh = await verifiedStudIPCookies(store)
+            if fresh == nil, liveSessionWorkAllowed {
+                fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+            }
         }
         guard let fresh, sessionKnownExpired, signOuts == before, !stopped else { return false }
         return adopt(cookies: fresh)
+    }
+
+    /// Stud.IP-Cookies des Datenspeichers, wenn Stud.IP sie annimmt (`users/me`); sonst nil
+    private func verifiedStudIPCookies(_ store: WKWebsiteDataStore) async -> [HTTPCookie]? {
+        let mine = Self.ownCookies(await store.httpCookieStore.allCookies(), host: Self.base.host ?? "")
+        guard !mine.isEmpty, await Self.storedLoginSessionCheck(mine) else { return nil }
+        return mine
     }
 
     /// Direkter Einstieg ins WebSSO der LUH (ueberspringt die Hochschulauswahl), wie `SHIB_LOGIN_URL` in

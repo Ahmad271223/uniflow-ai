@@ -21,8 +21,9 @@ Versionsnummer unverändert). Entscheidung des Inhabers 11.11.2026: kommt erst m
   auf einmal werden zu einer Sammelmitteilung.
 - Abgelaufene Anmeldung (Stud.IP, QIS, Uni-Mail): Der Hintergrundlauf meldet sich still neu an, **nur** wenn der
   Nutzer seinen Uni-Zugang gespeichert hat und „Automatisch anmelden“ an ist. Das Passwort liegt nur im Schlüsselbund
-  dieses Geräts und geht nie an einen StudiNow-Server. Höchstens ein Versuch je Dienst in 6 Stunden, nach einem
-  Fehlschlag erst nach 24 Stunden. Lehnt die Hochschule das Passwort ab, wird es sofort gelöscht und nie wieder gesendet.
+  dieses Geräts und geht nie an einen StudiNow-Server. Höchstens ein Versuch je Dienst und Lauf; nach einem
+  Fehlschlag seit 20.11.2026 keiner mehr, bis die Anmeldung bei offener App gelang (vorher 24 Stunden; siehe
+  docs/HINTERGRUND-ANMELDUNG-2026-11-20.md). Lehnt die Hochschule das Passwort ab, wird es sofort gelöscht und nie wieder gesendet.
   Auf iPad und iPhone nur im langen Hintergrundlauf (der kurze hat nur rund 30 Sekunden), am Mac bei jedem Takt.
 - Mac („Designed for iPad“): Solange StudiNow läuft, auch wenn es nicht vorn ist, läuft alle 20 bis 30 Minuten
   derselbe Abgleich mit denselben Mitteilungen. War eben schon ein Lauf, fällt der Takt aus.

@@ -133,6 +133,7 @@ final class QISConnection: ObservableObject {
         let store = websiteDataStore
         UniAutoLogin.clearSignedOut(.qis, store: store)        // angemeldet: die Abmelden-Sperre faellt
         UniAutoLogin.signedIn(store, portal: .qis)             // mitgelesenes Passwort jetzt merken (falls zugelassen)
+        BackgroundReloginLedger.foregroundSuccess(OpenSync.qis, defaults: defaults)   // Hintergrund darf wieder (20.11.)
         Task { await UniWebSessions.save(store) }              // QIS-Sitzung ueber Neustarts merken (`UniWebSessions`)
         guard fetch, syncsAfterSignIn, !isRunning else { return }
         Task { await run(force: true) }
@@ -301,6 +302,7 @@ final class QISConnection: ObservableObject {
             // die Sitzung traegt (auch nach einer stillen Anmeldung): Fehlschlaege und "neuer Versuch laeuft" zurueck,
             // wie bei Uni-Mail (11.11.2026; vorher blieb die Zustandsmaschine nach jeder stillen Anmeldung "im Versuch")
             UniAutoLogin.succeeded(portal: "qis", store: websiteDataStore)
+            BackgroundReloginLedger.foregroundSuccess(OpenSync.qis, defaults: defaults)
             StudyCatalogSync.trigger(host: host)     // Studiengang aus dem Notenspiegel -> Modulkatalog suchen (Hintergrund)
         } else if r.needsLogin {
             set(.needsLogin)
@@ -420,8 +422,11 @@ final class QISConnection: ObservableObject {
     /// knapp darunter, damit ein Lauf von Hand kurz vorher nicht verdoppelt wird
     static let backgroundInterval: TimeInterval = AutoSyncSchedule.standard.interval - 60
 
-    /// Hintergrundlauf: abgelaufene QIS-Anmeldung still mit dem gespeicherten Uni-Zugang erneuern (nur dieses Geraet,
-    /// unsichtbar ohne Fenster). Anders als `autoLogin` startet sie keinen Abruf von selbst: den macht `backgroundCheck`.
+    /// Hintergrundlauf: abgelaufene QIS-Anmeldung still mit dem gespeicherten Uni-Zugang erneuern (nur dieses Geraet).
+    /// Seit 20.11.2026 ohne Webansicht: das HIS-QIS-Formular (asdf/fdsa) per POST ueber eine URLSession mit den Cookies
+    /// des Containers (`UniDirectLogin`, `UniFormLogin`), genau einmal; nur wenn das Formular nicht erkannt wird (nichts
+    /// gesendet), einmal die unsichtbare Webansicht. Nie Abmelden, nie Pruefungsan-/abmeldung (`UniFormLogin.forbidden`).
+    /// Anders als `autoLogin` startet sie keinen Abruf von selbst: den macht `backgroundCheck`.
     @discardableResult
     func reloginInBackground() async -> Bool {
         guard isConnected, state == .needsLogin, !stopped, !browserOpen, !UniAutoLogin.signedOut(.qis, store: websiteDataStore) else { return false }
@@ -440,7 +445,8 @@ final class QISConnection: ObservableObject {
     func backgroundCheck() async -> QISGradesSync.Report? {
         guard isConnected, !stopped, !browserOpen, !isRunning, state != .needsLogin else { return nil }
         if let last = lastRun, clock.now.timeIntervalSince(last) < Self.backgroundInterval { return nil }
-        return await run(force: true)
+        // abgelaufen: keine losgeloeste Anmeldung im Vordergrund-Weg; die eine stille Anmeldung macht der Hintergrundlauf
+        return await run(force: true, renewsSession: false)
     }
 
     // MARK: Anzeige

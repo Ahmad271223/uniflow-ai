@@ -338,6 +338,9 @@ public enum UniAutoLoginOutcome: Equatable, Sendable {
     case failed
     /// eine Weiterleitung wollte auf einen fremden Rechner: abgebrochen, nichts eingefuellt
     case blocked
+    /// iOS hat die Hintergrundzeit beendet (20.11.2026): abgebrochen, kein Urteil ueber das Passwort, zaehlt nicht als
+    /// Fehlschlag (docs/HINTERGRUND-ANMELDUNG-2026-11-20.md)
+    case cancelled
 }
 
 /// Schritt der unsichtbaren Webansicht nach einer fertig geladenen Seite (rein, testbar)
@@ -491,6 +494,12 @@ public enum UniAutoLoginMachine {
             s.failures += 1
             s.awaitingRetry = false
             return .needsUser
+        case .cancelled:
+            // kein Fehlschlag und keine Ruecknahme: die Grenze fuer wiederholte Abbrueche zieht der Hintergrund selbst
+            // (`BackgroundReloginLedger`: 30 Minuten, nach 3 Abbruechen in Folge gesperrt)
+            s.awaitingRetry = false
+            s.lastAttempt = nil
+            return .nothing
         }
     }
 

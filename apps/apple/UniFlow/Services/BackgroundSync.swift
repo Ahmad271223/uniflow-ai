@@ -23,8 +23,24 @@ import UserNotifications
 // - nur der Container des angemeldeten Nutzers und der gewaehlten Hochschule; nicht waehrend eines Konto- oder
 //   Hochschulwechsels oder der Einrichtung; nie neben einem laufenden Abgleich desselben Containers
 //   (`ContainerManager.isSyncing`, dazu die Sperre `isRunning` des Abgleichs selbst)
-// - nur mit gespeicherter, nicht als abgelaufen bekannter Sitzung; nie eine Anmeldeseite, nie gemerkte Zugangsdaten.
-//   Laeuft sie ab, kommt hoechstens einmal "Bitte bei … anmelden" (`BackgroundSyncState`)
+// - der Abgleich selbst nur mit gespeicherter, nicht als abgelaufen bekannter Sitzung. Ist sie abgelaufen, darf der Lauf
+//   seit 20.11.2026 (Entscheidung des Inhabers "ja versuch, weil bei Studo geht das auch problemlos",
+//   docs/HINTERGRUND-ANMELDUNG-2026-11-20.md) sich EINMAL selbst neu anmelden, dann gleicht er weiter ab (`reloginStep`,
+//   auch wenn die Sitzung erst mitten im Abgleich ablaeuft). Regeln dafuer:
+//   - nur im Fenster 8 bis 18 Uhr und nur fuer faellige, schon einmal verbundene Portale; nur mit "Passwort merken"
+//     ("Automatisch anmelden"), gespeichertem Uni-Zugang (Schluesselbund DIESES Geraets) und dem Schalter "Im Hintergrund
+//     neu anmelden"; nie nach bewusstem Abmelden; nichts davon geht an StudiNow-Server
+//   - je Portal hoechstens EIN Versuch je Lauf (`ReloginRun`). Scheitert er (Passwort abgelehnt, Captcha, zweiter Faktor,
+//     unerwartete Seite, Zeit um), versucht es der Hintergrund bei diesem Portal nie wieder, bis die Anmeldung bei
+//     offener App gelungen ist (`BackgroundReloginLedger`); ein abgelehntes Passwort vergisst `UniAutoLogin` sofort und
+//     sendet es nie ein zweites Mal - so kann das Uni-Konto nie durch wiederholte Versuche gesperrt werden
+//   - wie: zuerst ohne Passwort ueber die noch gueltige Uni-Anmeldung (WebSSO-/CAS-Cookie), dann das Formular der
+//     Hochschule genau einmal per POST ohne Webansicht (`UniDirectLogin`, `UniFormLogin`: QIS, WebSSO der LUH, CAS der
+//     Uni Hildesheim); die unsichtbare Webansicht nur, wenn dabei nichts gesendet wurde (Formular unbekannt). Nie
+//     Abmelden, nie Pruefungsan-/abmeldung, nie Ruecktritt oder Bescheinigungen; keine persoenlichen Daten gelesen
+//   - der expirationHandler bricht auch eine laufende Anmeldung sauber ab: zaehlt als "kein weiterer Versuch in diesem
+//     Lauf", nie als abgelehnt (erst nach 3 Abbruechen in Folge wie ein Fehlschlag)
+//   Klappt es nicht, kommt hoechstens einmal "Bitte bei … anmelden" (`BackgroundSyncState`)
 // - der expirationHandler bricht ab (`BackgroundTaskRun`); halbe Dateien sind nie sichtbar (`.part` und `rename` in
 //   `UniDownloads`), was gelesen war, steht in der Datenbank
 // - Benachrichtigung "N neue Dateien aus Stud.IP/Learnweb" nur mit dem Schalter in den Einstellungen und Erlaubnis von
@@ -618,15 +634,15 @@ final class BackgroundSyncController: ObservableObject {
         // Stand vor dem Lauf (nur mit einem Schalter fuer Noten, Nachrichten oder Ankuendigungen)
         var before: BackgroundNewsSnapshot?
         if let c, !due.isEmpty, news.anyOn || BackgroundNews.extraNotices != nil, runnable(c, expired: expired) { before = await snapshot(c) }
-        // abgelaufene Anmeldungen zuerst still erneuern (gespeicherter Uni-Zugang), dann der Abgleich wie bisher
-        var tried: [String] = []
+        // abgelaufene Anmeldungen zuerst still erneuern (gespeicherter Uni-Zugang), dann der Abgleich wie bisher.
         // Neuanmeldung im langen Lauf, am Mac und - seit 17.11.2026 (Weck-Signal, kurze Laeufe im Takt) - im kurzen
-        // Lauf, wenn iOS noch genug Zeit laesst (`reloginMinTime`)
-        if let c, kind == .processing || reloginInShortRun || timeLeft() >= Self.reloginMinTime {
-            tried = await reloginStep(c, due: due, expired: expired)
-        }
-        let ok = await performRun(kind, due: due, at: start, expired: expired, reloginTried: tried)
-        if let c, !due.isEmpty { await gradesAndNews(c, due: due, before: before, expired: expired) }
+        // Lauf, wenn iOS noch genug Zeit laesst (`reloginMinTime`). Je Portal hoechstens EIN Versuch je Lauf
+        // (`ReloginRun`), auch wenn die Sitzung erst im Abgleich ablaeuft (20.11.2026: dann einmal anmelden, weiter).
+        let relogin = ReloginRun(allowed: c != nil && (kind == .processing || reloginInShortRun || timeLeft() >= Self.reloginMinTime))
+        lastRelogin = relogin
+        if let c { await reloginStep(c, due: due, run: relogin, expired: expired) }
+        let ok = await performRun(kind, due: due, at: start, expired: expired, relogin: relogin)
+        if let c, !due.isEmpty { await gradesAndNews(c, due: due, before: before, relogin: relogin, expired: expired) }
         if let c, !due.isEmpty, owns(c) { noteAutomaticResult(c, due: due, at: start) }
         await schedule()                                         // nach jedem Lauf neu planen
         return ok
@@ -665,27 +681,71 @@ final class BackgroundSyncController: ObservableObject {
         return await BackgroundNewsSnapshot.read(backend.context.database, clock: news.schedule ? backend.context.clock : nil)
     }
 
-    /// Stille Neuanmeldung im Hintergrund: nur mit Schalter, "Automatisch anmelden" und gespeichertem Uni-Zugang, je
-    /// Dienst nach `BackgroundReloginLedger`. Rueckgabe: versuchte Dienste.
-    private func reloginStep(_ c: ActiveContainer, due: Set<String>, expired: () -> Bool) async -> [String] {
-        guard !due.isEmpty, runnable(c, expired: expired), news.relogin, UniAutoLogin.isEnabled(c.defaults), hasStoredLogin(c) else { return [] }
+    /// Stille Neuanmeldung in einem Hintergrundlauf (20.11.2026, docs/HINTERGRUND-ANMELDUNG-2026-11-20.md): je Portal
+    /// hoechstens ein Versuch je Lauf; `allowed` false (zu wenig Zeit, iOS hat beendet): keiner mehr
+    final class ReloginRun {
+        var allowed: Bool
+        /// in diesem Lauf versuchte Portale (in Reihenfolge)
+        private(set) var tried: [String] = []
+        /// davon wieder angemeldet
+        private(set) var succeeded: [String] = []
+        /// von iOS abgebrochen (kein Fehlschlag)
+        private(set) var aborted: [String] = []
+        init(allowed: Bool) { self.allowed = allowed }
+        func note(_ p: String) { tried.append(p) }
+        func noteSuccess(_ p: String) { succeeded.append(p) }
+        func noteAborted(_ p: String) { aborted.append(p); allowed = false }
+    }
+
+    /// Stand der Neuanmeldung des letzten Laufs (Tests)
+    private(set) var lastRelogin: ReloginRun?
+
+    /// Stille Neuanmeldung im Hintergrund: nur mit Schalter, "Automatisch anmelden" ("Passwort merken") und
+    /// gespeichertem Uni-Zugang, nur verbundene Portale mit abgelaufener Anmeldung, nur die nach der Regel faelligen
+    /// (ausserhalb 8–18 Uhr nie), je Dienst nach `BackgroundReloginLedger` (nach einem Fehlschlag keiner mehr bis zur
+    /// gelungenen Anmeldung im Vordergrund) und hoechstens einmal je Lauf (`run`). `only`: nur diese Portale (Sitzung
+    /// im Abgleich abgelaufen). Bricht iOS waehrend eines Versuchs ab, zaehlt er nicht als Fehlschlag, und in diesem
+    /// Lauf folgt keiner mehr. Rueckgabe: wieder angemeldete Dienste.
+    @discardableResult
+    private func reloginStep(_ c: ActiveContainer, due: Set<String>, only: Set<String>? = nil, run: ReloginRun,
+                             expired: () -> Bool) async -> [String] {
+        guard run.allowed, !due.isEmpty, runnable(c, expired: expired), news.relogin, UniAutoLogin.isEnabled(c.defaults),
+              hasStoredLogin(c) else { return [] }
         let ledger = BackgroundReloginLedger(defaults: c.defaults)
-        var tried: [String] = []
-        // nur Portale, die nach der Regel jetzt abgeglichen werden (ausserhalb 8–18 Uhr nie)
-        for p in expiredPortals(c) where due.contains(p) && ledger.mayTry(p, now: now()) {
-            guard !expired(), containers.active === c else { break }
+        var renewed: [String] = []
+        for p in expiredPortals(c) where due.contains(p) && (only?.contains(p) ?? true) && !run.tried.contains(p)
+            && ledger.mayTry(p, now: now()) {
+            guard run.allowed, !expired(), !Task.isCancelled, containers.active === c else { break }
+            run.note(p)
             let ok = await relogin(c, p)
             guard owns(c) else { break }
+            if !ok, expired() || Task.isCancelled {
+                ledger.recordAborted(p, now: now())
+                run.noteAborted(p)
+                break
+            }
             ledger.record(p, ok: ok, now: now())
-            tried.append(p)
+            if ok {
+                renewed.append(p)
+                run.noteSuccess(p)
+            }
         }
-        return tried
+        return renewed
     }
 
     /// Notenspiegel abrufen und, mit den Schaltern, Neues melden (Vergleich mit dem Stand vor dem Lauf)
-    private func gradesAndNews(_ c: ActiveContainer, due: Set<String>, before: BackgroundNewsSnapshot?, expired: () -> Bool) async {
+    private func gradesAndNews(_ c: ActiveContainer, due: Set<String>, before: BackgroundNewsSnapshot?, relogin: ReloginRun,
+                               expired: () -> Bool) async {
         guard runnable(c, expired: expired) else { return }
-        if due.contains(OpenSync.qis) { await gradesStep(c) }    // Noten aus QIS nur, wenn QIS nach der Regel dran ist
+        if due.contains(OpenSync.qis) {                          // Noten aus QIS nur, wenn QIS nach der Regel dran ist
+            await gradesStep(c)
+            // QIS-Sitzung erst beim Abruf abgelaufen (20.11.2026): einmal still anmelden, dann genau einmal neu abrufen
+            if expiredPortals(c).contains(OpenSync.qis),
+               await reloginStep(c, due: due, only: [OpenSync.qis], run: relogin, expired: expired).contains(OpenSync.qis),
+               runnable(c, expired: expired) {
+                await gradesStep(c)
+            }
+        }
         guard let before, owns(c), containers.active === c, let after = await snapshot(c) else { return }
         let d = BackgroundNews.diff(before: before, after: after, now: now())
         lastNews = d
@@ -711,7 +771,7 @@ final class BackgroundSyncController: ObservableObject {
     }
 
     private func performRun(_ kind: BackgroundSyncKind, due: Set<String>, at start: Date, expired: @escaping () -> Bool,
-                            reloginTried: [String] = []) async -> Bool {
+                            relogin: ReloginRun) async -> Bool {
         let c = containers.active
         // Uni-Mail zuerst (docs/SYNC-REIHENFOLGE-2026-11-05.md: erste Seite des Posteingangs vor allem anderen), nur wenn
         // sie nach der Regel dran ist
@@ -746,6 +806,20 @@ final class BackgroundSyncController: ObservableObject {
         // wieder gueltige Sitzungen: der naechste Ablauf darf wieder einmal melden
         for s in target.usableSources { state.sessionUsable(s) }
         var report = await target.runInBackground(kind)
+        // Sitzung erst in diesem Abgleich abgelaufen (20.11.2026): einmal still neu anmelden (je Portal hoechstens ein
+        // Versuch je Lauf) und danach weiter abgleichen
+        if report.skipped == nil, !report.cancelled, !report.loginNeeded.isEmpty, !expired(), owns(c), containers.active === c {
+            let renewed = await reloginStep(c, due: due, only: Set(report.loginNeeded), run: relogin, expired: expired)
+            if !renewed.isEmpty, !expired(), owns(c), containers.active === c, !target.isRunning {
+                let again = await target.runInBackground(kind)
+                if again.skipped == nil {
+                    let still = report.loginNeeded.filter { !renewed.contains($0) }
+                    report = BackgroundSyncReport(newFiles: report.newFiles + again.newFiles,
+                                                  loginNeeded: still + again.loginNeeded.filter { !still.contains($0) },
+                                                  cancelled: again.cancelled, failure: again.failure ?? report.failure)
+                }
+            }
+        }
         if expired() { report.cancelled = true }
         // Container inzwischen geloescht (oder geloescht und leer neu angelegt): nichts mehr hineinschreiben, nichts melden
         guard owns(c) else { return false }
@@ -756,7 +830,7 @@ final class BackgroundSyncController: ObservableObject {
                 await notifier.post(n, id: prefix + "files.\(container).\(UUID().uuidString)", thread: thread)
             }
             let due = state.loginNoticeDue(report)
-            if let n = BackgroundNotice.loginNeeded(due, reloginTried: due.contains(where: reloginTried.contains)) {
+            if let n = BackgroundNotice.loginNeeded(due, reloginTried: due.contains(where: relogin.tried.contains)) {
                 await notifier.post(n, id: prefix + "login.\(container)", thread: thread)
                 due.forEach(state.markLoginNoticeSent)
             }

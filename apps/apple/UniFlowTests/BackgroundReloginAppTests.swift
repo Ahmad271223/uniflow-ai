@@ -219,7 +219,8 @@ final class BackgroundReloginAppTests: XCTestCase {
         _ = c
     }
 
-    func testSafeguardFailureWaitsADayInTheBackground() async throws {
+    /// seit 20.11.2026: nach einem Fehlschlag kein Versuch mehr im Hintergrund, bis die Anmeldung im Vordergrund gelang
+    func testSafeguardFailureStopsBackgroundAttemptsUntilForeground() async throws {
         let (m, a, c, h) = try hildesheim()
         try saveLogin(m, c)
         UniAutoLogin.runnerOverride = { [unowned self] r in self.requests.append(r); return .failed }
@@ -230,7 +231,10 @@ final class BackgroundReloginAppTests: XCTestCase {
         XCTAssertNotNil(vault(m, c).load(), "ohne Fehlertext der Seite nichts geloescht")
         b.now = { self.now.addingTimeInterval(23 * 3600) }
         await b.perform(.processing)
-        XCTAssertEqual(requests.count, 1, "nach einem Fehlschlag erst nach 24 Stunden wieder")
+        XCTAssertEqual(requests.count, 1, "nach einem Fehlschlag kein weiterer Versuch")
+        b.now = { self.now.addingTimeInterval(49 * 3600) }
+        await b.perform(.processing)
+        XCTAssertEqual(requests.count, 1, "auch nach zwei Tagen nicht (frueher nach 24 Stunden)")
     }
 
     // MARK: HsH (Moodle, Campusmanagement)

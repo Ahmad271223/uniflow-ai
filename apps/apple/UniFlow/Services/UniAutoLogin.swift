@@ -224,7 +224,9 @@ enum UniAutoLogin {
     static var appActive: Bool { appActiveOverride ?? (UIApplication.shared.applicationState == .active) }
 
     /// Unsichtbare Anmeldung moeglich: Ersatz in Tests, sonst nie unter XCTest und nie mit der Debug-Nachbildung
-    static var liveAllowed: Bool { runnerOverride != nil || (!StudIPSync.isUnderTest() && !DebugUniStub.isActive) }
+    static var liveAllowed: Bool {
+        runnerOverride != nil || UniDirectLogin.configurationOverride != nil || (!StudIPSync.isUnderTest() && !DebugUniStub.isActive)
+    }
 
     /// Eine Quelle meldet "abgelaufen". Rueckgabe `.retryOnce`: still angemeldet, der Aufrufer wiederholt genau einmal;
     /// sonst bleibt es bei "Anmeldung nötig" (`UniAutoLoginMachine`).
@@ -253,7 +255,19 @@ enum UniAutoLogin {
             var request = UniAutoLoginRequest(portal: portal, university: e.university, store: store, entry: url, credential: cred, isDone: isDone)
             request.background = background
             let outcome: UniAutoLoginOutcome
-            if let runner = runnerOverride { outcome = await runner(request) } else { outcome = await UniAutoLoginWeb.attempt(request) }
+            // Hintergrund (20.11.2026): zuerst ohne Webansicht (Formular per POST, `UniDirectLogin`); nur wenn dabei
+            // nichts gesendet wurde (Formular unbekannt), einmal die unsichtbare Webansicht
+            if background, let direct = await UniDirectLogin.attempt(request) {
+                outcome = direct
+            } else if Task.isCancelled {
+                outcome = .cancelled
+            } else if let runner = runnerOverride {
+                outcome = await runner(request)
+            } else if StudIPSync.isUnderTest() {
+                outcome = .failed                                   // Tests: nie eine echte Webansicht
+            } else {
+                outcome = await UniAutoLoginWeb.attempt(request)
+            }
             let still = resolvedCredential(own, entry: e)?.credential == cred
             var s2 = e.states[portal] ?? UniAutoLoginState()
             let d2 = UniAutoLoginMachine.finished(&s2, outcome, signingOut: !still)
@@ -265,7 +279,9 @@ enum UniAutoLogin {
         }
         e.running[portal] = task
         e.tail = Task { _ = await task.value }
-        let r = await task.value
+        // Hintergrund: beendet iOS die Zeit (`Task.cancel` aus `BackgroundTaskRun.expire`), bricht auch die Anmeldung ab
+        // (`.cancelled`, kein Fehlschlag, nichts vergessen)
+        let r = background ? await withTaskCancellationHandler { await task.value } onCancel: { task.cancel() } : await task.value
         e.running[portal] = nil
         return r
     }
@@ -392,6 +408,7 @@ enum UniAutoLoginWeb {
         var stable: (url: URL, since: Date)?
         while Date() < deadline {
             try? await Task.sleep(nanoseconds: 500_000_000)
+            if Task.isCancelled { return .cancelled }               // iOS beendet die Hintergrundzeit
             if delegate.blocked { return .blocked }
             if delegate.failed { return .failed }
             guard !web.isLoading, let u = web.url else { continue }

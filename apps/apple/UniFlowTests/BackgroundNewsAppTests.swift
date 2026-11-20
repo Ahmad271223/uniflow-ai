@@ -191,8 +191,9 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertTrue(s.anyOn)
     }
 
-    /// seit 17.11.2026: nach einem gelungenen Versuch im Takt der Regel (30 Minuten statt 6 Stunden)
-    func testReloginLedgerAllowsOneTryPerThirtyMinutesAndWaitsADayAfterAFailure() {
+    /// seit 17.11.2026: nach einem gelungenen Versuch im Takt der Regel (30 Minuten statt 6 Stunden); seit 20.11.2026
+    /// nach einem Fehlschlag gar nicht mehr, bis die Anmeldung im Vordergrund gelang (vorher 24 Stunden)
+    func testReloginLedgerAllowsOneTryPerThirtyMinutesAndStopsAfterAFailureUntilForeground() {
         let d = UserDefaults(suiteName: "uniflow.tests.relogin.\(UUID().uuidString)")!
         let l = BackgroundReloginLedger(defaults: d)
         XCTAssertTrue(l.mayTry("Stud.IP", now: now))
@@ -201,8 +202,10 @@ final class BackgroundNewsAppTests: XCTestCase {
         XCTAssertTrue(l.mayTry("QIS", now: now), "je Dienst getrennt")
         XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(30 * 60)))
         l.record("Stud.IP", ok: false, now: now)
-        XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(23 * 3600)), "nach einem Fehlschlag einen Tag Ruhe")
-        XCTAssertTrue(l.mayTry("Stud.IP", now: now.addingTimeInterval(24 * 3600)))
+        XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(23 * 3600)), "nach einem Fehlschlag Ruhe")
+        XCTAssertFalse(l.mayTry("Stud.IP", now: now.addingTimeInterval(240 * 3600)), "auch nach Tagen nicht von selbst")
+        l.foregroundSucceeded("Stud.IP")
+        XCTAssertTrue(l.mayTry("Stud.IP", now: now), "erst nach der gelungenen Anmeldung im Vordergrund wieder")
     }
 
     // MARK: Lauf

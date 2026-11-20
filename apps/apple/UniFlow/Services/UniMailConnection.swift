@@ -138,6 +138,7 @@ final class UniMailConnection: ObservableObject {
         set(.connected)
         let store = websiteDataStore
         UniAutoLogin.clearSignedOut(.sogo, store: store)       // angemeldet: die Abmelden-Sperre faellt
+        BackgroundReloginLedger.foregroundSuccess(OpenSync.uniMail, defaults: defaults)
         UniAutoLogin.signedIn(store, portal: .sogo)            // mitgelesenes Passwort jetzt merken (falls zugelassen)
         Task { await UniWebSessions.save(store) }
         guard refreshesAfterSignIn else { return }

@@ -252,6 +252,7 @@ final class HildesheimConnection: ObservableObject {
 
     private func afterSignIn(_ s: Source) {
         defaults.set(Date(), forKey: LoginReminder.lastLoginKey)
+        BackgroundReloginLedger.foregroundSuccess(s.rawValue, defaults: defaults)   // Hintergrund darf wieder (20.11.)
         renewal.verified(at: clock.now)                         // neue Anmeldung: Ruecknahme der stillen Versuche zurueck
         let store = websiteDataStore
         UniAutoLogin.signedIn(store)                           // mitgelesenes Passwort jetzt merken (falls zugelassen)
@@ -468,16 +469,39 @@ final class HildesheimConnection: ObservableObject {
         let syncs = syncsAfterSignIn
         syncsAfterSignIn = false
         defer { syncsAfterSignIn = syncs }
-        if await serviceLoginInBackground(s) { return signOuts == before && !stopped && state(s) != .needsLogin }
-        guard signOuts == before, !stopped, await autoLoginCAS(background: true), signOuts == before, !stopped else { return false }
-        guard await serviceLoginInBackground(s) else { return false }
+        switch await serviceLoginInBackground(s) {
+        case .signedIn: return signOuts == before && !stopped && state(s) != .needsLogin
+        case .failed: return false                               // nichts gesendet; nach einem Fehler kein Passwort
+        case .needsPassword: break
+        }
+        guard !Task.isCancelled, signOuts == before, !stopped, await autoLoginCAS(background: true), signOuts == before,
+              !stopped, !Task.isCancelled else { return false }
+        guard await serviceLoginInBackground(s) == .signedIn else { return false }
         return signOuts == before && !stopped && state(s) != .needsLogin
     }
 
-    private func serviceLoginInBackground(_ s: Source) async -> Bool {
-        if let o = Self.backgroundServiceLogin { return await o(s, self) }
-        guard silentLoginAllowed else { return false }
-        return await HildesheimSilentLogin.attempt(s, connection: self, background: true)
+    /// Ergebnis der Dienst-Anmeldung ohne Passwort
+    enum BackgroundServiceLogin: Equatable { case signedIn, needsPassword, failed }
+
+    /// Dienst-Anmeldung ohne Passwort ueber die CAS-Anmeldung. LSF seit 20.11.2026 zuerst ohne Webansicht
+    /// (`UniDirectLogin.silent`: CAS-Einstieg des LSF per URLSession, gilt das TGC noch, kommt das Ticket von selbst);
+    /// Learnweb (Moodle-SSO mit App-Schema) und unbekannte Seiten wie bisher in der unsichtbaren Webansicht.
+    private func serviceLoginInBackground(_ s: Source) async -> BackgroundServiceLogin {
+        if let o = Self.backgroundServiceLogin { return await o(s, self) ? .signedIn : .needsPassword }
+        if s == .lsf, UniDirectLogin.available, let entry = URL(string: HildesheimCAS.lsfLoginURL) {
+            switch await UniDirectLogin.silent(store: websiteDataStore, university: .hildesheim, entry: entry, isDone: { url, html in
+                LSFClient.isLoggedIn(html: html, url: url)
+            }) {
+            case .done:
+                lsfSignedIn()
+                return .signedIn
+            case .needsPassword: return .needsPassword
+            case .unsupported: break                             // Seite unbekannt, nichts gesendet: Webansicht
+            case .failed, .blocked, .cancelled, .rejected: return .failed
+            }
+        }
+        guard silentLoginAllowed, !Task.isCancelled else { return .failed }
+        return await HildesheimSilentLogin.attempt(s, connection: self, background: true) ? .signedIn : .needsPassword
     }
 
     /// Quellen, die ein Lauf bewertet: alle verbundenen; im Hintergrund nur die ohne bekannte abgelaufene Anmeldung
