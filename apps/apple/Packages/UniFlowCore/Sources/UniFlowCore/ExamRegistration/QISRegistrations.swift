@@ -386,8 +386,10 @@ public actor QISRegistrationClient {
     }
 }
 
-/// Angemeldete Pruefungen in die Datenbank (nur Geraet): Tabelle `exam_registrations` (je Abruf ersetzt) und der
-/// Stand in `settings.exam_registration_run` (`{at, ok, count, message}`)
+/// Angemeldete Pruefungen in die Datenbank: Tabelle `exam_registrations` (je Abruf zusammengefuehrt, `store`) und der
+/// Stand in `settings.exam_registration_run` (`{at, ok, count, message}`, nur dieses Geraet). Mit StudiNow-Konto gleicht
+/// die Tabelle zwischen den Geraeten desselben Uni-Kontos ab (`DeviceSync`, 20.11.2026), ohne `pruefer`, `raw` und
+/// `fetched_at` (`DeviceSyncCore.localColumns`, `sync.DEVICE_ONLY_COLUMNS` in Python): Noten hat die Tabelle keine.
 public enum QISRegistrationsSync {
     public static let runKey = "exam_registration_run"
 
@@ -426,17 +428,88 @@ public enum QISRegistrationsSync {
         try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='exam_registrations'") != nil
     }
 
-    /// Zeilen ersetzen (abgemeldete verschwinden so auch aus der App)
+    /// Fachlicher Schluessel einer Anmeldung: Pruefungsnummer, Titel, Semester, Datum (Leerraum zusammengefasst, klein).
+    /// Gleich in `DeviceSyncCore.naturalKey` und in Python (`qis_registrations.key`, `sync.NATURAL_KEYS`).
+    public static func key(pruefungsnr: String?, text: String?, semester: String?, datum: String?) -> String {
+        [pruefungsnr, text, semester, datum].map(normalized).joined(separator: "\u{1f}")
+    }
+
+    static func normalized(_ s: String?) -> String {
+        (s ?? "").split(whereSeparator: { $0.isWhitespace }).joined(separator: " ").lowercased()
+    }
+
+    static func key(_ r: QISRegistration) -> String { key(pruefungsnr: r.pruefungsnr, text: r.text, semester: r.semester, datum: r.datum) }
+
+    /// ohne Datum: dieselbe Pruefung, deren Datum das QIS nachgetragen oder verschoben hat
+    static func looseKey(pruefungsnr: String?, text: String?, semester: String?) -> String {
+        [pruefungsnr, text, semester].map(normalized).joined(separator: "\u{1f}")
+    }
+
+    /// Spalten, die `store` schreibt (ohne `fetched_at`), in der Reihenfolge des INSERT
+    static let storedColumns = ["pruefungsnr", "text", "semester", "datum", "time", "room", "pruefer", "versuch", "status",
+                                "withdraw", "form", "abschluss", "raw"]
+
+    /// Abgleich der Tabelle mit dem Abruf (20.11.2026, statt alles zu ersetzen; wie `qis_registrations.store`): gleiche
+    /// Pruefung (`key`) -> Zeile bleibt und wird nur bei einer Aenderung geschrieben; sonst dieselbe Pruefung mit anderem
+    /// Datum (eindeutig, ohne Datum gleich) -> Zeile bleibt mit neuem Datum; neue -> einfuegen; nicht mehr gelistete (auch
+    /// doppelte) -> loeschen, abgemeldete verschwinden so aus der App. Die IDs, die der Geraeteabgleich kennt, bleiben: ein
+    /// zweiter Abruf ist ohne Wirkung, eine Zeile von einem anderen Geraet wird uebernommen statt verdoppelt.
     public static func store(_ c: SQLiteConnection, _ rows: [QISRegistration], now: String) throws {
         try c.executeScript(tableSQL)
-        try c.execute("DELETE FROM exam_registrations")
-        for r in rows {
-            func t(_ s: String?) -> SQLiteValue { s.map(SQLiteValue.text) ?? .null }
-            try c.execute("""
-                INSERT INTO exam_registrations(pruefungsnr, text, semester, datum, time, room, pruefer, versuch, status, withdraw,
-                    form, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-                """, [t(r.pruefungsnr), .text(r.text), t(r.semester), t(r.datum), t(r.time), t(r.room), t(r.pruefer), t(r.versuch),
-                      t(r.status), t(r.withdraw), t(r.form), t(r.abschluss), .text(r.raw), .text(now)])
+        // schon mit einem Konto abgeglichen: Trigger des Abgleichs auch fuer eine eben angelegte Tabelle
+        if try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_tombstones'") != nil {
+            try DeviceSyncSchema.ensureEntity(c, table: "exam_registrations")
+        }
+        var seen = Set<String>()
+        let fresh = rows.filter { seen.insert(key($0)).inserted }
+        let old = try c.rows("SELECT * FROM exam_registrations ORDER BY id")
+        func id(_ o: [String: JSONValue]) -> Int64 { Int64(o["id"]?.double ?? 0) }
+        func s(_ o: [String: JSONValue], _ k: String) -> String? { o[k]?.string }
+        func oldKey(_ o: [String: JSONValue]) -> String { key(pruefungsnr: s(o, "pruefungsnr"), text: s(o, "text"), semester: s(o, "semester"), datum: s(o, "datum")) }
+        func oldLoose(_ o: [String: JSONValue]) -> String { looseKey(pruefungsnr: s(o, "pruefungsnr"), text: s(o, "text"), semester: s(o, "semester")) }
+        func loose(_ r: QISRegistration) -> String { looseKey(pruefungsnr: r.pruefungsnr, text: r.text, semester: r.semester) }
+        var used = Set<Int64>()
+        var pairs: [(QISRegistration, [String: JSONValue]?)] = []
+        var rest: [QISRegistration] = []
+        for r in fresh {
+            let k = key(r)
+            if let hit = old.first(where: { !used.contains(id($0)) && oldKey($0) == k }) {
+                used.insert(id(hit))
+                pairs.append((r, hit))
+            } else {
+                rest.append(r)
+            }
+        }
+        for r in rest {
+            let lk = loose(r)
+            let cands = old.filter { !used.contains(id($0)) && oldLoose($0) == lk }
+            let twins = rest.filter { loose($0) == lk }
+            let hit = cands.count == 1 && twins.count == 1 ? cands[0] : nil
+            if let hit { used.insert(id(hit)) }
+            pairs.append((r, hit))
+        }
+        for o in old where !used.contains(id(o)) {
+            try c.execute("DELETE FROM exam_registrations WHERE id=?", [.integer(id(o))])
+        }
+        for (r, o) in pairs {
+            func v(_ x: String?) -> String? { (x ?? "").isEmpty ? nil : x }
+            let vals: [String?] = [v(r.pruefungsnr), r.text, v(r.semester), v(r.datum), v(r.time), v(r.room), v(r.pruefer), v(r.versuch),
+                                   v(r.status), v(r.withdraw), v(r.form), v(r.abschluss), r.raw]
+            guard let o else {
+                try c.execute("""
+                    INSERT INTO exam_registrations(pruefungsnr, text, semester, datum, time, room, pruefer, versuch, status, withdraw,
+                        form, abschluss, raw, fetched_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """, vals.map { $0.map(SQLiteValue.text) ?? .null } + [.text(now)])
+                continue
+            }
+            var names: [String] = [], params: [SQLiteValue] = []
+            for (col, val) in zip(storedColumns, vals) where v(s(o, col)) != v(val) {
+                names.append(col)
+                params.append(col == "text" || col == "raw" ? .text(val ?? "") : (val.map(SQLiteValue.text) ?? .null))
+            }
+            guard !names.isEmpty else { continue }
+            try c.execute("UPDATE exam_registrations SET \(names.map { "\($0)=?" }.joined(separator: ", ")), fetched_at=? WHERE id=?",
+                          params + [.text(now), .integer(id(o))])
         }
     }
 

@@ -207,6 +207,12 @@ def build() -> dict:
                         "Zeitstempel des Servers sind '<zeit>'; Entscheidungen haengen nur von den Client-Zeitstempeln ab.",
             "rules": {"entities": list(sync.ENTITIES), "order": "Eltern vor Kindern (Reihenfolge der entities)",
                       "columns": list(sync.SYNC_COLS), "private_settings": sorted(sync.PRIVATE_SETTINGS),
+                      "device_only_columns": {t: list(c) for t, c in sync.DEVICE_ONLY_COLUMNS.items()},
+                      "natural_keys": {t: list(c) for t, c in sync.NATURAL_KEYS.items()},
+                      "same_row": "neue Zeile (local_id) einer Tabelle mit natural_keys, deren Schluessel (Leerraum zusammengefasst, klein) "
+                                  "eine Zeile im Raum des Geraets schon hat: keine zweite Zeile, Ergebnis created mit deren id und mapping "
+                                  "(oder conflict mit client_won, wenn der Dienst Felder behielt); device_only_columns sendet kein Geraet, "
+                                  "der Dienst speichert und liefert sie nie",
                       "timestamp": "UTC, YYYY-MM-DDTHH:MM:SS.mmmZ, Vergleich als Text",
                       "new_rows": "id weglassen, local_id negativ; Antwort mapping; Fremdschluessel mit negativen IDs werden im selben Push aufgeloest",
                       "op_id": "optional je Eintrag, 8-100 Zeichen [A-Za-z0-9._:-], beim Wiederholen dieselbe: gemerktes Ergebnis mit repeated=true "
