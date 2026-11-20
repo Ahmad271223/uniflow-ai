@@ -599,6 +599,88 @@ final class EditorScaleTests: XCTestCase {
 
     private let ringCenter = CGPoint(x: 210, y: 645)
 
+    /// Rueckmeldung des Inhabers 21.11.2026 am iPad (Testfassung mit de82ea35): "wenn man ganz nah ranzoomt, wirken die
+    /// Zeichen kurz gross, dann wieder klein". Blauen Kreis schreiben, wie mit zwei Fingern in Schritten auf das
+    /// Maximum zoomen (Kreis bleibt in der Mitte), dann Bild fuer Bild bis 1,6 s nach dem Zoomen die blaue Flaeche im
+    /// Bild des Fensters messen, in Seitenpunkten: Sie darf sich hoechstens um 1 pt aendern (Wechsel auf den Ausschnitt,
+    /// Deckbild, Neuzeichnen).
+    func testTinteSpringtNichtBeimWechselAufDenAusschnitt() async throws {
+        let m = Messwerte("Tinte springt nicht")
+        let fx = try await makeFixture(pdf: Skript.pdf(pages: 3, .schlicht), pageCount: 3)
+        let store = try await openStore(fx)
+        let shown = show(store)
+        defer { hide(shown) }
+        let editor = shown.editor, window = shown.window
+        var overlay = try await waitForOverlay(editor, page: 0, timeout: 20)
+        let ring = Handschrift.circle(center: ringCenter, radius: 14, color: .blue)
+        drawStroke(editor, on: overlay, ring)
+        await store.flush()
+        try await Task.sleep(nanoseconds: 800_000_000)
+        let scroll = try XCTUnwrap(scrollView(editor), "Scroll-Ansicht der PDFView")
+        let expected = ring.renderBounds
+        m.text("Kreis (renderBounds, Seitenpunkte)", "\(expected)")
+
+        func centerRing() {
+            let p = overlay.content.convert(ringCenter, to: scroll)
+            let maxX = max(0, scroll.contentSize.width - scroll.bounds.width), maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
+            scroll.contentOffset = CGPoint(x: min(max(0, p.x - scroll.bounds.width / 2), maxX), y: min(max(0, p.y - scroll.bounds.height / 2), maxY))
+        }
+        struct Frame { let t: Double; let box: CGRect; let zoom: CGFloat; let covers: Int }
+        var frames: [Frame] = []
+        func measure(_ start: Double) {
+            autoreleasepool {
+                guard let image = Bild.snapshot(window), let box = Bild.blueBox(image, scale: window.screen.scale,
+                                                                                         in: window.bounds.insetBy(dx: window.bounds.width / 2 - 260, dy: window.bounds.height / 2 - 260)) else { return }
+                frames.append(Frame(t: Uhr.since(start), box: overlay.content.convert(box, from: window), zoom: overlay.canvas.zoomScale,
+                                    covers: overlay.content.subviews.count))
+            }
+        }
+        centerRing()
+        if ProcessInfo.processInfo.environment["TINTE_VIDEO"] == "1" { try await Task.sleep(nanoseconds: 3_000_000_000) }
+        let fit = editor.pdfView.scaleFactor, most = editor.pdfView.maxScaleFactor
+        let renderedBefore = PageInkView.renderingsFinished
+        let start = Uhr.now()
+        // Pinch in 20 Schritten (je ein Bild), Kreis bleibt in der Mitte
+        for i in 1...20 {
+            editor.pdfView.scaleFactor = fit * pow(most / fit, CGFloat(i) / 20)
+            if let o = installedOverlay(editor, page: 0) { overlay = o }
+            centerRing()
+            try await Task.sleep(nanoseconds: 16_000_000)
+        }
+        let zoomEnd = Uhr.since(start)
+        // Aufnahme des Simulators (simctl io recordVideo): keine Bilder per drawHierarchy, die erzwingen ein Zeichnen
+        if ProcessInfo.processInfo.environment["TINTE_VIDEO"] == "1" {
+            try await Task.sleep(nanoseconds: 2_500_000_000)
+            await store.close()
+            return
+        }
+        while Uhr.since(start) < zoomEnd + 1.6 {
+            if let o = installedOverlay(editor, page: 0) { overlay = o }
+            measure(start)
+            try await Task.sleep(nanoseconds: 8_000_000)
+        }
+        let after = frames.filter { $0.t >= zoomEnd }
+        m.add("PencilKit 'fertig gezeichnet' nach dem Zoomen", Double(PageInkView.renderingsFinished - renderedBefore), "mal")
+        XCTAssertFalse(overlay.isSwitchingZoom, "Deckbild am Ende weg, Canvas wieder sichtbar")
+        XCTAssertNil(overlay.canvas.layer.mask, "Canvas am Ende nicht mehr verdeckt")
+        XCTAssertGreaterThan(after.count, 10, "genug Bilder nach dem Zoomen")
+        for f in after {
+            m.text(String(format: "Bild %.3f s", f.t),
+                   String(format: "x %.2f y %.2f b %.2f h %.2f, Canvas-Zoom %.1f, Ebenen %d", f.box.minX, f.box.minY, f.box.width, f.box.height, f.zoom, f.covers))
+        }
+        let last = try XCTUnwrap(after.last)
+        XCTAssertEqual(last.zoom, PageInkView.maxCanvasZoom, accuracy: 0.001, "am Ende scharf (Ausschnitt)")
+        var worst = 0.0
+        for f in after {
+            let d = [abs(f.box.minX - expected.minX), abs(f.box.minY - expected.minY), abs(f.box.maxX - expected.maxX), abs(f.box.maxY - expected.maxY)].max() ?? 0
+            worst = max(worst, Double(d))
+            XCTAssertLessThanOrEqual(d, 1, String(format: "Bild %.3f s: Kreis %@ statt %@ (Sprung in Groesse oder Lage)", f.t, "\(f.box)", "\(expected)"))
+        }
+        m.add("groesste Abweichung der Tinte nach dem Zoomen", worst, "pt")
+        await store.close()
+        m.finish()
+    }
+
     // MARK: Eingefuegte Seiten A6 bis A0
 
     /// Leerseiten in den Formaten des Web-Editors (formats.js: A6 bis A2 hoch, Whiteboard A1 und A0 quer) zwischen
@@ -1507,13 +1589,13 @@ enum Handschrift {
 
     /// Gerader Strich (Stift, schwarz, Breite 2,5) mit 40 Punkten.
     /// Kreis aus einem Strich (Kanten in jeder Richtung)
-    static func circle(center c: CGPoint, radius r: CGFloat, created: Date = Date()) -> PKStroke {
+    static func circle(center c: CGPoint, radius r: CGFloat, color: UIColor = .black, created: Date = Date()) -> PKStroke {
         let pts = (0...72).map { i -> PKStrokePoint in
             let a = CGFloat(i) / 72 * 2 * .pi
             return PKStrokePoint(location: CGPoint(x: c.x + r * cos(a), y: c.y + r * sin(a)), timeOffset: Double(i) * 0.01,
                                  size: CGSize(width: 2.5, height: 2.5), opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
         }
-        return PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: pts, creationDate: created))
+        return PKStroke(ink: PKInk(.pen, color: color), path: PKStrokePath(controlPoints: pts, creationDate: created))
     }
 
     static func line(from a: CGPoint, to b: CGPoint, created: Date = Date()) -> PKStroke {
@@ -1578,6 +1660,29 @@ enum Bild {
         /// Graustufen-Pixel (Helligkeit 10 bis 90 %) je dunklem Pixel: ein vergroessertes Bild hat breitere, treppige
         /// Uebergaenge und damit mehr Graustufen am Rand
         var ratio: Double { dark > 0 ? Double(gray) / Double(dark) : .infinity }
+    }
+
+    /// Umriss der blauen Pixel (Blau deutlich ueber Rot und Gruen, auch Kantenpixel) in Punkten des Bildes; nil ohne Blau
+    static func blueBox(_ image: CGImage, scale: CGFloat, in rect: CGRect) -> CGRect? {
+        let w = image.width, h = image.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var x0 = w, y0 = h, x1 = -1, y1 = -1
+        let ys = max(0, Int(rect.minY * scale))..<min(h, Int(rect.maxY * scale))
+        let xs = max(0, Int(rect.minX * scale))..<min(w, Int(rect.maxX * scale))
+        for y in ys {
+            for x in xs {
+                let i = (y * w + x) * 4
+                let r = Int(px[i]), g = Int(px[i + 1]), b = Int(px[i + 2])
+                if b - max(r, g) > 60 {
+                    x0 = min(x0, x); x1 = max(x1, x); y0 = min(y0, y); y1 = max(y1, y)
+                }
+            }
+        }
+        guard x1 >= x0, y1 >= y0 else { return nil }
+        return CGRect(x: CGFloat(x0) / scale, y: CGFloat(y0) / scale, width: CGFloat(x1 - x0 + 1) / scale, height: CGFloat(y1 - y0 + 1) / scale)
     }
 
     /// Graustufen- und dunkle Pixel in `rect` (Punkte des Bildes)

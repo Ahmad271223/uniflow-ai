@@ -129,6 +129,8 @@ final class EditorDeviceFixesTests: XCTestCase {
             PKStrokePoint(location: CGPoint(x: 400, y: 600), timeOffset: 0.1, size: CGSize(width: 2, height: 2), opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2),
         ], creationDate: Date())))
         v.canvas.drawing = d
+        v.setRenderScale(2, screen: 2)
+        RunLoop.current.run(until: Date().addingTimeInterval(0.2))    // einmal auf dem Bildschirm (sonst kein Deckbild)
         v.setRenderScale(16, screen: 2)
         XCTAssertEqual(v.canvas.zoomScale, 8, "so fein wie die Anzeige (bis 1.0.7: 4)")
         func check(_ label: String) {
@@ -147,6 +149,14 @@ final class EditorDeviceFixesTests: XCTestCase {
             XCTAssertTrue(canvasOnScreen.contains(pageOnScreen), "\(label): \(pageOnScreen) in \(canvasOnScreen)")
         }
         check("oben links")
+        // Zoomwechsel: nur das Deckbild ist zu sehen, die Canvas ist unsichtbar (kein Zwischenstand, "kurz gross, dann
+        // klein"), nimmt aber Eingaben an; ein neuer Strich zeigt sie sofort
+        XCTAssertTrue(v.isSwitchingZoom, "Deckbild liegt")
+        XCTAssertNotNil(v.canvas.layer.mask, "Canvas waehrend des Neuzeichnens verdeckt")
+        XCTAssertTrue(v.canvas.isUserInteractionEnabled && !v.canvas.isHidden && v.canvas.alpha == 1, "Stift schreibt weiter")
+        v.endTranslucentHole()                                     // wie beim Beginn eines Strichs
+        XCTAssertFalse(v.isSwitchingZoom)
+        XCTAssertNil(v.canvas.layer.mask, "neuer Strich: Canvas sofort sichtbar")
         let rescales = PageInkView.rescalesMade, moves = PageInkView.windowMoves
         scroll.contentOffset = CGPoint(x: 1600, y: 2400)
         check("nach dem Scrollen")
