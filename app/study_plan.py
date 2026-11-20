@@ -110,6 +110,7 @@ UNIT_LP = 5
 MAX_AREA_SLOTS = 8
 MAX_UNKNOWN_SLOTS = 4
 CUSTOM_ID_RE = re.compile(r"eigen-[0-9]{1,4}")
+MANUAL = "manuell"          # Quelle selbst eingetragener Leistungen (app/grades_manual.py)
 MAX_CUSTOM = 40
 MAX_CUSTOM_TITLE = 120
 
@@ -707,13 +708,27 @@ def _parts_state(m: dict, passed: list[dict]) -> tuple[list[str], list[str]]:
     return names, [p[0] for i, p in enumerate(parts) if i not in done]
 
 
+def _manual_module(r: dict, ids: set, by_code: dict, by_key: dict, by_part: dict) -> str | None:
+    """Katalogmodul einer selbst eingetragenen Zeile: ihr `module_id`, sonst wie eine QIS-Zeile (Kuerzel, Name)"""
+    mid = r.get("module_id")
+    return mid if isinstance(mid, str) and mid in ids else _row_module(r, by_code, by_key, by_part)
+
+
 def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
     """{Modul-id: [Zeilen]} und die nicht zugeordneten Texte (sortiert, ohne Doppelte)"""
     by_code, by_key, by_part = _index(mods)
+    ids = {m["id"] for m in mods}
     hist: dict[str, list[dict]] = {}
     unmatched: set[str] = set()
     for r in grades:
         if not isinstance(r, dict):
+            continue
+        # selbst eingetragen (20.11.2026, app/grades_manual.py): zu ihrem Katalogmodul, sonst wie eine QIS-Zeile; nie
+        # unter "nicht zugeordnet" (das sind QIS-Zeilen)
+        if r.get("source") == MANUAL:
+            mid = _manual_module(r, ids, by_code, by_key, by_part)
+            if mid is not None:
+                hist.setdefault(mid, []).append(r)
             continue
         # Bereichszeile nur, wenn kein Katalogmodul so heisst (11.11.2026: "Vertiefung der Betriebssysteme" ist im
         # TI-Katalog ein Wahlpflichtmodul, die Bereichsregel "Vertiefung ..." hatte die bestandene Leistung verschluckt)
@@ -726,6 +741,16 @@ def _match(mods: list[dict], grades: list[dict]) -> tuple[dict, list[str]]:
             continue
         hist.setdefault(mid, []).append(r)
     return hist, sorted(unmatched)
+
+
+def _best_passed(passed: list[dict]) -> dict:
+    """Massgebliche bestandene Zeile: die neueste nach Semester; QIS-Zeilen vor selbst eingetragenen (20.11.2026)"""
+    pool = [r for r in passed if r.get("source") != MANUAL] or passed
+    best = pool[0]
+    for r in pool[1:]:
+        if (row_term(r) or -1) >= (row_term(best) or -1):
+            best = r
+    return best
 
 
 def _attempts(rows: list[dict], max_attempts: int | None = None) -> tuple[int, int | None, bool, bool, bool]:
@@ -965,15 +990,14 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         rec = start + sem - 1 if sem else None
         own = placed.get(mid)
         if passed:
-            best = passed[0]
-            for r in passed[1:]:
-                if (row_term(r) or -1) >= (row_term(best) or -1):
-                    best = r
+            best = _best_passed(passed)
             t = row_term(best)
             if t is None:
                 t = min(rec, current) if rec is not None else current
             st.update(status="bestanden", term=max(t, start), attempt=max(failed_n + 1, int_or_none(best.get("versuch")) or 0),
                       grade=text_of(best.get("note")).strip() or None)
+            if best.get("source") == MANUAL:
+                st["manual"] = True
         elif registered:
             vs = [int_or_none(r.get("versuch")) for r in registered]
             vs = [v for v in vs if v]
@@ -1069,7 +1093,8 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     # Eigene Eintraege (z. B. Studium generale einer anderen Fakultaet): Stand aus einer nicht zugeordneten QIS-Zeile
     # mit gleichem Namensschluessel, sonst im gewaehlten Fachsemester (fruehestens jetzt)
     by_code, by_key, by_part = _index(mods)
-    loose = [r for r in grades if isinstance(r, dict) and not is_bereich(r) and _row_module(r, by_code, by_key, by_part) is None]
+    loose = [r for r in grades if isinstance(r, dict) and not is_bereich(r) and not (r.get("source") == MANUAL and r.get("module_id") in by_id)
+             and _row_module(r, by_code, by_key, by_part) is None]
     custom = []
     for c in clean_custom(settings.get("custom")):
         key = name_key(c["title"])
@@ -1081,12 +1106,11 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
              "moved_from": None, "reason": None, "last_attempt": False, "attempt_known": False, "max_attempts": None,
              "final": False, "placed": False, "hints": [], "custom": True}
         if passed_rows:
-            best = passed_rows[0]
-            for r in passed_rows[1:]:
-                if (row_term(r) or -1) >= (row_term(best) or -1):
-                    best = r
+            best = _best_passed(passed_rows)
             t = row_term(best)
             e.update(status="bestanden", grade=text_of(best.get("note")).strip() or None)
+            if best.get("source") == MANUAL:
+                e["manual"] = True
             t = max(t if t is not None else current, start)
         elif any(row_result(r) == "registered" for r in rows):
             t = current
@@ -1105,7 +1129,7 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     area_q: dict[str, str] = {}
     ctx = None
     for r in grades:
-        if not isinstance(r, dict):
+        if not isinstance(r, dict) or r.get("source") == MANUAL:
             continue
         if _row_module(r, by_code, by_key, by_part) is not None:
             continue
@@ -1334,9 +1358,20 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
 
     # LP erreicht: die LP aller bestandenen QIS-Leistungen wie in Uni & Noten (grades_model.credits_done, Regel des
     # Inhabers 12.11.2026), auch nicht zugeordnete; nur ohne jede LP-Angabe im QIS die Katalog-LP der bestandenen Module
-    lp_done = grades_model.credits_done(grades) or (
-        sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden")
-        + sum(e["lp"] for _, e in custom if e["status"] == "bestanden"))
+    manual = [r for r in grades if isinstance(r, dict) and r.get("source") == MANUAL]
+    lp_manual = None
+    if not manual:
+        lp_done = grades_model.credits_done(grades) or (
+            sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden")
+            + sum(e["lp"] for _, e in custom if e["status"] == "bestanden"))
+    else:
+        # selbst eingetragen (20.11.2026): ihre LP kommen zur QIS-Summe dazu (je Eintrag einmal, QIS geht vor:
+        # app/grades_manual.py gibt nur Eintraege weiter, deren Modul QIS nicht als bestanden meldet)
+        qis_done = grades_model.credits_done([r for r in grades if not (isinstance(r, dict) and r.get("source") == MANUAL)]) or (
+            sum(lp_of(by_id[i]) for i in included if state[i]["status"] == "bestanden" and not state[i].get("manual"))
+            + sum(e["lp"] for _, e in custom if e["status"] == "bestanden" and not e.get("manual")))
+        lp_manual = round(sum(r["lp_counted"] for r in manual), 1)
+        lp_done = round(qis_done + lp_manual, 1)
     total = num(catalog.get("total_lp"))
     lp_total = total if total else sum(lp_of(by_id[i]) for i in included)
     lp_expected = sum(lp_of(by_id[i]) for i in included if sem_of(by_id[i]) and start + sem_of(by_id[i]) - 1 < current)
@@ -1414,6 +1449,8 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
                       "semester": sem_of(by_id[i])} for i in by_id if i in excluded and i not in state],
         "placements": {k: term_name(v) for k, v in placed.items()},
     }
+    if lp_manual is not None:
+        plan["lp_manual"] = lp_manual
     return {"plan": plan, "state": state, "hist": hist, "by_id": by_id, "included": included}
 
 
@@ -1423,7 +1460,8 @@ def _entry(m: dict, st: dict, hints: list[str] | None = None) -> dict:
             "status": st["status"], "attempt": st["attempt"], "grade": st["grade"],
             "moved_from": st["moved_from"], "reason": st["reason"], "last_attempt": last_attempt(st),
             "attempt_known": st["known"], "max_attempts": st["max_attempts"],
-            "final": bool(st["final"]) and st["status"] != "bestanden", "placed": st["placed"], "hints": hints or []}
+            "final": bool(st["final"]) and st["status"] != "bestanden", "placed": st["placed"], "hints": hints or [],
+            **({"manual": True} if st.get("manual") else {})}
 
 
 def module_hints(m: dict, st: dict, state: dict, by_id: dict) -> list[str]:
@@ -1539,6 +1577,14 @@ def grade_rows(conn) -> list[dict]:
     return grades_model.model(db.rows(conn, "SELECT * FROM grades ORDER BY id"))
 
 
+def manual_entries(conn, grades: list[dict]) -> tuple[list[dict], list[dict]]:
+    """Selbst eingetragene Leistungen (20.11.2026, app/grades_manual.py): (alle mit `replaced`/`counted`, Zeilen der
+    zaehlenden fuer `compute`). QIS geht vor: gegen alle QIS-Zeilen geprueft, wie in Uni & Noten."""
+    from . import grades_manual
+    resolved = grades_manual.resolve(grades, grades_manual.load(conn))
+    return resolved, grades_manual.rows(resolved)
+
+
 def plan_response(conn, today: str, source=None) -> dict:
     source = source or DbCatalogSource(conn)
     settings, grades = load_settings(conn), grade_rows(conn)
@@ -1546,7 +1592,8 @@ def plan_response(conn, today: str, source=None) -> dict:
     cat, reason = pick_catalog(catalogs, settings, grades)
     uni = _university(conn)
     mine = grades_for_catalog(grades, cat, uni)
-    out = unavailable(reason, settings["po"]) if cat is None else build_plan(cat, mine, settings, today)
+    _, manual_rows = manual_entries(conn, grades)
+    out = unavailable(reason, settings["po"]) if cat is None else build_plan(cat, mine + manual_rows, settings, today)
     if cat is None and reason in ("no_catalog", "no_catalog_po"):
         # gewaehlter Studiengang aus dem Register (auch ohne Katalog): ehrlich mit Namen statt "Verbinde das LSF"
         named = chosen_program_name(settings["po"], uni)
@@ -1681,8 +1728,9 @@ def module_response(conn, module_id: str, today: str, source=None) -> dict:
     cat, _ = pick_catalog(source.catalogs(), settings, grades)
     if cat is None:
         raise HTTPException(404, "Kein Katalog")
+    resolved, manual_rows = manual_entries(conn, grades)
     grades = grades_for_catalog(grades, cat, _university(conn))
-    full = compute(cat, grades, settings, today)
+    full = compute(cat, grades + manual_rows, settings, today)
     m = full["by_id"].get(module_id)
     if m is None:
         raise HTTPException(404, "Modul nicht im Katalog")
@@ -1699,7 +1747,13 @@ def module_response(conn, module_id: str, today: str, source=None) -> dict:
            "final": bool(st["final"]) and st["status"] != "bestanden" if st else False,
            "attempts":[{"text": r.get("text"), "semester": r.get("semester"), "status": r.get("status"),
                          "grade": r.get("note"), "attempt": int_or_none(r.get("versuch")), "date": r.get("datum")}
-                        for r in full["hist"].get(module_id, [])]}
+                        for r in full["hist"].get(module_id, []) if r.get("source") != MANUAL]}
+    # selbst eingetragen (20.11.2026): der Eintrag zu diesem Modul (auch wenn QIS ihn inzwischen ersetzt) und ob
+    # "Als bestanden abhaken" angeboten wird: nur ohne bestandene QIS-Leistung, nur am Geraet bzw. eigenen PC
+    from . import config
+    own["manual"] = next((e for e in resolved if e.get("module_id") == module_id), None)
+    own["can_mark"] = not config.is_hosted() and not any(
+        row_result(r) == "passed" for r in full["hist"].get(module_id, []) if r.get("source") != MANUAL)
 
     def ref(i: str) -> dict:
         s = state.get(i)

@@ -457,13 +457,23 @@ enum GradesModel {
     }
 
     /// `summary` und die Antwort von `qis.summary(conn)` ohne last_run/documents: sortierte Zeilen und Kennzahlen
-    static func summary(_ rows: [[String: JSONValue]]) -> [String: JSONValue] {
+    /// `manual`: selbst eingetragene Leistungen (`GradesManual`, 20.11.2026); die zaehlenden gehen in LP, Zahl der
+    /// bestandenen Leistungen und, mit Note, in den Schnitt; QIS geht vor. Ohne Eintraege bleibt die Antwort wie bisher.
+    static func summary(_ rows: [[String: JSONValue]], manual: [[String: JSONValue]] = []) -> [String: JSONValue] {
         let m = model(rows)
         let modules = m.filter { text($0["level"]) == "modul" }
         let useModules = modules.contains { isTrue($0["graded"]) }
         let basis = useModules ? modules : m.filter { text($0["level"]) != "bereich" }
         let graded = basis.filter { isTrue($0["graded"]) }
-        let weights = graded.map { (n: num($0["note"]) ?? 0, w: num($0["credits"]) ?? 0) }
+        var weights = graded.map { (n: num($0["note"]) ?? 0, w: num($0["credits"]) ?? 0) }
+        var resolved: [[String: JSONValue]] = [], extra: [[String: JSONValue]] = []
+        if !manual.isEmpty {
+            resolved = GradesManual.resolve(m, manual)
+            extra = resolved.filter { $0["counted"]?.bool == true }
+            for e in extra {
+                if let g = GradesManual.gradeNum(e), g <= 4.0 { weights.append((n: g, w: e["lp"]?.double ?? 0)) }
+            }
+        }
         let lp = PyMath.sum(weights.map(\.w))
         let exact: Double?
         if lp != 0 { exact = PyMath.sum(weights.map { $0.n * $0.w }) / lp }
@@ -488,7 +498,7 @@ enum GradesModel {
             if !same(ta, tb) { return PyText.less(ta, tb) }
             return a.offset < b.offset
         }.map(\.element)
-        return [
+        var out: [String: JSONValue] = [
             "grades": .array(sorted.map(JSONValue.object)),
             "average": exact.map { .number(truncate1($0)) } ?? .null,
             "average_exact": exact.map { .number(QISParser.round2($0)) } ?? .null,
@@ -500,6 +510,16 @@ enum GradesModel {
             "bereiche": .array(bereiche),
             "failed_attempts": .number(Double(failed)),
         ]
+        if !manual.isEmpty {
+            let lpManual = round1(PyMath.sum(extra.map { $0["lp"]?.double ?? 0 }))
+            out["graded_count"] = .number(Double(weights.count))
+            out["credits"] = .number(round1(countedLP(m) + lpManual))
+            out["passed"] = .number(Double(passed.count + extra.count))
+            out["credits_qis"] = .number(countedLP(m))
+            out["credits_manual"] = .number(lpManual)
+            out["manual"] = .array(resolved.map(JSONValue.object))
+        }
+        return out
     }
 
     /// `_sem_key`: neueste Semester zuerst ("WiSe 25/26" -> (-2025, -2), "SoSe 26" -> (-2026, -1)); ohne Semester ans Ende

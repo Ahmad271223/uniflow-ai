@@ -123,6 +123,13 @@ public enum StudyPlanAPI {
         return GradesModel.model(rows)
     }
 
+    /// Selbst eingetragene Leistungen (20.11.2026, `GradesManual`): (alle mit `replaced`/`counted`, Zeilen der zaehlenden
+    /// fuer `compute`); QIS geht vor, gegen alle QIS-Zeilen geprueft wie in Uni & Noten (`manual_entries`)
+    static func manualEntries(_ c: SQLiteConnection, _ grades: [[String: JSONValue]]) throws -> ([[String: JSONValue]], [[String: JSONValue]]) {
+        let resolved = GradesManual.resolve(grades, try GradesManual.load(c))
+        return (resolved, GradesManual.rows(resolved))
+    }
+
     /// `GET /api/study-plan`
     public static func plan(_ c: SQLiteConnection, today: String, source: StudyCatalogSource? = nil) throws -> JSONValue {
         let source = source ?? DatabaseStudyCatalogSource(c)
@@ -131,9 +138,10 @@ public enum StudyPlanAPI {
         let picked = StudyPlanEngine.pickCatalog(catalogs, settings: settings.json, grades: grades)
         let uni = try university(c)
         let mine = StudyPlanEngine.gradesForCatalog(grades, catalog: picked.catalog, university: uni)
+        let manualRows = try manualEntries(c, grades).1
         var out: [String: JSONValue]
         if let cat = picked.catalog {
-            out = StudyPlanEngine.compute(catalog: cat, grades: mine, settings: settings.json, today: today).plan
+            out = StudyPlanEngine.compute(catalog: cat, grades: mine + manualRows, settings: settings.json, today: today).plan
             // ehrlich sagen, warum Leistungen fehlen (Wechsel des Studiengangs, 14.11.2026)
             let kept = Set(mine.map { JSONValue.object($0) })
             let other = grades.filter { !kept.contains(.object($0)) && $0["source"]?.string != "anmeldung" && !StudyPlanEngine.isBereich($0) }
@@ -257,15 +265,17 @@ public enum StudyPlanAPI {
         guard let cat = StudyPlanEngine.pickCatalog(try source.catalogs(), settings: settings.json, grades: allGrades).catalog else {
             throw LocalHTTPError(status: 404, message: "Kein Katalog")
         }
+        let (resolved, manualRows) = try manualEntries(c, allGrades)
         let grades = StudyPlanEngine.gradesForCatalog(allGrades, catalog: cat, university: try university(c))
-        let full = StudyPlanEngine.compute(catalog: cat, grades: grades, settings: settings.json, today: today)
+        let full = StudyPlanEngine.compute(catalog: cat, grades: grades + manualRows, settings: settings.json, today: today)
         guard let m = full.byID[moduleID] else { throw LocalHTTPError(status: 404, message: "Modul nicht im Katalog") }
         let textOf = StudyPlanEngine.textOf, opt = StudyPlanEngine.opt as (String?) -> JSONValue
         var areas: [String: [String: JSONValue]] = [:]
         for a in cat["areas"]?.array ?? [] { if let o = a.object, let id = o["id"]?.string { areas[id] = o } }
         let area = m["area"]?.string.flatMap { areas[$0] }
         let st = full.state[moduleID]
-        let attempts: [JSONValue] = (full.hist[moduleID] ?? []).map { r in
+        let qisRows = (full.hist[moduleID] ?? []).filter { !StudyPlanEngine.isManual($0) }
+        let attempts: [JSONValue] = qisRows.map { r in
             ["text": r["text"] ?? .null, "semester": r["semester"] ?? .null, "status": r["status"] ?? .null,
              "grade": r["note"] ?? .null, "attempt": StudyPlanEngine.opt(StudyPlanEngine.intOrNil(r["versuch"])),
              "date": r["datum"] ?? .null]
@@ -276,6 +286,10 @@ public enum StudyPlanAPI {
             "reason": opt(st?.reason), "last_attempt": .bool(st?.lastAttempt ?? false),
             "attempt_known": .bool(st?.known ?? false), "max_attempts": StudyPlanEngine.opt(StudyPlanEngine.maxAttemptsOf(m, cat)),
             "final": .bool(st.map { $0.final && $0.status != "bestanden" } ?? false), "attempts": .array(attempts),
+            // selbst eingetragen (20.11.2026): der Eintrag zu diesem Modul (auch wenn QIS ihn ersetzt) und ob "Als bestanden
+            // abhaken" angeboten wird (nur ohne bestandene QIS-Leistung)
+            "manual": resolved.first { $0["module_id"]?.string == moduleID }.map(JSONValue.object) ?? .null,
+            "can_mark": .bool(!qisRows.contains { StudyPlanEngine.rowResult($0) == "passed" }),
         ]
         func ref(_ i: String) -> JSONValue {
             ["id": .string(i), "title": .string(textOf(full.byID[i]?["title"])),

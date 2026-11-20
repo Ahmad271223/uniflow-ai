@@ -800,9 +800,10 @@ def summary(conn) -> dict:
     """Notenspiegel fuer die Oberflaeche (app/grades_model.py): bereinigte Zeilen mit Ebene, aktueller Schnitt der
     bestandenen Module (LP-gewichtet, nach der ersten Nachkommastelle abgeschnitten, dazu genau), LP, Bereiche.
     Vorher (bis 28.10.2026) zaehlten Doppelte, Modul- und Pruefungszeilen und nicht bestandene Versuche mit."""
-    from . import grades_model
+    from . import grades_manual, grades_model
     rows = db.rows(conn, "SELECT * FROM grades ORDER BY id")
-    s = grades_model.summary(rows)
+    # selbst eingetragene Leistungen (20.11.2026) zaehlen mit, QIS geht vor (app/grades_manual.py)
+    s = grades_model.summary(rows, grades_manual.load(conn))
     order = {"bereich": 0, "modul": 1, "pruefung": 2}
     grades = sorted(s.pop("rows"), key=lambda r: (order[r["level"]], _sem_key(r["semester_norm"]), r.get("text") or ""))
     last = db.row(conn, "SELECT * FROM qis_runs ORDER BY id DESC LIMIT 1")

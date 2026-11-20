@@ -96,6 +96,8 @@ struct StudyPlanModule: Identifiable, Equatable {
     let custom: Bool
     /// empfohlenes Fachsemester laut Katalog
     let recommended: Int?
+    /// bestanden laut selbst eingetragener Leistung (20.11.2026), QIS meldet das Modul nicht
+    let manual: Bool
 
     init(_ v: JSONValue) {
         id = v.s("id") ?? v.i("id").map(String.init) ?? UUID().uuidString
@@ -120,6 +122,7 @@ struct StudyPlanModule: Identifiable, Equatable {
         hints = v.list("hints").compactMap(\.string).filter { !$0.isEmpty }
         custom = v["custom"]?.bool ?? false
         recommended = v.i("semester")
+        manual = v["manual"]?.bool ?? false
     }
 
     var status: StudyPlanStatus { StudyPlanStatus.from(rawStatus, movedFrom: movedFrom) }
@@ -335,6 +338,8 @@ struct StudyPlan: Equatable {
     let po: String?
     let catalogTerm: String?
     let lpDone: Double
+    /// davon selbst eingetragen (20.11.2026; 0 ohne Eintraege)
+    let lpManual: Double
     let lpTotal: Double
     let notes: [StudyPlanNote]
     let disclaimer: String
@@ -377,6 +382,7 @@ struct StudyPlan: Equatable {
         let current = v.s("current_term")
         semesters = v.list("semesters").map { StudyPlanSemester($0, currentTerm: current) }
         lpDone = v.n("lp_done") ?? 0
+        lpManual = v.n("lp_manual") ?? 0
         lpTotal = v.n("lp_total") ?? 0
         notes = v.list("notes").map(StudyPlanNote.init).filter { !$0.text.isEmpty }
         disclaimer = v.s("disclaimer").flatMap { $0.isEmpty ? nil : $0 } ?? StudyPlanText.disclaimer
@@ -548,6 +554,12 @@ struct StudyModuleDetail: Equatable {
     let sourcePage: Int?
     /// Modultexte werden gerade im Hintergrund geladen (Katalog aus Grundstock oder Bibliothek, `texts_loading`)
     let textsLoading: Bool
+    /// Note des massgeblichen Ergebnisses (QIS, sonst selbst eingetragen)
+    let grade: String?
+    /// selbst eingetragene Leistung zu diesem Modul (20.11.2026) und ob "Als bestanden abhaken" angeboten wird (nur ohne
+    /// bestandene QIS-Leistung, nur auf dem Geraet)
+    let manual: StudyManualEntry?
+    let canMark: Bool
 
     init(_ v: JSONValue, titles: [String: String] = [:]) {
         let f = v["facts"].flatMap { $0.object == nil ? nil : $0 } ?? v
@@ -586,6 +598,9 @@ struct StudyModuleDetail: Equatable {
                     status: StudyPlanStatus.from(a.s("status"), movedFrom: nil), date: a.s("date") ?? a.s("datum"))
         }
         lastAttempt = own["last_attempt"]?.bool ?? false
+        grade = own.s("grade").flatMap { $0.isEmpty ? nil : $0 }
+        manual = own["manual"].flatMap(StudyManualEntry.init)
+        canMark = own["can_mark"]?.bool ?? false
         attempt = own.i("attempt") ?? attempts.compactMap(\.attempt).max()
         attemptKnown = own["attempt_known"]?.bool ?? attempts.contains { $0.attempt != nil }
         maxAttempts = own.i("max_attempts")
@@ -615,6 +630,40 @@ struct StudyModuleDetail: Equatable {
         let page = src.i("page") ?? v.i("source_page") ?? f.i("source_page")
         sourcePage = page
         sourceURL = StudyPlanText.sourceURL(src.s("url") ?? v.s("source_url"), page: page)
+    }
+}
+
+// MARK: - Selbst eingetragen
+
+/// Selbst eingetragene Leistung (Entscheidung des Inhabers 20.11.2026, Kern `GradesManual`): abgehakt, optional mit
+/// Note; zaehlt in LP, Studienverlauf und Schnitt, bis QIS dasselbe Modul meldet (`replaced`, dann gilt QIS)
+struct StudyManualEntry: Equatable, Identifiable {
+    let id: Int
+    let title: String
+    let lp: Double
+    let grade: String?
+    let passed: Bool
+    let semester: String?
+    /// QIS meldet das Modul inzwischen bestanden: der Eintrag zaehlt nicht mehr
+    let replaced: Bool
+    /// zaehlt (bestanden und nicht ersetzt)
+    let counted: Bool
+    /// was QIS meldet ("2,7 · SoSe 26"), wenn ersetzt
+    let replacedBy: String?
+
+    init?(_ v: JSONValue) {
+        guard v.object != nil, let id = v.i("id") else { return nil }
+        self.id = id
+        title = v.s("title") ?? ""
+        lp = v.n("lp") ?? 0
+        grade = v.s("grade").flatMap { $0.isEmpty ? nil : $0 }
+        passed = v["passed"]?.bool ?? true
+        semester = v.s("semester").flatMap { $0.isEmpty ? nil : $0 }
+        replaced = v["replaced"]?.bool ?? false
+        counted = v["counted"]?.bool ?? (passed && !replaced)
+        let by = v["replaced_by"] ?? .null
+        let parts = [by.s("note"), by.s("semester")].compactMap { $0 }.filter { !$0.isEmpty }
+        replacedBy = by.object == nil ? nil : (parts.isEmpty ? "bestanden" : parts.joined(separator: " · "))
     }
 }
 
@@ -793,6 +842,29 @@ enum StudyPlanText {
     static let lockedPassed = "Bestanden – bleibt in dem Semester, in dem du es bestanden hast."
     static let lockedRegistered = "Zur Prüfung angemeldet – bleibt im aktuellen Semester. Nach einer Abmeldung lässt es sich verschieben."
     static let lockedCustom = "Eigener Eintrag – liegt im Fachsemester, das du beim Eintragen gewählt hast."
+    /// Selbst eingetragen (20.11.2026)
+    static let manualBadge = "Selbst eingetragen"
+    static let manualIntro = "Fehlt eine bestandene Prüfung? Hake sie selbst ab – die Leistungspunkte zählen dann im Studienverlauf und in Uni & Noten mit. Meldet QIS das Modul später, gilt der Wert aus QIS."
+    static let manualPrivacy = "Bleibt nur auf diesem Gerät."
+    static let gradeHint = "Note von 1,0 bis 5,0, z. B. 2,3. Leer lassen, wenn du keine Note eintragen willst."
+
+    /// Eingabe einer Note: "2.3" oder " 2,3 " -> "2,3"; leer -> "" (ohne Note); nil, wenn keine Note von 1,0 bis 5,0
+    static func gradeInput(_ s: String) -> String? {
+        let t = s.trimmingCharacters(in: .whitespaces).replacingOccurrences(of: ".", with: ",")
+        if t.isEmpty { return "" }
+        let parts = t.split(separator: ",", omittingEmptySubsequences: false)
+        guard parts.count <= 2, let whole = Int(parts[0]), parts[0].count == 1,
+              parts.count == 1 || (parts[1].count == 1 && Int(parts[1]) != nil) else { return nil }
+        let tenth = parts.count == 2 ? Int(parts[1])! : 0
+        let value = whole * 10 + tenth
+        guard value >= 10, value <= 50 else { return nil }
+        return "\(whole),\(tenth)"
+    }
+
+    /// "Bestanden · 2,3 · SoSe 26" bzw. "Nicht bestanden · 5,0" fuer den eigenen Eintrag
+    static func manualLine(_ e: StudyManualEntry) -> String {
+        ([e.passed ? "Bestanden" : "Nicht bestanden", e.grade, e.semester].compactMap { $0 }).joined(separator: " · ")
+    }
     static let noQIS = "Verbinde QIS, damit StudiNow deinen Studiengang kennt"
     /// Quelle des Notenspiegels: "LSF" an der Uni Hildesheim, "Campusmanagement" (HISinOne) an der HsH, sonst "QIS" (LUH)
     static func gradeSource(hildesheim: Bool, hsh: Bool = false) -> String { hsh ? "Campusmanagement" : hildesheim ? "LSF" : "QIS" }
@@ -941,6 +1013,7 @@ enum StudyPlanText {
         if m.lastAttempt && !m.final { parts.append("letzter Versuch") }
         if m.placed { parts.append("selbst eingeplant") }
         if m.custom { parts.append("eigener Eintrag") }
+        if m.manual { parts.append("selbst eingetragen") }
         if m.qis { parts.append("aus QIS, nicht im Modulkatalog") }
         parts.append(contentsOf: m.hints)
         return parts.joined(separator: ", ")

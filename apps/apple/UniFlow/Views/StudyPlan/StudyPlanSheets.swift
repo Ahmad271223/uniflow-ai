@@ -91,15 +91,26 @@ struct StudyModuleSheet: View {
     /// Modul im Plan (eigene Lage, verschiebbar) und Aenderungen daran (05.11.2026); nil: nur lesen
     var planModule: StudyPlanModule?
     var manage: ((String, StudyPlanModuleAction) -> Void)?
+    /// nach Abhaken, Note eintragen oder Entfernen (20.11.2026): Plan neu laden
+    var gradesChanged: (() async -> Void)?
     /// Unterlage oeffnen: Blatt zu, Seite wechseln
     let open: (UFRoute) -> Void
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.horizontalSizeClass) private var hSize
+    @Environment(\.verticalSizeClass) private var vSize
+    /// iPhone laut Huelle (`AppShell`), gilt auch im Blatt
+    @Environment(\.ufCompact) private var shellCompact
     @State private var stack: [String] = []
     @State private var details: [String: StudyModuleDetail] = [:]
     @State private var failed: [String: String] = [:]
     @State private var expanded: Set<String> = ["content"]
+    /// Formular "Note eintragen" (offen: Note und Semester), Speichern laeuft, Fehler, Rueckfrage vor dem Entfernen
+    @State private var manualForm: StudyManualForm?
+    @State private var manualBusy = false
+    @State private var manualError: String?
+    @State private var confirmRemove: StudyManualEntry?
 
     private var currentID: String { stack.last ?? startID }
 
@@ -130,13 +141,204 @@ struct StudyModuleSheet: View {
         .onAppear { if stack.isEmpty { stack = [startID] } }
         .task(id: currentID) { await load(currentID) }
         .modifier(StudyPlanSheetSizing())
+        .alert("Eigenen Eintrag entfernen?", isPresented: Binding(get: { confirmRemove != nil }, set: { if !$0 { confirmRemove = nil } })) {
+            Button("Entfernen", role: .destructive) {
+                if let e = confirmRemove { Task { await removeManual(e) } }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Das Modul zählt dann nicht mehr als bestanden, solange QIS es nicht meldet.")
+        }
         .accessibilityIdentifier("studyplan.detail")
+    }
+
+    // MARK: Selbst eingetragen (20.11.2026)
+
+    private var compact: Bool { shellCompact || UFLayout.isCompact(horizontal: hSize, vertical: vSize) }
+
+    /// Abhaken und Note eintragen, wenn QIS das Modul nicht als bestanden meldet; eigener Eintrag mit Abzeichen,
+    /// Bearbeiten und Entfernen. Meldet QIS das Modul spaeter, gilt QIS (der Eintrag zaehlt nicht mehr).
+    @ViewBuilder private func manualBlock(_ d: StudyModuleDetail) -> some View {
+        if let e = d.manual {
+            StudyPlanSection(title: StudyPlanText.manualBadge, icon: "pencil") {
+                VStack(alignment: .leading, spacing: 10) {
+                    UFFlexWrap(gap: 8, rowGap: 6) {
+                        UFBadge(StudyPlanText.manualBadge, tone: e.counted ? .ok : .neutral, icon: "pencil")
+                        Text(StudyPlanText.manualLine(e)).ufFont(14, 600).foregroundStyle(UF.text)
+                    }
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel("Selbst eingetragen: " + StudyPlanText.manualLine(e).replacingOccurrences(of: " · ", with: ", "))
+                    .accessibilityIdentifier("studyplan.detail.manual")
+                    Text(manualStatus(e)).ufFont(13.12, lh: 1.4).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("studyplan.detail.manual.status")
+                    if manualForm != nil {
+                        manualFormView(d)
+                    } else {
+                        manualButtons {
+                            if !e.replaced {
+                                button("Bearbeiten", icon: "pencil", id: "studyplan.detail.manual.edit",
+                                       hint: "Note oder Semester ändern") {
+                                    manualError = nil
+                                    manualForm = StudyManualForm(grade: e.grade ?? "", semester: e.semester ?? "")
+                                }
+                            }
+                            button("Eintrag entfernen", icon: "trash", kind: .danger, id: "studyplan.detail.manual.remove",
+                                   hint: "Fragt vorher nach") { confirmRemove = e }
+                        }
+                    }
+                    manualFooter
+                }
+            }
+        } else if d.canMark && d.status != .passed {
+            StudyPlanSection(title: "Bestanden, aber nicht in QIS?", icon: "check") {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(StudyPlanText.manualIntro).ufFont(13.12, lh: 1.4).foregroundStyle(UF.text2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if manualForm != nil {
+                        manualFormView(d)
+                    } else {
+                        manualButtons {
+                            button("Als bestanden abhaken", icon: "check", kind: .primary, id: "studyplan.detail.manual.mark",
+                                   hint: "Zählt das Modul ohne Note als bestanden") {
+                                Task { await saveManual(d, form: StudyManualForm(grade: "", semester: "")) }
+                            }
+                            button("Note eintragen", icon: "pencil", id: "studyplan.detail.manual.grade",
+                                   hint: "Öffnet ein Feld für Note und Semester") {
+                                manualError = nil
+                                manualForm = StudyManualForm(grade: "", semester: "")
+                            }
+                        }
+                    }
+                    manualFooter
+                }
+            }
+        }
+    }
+
+    private func manualStatus(_ e: StudyManualEntry) -> String {
+        if e.replaced {
+            return "QIS meldet dieses Modul jetzt (\(e.replacedBy ?? "bestanden")). Es zählt der Wert aus QIS, dein Eintrag nicht mehr."
+        }
+        if !e.passed { return "Nicht bestanden – zählt nicht bei den Leistungspunkten und nicht im Schnitt." }
+        return "Zählt mit \(StudyPlanText.lp(e.lp)) im Studienverlauf und in Uni & Noten" + (e.grade == nil ? "." : ", die Note auch im Schnitt.")
+    }
+
+    /// Knoepfe: iPhone untereinander in voller Breite, sonst nebeneinander
+    @ViewBuilder private func manualButtons<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+        if compact {
+            VStack(spacing: 8) { content() }
+        } else {
+            UFFlexWrap(gap: 8, rowGap: 8) { content() }
+        }
+    }
+
+    @ViewBuilder private func button(_ title: String, icon: String, kind: UFButtonKind = .normal, id: String, hint: String,
+                                     action: @escaping () -> Void) -> some View {
+        Group {
+            if compact {
+                UFWideButton(title, icon: icon, kind: kind, action: action)
+            } else {
+                UFButton(title, icon: icon, kind: kind, size: .small, action: action)
+            }
+        }
+        .disabled(manualBusy)
+        .accessibilityHint(hint)
+        .accessibilityIdentifier(id)
+    }
+
+    @ViewBuilder private var manualFooter: some View {
+        if let manualError {
+            Label { Text(manualError) } icon: { UFIcon("alert", size: 12) }
+                .ufFont(12.8, lh: 1.4).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("studyplan.detail.manual.error")
+        }
+        Text(StudyPlanText.manualPrivacy).ufFont(12).foregroundStyle(UF.muted)
+    }
+
+    /// Note (optional, deutsches Komma) und Semester (optional), Speichern und Abbrechen
+    private func manualFormView(_ d: StudyModuleDetail) -> some View {
+        let form = Binding(get: { manualForm ?? StudyManualForm(grade: "", semester: "") }, set: { manualForm = $0 })
+        let terms: [(value: String, label: String)] = [("", "ohne Angabe")] + StudyPlanText.recentTerms(today: Date(), count: 10).map { ($0, $0) }
+        let valid = StudyPlanText.gradeInput(form.wrappedValue.grade) != nil
+        return VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Note (optional)").ufFont(12.8, 600).foregroundStyle(UF.text2)
+                UFTextInput("z. B. 2,3", text: form.grade)
+                    .keyboardType(.decimalPad)
+                    .frame(maxWidth: compact ? .infinity : 200, alignment: .leading)
+                    .accessibilityLabel("Note, optional")
+                    .accessibilityHint(StudyPlanText.gradeHint)
+                    .accessibilityIdentifier("studyplan.detail.manual.gradeField")
+                Text(valid ? StudyPlanText.gradeHint : "Bitte eine Note von 1,0 bis 5,0 eintragen, z. B. 2,3.")
+                    .ufFont(12, lh: 1.35).foregroundStyle(valid ? UF.muted : UF.badText).fixedSize(horizontal: false, vertical: true)
+            }
+            VStack(alignment: .leading, spacing: 4) {
+                Text("Semester (optional)").ufFont(12.8, 600).foregroundStyle(UF.text2)
+                UFSelect(options: terms, selection: form.semester, fill: compact)
+                    .accessibilityLabel("Semester, optional")
+                    .accessibilityValue(form.wrappedValue.semester.isEmpty ? "ohne Angabe" : form.wrappedValue.semester)
+                    .accessibilityIdentifier("studyplan.detail.manual.semester")
+            }
+            manualButtons {
+                button("Speichern", icon: "check", kind: .primary, id: "studyplan.detail.manual.save",
+                       hint: "Speichert den eigenen Eintrag") {
+                    Task { await saveManual(d, form: form.wrappedValue) }
+                }
+                button("Abbrechen", icon: "x", id: "studyplan.detail.manual.cancel", hint: "Schließt das Formular") {
+                    manualForm = nil
+                    manualError = nil
+                }
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("studyplan.detail.manual.form")
+    }
+
+    private func saveManual(_ d: StudyModuleDetail, form: StudyManualForm) async {
+        guard let api, !manualBusy else { return }
+        guard let grade = StudyPlanText.gradeInput(form.grade) else {
+            manualError = "Bitte eine Note von 1,0 bis 5,0 eintragen, z. B. 2,3."
+            return
+        }
+        manualBusy = true
+        defer { manualBusy = false }
+        let body: JSONValue = ["module_id": .string(d.id), "grade": grade.isEmpty ? .null : .string(grade),
+                               "semester": form.semester.isEmpty ? .null : .string(form.semester), "passed": true]
+        do {
+            _ = try await api.value("/api/grades/manual", method: "POST", body: body)
+            manualForm = nil
+            manualError = nil
+            await load(d.id, force: true)
+            await gradesChanged?()
+            UIAccessibility.post(notification: .announcement, argument: "Selbst eingetragen gespeichert")
+        } catch {
+            manualError = error.localizedDescription
+        }
+    }
+
+    private func removeManual(_ e: StudyManualEntry) async {
+        guard let api, !manualBusy else { return }
+        manualBusy = true
+        defer { manualBusy = false }
+        do {
+            _ = try await api.value("/api/grades/manual/\(e.id)", method: "DELETE")
+            manualForm = nil
+            manualError = nil
+            await load(currentID, force: true)
+            await gradesChanged?()
+            UIAccessibility.post(notification: .announcement, argument: "Eigener Eintrag entfernt")
+        } catch {
+            manualError = error.localizedDescription
+        }
     }
 
     @ViewBuilder private func content(_ d: StudyModuleDetail) -> some View {
         VStack(alignment: .leading, spacing: 18) {
             titleBlock(d)
             ownBlock(d)
+            manualBlock(d)
             manageBlock
             // "Prüfung anmelden" (05.11.2026): nur wenn der Studienverlauf das Modul in diesem Semester vorschlaegt
             ExamRegistrationModuleBlock(api: api, catalogID: currentID)
@@ -252,7 +454,7 @@ struct StudyModuleSheet: View {
     private func ownText(_ d: StudyModuleDetail) -> String {
         switch d.status {
         case .passed:
-            let g = d.attempts.last(where: { $0.status == .passed })?.grade
+            let g = d.attempts.last(where: { $0.status == .passed })?.grade ?? d.grade
             return g.map { "Bestanden · \($0)" } ?? "Bestanden"
         case .failed:
             if d.final { return "Endgültig nicht bestanden" }
@@ -735,4 +937,10 @@ struct StudyPlanSettingsSheet: View {
             self.error = "Speichern fehlgeschlagen: \(error.localizedDescription)"
         }
     }
+}
+
+/// Offenes Formular "Note eintragen" (Note als Text mit Komma, Semester "" = ohne Angabe)
+struct StudyManualForm: Equatable {
+    var grade: String
+    var semester: String
 }
