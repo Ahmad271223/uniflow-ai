@@ -89,7 +89,13 @@ actor OffscreenPDF {
 
     /// Vorschau einer fremden Loesungsseite mit der eigenen PDF-Seite darunter ("Daneben ansehen", `SolutionPreview`)
     func solutionPreview(_ page: SolutionPage, images: [String: UIImage], width: CGFloat, scale: CGFloat) -> UIImage {
-        let pdfPage = page.kind == .pdf ? page.pdfIndex.flatMap { openIfNeeded()?.page(at: $0 - 1) } : nil
+        // Kopie mit der Drehung des Absenders (in ihr stehen die Objekte; mit nur `/Rotate` lag eine beim Absender
+        // gedrehte Seite quer unter seinen Notizen)
+        let pdfPage: PDFPage? = page.kind == .pdf ? page.pdfIndex.flatMap { i -> PDFPage? in
+            guard i >= 1, let copy = openIfNeeded()?.page(at: i - 1)?.copy() as? PDFPage else { return nil }
+            copy.rotation = page.rotation
+            return copy
+        } : nil
         if pdfPage != nil { pdfPagesDrawn += 1 }
         return SolutionPreview.image(page, images: images, width: width, scale: scale, pdfPage: pdfPage)
     }
