@@ -48,6 +48,10 @@ enum PencilTuning {
     /// lang die alten Kacheln an der neuen Stelle. Jetzt liegt dabei kurz ein Deckbild darueber
     /// (`PageInkView.coverWhileRedrawing`). `false`: ohne, wie c9dcc5b9 (Gegenprobe in der Aufnahme).
     static var coverWindowMoves = true
+    /// Scharfe Tinte ueber 4-fachem Zoom (de82ea35: Zeichenflaeche bis 10-fach, dann nur der sichtbare Ausschnitt).
+    /// `false`: wie vor de82ea35 - hoechstens 4-fach, immer die ganze Seite (bei 600 % zeigt der Bildschirm die Tinte dann
+    /// rund doppelt vergroessert, weicher). Rueckfall, falls die Tinte beim Zoomen auf dem Geraet doch verrutscht.
+    static var sharpInkWindow = true
     /// So lange muss die Zeichenflaeche unberuehrt sein, bevor eine geladene Seite aus dem Speicher neu gesetzt wird
     /// (fremde Aenderung): nie mitten im Schreibfluss
     static let reloadQuietSeconds: CFTimeInterval = 1

@@ -599,6 +599,102 @@ final class EditorScaleTests: XCTestCase {
 
     private let ringCenter = CGPoint(x: 210, y: 645)
 
+    /// Rueckmeldung des Inhabers 21.11.2026 (Testfassung 8262c3e4): "Wenn man ranzoomt, darf die Schrift nicht
+    /// verrutschen. Sie muss am Blatt haften und darf nicht kurz spinnen - wie bei GoodNotes." ECHTES Pinchen mit zwei
+    /// Fingern (`TestFinger.Zwei`, die Pinch-Geste der Scroll-Ansicht von PDFKit zoomt): hinein auf 600 % mit einer
+    /// Pause mitten in der Geste, hinaus, schnell hinein ueber das Maximum (Zurueckfedern). Waehrend die Finger liegen,
+    /// aendert sich an der Zeichenflaeche NICHTS (Zoom, Lage, Groesse, Versatz, Maske); danach wird sie scharf. Bild fuer
+    /// Bild misst die Aufnahme (simctl recordVideo, `TINTE_VIDEO=1`) Tinte gegen PDF-Marke.
+    func testTinteHaftetBeimPinchen() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let m = Messwerte("Tinte haftet beim Pinchen")
+        let video = ProcessInfo.processInfo.environment["TINTE_VIDEO"] == "1"
+        // Rueckfall wie vor de82ea35 (hoechstens 4-fach, ganze Seite) zum Vergleich
+        let sharp = ProcessInfo.processInfo.environment["TINTE_ALT"] != "1"
+        PencilTuning.sharpInkWindow = sharp
+        defer { PencilTuning.sharpInkWindow = true }
+        m.text("Fassung", sharp ? "scharf ueber 4-fach (Ausschnitt)" : "Rueckfall: hoechstens 4-fach, ganze Seite")
+        let fx = try await makeFixture(pdf: Skript.markPDF(at: ringCenter), pageCount: 3)
+        let store = try await openStore(fx)
+        let shown = show(store)
+        defer { hide(shown) }
+        let editor = shown.editor, window = shown.window
+        var overlay = try await waitForOverlay(editor, page: 0, timeout: 20)
+        drawStroke(editor, on: overlay, Handschrift.circle(center: ringCenter, radius: 14, color: .blue))
+        await store.flush()
+        try await Task.sleep(nanoseconds: 800_000_000)
+        let scroll = try XCTUnwrap(scrollView(editor), "Scroll-Ansicht der PDFView")
+        let p = overlay.content.convert(ringCenter, to: scroll)
+        scroll.contentOffset = CGPoint(x: max(0, p.x - scroll.bounds.width / 2), y: max(0, p.y - scroll.bounds.height / 2))
+        try await Task.sleep(nanoseconds: 600_000_000)
+        let center = overlay.content.convert(ringCenter, to: window)
+        let fit = editor.pdfView.scaleFactor
+        if video { try await Task.sleep(nanoseconds: 1_500_000_000) }
+
+        // Zustand der Zeichenflaeche je Bild der Geste (ohne Bild des Fensters: das wuerde die Geste bremsen)
+        struct State: Equatable { var zoom: CGFloat; var center: CGPoint; var bounds: CGRect; var offset: CGPoint; var masked: Bool }
+        func state() -> State {
+            let c = overlay.canvas
+            return State(zoom: c.zoomScale, center: c.center, bounds: c.bounds, offset: c.contentOffset, masked: c.layer.mask != nil)
+        }
+        var changes: [String] = []
+        func gesture(_ name: String, from: CGFloat, to: CGFloat, steps: Int, holdAt: Double?) async throws {
+            var last = state()
+            try await TestFinger.Zwei.pinch(center: center, from: from, to: to, steps: steps, in: window, holdAt: holdAt, holdSeconds: 0.6) {
+                if let o = self.installedOverlay(editor, page: 0), o !== overlay { overlay = o; last = state() }
+                let now = state()
+                if now != last { changes.append("\(name): \(last) -> \(now)") }
+                last = now
+            }
+            m.add("\(name): Zoom am Ende der Geste", Double(editor.pdfView.scaleFactor / fit * 100), "%")
+        }
+        var worst = 0.0, measured = 0
+        func settle(_ name: String) async throws {
+            let end = Uhr.now() + 1.6
+            while Uhr.now() < end {
+                if let o = installedOverlay(editor, page: 0) { overlay = o }
+                if !video, let image = Bild.snapshot(window) {
+                    let area = window.bounds.insetBy(dx: window.bounds.width / 2 - 300, dy: window.bounds.height / 2 - 300)
+                    if let o = Bild.markOffset(image, scale: window.screen.scale, in: area, ringDiameter: 30.5) {
+                        measured += 1
+                        worst = max(worst, o.points)
+                    }
+                }
+                try await Task.sleep(nanoseconds: 16_000_000)
+            }
+            m.text("\(name): danach", "Canvas-Zoom \(overlay.canvas.zoomScale), Ausschnitt \(overlay.inkWindow), Geste laeuft \(overlay.zoomGestureRunning) (isZooming \(scroll.isZooming), federt \(scroll.isZoomBouncing), Pinch \(scroll.pinchGestureRecognizer?.state.rawValue ?? -1)), Seite gezeigt \(overlay.shownScale() ?? 0)")
+        }
+        try await gesture("hinein", from: 80, to: 480, steps: 50, holdAt: 0.5)
+        try await settle("hinein")
+        let sharpZoom = overlay.canvas.zoomScale
+        let underlays0 = PageInkView.pinchUnderlaysMade
+        try await gesture("hinaus", from: 480, to: 110, steps: 40, holdAt: 0.4)
+        let underlaysOut = PageInkView.pinchUnderlaysMade - underlays0
+        try await settle("hinaus")
+        XCTAssertFalse(overlay.hasPinchUnderlay, "Hilfsflaeche nach dem Zoomen wieder weg")
+        try await gesture("schnell ueber das Maximum", from: 90, to: 700, steps: 18, holdAt: nil)
+        try await settle("schnell ueber das Maximum")
+        m.add("Aenderungen an der Zeichenflaeche waehrend der Gesten", Double(changes.count), "")
+        for c in changes.prefix(12) { m.text("Aenderung", c) }
+        m.add("Bilder nach den Gesten gemessen", Double(measured), "")
+        m.add("groesste Abweichung Tinte <-> PDF nach den Gesten", worst, "pt")
+        m.add("Zeichenflaeche nach dem Hineinzoomen (Zoom)", Double(sharpZoom), "")
+        m.add("Zeichenflaeche nach schnellem Hineinzoomen (Zoom)", Double(overlay.canvas.zoomScale), "")
+        m.add("Hilfsflaeche beim Herauszoomen", Double(underlaysOut), "mal")
+        if sharp {
+            XCTAssertGreaterThan(sharpZoom, 4, "nach dem Hineinzoomen scharf (Zeichenflaeche ueber 4-fach)")
+            XCTAssertGreaterThan(overlay.canvas.zoomScale, 4, "auch nach schnellem Zoomen ueber das Maximum scharf")
+            XCTAssertEqual(underlaysOut, 1, "beim Herauszoomen aus dem Ausschnitt liegt die ganze Seite darunter")
+        } else {
+            XCTAssertLessThanOrEqual(sharpZoom, 4, "Rueckfall: hoechstens 4-fach")
+        }
+        XCTAssertFalse(overlay.hasPinchUnderlay)
+        XCTAssertEqual(changes.count, 0, "waehrend die Finger liegen, bleibt die Zeichenflaeche unveraendert")
+        if !video { XCTAssertLessThanOrEqual(worst, 0.5, "Tinte bleibt auf der PDF") }
+        await store.close()
+        m.finish()
+    }
+
     /// Rueckmeldung des Inhabers 21.11.2026 (Testfassung c9dcc5b9): "Beim Schreiben bewegt sich das auch gerade ab und zu,
     /// davor war das nie so". Echter Strich mit dem Finger (`TestFinger`, PencilKit zeichnet selbst) bei 100 %, 300 % und
     /// 600 %, jeweils nach kurzem Verschieben der Seite. Vor, waehrend und nach dem Strich in jedem Bild: vorhandene Tinte

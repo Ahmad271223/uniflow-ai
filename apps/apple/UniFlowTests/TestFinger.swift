@@ -186,3 +186,130 @@ final class TestFinger {
         return hit
     }
 }
+
+// MARK: - Zwei Finger (Pinchen)
+
+extension TestFinger {
+    /// Zwei Finger gleichzeitig wie vom Bildschirm (Rueckmeldung des Inhabers 21.11.2026: "beim Ranzoomen darf die Schrift
+    /// nicht verrutschen"). Beide Beruehrungen gehen in EINEM Ereignis an die App, mit einem Ereignis des Bildschirms
+    /// (eine Hand, zwei Finger): So erkennt die Pinch-Geste der Scroll-Ansicht von PDFKit ein echtes Zoomen, nicht
+    /// `scaleFactor` von aussen gesetzt.
+    @MainActor
+    final class Zwei {
+        private let touches: [UITouch]
+        private var points: [CGPoint]
+        private let window: UIWindow
+
+        init(_ a: CGPoint, _ b: CGPoint, in window: UIWindow) {
+            self.window = window
+            points = [a, b]
+            touches = [UITouch(), UITouch()]
+            let app = UIApplication.shared
+            let event = TestFinger.method(app, "_touchesEvent", as: GetObject.self)?(app, NSSelectorFromString("_touchesEvent")) as? UIEvent
+            for (touch, p) in zip(touches, points) {
+                let view = window.hitTest(p, with: event)
+                TestFinger.method(touch, "setWindow:", as: SetObject.self)?(touch, NSSelectorFromString("setWindow:"), window)
+                TestFinger.method(touch, "setTapCount:", as: SetInt.self)?(touch, NSSelectorFromString("setTapCount:"), 1)
+                TestFinger.method(touch, "_setLocationInWindow:resetPrevious:", as: SetPoint.self)?(touch, NSSelectorFromString("_setLocationInWindow:resetPrevious:"), p, true)
+                TestFinger.method(touch, "setView:", as: SetObject.self)?(touch, NSSelectorFromString("setView:"), view)
+                TestFinger.method(touch, "setPhase:", as: SetInt.self)?(touch, NSSelectorFromString("setPhase:"), UITouch.Phase.began.rawValue)
+                TestFinger.method(touch, "_setIsFirstTouchForView:", as: SetBool.self)?(touch, NSSelectorFromString("_setIsFirstTouchForView:"), true)
+                TestFinger.method(touch, "setGestureView:", as: SetObject.self)?(touch, NSSelectorFromString("setGestureView:"), view)
+            }
+            send()
+        }
+
+        func move(_ a: CGPoint, _ b: CGPoint) {
+            points = [a, b]
+            for (touch, p) in zip(touches, points) {
+                TestFinger.method(touch, "_setLocationInWindow:resetPrevious:", as: SetPoint.self)?(touch, NSSelectorFromString("_setLocationInWindow:resetPrevious:"), p, false)
+                TestFinger.method(touch, "setPhase:", as: SetInt.self)?(touch, NSSelectorFromString("setPhase:"), UITouch.Phase.moved.rawValue)
+            }
+            send()
+        }
+
+        /// Beide Finger bleiben liegen
+        func hold() {
+            for touch in touches {
+                TestFinger.method(touch, "setPhase:", as: SetInt.self)?(touch, NSSelectorFromString("setPhase:"), UITouch.Phase.stationary.rawValue)
+            }
+            send()
+        }
+
+        func lift() {
+            for touch in touches {
+                TestFinger.method(touch, "setPhase:", as: SetInt.self)?(touch, NSSelectorFromString("setPhase:"), UITouch.Phase.ended.rawValue)
+            }
+            send()
+        }
+
+        private func send() {
+            let hid = hidEvent()
+            for touch in touches {
+                TestFinger.method(touch, "setTimestamp:", as: SetDouble.self)?(touch, NSSelectorFromString("setTimestamp:"), CACurrentMediaTime())
+                TestFinger.method(touch, "_setHidEvent:", as: SetPointer.self)?(touch, NSSelectorFromString("_setHidEvent:"), hid)
+            }
+            let app = UIApplication.shared
+            guard let event = TestFinger.method(app, "_touchesEvent", as: GetObject.self)?(app, NSSelectorFromString("_touchesEvent")) as? UIEvent else { return }
+            TestFinger.method(event, "_clearTouches", as: Plain.self)?(event, NSSelectorFromString("_clearTouches"))
+            TestFinger.method(event, "_setHIDEvent:", as: SetPointer.self)?(event, NSSelectorFromString("_setHIDEvent:"), hid)
+            for touch in touches {
+                TestFinger.method(event, "_addTouch:forDelayedDelivery:", as: AddTouch.self)?(event, NSSelectorFromString("_addTouch:forDelayedDelivery:"), touch, false)
+            }
+            app.sendEvent(event)
+            if let hid { Unmanaged<AnyObject>.fromOpaque(hid).release() }
+        }
+
+        /// Eine Hand mit zwei Fingern
+        private func hidEvent() -> UnsafeMutableRawPointer? {
+            guard let hand = TestFinger.symbol("IOHIDEventCreateDigitizerEvent", as: CreateHand.self),
+                  let finger = TestFinger.symbol("IOHIDEventCreateDigitizerFingerEvent", as: CreateFinger.self),
+                  let append = TestFinger.symbol("IOHIDEventAppendEvent", as: Append.self),
+                  let setField = TestFinger.symbol("IOHIDEventSetIntegerValue", as: SetField.self) else { return nil }
+            let time = mach_absolute_time()
+            let displayIntegrated: UInt32 = 0xB0019
+            let rangeBit: UInt32 = 1, touchBit: UInt32 = 2, positionBit: UInt32 = 4
+            guard let event = hand(kCFAllocatorDefault, time, 3, 0, 0, touchBit, 0, 0, 0, 0, 0, 0, false, false, 0) else { return nil }
+            setField(event, displayIntegrated, 1)
+            for (i, (touch, p)) in zip(touches, points).enumerated() {
+                let moved = touch.phase == .moved
+                let down = touch.phase != .ended && touch.phase != .cancelled
+                if let f = finger(kCFAllocatorDefault, time, UInt32(i + 1), UInt32(i + 2), moved ? positionBit : (rangeBit | touchBit),
+                                  Double(p.x), Double(p.y), 0, 0, 0, down, down, 0) {
+                    setField(f, displayIntegrated, 1)
+                    append(event, f, 0)
+                    Unmanaged<AnyObject>.fromOpaque(f).release()
+                }
+            }
+            return event
+        }
+
+        /// Pinchen um `center` (Fensterpunkte): Abstand der Finger von `from` auf `to` in `steps` Schritten je `step`
+        /// Sekunden (ein Bild = 1/60 s); bei `holdAt` (Anteil 0...1) `holdSeconds` lang ruhig liegen lassen; am Ende loslassen
+        static func pinch(center c: CGPoint, from: CGFloat, to: CGFloat, steps: Int, step: Double = 1.0 / 60, in window: UIWindow,
+                          holdAt: Double? = nil, holdSeconds: Double = 0, eachFrame: (() -> Void)? = nil) async throws {
+            func pts(_ d: CGFloat) -> (CGPoint, CGPoint) { (CGPoint(x: c.x - d / 2, y: c.y - d * 0.15), CGPoint(x: c.x + d / 2, y: c.y + d * 0.15)) }
+            let (a0, b0) = pts(from)
+            let fingers = Zwei(a0, b0, in: window)
+            var held = false
+            for i in 1...steps {
+                try await Task.sleep(nanoseconds: UInt64(step * 1_000_000_000))
+                let t = CGFloat(i) / CGFloat(steps)
+                let (a, b) = pts(from * pow(to / from, t))
+                fingers.move(a, b)
+                eachFrame?()
+                if let h = holdAt, !held, Double(t) >= h {
+                    held = true
+                    let end = CACurrentMediaTime() + holdSeconds
+                    while CACurrentMediaTime() < end {
+                        try await Task.sleep(nanoseconds: UInt64(step * 1_000_000_000))
+                        fingers.hold()
+                        eachFrame?()
+                    }
+                }
+            }
+            try await Task.sleep(nanoseconds: UInt64(step * 1_000_000_000))
+            fingers.lift()
+        }
+    }
+}
