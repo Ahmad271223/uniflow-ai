@@ -797,8 +797,8 @@ struct PDFExportNoticeWithSheets: View {
 // MARK: - Loesung daneben ansehen
 
 /// Eine fremde Loesung in der geteilten Ansicht neben dem eigenen Dokument: nur ansehen (nicht ueber die eigene Seite
-/// gelegt), je Seite die eigene PDF-Seite darunter, eigene Seiten der Loesung auf ihrer Vorlage. Bilder werden je Seite
-/// in der Breite der Spalte gezeichnet, also scharf.
+/// gelegt), je Seite die eigene PDF-Seite darunter, eigene Seiten der Loesung auf ihrer Vorlage. Gezeichnet wie im
+/// Editor (`SolutionSideController`): dieselbe fremde Ebene wie die Einblendung, zoombar.
 /// Papier einer geteilten Seite (Wunsch des Inhabers 13.11.2026): Eine eigene Seite des Absenders (leeres Blatt,
 /// Blatt daneben) traegt nur den Namen ihres Musters (`SolutionPage.template`, keine Datei); die Anzeige zeichnet genau
 /// dieses Papier. Der Titel nennt es dazu: "Notiz zu Folie 4 · Liniert".
@@ -823,9 +823,11 @@ enum SolutionPaper {
 
 struct SolutionSidePane: View {
     let layer: ForeignSolutionLayer
-    /// eigene PDF-Instanz des Dokuments (`OffscreenPDF`): gezeichnet wird im Hintergrund, nie aus dem Original im Store
+    /// eigene PDF des Dokuments (`OffscreenPDF.url`): die Spalte oeffnet daraus eine EIGENE Instanz, nie die PDF der
+    /// Haupt-PDFView oder das Original im Store
     let source: OffscreenPDF
     let onClose: () -> Void
+    @State private var page = 0
 
     var body: some View {
         VStack(spacing: 0) {
@@ -833,46 +835,20 @@ struct SolutionSidePane: View {
             UFPaneHeader(layer.label, icon: "users", closeID: "solution.close", close: onClose) {
                 UFBadge("nur ansehen", tone: .neutral)
             }
-            GeometryReader { geo in
-                ScrollView {
-                    LazyVStack(spacing: 14) {
-                        ForEach(Array(layer.pages.enumerated()), id: \.element.key) { i, page in
-                            SolutionSidePage(page: page, title: SolutionPaper.title(layer.pages, at: i), images: layer.images,
-                                             source: source,
-                                             width: max(200, geo.size.width - 24))
-                        }
+            // Seiten wie im Editor (gleiche Ebene wie die Einblendung), zoombar; Meldung des Inhabers 20.11.2026
+            SolutionSideViewer(layer: layer, pdfURL: source.url) { page = $0 }
+                .overlay(alignment: .bottom) {
+                    if !layer.pages.isEmpty {
+                        Text("\(SolutionPaper.title(layer.pages, at: min(page, layer.pages.count - 1))) · \(min(page, layer.pages.count - 1) + 1) von \(layer.pages.count)")
+                            .ufFont(11.84, lh: 1.3).foregroundStyle(UF.muted).lineLimit(1)
+                            .padding(.horizontal, 10).padding(.vertical, 4)
+                            .background(.regularMaterial, in: Capsule())
+                            .padding(.bottom, 10)
+                            .allowsHitTesting(false)
+                            .accessibilityIdentifier("solution.side.page")
                     }
-                    .padding(12)
                 }
-            }
-            .background(UF.surface2)
         }
-    }
-}
-
-private struct SolutionSidePage: View {
-    let page: SolutionPage
-    /// "PDF-Seite 4", "Notiz zu Folie 4" (SolutionBuilder.pageTitle)
-    let title: String
-    let images: [String: UIImage]
-    let source: OffscreenPDF
-    let width: CGFloat
-    @State private var image: UIImage?
-
-    var body: some View {
-        VStack(spacing: 4) {
-            Group {
-                if let image {
-                    Image(uiImage: image).resizable().scaledToFit()
-                        .overlay(Rectangle().stroke(UF.lineStrong))
-                } else {
-                    ProgressView().frame(height: width * 1.3)
-                }
-            }
-            Text(title).ufFont(11.84, lh: 1.3).foregroundStyle(UF.muted)
-        }
-        .task(id: "\(page.key)-\(Int(width))") {
-            image = await source.solutionPreview(page, images: images, width: width, scale: UIScreen.main.scale)
-        }
+        .background(UF.surface2)
     }
 }
