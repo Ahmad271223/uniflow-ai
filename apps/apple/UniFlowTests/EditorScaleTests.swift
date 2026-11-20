@@ -599,6 +599,181 @@ final class EditorScaleTests: XCTestCase {
 
     private let ringCenter = CGPoint(x: 210, y: 645)
 
+    /// Rueckmeldung des Inhabers 21.11.2026 (Testfassung c9dcc5b9): "Beim Schreiben bewegt sich das auch gerade ab und zu,
+    /// davor war das nie so". Echter Strich mit dem Finger (`TestFinger`, PencilKit zeichnet selbst) bei 100 %, 300 % und
+    /// 600 %, jeweils nach kurzem Verschieben der Seite. Vor, waehrend und nach dem Strich in jedem Bild: vorhandene Tinte
+    /// (blauer Kreis) gegen PDF (roter Punkt) hoechstens 0,5 pt; dazu: Der Strich verschiebt die Zeichenflaeche nicht.
+    func testTinteBleibtBeimSchreibenAufDerPDF() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let m = Messwerte("Tinte bleibt beim Schreiben")
+        let video = ProcessInfo.processInfo.environment["TINTE_VIDEO"] == "1"
+        let fx = try await makeFixture(pdf: Skript.markPDF(at: ringCenter), pageCount: 3)
+        let store = try await openStore(fx)
+        let shown = show(store, pencilOnly: false)
+        defer { hide(shown) }
+        let editor = shown.editor, window = shown.window
+        var overlay = try await waitForOverlay(editor, page: 0, timeout: 20)
+        drawStroke(editor, on: overlay, Handschrift.circle(center: ringCenter, radius: 14, color: .blue))
+        await store.flush()
+        try await Task.sleep(nanoseconds: 800_000_000)
+        let scroll = try XCTUnwrap(scrollView(editor), "Scroll-Ansicht der PDFView")
+        let fit = editor.pdfView.scaleFactor
+        var worst = 0.0, measured = 0, moved = 0
+        var lines: [String] = []
+        let start = Uhr.now()
+        func measure(_ phase: String) {
+            guard !video else { return }
+            autoreleasepool {
+                guard let image = Bild.snapshot(window) else { return }
+                let area = window.bounds.insetBy(dx: window.bounds.width / 2 - 300, dy: window.bounds.height / 2 - 300)
+                guard let o = Bild.markOffset(image, scale: window.screen.scale, in: area, ringDiameter: 30.5) else { return }
+                measured += 1
+                worst = max(worst, o.points)
+                if o.points > 0.3 {
+                    lines.append(String(format: "%.3f %@: Abstand %.3f pt (dx %.2f dy %.2f px)", Uhr.since(start), phase, o.points, o.dx, o.dy))
+                }
+            }
+        }
+        for factor: CGFloat in [1, 3, 6] {
+            let name = "\(Int(factor * 100)) %"
+            editor.pdfView.scaleFactor = fit * factor
+            if let o = installedOverlay(editor, page: 0) { overlay = o }
+            // Punkt in die Mitte, dann ein Stueck verschieben (wie beim Blaettern vor dem Schreiben)
+            var p = overlay.content.convert(ringCenter, to: scroll)
+            let maxX = max(0, scroll.contentSize.width - scroll.bounds.width), maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
+            scroll.contentOffset = CGPoint(x: min(max(0, p.x - scroll.bounds.width / 2), maxX), y: min(max(0, p.y - scroll.bounds.height / 2), maxY))
+            try await Task.sleep(nanoseconds: 1_200_000_000)               // Zoomwechsel der Zeichenflaeche fertig
+            p = overlay.content.convert(ringCenter, to: scroll)
+            scroll.contentOffset = CGPoint(x: min(max(0, p.x - scroll.bounds.width / 2 + 40), maxX), y: min(max(0, p.y - scroll.bounds.height / 2 + 60), maxY))
+            try await Task.sleep(nanoseconds: 600_000_000)
+            let windowBefore = overlay.inkWindow, zoomBefore = overlay.canvas.zoomScale
+            let strokesBefore = overlay.canvas.drawing.strokes.count
+            for _ in 0..<10 { measure("\(name) vor dem Strich"); try await Task.sleep(nanoseconds: 16_000_000) }
+            // Strich unterhalb des Kreises, quer (Fensterpunkte)
+            let c = overlay.content.convert(ringCenter, to: window)
+            let points = (0...24).map { i in CGPoint(x: c.x - 120 + CGFloat(i) * 10, y: c.y + 150 + 12 * sin(CGFloat(i) / 3)) }
+            var running = true
+            let watcher = Task { @MainActor in
+                while running { measure("\(name) waehrend des Strichs"); try? await Task.sleep(nanoseconds: 8_000_000) }
+            }
+            try await TestFinger.strich(points, in: window, step: 0.016)
+            running = false
+            _ = await watcher.value
+            for _ in 0..<40 { measure("\(name) nach dem Strich"); try await Task.sleep(nanoseconds: 16_000_000) }
+            m.add("\(name): Striche vorher -> nachher", Double(strokesBefore * 1000 + overlay.canvas.drawing.strokes.count), "")
+            XCTAssertEqual(overlay.canvas.drawing.strokes.count, strokesBefore + 1, "\(name): Strich angekommen")
+            if overlay.inkWindow != windowBefore || overlay.canvas.zoomScale != zoomBefore {
+                moved += 1
+                m.text("\(name): Zeichenflaeche umgehaengt", "\(windowBefore) z \(zoomBefore) -> \(overlay.inkWindow) z \(overlay.canvas.zoomScale)")
+            }
+        }
+        m.add("Bilder gemessen", Double(measured), "")
+        for l in lines { m.text("Bild ueber 0,3 pt", l) }
+        m.add("groesste Abweichung Tinte <-> PDF", worst, "pt")
+        m.add("Strich hat die Zeichenflaeche umgehaengt", Double(moved), "mal")
+        XCTAssertEqual(moved, 0, "Schreiben haengt die Zeichenflaeche nie um")
+        if !video {
+            XCTAssertGreaterThan(measured, 60, "genug Bilder")
+            XCTAssertLessThanOrEqual(worst, 0.5, "Tinte bleibt in jedem Bild auf der PDF")
+        }
+        await store.close()
+        m.finish()
+    }
+
+    /// Rueckmeldung des Inhabers 21.11.2026 am iPad (Testfassung mit c9dcc5b9): "Beim Rein-/Rauszoomen bewegen sich die
+    /// Zeichen ganz leicht, aber dann sofort auf die Originalposition". PDF mit rotem Punkt, darum ein blauer Kreis aus
+    /// Tinte. Zoomen wie mit zwei Fingern, in Schritten (je ein Bild) hinein ueber die 4-fach-Grenze bis 600 %, mit
+    /// Pausen (Wechsel der Zoomstufe der Zeichenflaeche), wieder hinaus, schnell hinein und hinaus. In JEDEM Bild:
+    /// Mitte des Kreises gegen Mitte des Punkts, in Seitenpunkten; hoechstens 0,5 pt.
+    func testTinteBleibtBeimZoomenAufDerPDF() async throws {
+        let m = Messwerte("Tinte bleibt auf der PDF")
+        let video = ProcessInfo.processInfo.environment["TINTE_VIDEO"] == "1"
+        if ProcessInfo.processInfo.environment["TINTE_GEGENPROBE"] == "1" { PencilTuning.coverWindowMoves = false }
+        defer { PencilTuning.coverWindowMoves = true }
+        let fx = try await makeFixture(pdf: Skript.markPDF(at: ringCenter), pageCount: 3)
+        let store = try await openStore(fx)
+        let shown = show(store)
+        defer { hide(shown) }
+        let editor = shown.editor, window = shown.window
+        var overlay = try await waitForOverlay(editor, page: 0, timeout: 20)
+        drawStroke(editor, on: overlay, Handschrift.circle(center: ringCenter, radius: 14, color: .blue))
+        await store.flush()
+        try await Task.sleep(nanoseconds: 800_000_000)
+        let scroll = try XCTUnwrap(scrollView(editor), "Scroll-Ansicht der PDFView")
+        func centerMark() {
+            if let o = installedOverlay(editor, page: 0) { overlay = o }
+            let p = overlay.content.convert(ringCenter, to: scroll)
+            let maxX = max(0, scroll.contentSize.width - scroll.bounds.width), maxY = max(0, scroll.contentSize.height - scroll.bounds.height)
+            scroll.contentOffset = CGPoint(x: min(max(0, p.x - scroll.bounds.width / 2), maxX), y: min(max(0, p.y - scroll.bounds.height / 2), maxY))
+        }
+        var worst = 0.0, measured = 0
+        var lines: [String] = []
+        let start = Uhr.now()
+        func measure(_ phase: String) {
+            guard !video else { return }
+            autoreleasepool {
+                guard let image = Bild.snapshot(window) else { return }
+                let area = window.bounds.insetBy(dx: window.bounds.width / 2 - 300, dy: window.bounds.height / 2 - 300)
+                guard let o = Bild.markOffset(image, scale: window.screen.scale, in: area, ringDiameter: 30.5) else {
+                    lines.append(String(format: "%.3f %@: Kreis oder Punkt nicht gefunden", Uhr.since(start), phase))
+                    return
+                }
+                measured += 1
+                worst = max(worst, o.points)
+                lines.append(String(format: "%.3f %@: Abstand %.3f pt (dx %.2f dy %.2f px), Canvas-Zoom %.1f", Uhr.since(start), phase, o.points,
+                                    o.dx, o.dy, overlay.canvas.zoomScale))
+            }
+        }
+        let fit = editor.pdfView.scaleFactor
+        func zoomSteps(_ from: CGFloat, _ to: CGFloat, _ n: Int, _ phase: String) async throws {
+            for i in 1...n {
+                editor.pdfView.scaleFactor = fit * from * pow(to / from, CGFloat(i) / CGFloat(n))
+                centerMark()
+                measure(phase)
+                try await Task.sleep(nanoseconds: 16_000_000)
+            }
+        }
+        func hold(_ seconds: Double, _ phase: String) async throws {
+            let end = Uhr.now() + seconds
+            while Uhr.now() < end {
+                measure(phase)
+                try await Task.sleep(nanoseconds: 16_000_000)
+            }
+        }
+        centerMark()
+        if video { try await Task.sleep(nanoseconds: 2_000_000_000) }
+        try await zoomSteps(1, 3, 20, "hinein bis 3-fach")
+        try await hold(0.7, "Pause 3-fach")
+        try await zoomSteps(3, 6, 20, "hinein bis 6-fach")
+        try await hold(0.9, "Pause 6-fach")
+        // bei 600 % verschieben wie mit einem Finger: der Ausschnitt der Zeichenflaeche wandert mehrmals mit
+        let base = scroll.contentOffset
+        let moves0 = PageInkView.windowMoves
+        defer { m.add("Ausschnitt beim Verschieben gewandert", Double(PageInkView.windowMoves - moves0), "mal") }
+        for i in 1...60 {
+            let x = 170 * sin(CGFloat(i) / 60 * 2 * .pi), y = 120 * sin(CGFloat(i) / 30 * 2 * .pi)
+            scroll.contentOffset = CGPoint(x: base.x + x, y: base.y + y)
+            measure("verschieben bei 6-fach")
+            try await Task.sleep(nanoseconds: 16_000_000)
+        }
+        try await hold(0.3, "nach dem Verschieben")
+        try await zoomSteps(6, 2, 25, "hinaus bis 2-fach")
+        try await hold(0.9, "Pause 2-fach")
+        try await zoomSteps(2, 6, 12, "schnell hinein")
+        try await hold(0.9, "Pause 6-fach")
+        try await zoomSteps(6, 1, 12, "schnell hinaus")
+        try await hold(0.9, "eingepasst")
+        m.add("Bilder gemessen", Double(measured), "")
+        for l in lines { m.text("Bild", l) }
+        m.add("groesste Abweichung Tinte <-> PDF", worst, "pt")
+        if !video {
+            XCTAssertGreaterThan(measured, 100, "genug Bilder")
+            XCTAssertLessThanOrEqual(worst, 0.5, "Tinte bleibt in jedem Bild auf der PDF")
+        }
+        await store.close()
+        m.finish()
+    }
+
     /// Rueckmeldung des Inhabers 21.11.2026 am iPad (Testfassung mit de82ea35): "wenn man ganz nah ranzoomt, wirken die
     /// Zeichen kurz gross, dann wieder klein". Blauen Kreis schreiben, wie mit zwei Fingern in Schritten auf das
     /// Maximum zoomen (Kreis bleibt in der Mitte), dann Bild fuer Bild bis 1,6 s nach dem Zoomen die blaue Flaeche im
@@ -882,9 +1057,18 @@ final class EditorScaleTests: XCTestCase {
     }
 
     /// Editor als Inhalt eines eigenen Fensters in Bildschirmgroesse (wie PDFEditorView: Stift schreibt, Finger scrollt).
-    private func show(_ store: DocumentStore) -> Shown {
-        let editor = PDFEditorController(store: store)
-        editor.pencilOnly = true
+    private func show(_ store: DocumentStore, pencilOnly: Bool = true) -> Shown {
+        let editor: PDFEditorController
+        if pencilOnly {
+            editor = PDFEditorController(store: store)
+        } else {
+            // Finger schreibt: eigene Werkzeug-Einstellungen (Stift), unabhaengig von anderen Tests
+            let suite = "uniflow.tests.tinte-lage.\(UUID().uuidString)"
+            let toolDefaults = UserDefaults(suiteName: suite) ?? .standard
+            addTeardownBlock { toolDefaults.removePersistentDomain(forName: suite) }
+            editor = PDFEditorController(store: store, tools: EditorToolState(defaults: toolDefaults))
+        }
+        editor.pencilOnly = pencilOnly
         editor.ownNotesVisible = true
         editor.canEdit = true
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
@@ -1471,6 +1655,22 @@ enum Skript {
         case schlicht
     }
 
+    /// Drei leere A4-Seiten, auf der ersten ein roter Punkt (4 x 4 pt) mit der Mitte bei `center` (Seitenpunkte, oben links)
+    static func markPDF(at center: CGPoint) -> Data {
+        let a4 = CGRect(x: 0, y: 0, width: 595, height: 842)
+        return UIGraphicsPDFRenderer(bounds: a4).pdfData { ctx in
+            for i in 0..<3 {
+                ctx.beginPage()
+                UIColor.white.setFill()
+                ctx.fill(a4)
+                if i == 0 {
+                    UIColor(red: 1, green: 0, blue: 0, alpha: 1).setFill()
+                    ctx.fill(CGRect(x: center.x - 2, y: center.y - 2, width: 4, height: 4))
+                }
+            }
+        }
+    }
+
     static func pdf(pages n: Int, _ art: Art = .vorlesung) -> Data {
         let a4 = CGRect(x: 0, y: 0, width: 595, height: 842)
         let renderer = UIGraphicsPDFRenderer(bounds: a4)
@@ -1663,6 +1863,31 @@ enum Bild {
     }
 
     /// Umriss der blauen Pixel (Blau deutlich ueber Rot und Gruen, auch Kantenpixel) in Punkten des Bildes; nil ohne Blau
+    /// Abstand der Mitte des blauen Kreises (Tinte) von der Mitte des roten Punkts (PDF): Pixel und Seitenpunkte (Massstab
+    /// aus der Breite des Kreises, `ringDiameter` in Seitenpunkten)
+    static func markOffset(_ image: CGImage, scale: CGFloat, in rect: CGRect, ringDiameter: CGFloat) -> (dx: Double, dy: Double, points: Double)? {
+        let w = image.width, h = image.height
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return nil }
+        ctx.draw(image, in: CGRect(x: 0, y: 0, width: w, height: h))
+        var bx0 = w, by0 = h, bx1 = -1, by1 = -1
+        var rx = 0.0, ry = 0.0, rw = 0.0
+        for y in max(0, Int(rect.minY * scale))..<min(h, Int(rect.maxY * scale)) {
+            for x in max(0, Int(rect.minX * scale))..<min(w, Int(rect.maxX * scale)) {
+                let i = (y * w + x) * 4
+                let r = Int(px[i]), g = Int(px[i + 1]), b = Int(px[i + 2])
+                if b - max(r, g) > 60 { bx0 = min(bx0, x); bx1 = max(bx1, x); by0 = min(by0, y); by1 = max(by1, y) }
+                let red = Double(r - max(g, b))
+                if red > 40 { rx += Double(x) * red; ry += Double(y) * red; rw += red }
+            }
+        }
+        guard bx1 > bx0, by1 > by0, rw > 0 else { return nil }
+        let dx = (Double(bx0 + bx1) / 2) - rx / rw, dy = (Double(by0 + by1) / 2) - ry / rw
+        let perPoint = Double(bx1 - bx0 + 1) / Double(ringDiameter)
+        return (dx, dy, (dx * dx + dy * dy).squareRoot() / perPoint)
+    }
+
     static func blueBox(_ image: CGImage, scale: CGFloat, in rect: CGRect) -> CGRect? {
         let w = image.width, h = image.height
         var px = [UInt8](repeating: 0, count: w * h * 4)

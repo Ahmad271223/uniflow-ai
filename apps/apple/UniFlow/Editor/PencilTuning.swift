@@ -43,6 +43,11 @@ enum PencilTuning {
     /// von PencilKit bekommt eine leere Eingabeansicht, iPadOS zeigt keine Bildschirmtastatur (`InkSelectionKeyboard`).
     /// `false`: wie bis 1.0.7 - die Tastatur kommt (Gegenprobe im Test `EditorStrichBleibtTests`, testLasso...).
     static var inkSelectionWithoutKeyboard = true
+    /// Rueckmeldung des Inhabers 21.11.2026 ("beim Schreiben bewegt sich das ab und zu", "beim Zoomen bewegen sich die
+    /// Zeichen ganz leicht"): Wandert der Ausschnitt der Zeichenflaeche (ueber 4-fachem Zoom), zeigt PencilKit ein Bild
+    /// lang die alten Kacheln an der neuen Stelle. Jetzt liegt dabei kurz ein Deckbild darueber
+    /// (`PageInkView.coverWhileRedrawing`). `false`: ohne, wie c9dcc5b9 (Gegenprobe in der Aufnahme).
+    static var coverWindowMoves = true
     /// So lange muss die Zeichenflaeche unberuehrt sein, bevor eine geladene Seite aus dem Speicher neu gesetzt wird
     /// (fremde Aenderung): nie mitten im Schreibfluss
     static let reloadQuietSeconds: CFTimeInterval = 1

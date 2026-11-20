@@ -157,13 +157,35 @@ final class EditorDeviceFixesTests: XCTestCase {
         v.endTranslucentHole()                                     // wie beim Beginn eines Strichs
         XCTAssertFalse(v.isSwitchingZoom)
         XCTAssertNil(v.canvas.layer.mask, "neuer Strich: Canvas sofort sichtbar")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         let rescales = PageInkView.rescalesMade, moves = PageInkView.windowMoves
         scroll.contentOffset = CGPoint(x: 1600, y: 2400)
         check("nach dem Scrollen")
         XCTAssertGreaterThan(PageInkView.windowMoves, moves, "Ausschnitt wandert mit")
         XCTAssertEqual(PageInkView.rescalesMade, rescales, "dabei kein Neuzeichnen aller Striche")
+        // beim Scrollen kein Deckbild (es wuerde bei jedem Bild erneuert); die Canvas bleibt offen
+        XCTAssertFalse(v.isSwitchingZoom, "Scrollen: kein Deckbild")
+        XCTAssertNil(v.canvas.layer.mask, "Scrollen: Canvas bleibt sichtbar")
         scroll.contentOffset = CGPoint(x: 1610, y: 2405)
         XCTAssertEqual(PageInkView.windowMoves, moves + 1, "kleine Bewegung im Rand: nichts zu tun")
+        // Strichende (`canvasViewDidEndUsingTool` setzt die Aufloesung neu): gleicher Zoom, Ausschnitt reicht -> bleibt
+        let before = v.inkWindow
+        v.setRenderScale(16, screen: 2)
+        XCTAssertEqual(v.inkWindow, before, "Strichende haengt die Zeichenflaeche nicht um (Tinte sprang ein Bild lang)")
+        XCTAssertEqual(PageInkView.windowMoves, moves + 1)
+        // reicht der Ausschnitt doch nicht (still stehende Seite), wandert er unter einem Deckbild
+        PencilTuning.coverWindowMoves = true
+        v.isDrawing = true                                         // Scrollen waehrend eines Strichs: kein Folgen
+        scroll.contentOffset = CGPoint(x: 2400, y: 3400)
+        v.isDrawing = false
+        v.setRenderScale(16, screen: 2)                            // wie am Strichende
+        XCTAssertEqual(PageInkView.windowMoves, moves + 2, "Ausschnitt wandert am Strichende nur, wenn er nicht reicht")
+        XCTAssertTrue(v.isSwitchingZoom, "still stehende Seite: Deckbild liegt")
+        XCTAssertNotNil(v.canvas.layer.mask, "Canvas drei Bilder lang verdeckt")
+        RunLoop.current.run(until: Date().addingTimeInterval(PageInkView.windowMoveReveal + 0.1))
+        XCTAssertFalse(v.isSwitchingZoom, "danach wieder offen")
+        XCTAssertNil(v.canvas.layer.mask)
+        check("nach dem Strich weiter unten")
         XCTAssertEqual(v.canvas.drawing.strokes.count, 1, "Zeichnung unveraendert")
         // Grenze von PencilKit: 10-fach wird angenommen, mehr nicht (darum `maxCanvasZoom`)
         let probe = PKCanvasView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))
