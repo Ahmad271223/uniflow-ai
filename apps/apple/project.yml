@@ -68,10 +68,16 @@ targets:
           # bisher (Simulator, iPad, iPhone, Xcode).
           UF_DEBUG_BUNDLE_ID: de.uniflow.ai
           PRODUCT_BUNDLE_IDENTIFIER: $(UF_DEBUG_BUNDLE_ID)
+          # CloudKit-Umgebung (UniFlow.entitlements, icloud-container-environment): Debug aus Xcode bleibt in Development
+          UF_CLOUDKIT_ENVIRONMENT: Development
         # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet
         Release:
           UF_SHIPPED_UNIVERSITIES: "luh hildesheim"
           UF_INTAKE_OFFERED: "YES"
+          # 20.11.2026: Release immer Production, auch per Kabel installiert (Entwickler-Profil). Vorher lief eine Kabel-Fassung
+          # still auf Development: das iPad des Inhabers (1.0.6/1.0.7 per Kabel) sah eine andere Community als der Mac
+          # (1.0.5 aus TestFlight). TestFlight und App Store waren schon immer Production (docs/paritaet/COMMUNITY-UND-ABGLEICH-2026-11-09.md 3.1).
+          UF_CLOUDKIT_ENVIRONMENT: Production
     # Release fuer ein Geraet (Archiv fuer TestFlight/App Store) nur mit Team und Berechtigung "Mit Apple anmelden":
     # ohne Config/Team.xcconfig baute das Archiv still ohne die Berechtigung und die App blieb an der Begruessung haengen
     preBuildScripts:

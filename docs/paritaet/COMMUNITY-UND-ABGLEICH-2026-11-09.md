@@ -63,7 +63,7 @@ nur bei: Gerätesync G2 (`StudoraAccountLink.syncNow`), Kontingent der Stapel-Ü
 |---|---|---|
 | Binärdatei | dieselbe App; kein eigener Mac-Build | project.yml:35–38 (`SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES`, `TARGETED_DEVICE_FAMILY: 2`) |
 | CloudKit-Container | `iCloud.de.uniflow.ai` in den Berechtigungen und in der Info.plist (`UFCloudKitContainer` aus `UF_CLOUDKIT_CONTAINER` der Team.xcconfig) | UniFlow.entitlements:26–33, project.yml:106, CommunityCloud.swift:126–140 |
-| Umgebung | keine `icloud-container-environment` in den Berechtigungen: App Store und TestFlight laufen auf **Production**, ein aus Xcode gestarteter Build (auch „My Mac (Designed for iPad)“) auf **Development**. Ein Mac-Test aus Xcode sieht die Daten des iPads aus dem App Store also **nicht** – kein Fehler der App, aber für Abnahmen wichtig: beide Geräte aus TestFlight/App Store prüfen | UniFlow.entitlements |
+| Umgebung | seit 20.11.2026 fest in den Berechtigungen (`icloud-container-environment = $(UF_CLOUDKIT_ENVIRONMENT)`): **Release = Production** – TestFlight, App Store und jetzt auch jede per Kabel installierte Release-Fassung –, **Debug = Development** (aus Xcode gestartet, auch „My Mac (Designed for iPad)“). Bis Build 46 fehlte der Eintrag: eine Kabel-Fassung mit Entwickler-Profil lief still auf Development und sah eine andere Community als TestFlight/App Store (Befund 20.11.2026: Mac 1.0.5 aus TestFlight zeigte Beiträge, die das iPad mit 1.0.6/1.0.7 per Kabel nicht hatte). Was eine Kabel-Fassung bis dahin geteilt hat, liegt in Development und erscheint in Production nicht | UniFlow.entitlements, project.yml |
 | Datensatztypen, Zonen | 14 Typen (cloudkit-schema.ckdb), alle in der Standardzone; öffentlich alles außer `Block` (privat). Keine eigenen Zonen, keine Freigaben | Config/cloudkit-schema.ckdb, CommunityCloud.swift:151–152 |
 | Nutzerkennung | `userRecordID` hängt an Apple-ID und Container: iPad und Mac derselben Apple-ID sind derselbe Nutzer („deine“, Zurückziehen, Sperren) | CommunityCloud.swift:161 |
 | Container der App | Kennung aus Apple-Nutzer und Hochschule (`DataContainerKey.identifier`), auf beiden Geräten gleich | Packages/…/Containers/DataContainer.swift:36 |
@@ -118,7 +118,7 @@ nur bei: Gerätesync G2 (`StudoraAccountLink.syncNow`), Kontingent der Stapel-Ü
 2. Korrekturhinweis an eine eigene Lösung schicken lassen, auf dem iPad öffnen → Abzeichen auf dem Mac nach dem
    nächsten Vordergrund ohne diesen Hinweis.
 3. Einstellungen → Konto → Geräte: iPad und „Mac“ getrennt.
-4. Nicht aus Xcode testen (Development-Umgebung, 3.1).
+4. Nicht als Debug aus Xcode testen (Development-Umgebung, 3.1); Release per Kabel ab dem Stand vom 20.11.2026 ist Production.
 
 ## 4. Abgleich persönlicher Daten (G2) – Stand
 

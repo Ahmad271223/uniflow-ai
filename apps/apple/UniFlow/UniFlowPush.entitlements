@@ -12,6 +12,10 @@
   iCloud-Schluessel-Wert-Speicher (ubiquity-kvstore): die 7-Tage-Probe je Apple-ID (docs/ABO-SYSTEM.md 3b,
   Purchases/LocalTrial.swift) wird dort gespiegelt, damit ein zweites iPad oder eine Neuinstallation sie nicht
   neu startet; ohne iCloud zaehlt nur der Schluesselbund des Geraets.
+  CloudKit-Umgebung (icloud-container-environment, 20.11.2026, docs/paritaet/COMMUNITY-UND-ABGLEICH-2026-11-09.md 3.1): Release =
+  Production, Debug = Development (UF_CLOUDKIT_ENVIRONMENT in project.yml). Ohne diesen Eintrag lief jede per Kabel
+  installierte Release-Fassung (Entwickler-Profil) auf Development und sah eine andere Community als TestFlight
+  und App Store.
 -->
 <!--
   UniFlowPush.entitlements (17.11.2026, Weck-Signal, docs/WECK-SIGNAL-2026-11-17.md): wie UniFlow.entitlements, dazu
@@ -33,6 +37,8 @@
 	<array>
 		<string>Default</string>
 	</array>
+	<key>com.apple.developer.icloud-container-environment</key>
+	<string>$(UF_CLOUDKIT_ENVIRONMENT)</string>
 	<key>com.apple.developer.icloud-container-identifiers</key>
 	<array>
 		<string>iCloud.de.uniflow.ai</string>
