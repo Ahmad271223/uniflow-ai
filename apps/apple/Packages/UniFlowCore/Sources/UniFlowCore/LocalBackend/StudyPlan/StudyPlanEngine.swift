@@ -512,6 +512,8 @@ public enum StudyPlanEngine {
         /// Modul aus Teilen, die alle noetig sind: Texte der bestandenen QIS-Zeilen und die offenen Teile (12.11.2026)
         var partsDone: [String] = []
         var partsOpen: [String] = []
+        /// bestanden laut selbst eingetragener Leistung (`GradesManual`, 20.11.2026), QIS meldet das Modul nicht
+        var manual = false
 
         /// Endgueltig, QIS meldet den letzten Versuch, oder bei bekannter Hoechstzahl: der naechste bzw. angemeldete
         /// Versuch ist der letzte (`last_attempt`, 11.11.2026: ohne Hoechstzahl nie aus der Zahl der Versuche)
@@ -641,11 +643,38 @@ public enum StudyPlanEngine {
         return (names, parts.enumerated().filter { !done.contains($0.offset) }.map(\.element.text))
     }
 
+    /// Quelle selbst eingetragener Leistungen (`GradesManual`)
+    static let manualSource = "manuell"
+
+    static func isManual(_ r: [String: JSONValue]) -> Bool { r["source"]?.string == manualSource }
+
+    /// Katalogmodul einer selbst eingetragenen Zeile: ihr `module_id`, sonst wie eine QIS-Zeile (`_manual_module`)
+    static func manualModule(_ r: [String: JSONValue], _ ids: Set<String>, _ byCode: [String: String], _ byKey: [String: String],
+                             _ byPart: PartIndex) -> String? {
+        if let mid = r["module_id"]?.string, ids.contains(mid) { return mid }
+        return rowModule(r, byCode, byKey, byPart)
+    }
+
+    /// Massgebliche bestandene Zeile: die neueste nach Semester; QIS-Zeilen vor selbst eingetragenen (`_best_passed`)
+    static func bestPassed(_ passed: [[String: JSONValue]]) -> [String: JSONValue] {
+        let qis = passed.filter { !isManual($0) }
+        let pool = qis.isEmpty ? passed : qis
+        var best = pool[0]
+        for r in pool.dropFirst() where (rowTerm(r) ?? -1) >= (rowTerm(best) ?? -1) { best = r }
+        return best
+    }
+
     static func match(_ mods: [[String: JSONValue]], _ grades: [[String: JSONValue]]) -> ([String: [[String: JSONValue]]], [String]) {
         let (byCode, byKey, byPart) = index(mods)
+        let ids = Set(mods.compactMap { $0["id"]?.string })
         var hist: [String: [[String: JSONValue]]] = [:]
         var unmatched: [String] = []
         for r in grades {
+            // selbst eingetragen (20.11.2026): zu ihrem Katalogmodul, nie unter "nicht zugeordnet" (das sind QIS-Zeilen)
+            if isManual(r) {
+                if let mid = manualModule(r, ids, byCode, byKey, byPart) { hist[mid, default: []].append(r) }
+                continue
+            }
             // Bereichszeile nur, wenn kein Katalogmodul so heisst (11.11.2026: "Vertiefung der Betriebssysteme")
             let mid = rowModule(r, byCode, byKey, byPart)
             if mid == nil && isBereich(r) { continue }
@@ -933,13 +962,13 @@ public enum StudyPlanEngine {
             let rec = (semOf(m) ?? slotSem[mid]).map { start + $0 - 1 }
             let own = placed[mid]
             if !passed.isEmpty {
-                var best = passed[0]
-                for r in passed.dropFirst() where (rowTerm(r) ?? -1) >= (rowTerm(best) ?? -1) { best = r }
+                let best = bestPassed(passed)
                 var t = rowTerm(best) ?? (rec.map { min($0, current) } ?? current)
                 t = max(t, start)
                 let g = PyText.strip(textOf(best["note"]))
                 st.status = "bestanden"; st.term = t; st.attempt = max(failedN + 1, intOrNil(best["versuch"]) ?? 0)
                 st.grade = g.isEmpty ? nil : g
+                st.manual = isManual(best)
             } else if !registered.isEmpty {
                 let vs = registered.compactMap { intOrNil($0["versuch"]) }.filter { $0 != 0 }
                 st.status = "angemeldet"; st.term = current; st.attempt = vs.max() ?? failedN + 1
@@ -1032,7 +1061,10 @@ public enum StudyPlanEngine {
         // Eigene Eintraege: Stand aus einer nicht zugeordneten QIS-Zeile mit gleichem Namensschluessel, sonst im
         // gewaehlten Fachsemester (fruehestens jetzt)
         let (byCode, byKey, byPart) = index(mods)
-        let loose = grades.filter { !isBereich($0) && rowModule($0, byCode, byKey, byPart) == nil }
+        let loose = grades.filter { r in
+            !isBereich(r) && !(isManual(r) && r["module_id"]?.string.map { byID[$0] != nil } == true)
+                && rowModule(r, byCode, byKey, byPart) == nil
+        }
         var custom: [(Int, [String: JSONValue])] = []
         for c in cleanCustom(settings["custom"]) {
             let key = nameKey(c.title)
@@ -1046,11 +1078,11 @@ public enum StudyPlanEngine {
                 "attempt_known": false, "max_attempts": .null, "final": false, "placed": false, "hints": [], "custom": true]
             let t: Int
             if !passedRows.isEmpty {
-                var best = passedRows[0]
-                for r in passedRows.dropFirst() where (rowTerm(r) ?? -1) >= (rowTerm(best) ?? -1) { best = r }
+                let best = bestPassed(passedRows)
                 let g = PyText.strip(textOf(best["note"]))
                 e["status"] = "bestanden"
                 e["grade"] = g.isEmpty ? .null : .string(g)
+                if isManual(best) { e["manual"] = true }
                 t = max(rowTerm(best) ?? current, start)
             } else if rows.contains(where: { rowResult($0) == "registered" }) {
                 t = current
@@ -1070,7 +1102,7 @@ public enum StudyPlanEngine {
         var qOrder: [String] = [], qRows: [String: [[String: JSONValue]]] = [:], qArea: [String: String] = [:]
         var ctx: String?
         for r in grades {
-            if rowModule(r, byCode, byKey, byPart) != nil { continue }
+            if isManual(r) || rowModule(r, byCode, byKey, byPart) != nil { continue }
             if isBereich(r) { ctx = areaOfBereich(r["text"], areaToks); continue }
             guard let area = ctx, textOf(r["source"]) != "anmeldung" else { continue }
             let key = nameKey(r["text"])
@@ -1309,10 +1341,19 @@ public enum StudyPlanEngine {
 
         // LP erreicht: die LP aller bestandenen QIS-Leistungen wie in Uni & Noten (`GradesModel.creditsDone`, Regel des
         // Inhabers 12.11.2026), auch nicht zugeordnete; nur ohne jede LP-Angabe im QIS die Katalog-LP der bestandenen Module
-        let qisLP = GradesModel.creditsDone(grades)
-        let lpDone = qisLP != 0 ? qisLP
-            : included.reduce(0.0) { $0 + (state[$1]!.status == "bestanden" ? lpOf(byID[$1]!) : 0) }
-            + custom.reduce(0.0) { $0 + ($1.1["status"]?.string == "bestanden" ? $1.1["lp"]!.double! : 0) }
+        // Selbst eingetragen (20.11.2026, `GradesManual`): ihre LP kommen zur QIS-Summe dazu (je Eintrag einmal; nur Eintraege,
+        // deren Modul QIS nicht als bestanden meldet, kommen hier an)
+        let manualRows = grades.filter(isManual)
+        let qisLP = GradesModel.creditsDone(manualRows.isEmpty ? grades : grades.filter { !isManual($0) })
+        var lpDone = qisLP != 0 ? qisLP
+            : included.reduce(0.0) { $0 + (state[$1]!.status == "bestanden" && !state[$1]!.manual ? lpOf(byID[$1]!) : 0) }
+            + custom.reduce(0.0) { $0 + ($1.1["status"]?.string == "bestanden" && $1.1["manual"]?.bool != true ? $1.1["lp"]!.double! : 0) }
+        var lpManual: Double?
+        if !manualRows.isEmpty {
+            let m = GradesModel.round1(PyMath.sum(manualRows.map { $0["lp_counted"]?.double ?? 0 }))
+            lpManual = m
+            lpDone = GradesModel.round1(lpDone + m)
+        }
         let total = num(catalog["total_lp"]) ?? 0
         let lpTotal = total != 0 ? total : included.reduce(0.0) { $0 + lpOf(byID[$1]!) }
         let lpExpected = included.reduce(0.0) { acc, id in
@@ -1396,7 +1437,7 @@ public enum StudyPlanEngine {
         var placementsOut: [String: JSONValue] = [:]
         for k in placedOrder { placementsOut[k] = .string(termName(placed[k]!)) }
 
-        let plan: [String: JSONValue] = [
+        var plan: [String: JSONValue] = [
             "available": true, "reason": .null, "message": .null,
             "university": catalog["university"] ?? .null, "program": catalog["program"] ?? .null,
             "degree": catalog["degree"] ?? .null, "po": catalog["po"] ?? .null, "code": catalog["code"] ?? .null,
@@ -1409,6 +1450,7 @@ public enum StudyPlanEngine {
             "areas": .array(areasOut), "groups": .array(groupsOut), "excluded": .array(excludedOut),
             "placements": .object(placementsOut),
         ]
+        if let lpManual { plan["lp_manual"] = .number(lpManual) }
         return Result(plan: plan, state: state, hist: hist, modules: mods, byID: byID)
     }
 
@@ -1419,6 +1461,7 @@ public enum StudyPlanEngine {
          "moved_from": opt(st.movedFrom), "reason": opt(st.reason), "last_attempt": .bool(st.lastAttempt),
          "attempt_known": .bool(st.known), "max_attempts": opt(st.maxAttempts), "final": .bool(st.final && st.status != "bestanden"),
          "placed": .bool(st.placed), "hints": .array(hints.map(JSONValue.string))]
+            .merging(st.manual ? ["manual": true] : [:]) { a, _ in a }
     }
 
     /// Hinweis endgueltig nicht bestanden bzw. letzter Versuch mit Grund (QIS oder Hoechstzahl) (`attempt_notes`)

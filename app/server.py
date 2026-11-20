@@ -160,6 +160,10 @@ HOSTED_UNAVAILABLE = (
     ("POST", "/api/tests/generate-week", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/timetable/import/preview", "KI-Funktionen kommen mit dem KI-Update."),
     ("POST", "/api/tasks/{id}/start-test", "KI-Funktionen kommen mit dem KI-Update."),
+    # selbst eingetragene Noten bleiben wie der Notenspiegel auf dem Geraet (20.11.2026)
+    ("GET", "/api/grades/manual", "Selbst eingetragene Noten bleiben auf deinem Gerät."),
+    ("POST", "/api/grades/manual", "Selbst eingetragene Noten bleiben auf deinem Gerät."),
+    ("DELETE", "/api/grades/manual/{id}", "Selbst eingetragene Noten bleiben auf deinem Gerät."),
 )
 _HOSTED_UNAVAILABLE_RE = [(m, re.compile("^" + "[^/]+".join(re.escape(part) for part in p.split("{id}")) + "$"), why)
                           for m, p, why in HOSTED_UNAVAILABLE]
@@ -4243,6 +4247,39 @@ def api_grades_sync(show: bool = False):
         study_catalog.start_if_needed()         # neuer Studiengang aus QIS: Modulkatalog im Hintergrund suchen (Studienverlauf)
         return res["message"]
     return _run_bg("Notenspiegel", _grades_then_catalog)
+
+
+# Selbst eingetragene Leistungen (Entscheidung des Inhabers 20.11.2026, app/grades_manual.py): abhaken und Note eintragen,
+# wenn QIS ein Modul nicht als bestanden meldet. Nur am eigenen PC bzw. auf dem Geraet, nie im Dienst (HOSTED_UNAVAILABLE).
+@app.get("/api/grades/manual")
+def api_grades_manual():
+    from . import grades_manual, study_plan
+    with db.cursor() as conn:
+        entries = grades_manual.resolve(study_plan.grade_rows(conn), grades_manual.load(conn))
+    return {"entries": entries, "credits_manual": round(sum(float(e["lp"] or 0) for e in entries if e["counted"]), 1)}
+
+
+@app.post("/api/grades/manual")
+def api_grades_manual_save(body: dict = Body(...)):
+    from . import grades_manual, study_plan
+    with db.cursor() as conn:
+        try:
+            e = grades_manual.save(conn, body)
+        except grades_manual.Invalid as ex:
+            raise HTTPException(400, str(ex)) from None
+        except LookupError as ex:
+            raise HTTPException(404, str(ex)) from None
+        entry = grades_manual.resolve(study_plan.grade_rows(conn), [e])[0]
+    return {"ok": True, "entry": entry}
+
+
+@app.delete("/api/grades/manual/{entry_id}")
+def api_grades_manual_delete(entry_id: int):
+    from . import grades_manual
+    with db.cursor() as conn:
+        if not grades_manual.delete(conn, entry_id):
+            raise HTTPException(404, "Eintrag unbekannt.")
+    return {"ok": True}
 
 
 @app.get("/api/qis/documents/{doc_id}")

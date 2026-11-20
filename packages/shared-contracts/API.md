@@ -38,6 +38,13 @@ Aufgaben `/api/tasks/open`, `/api/tasks/{id}/status`, Lernpakete `/api/packages/
 `/api/timetable/day?date=`, Tests `/api/tests`, `/api/tests/{id}`, Karteikarten `/api/flashcards` (mit `?stack_id=&due=1`; PATCH auch `question`, `answer`, `subject`, `stack_id`) und ihre Stapel `/api/flashcard-stacks` (GET/POST/PATCH/DELETE `?move_to=`, docs/KARTEIKARTEN-STAPEL-2026-11-04.md), KI-Tutor `/api/ai/tutor`,
 Karteikarten aus einem Dokument `/api/ai/flashcards` (nur Vorschlaege; `{file_id, pages?, count?, topic?}` -> `{cards, pages, count}`),
 Noten `/api/grades`, Learnweb-Fristen `/api/deadlines`, Dienste `/api/services`, Netzwerk/PIN `/api/network` (nur vom PC sinnvoll).
+Selbst eingetragene Leistungen (20.11.2026, app/grades_manual.py, Kern `GradesManual`; nur Gerät bzw. eigener PC, im Dienst
+501, nicht im Geräte-Abgleich): `GET /api/grades/manual` -> `{entries, credits_manual}`, `POST /api/grades/manual`
+`{module_id?, title?, code?, lp?, grade?, passed?, semester?, id?}` -> `{ok, entry}` (je `module_id` ein Eintrag; LP/Titel
+aus dem Katalog; Note über 4,0 = nicht bestanden), `DELETE /api/grades/manual/{id}`. Jeder Eintrag trägt `replaced`
+(QIS meldet dasselbe Modul bestanden: QIS gilt) und `counted`. Mit Einträgen liefert `/api/grades` zusätzlich `manual`,
+`credits_manual`, `credits_qis` (LP, Zahl und Schnitt enthalten die zählenden), `/api/study-plan` `lp_manual` und je Modul
+`manual: true`, `/api/study-plan/module/{id}` immer `own.manual` und `own.can_mark`.
 Kommende Klausuren `/api/exams/upcoming[?module_id=]` (04.11.2026, app/exams.py, Kern `Exams`): `{items, today, filled}`, je
 Modul und Tag ein Eintrag aus Stud.IP-Terminen (Art `categories` = Klausur), Klausurtermin am Modul, QIS-Anmeldungen,
 Fristen, Ankündigungen und Nachrichten mit `time`, `end`, `room`, `in_days`, `sources`, `source_label`, `user_set`;

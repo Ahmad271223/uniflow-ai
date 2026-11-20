@@ -279,6 +279,9 @@ SAMPLES: dict[str, dict] = {
                                      "keys": ["credentials", "qis", "services", "studip", "universities", "university"],
                                      "reason": "Form wie server.py; liest dort die .env, darum nicht aufgerufen"}},
     "GET /api/grades": {"path": "/api/grades"},
+    # selbst eingetragene Leistungen (20.11.2026, app/grades_manual.py): freier Eintrag ohne Modul; Loeschen unbekannt -> 404
+    "POST /api/grades/manual": {"path": "/api/grades/manual", "body": {"title": "Spanisch A1", "lp": 4}},
+    "DELETE /api/grades/manual/{}": {"path": "/api/grades/manual/999"},
     "POST /api/grades/sync": {"path": "/api/grades/sync", "python": False,
                               "expect": {"status": 404, "reason": "QIS auf dem iPad folgt (F4)"}},
     "GET /api/qis/documents/{}": {"path": "/api/qis/documents/1"},

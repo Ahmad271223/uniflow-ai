@@ -29,6 +29,8 @@ struct ServicesPage: View {
     @State private var tt: JSONValue?
     @State private var error: String?
     @State private var preview: URL?
+    /// selbst eingetragene Leistung, die entfernt werden soll (Rueckfrage, 20.11.2026)
+    @State private var removeManual: JSONValue?
 
     /// CRED_LIST
     static let credList: [(key: String, name: String)] = [
@@ -86,7 +88,9 @@ struct ServicesPage: View {
     static func creditsLabel(_ g: JSONValue) -> String {
         let failed = g.i("failed_attempts") ?? 0
         let onlyModules = !g.list("grades").contains { $0["counted"]?.bool == true && $0.s("level") != "modul" }
+        let manual = g.n("credits_manual") ?? 0
         return "aus \(g.i("passed") ?? 0) bestandenen \(g.s("basis") == "module" && onlyModules ? "Modulen" : "Leistungen")"
+            + (manual > 0 ? " · davon \(js(manual).replacingOccurrences(of: ".", with: ",")) LP selbst eingetragen" : "")
             + (failed > 0 ? " · \(failed) nicht bestandene Versuche" : "")
     }
 
@@ -155,6 +159,9 @@ struct ServicesPage: View {
                 }
             }
 
+            // Selbst eingetragen (20.11.2026): abgehakte Module und eigene Noten, nur wenn es welche gibt
+            if !g.list("manual").isEmpty { manualCard(g.list("manual")).padding(.top, 16) }
+
             // Bescheinigungen (06.11.2026): eigene Seite mit allem, was das Portal anbietet
             certificatesCard.padding(.top, 16)
 
@@ -208,6 +215,71 @@ struct ServicesPage: View {
         case .running: return .badge("gleicht ab …", .info)
         case .failed: return .badge("Abgleich fehlgeschlagen", .bad)
         case .connected, .ok: return .badge("synchronisiert", .ok)
+        }
+    }
+
+    /// Stand eines eigenen Eintrags in einem Satz
+    static func manualState(_ e: JSONValue) -> String {
+        if e["replaced"]?.bool == true {
+            let by = [e["replaced_by"]?.s("note"), e["replaced_by"]?.s("semester")].compactMap { $0 }.filter { !$0.isEmpty }
+            return "QIS meldet es jetzt" + (by.isEmpty ? "" : " (\(by.joined(separator: " · ")))") + " – zählt aus QIS"
+        }
+        if e["passed"]?.bool == false { return "nicht bestanden – zählt nicht" }
+        return "zählt mit \(js(e.n("lp") ?? 0).replacingOccurrences(of: ".", with: ",")) LP"
+    }
+
+    /// "Mathematik II · 2,3 · SoSe 26" fuer die Liste
+    static func manualLine(_ e: JSONValue) -> String {
+        ([e.s("title") ?? "Modul", e.s("grade"), e.s("semester")].compactMap { $0 }.filter { !$0.isEmpty }).joined(separator: " · ")
+    }
+
+    /// Karte "Selbst eingetragen": abgehakte Module und eigene Noten mit Stand; Entfernen hier, Aendern im Studienverlauf
+    private func manualCard(_ entries: [JSONValue]) -> some View {
+        UFCard {
+            UFCardHead("Selbst eingetragen", icon: "pencil")
+            Text("Diese Leistungen hast du selbst abgehakt. Sie zählen bei Leistungspunkten und Schnitt mit, bis QIS sie meldet – dann gilt der Wert aus QIS. Ändern kannst du sie im Studienverlauf beim Modul. Sie bleiben nur auf diesem Gerät.")
+                .ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                .padding(.bottom, 6)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(entries.enumerated()), id: \.offset) { i, e in
+                    HStack(alignment: .center, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(Self.manualLine(e)).ufFont(14, 600, lh: 1.3).foregroundStyle(UF.text)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Text(Self.manualState(e)).ufFont(12.8).foregroundStyle(e["counted"]?.bool == true ? UF.okText : UF.muted)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("Selbst eingetragen: " + Self.manualLine(e).replacingOccurrences(of: " · ", with: ", ")
+                                            + ", " + Self.manualState(e))
+                        UFButton(icon: "trash", kind: .ghost, size: .small) { removeManual = e }
+                            .accessibilityLabel("\(e.s("title") ?? "Eintrag") entfernen")
+                            .accessibilityIdentifier("services.manual.remove.\(e.i("id") ?? 0)")
+                    }
+                    .padding(.vertical, 8)
+                    .ufBorderBottom(i < entries.count - 1)
+                }
+            }
+        }
+        .accessibilityIdentifier("services.manual")
+        .alert("Eigenen Eintrag entfernen?", isPresented: Binding(get: { removeManual != nil }, set: { if !$0 { removeManual = nil } })) {
+            Button("Entfernen", role: .destructive) {
+                if let id = removeManual?.i("id") { Task { await deleteManual(id) } }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Das Modul zählt dann nicht mehr als bestanden, solange QIS es nicht meldet.")
+        }
+    }
+
+    private func deleteManual(_ id: Int) async {
+        guard let api = session.api else { return }
+        do {
+            _ = try await api.value("/api/grades/manual/\(id)", method: "DELETE")
+            await load()
+        } catch {
+            toast.show(error.localizedDescription)
         }
     }
 

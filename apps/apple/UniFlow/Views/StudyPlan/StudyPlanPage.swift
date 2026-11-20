@@ -124,7 +124,8 @@ struct StudyPlanPage: View {
                              manage: { id, action in
                                  detail = nil
                                  handle(id, action, viaDetail: true)
-                             }) { route in
+                             },
+                             gradesChanged: { await load() }) { route in
                 detail = nil
                 router.go(route)
             }
@@ -807,6 +808,12 @@ struct StudyPlanHeaderCard: View {
                     Text(StudyPlanText.progress(plan.lpDone, plan.lpTotal) + " erreicht")
                         .ufFont(13.12, 600).foregroundStyle(UF.okText)
                         .accessibilityHidden(true)
+                    // selbst eingetragen (20.11.2026): ehrlich sagen, wie viel davon nicht aus QIS kommt
+                    if plan.lpManual > 0 {
+                        Text("davon \(StudyPlanText.number(plan.lpManual)) LP selbst eingetragen")
+                            .ufFont(12.8).foregroundStyle(UF.text2)
+                            .accessibilityIdentifier("studyplan.progress.manual")
+                    }
                     if !plan.notes.isEmpty && !compact {
                         UFFlexWrap(gap: 6) {
                             ForEach(Array(plan.notes.enumerated()), id: \.offset) { _, n in
@@ -975,6 +982,7 @@ struct StudyPlanModuleCard: View {
                     if let t = StudyPlanText.turnus(m.turnus) { StudyPlanTag(text: t, pair: nil) }
                     if m.placed { StudyPlanTag(text: "Selbst eingeplant", pair: CommunityPalette.sky) }
                     if m.custom { StudyPlanTag(text: "Eigener Eintrag", pair: nil) }
+                    if m.manual { StudyPlanTag(text: StudyPlanText.manualBadge, pair: nil) }
                     if m.qis { StudyPlanTag(text: "Aus QIS", pair: CommunityPalette.sky) }
                 }
                 StudyPlanStatusPill(text: StudyPlanText.status(m), status: m.status)

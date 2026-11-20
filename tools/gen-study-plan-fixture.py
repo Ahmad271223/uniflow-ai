@@ -237,6 +237,15 @@ def g(text, semester, status, note="", versuch="", nr="", credits="", datum="", 
     return row
 
 
+def manual(i, module_id, title, lp, grade="", semester="", code=""):
+    """Selbst eingetragene Leistung wie app/grades_manual.row_of (bestanden, nicht durch QIS ersetzt)"""
+    return {"id": None, "source": "manuell", "manual_id": i, "module_id": module_id, "pruefungsnr": code, "text": title,
+            "semester": semester, "semester_norm": semester, "note": grade, "status": "bestanden", "credits": str(lp),
+            "versuch": "", "datum": "", "datum_iso": "", "abschluss": None, "raw": None, "art": "", "level": "modul",
+            "passed": True, "graded": bool(grade), "anerkannt": False, "counted": True, "lp_counted": float(lp),
+            "superseded": False, "modul_nr": None, "modul_text": None}
+
+
 def passed(titles_terms):
     return [g(t, s, "bestanden", "2,3") for t, s in titles_terms]
 
@@ -455,6 +464,15 @@ CASES = [
     {"name": "verlaufsplan_ueberfuehrt", "catalog_code": "INFBSc22X", "what": "Beginn WiSe 23/24 (in die PO ueberfuehrt): "
      "Einfuehrung nicht noetig (nicht im Plan, kein 'nachholen'), Proseminar-Platz bleibt", "today": "2026-11-04",
      "settings": {}, "grades": passed([("Programmieren I", "WiSe 23/24")])},
+    # Selbst eingetragen (20.11.2026, app/grades_manual.py): Zeilen wie grades_manual.row_of, nur zaehlende Eintraege
+    {"name": "selbst_eingetragen", "what": "Rechnerstrukturen selbst abgehakt (Note 1,7, SoSe 26), eigener Eintrag "
+     "'Spanisch A1' selbst abgehakt, freier Eintrag 'Rhetorik' ohne Modul: bestanden mit 'manual', LP zur QIS-Summe dazu "
+     "(lp_manual), nichts unter 'nicht zugeordnet'", "today": "2026-11-12",
+     "settings": {"custom": [{"title": "Spanisch A1", "lp": 4}]},
+     "grades": passed([(t, "WiSe 25/26") for t in SEM1]) + [
+         manual(1, "rechnerstrukturen", "Rechnerstrukturen", 5, "1,7", "SoSe 26"),
+         manual(2, "eigen-1", "Spanisch A1", 4),
+         manual(3, None, "Rhetorik", 3, "2,0")]},
 ]
 
 NAMES = ["Programmieren I", "Übung zu Programmieren I", "Programmieren 1", "Vorlesung und Übung Mathematik II",

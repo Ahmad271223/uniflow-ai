@@ -399,16 +399,26 @@ def truncate1(x: float) -> float:
     return math.floor(x * 10 + 1e-9) / 10
 
 
-def summary(rows: list[dict]) -> dict:
+def summary(rows: list[dict], manual: list[dict] | None = None) -> dict:
+    """Kennzahlen fuer Uni & Noten. `manual`: selbst eingetragene Leistungen (app/grades_manual.py, 20.11.2026); die
+    zaehlenden (bestanden, QIS meldet das Modul nicht) gehen in LP, Zahl der bestandenen Leistungen und, mit Note, in den
+    Schnitt; QIS geht vor. Ohne Eintraege bleibt die Antwort wie bisher (ohne die Felder `manual`, `credits_manual`)."""
     m = model(rows)
     modules = [r for r in m if r["level"] == "modul"]
     basis = modules if any(r["graded"] for r in modules) else [r for r in m if r["level"] != "bereich"]
     graded = [r for r in basis if r["graded"]]
     weights = [(_num(r["note"]), _num(r.get("credits")) or 0.0) for r in graded]
+    resolved, extra = [], []
+    if manual:
+        from .grades_manual import grade_num, resolve
+        resolved = resolve(m, manual)
+        extra = [e for e in resolved if e["counted"]]
+        weights += [(grade_num(e), float(e.get("lp") or 0)) for e in extra
+                    if grade_num(e) is not None and grade_num(e) <= 4.0]
     lp = sum(w for _, w in weights)
     exact = sum(n * w for n, w in weights) / lp if lp else (sum(n for n, _ in weights) / len(weights) if weights else None)
     passed = [r for r in m if r["counted"]]
-    return {
+    out = {
         "rows": m,
         "average": truncate1(exact) if exact is not None else None,
         "average_exact": round(exact, 2) if exact is not None else None,
@@ -421,3 +431,8 @@ def summary(rows: list[dict]) -> dict:
                      for r in m if r["level"] == "bereich"],
         "failed_attempts": len([r for r in m if r["level"] == "pruefung" and (r.get("status") or "").lower().startswith("nicht")]),
     }
+    if manual:
+        lp_manual = round(sum(float(e.get("lp") or 0) for e in extra), 1)
+        out.update(graded_count=len(weights), credits=round(counted_lp(m) + lp_manual, 1), passed=len(passed) + len(extra),
+                   credits_qis=counted_lp(m), credits_manual=lp_manual, manual=resolved)
+    return out
