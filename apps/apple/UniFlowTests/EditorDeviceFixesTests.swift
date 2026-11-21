@@ -108,6 +108,37 @@ final class EditorDeviceFixesTests: XCTestCase {
                      "Seite weit weg: kein Ausschnitt")
     }
 
+    /// Meldung des Inhabers 20.11.2026 abends: "Scrollen mit dem Finger hakt". Der Ausschnitt der Zeichenflaeche behaelt
+    /// beim Scrollen seine Groesse (am Seitenrand geschoben statt beschnitten, keine Rundung je nach Lage): PencilKit
+    /// verschiebt dann nur, statt die Zeichenflaeche neu aufzubauen.
+    func testInkWindowKeepsItsSizeWhileScrolling() throws {
+        let page = CGRect(x: 0, y: 0, width: 595, height: 842)
+        var sizes = Set<String>()
+        // sichtbarer Teil wie am iPad bei 300 %, in krummen Schritten ueber die ganze Seite und ueber ihre Raender hinaus
+        var y: CGFloat = -260.3
+        while y < 900 {
+            let v = CGRect(x: 193.37 + y.truncatingRemainder(dividingBy: 7) * 0.13, y: y, width: 208.5, height: 298.5)
+            if let w = PageInkView.window(around: v, in: page, margin: 0.25) {
+                sizes.insert("\(w.width) x \(w.height)")
+                XCTAssertTrue(page.insetBy(dx: -0.01, dy: -0.01).contains(w), "ganz auf der Seite: \(w)")
+                let visible = v.intersection(page)
+                if !visible.isNull { XCTAssertTrue(w.insetBy(dx: -0.01, dy: -0.01).contains(visible), "sichtbarer Teil \(visible) liegt in \(w)") }
+            }
+            y += 13.7
+        }
+        XCTAssertEqual(sizes.count, 1, "eine Groesse: \(sizes)")
+        XCTAssertNil(PageInkView.window(around: CGRect(x: 100, y: 2000, width: 200, height: 300), in: page, margin: 0.25), "Seite weit weg")
+        // Rechengenauigkeit: weicht die Groesse um hoechstens einen Punkt ab, bleibt die bisherige
+        let a = try XCTUnwrap(PageInkView.window(around: CGRect(x: 100, y: 100, width: 208.0001, height: 298), in: page, margin: 0.25))
+        let b = try XCTUnwrap(PageInkView.window(around: CGRect(x: 120, y: 140, width: 207.9999, height: 298), in: page, margin: 0.25, keeping: a.size))
+        XCTAssertEqual(a.size, b.size)
+        // Seite schmaler als der Ausschnitt: so breit wie die Seite
+        let narrow = try XCTUnwrap(PageInkView.window(around: CGRect(x: -50, y: 300, width: 700, height: 200), in: page, margin: 0.25))
+        XCTAssertEqual(narrow.minX, 0)
+        XCTAssertEqual(narrow.width, 595)
+        XCTAssertEqual(narrow.height, 300)
+    }
+
     /// Bei starkem Zoom zeigt die Canvas nur den sichtbaren Teil; beim Scrollen wandert der Ausschnitt mit (ohne alle
     /// Striche neu zu zeichnen), die Striche bleiben in Seitenpunkten und der sichtbare Teil liegt immer auf der Canvas
     func testWindowedCanvasFollowsScrollingAndKeepsPagePoints() throws {
@@ -157,13 +188,35 @@ final class EditorDeviceFixesTests: XCTestCase {
         v.endTranslucentHole()                                     // wie beim Beginn eines Strichs
         XCTAssertFalse(v.isSwitchingZoom)
         XCTAssertNil(v.canvas.layer.mask, "neuer Strich: Canvas sofort sichtbar")
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
         let rescales = PageInkView.rescalesMade, moves = PageInkView.windowMoves
         scroll.contentOffset = CGPoint(x: 1600, y: 2400)
         check("nach dem Scrollen")
         XCTAssertGreaterThan(PageInkView.windowMoves, moves, "Ausschnitt wandert mit")
         XCTAssertEqual(PageInkView.rescalesMade, rescales, "dabei kein Neuzeichnen aller Striche")
+        // beim Scrollen kein Deckbild (es wuerde bei jedem Bild erneuert); die Canvas bleibt offen
+        XCTAssertFalse(v.isSwitchingZoom, "Scrollen: kein Deckbild")
+        XCTAssertNil(v.canvas.layer.mask, "Scrollen: Canvas bleibt sichtbar")
         scroll.contentOffset = CGPoint(x: 1610, y: 2405)
         XCTAssertEqual(PageInkView.windowMoves, moves + 1, "kleine Bewegung im Rand: nichts zu tun")
+        // Strichende (`canvasViewDidEndUsingTool` setzt die Aufloesung neu): gleicher Zoom, Ausschnitt reicht -> bleibt
+        let before = v.inkWindow
+        v.setRenderScale(16, screen: 2)
+        XCTAssertEqual(v.inkWindow, before, "Strichende haengt die Zeichenflaeche nicht um (Tinte sprang ein Bild lang)")
+        XCTAssertEqual(PageInkView.windowMoves, moves + 1)
+        // reicht der Ausschnitt doch nicht (still stehende Seite), wandert er unter einem Deckbild
+        PencilTuning.coverWindowMoves = true
+        v.isDrawing = true                                         // Scrollen waehrend eines Strichs: kein Folgen
+        scroll.contentOffset = CGPoint(x: 2400, y: 3400)
+        v.isDrawing = false
+        v.setRenderScale(16, screen: 2)                            // wie am Strichende
+        XCTAssertEqual(PageInkView.windowMoves, moves + 2, "Ausschnitt wandert am Strichende nur, wenn er nicht reicht")
+        XCTAssertTrue(v.isSwitchingZoom, "still stehende Seite: Deckbild liegt")
+        XCTAssertNotNil(v.canvas.layer.mask, "Canvas drei Bilder lang verdeckt")
+        RunLoop.current.run(until: Date().addingTimeInterval(PageInkView.windowMoveReveal + 0.1))
+        XCTAssertFalse(v.isSwitchingZoom, "danach wieder offen")
+        XCTAssertNil(v.canvas.layer.mask)
+        check("nach dem Strich weiter unten")
         XCTAssertEqual(v.canvas.drawing.strokes.count, 1, "Zeichnung unveraendert")
         // Grenze von PencilKit: 10-fach wird angenommen, mehr nicht (darum `maxCanvasZoom`)
         let probe = PKCanvasView(frame: CGRect(x: 0, y: 0, width: 100, height: 100))

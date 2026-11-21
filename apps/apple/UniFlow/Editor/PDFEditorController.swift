@@ -230,6 +230,14 @@ final class PageInkView: UIView {
     private var layoutDeferred = false
     /// Scrollen der PDFView: der Ausschnitt folgt (`followViewport`)
     private var scrollObservation: NSKeyValueObservation?
+    /// Scroll-Ansicht der PDFView (ihre Pinch-Geste, Zurueckfedern)
+    private weak var enclosingScroll: UIScrollView?
+    /// Waehrend des Zoomens verlangte Aufloesung: kommt nach dem Zoomen (`settleAfterZoomGesture`)
+    private var pendingRenderScale: (scale: CGFloat, screen: CGFloat)?
+    /// Nur Anzeige, waehrend gezoomt wird: die ganze Seite unter der scharfen Zeichenflaeche, die dann nur einen
+    /// Ausschnitt zeigt (beim Herauszoomen fehlte sonst ausserhalb des Ausschnitts die Tinte)
+    private var pinchUnderlay: PKCanvasView?
+    private var settleScheduled = false
 
     /// Fremde Ebenen freigeben (Speicherwarnung); die Auswahl der Ebenen bleibt im Editor.
     func releaseForeign() {
@@ -261,7 +269,17 @@ final class PageInkView: UIView {
     /// zoomt die Canvas so weit wie die Anzeige; waere die ganze Seite dafuer zu gross (`inkPixelBudget`), zeigt sie
     /// nur den sichtbaren Teil der Seite mit Rand (`inkLayout(pageSize:viewport:zoom:screen:)`), und dieser Ausschnitt
     /// folgt dem Scrollen (`followViewport`). Bis zum 4-fachen Zoom bleibt alles wie bisher.
+    ///
+    /// Waehrend gezoomt wird (Finger liegen, Zurueckfedern), bleibt die Zeichenflaeche wie sie ist und PDFKit skaliert
+    /// sie mit der Seite; die Aufloesung kommt danach (`settleAfterZoomGesture`). Rueckmeldung des Inhabers 21.11.2026:
+    /// "die Schrift muss am Blatt haften und darf nicht kurz spinnen" - bis 8262c3e4 wanderte der Ausschnitt beim
+    /// Herauszoomen in fast jedem Bild der Geste mit (echtes Pinchen nachgestellt: 17 Mal in einer Geste).
     func setRenderScale(_ scale: CGFloat, screen: CGFloat = UIScreen.main.scale) {
+        if zoomGestureRunning {
+            pendingRenderScale = (scale, screen)
+            settleAfterZoomGesture()
+            return
+        }
         objectsView.setRenderScale(Self.objectScale(scale))
         lastRenderScale = scale
         layoutScreen = screen
@@ -270,38 +288,78 @@ final class PageInkView: UIView {
         let current = canvas.zoomScale
         let change = abs(zoom - current) > 0.001 && (zoom > current || zoom <= current / 2 || zoom == 1)
         wantedZoom = change ? zoom : current
-        guard let l = Self.inkLayout(pageSize: geometry.pageSize, viewport: viewportInPage(), zoom: wantedZoom, screen: screen) else {
+        let viewport = viewportInPage()
+        guard var l = Self.inkLayout(pageSize: geometry.pageSize, viewport: viewport, zoom: wantedZoom, screen: screen) else {
             layoutDeferred = true
             foreignLayerViews.forEach { $0.setRenderScale(Self.objectScale(scale), zoom: inkLayout.zoom) }
             return
         }
+        // Gleiche Zoomstufe (z. B. nach jedem Strich): Der Ausschnitt bleibt, solange er den sichtbaren Teil noch enthaelt.
+        // Bis c9dcc5b9 rechnete jedes Strichende den Ausschnitt neu und haengte die Zeichenflaeche um wenige Punkte um -
+        // das zeigte ein Bild lang die Tinte versetzt ("beim Schreiben bewegt sich das ab und zu", 21.11.2026).
+        let page = CGRect(origin: .zero, size: geometry.pageSize)
+        if !layoutDeferred, abs(l.zoom - inkLayout.zoom) < 0.001, l.window != page, inkLayout.window != page, let v = viewport,
+           Self.covers(inkLayout.window, needed(v)) {
+            l = inkLayout
+        }
         layoutDeferred = false
-        apply(l)
+        apply(l, coverMoves: true)
     }
 
-    /// Zoom und Ausschnitt setzen: fremde Striche und Korrektur sofort, die eigene Zeichenflaeche nicht mitten im Strich
-    private func apply(_ l: InkLayout) {
+    /// Teil der Seite, der auf der Zeichenflaeche liegen muss: sichtbarer Teil mit halbem Rand
+    private func needed(_ v: CGRect) -> CGRect {
+        let half = Self.windowMargin / 2
+        return v.insetBy(dx: -v.width * half, dy: -v.height * half).intersection(CGRect(origin: .zero, size: geometry.pageSize))
+    }
+
+    private static func covers(_ window: CGRect, _ need: CGRect) -> Bool {
+        need.isNull || need.isEmpty || window.insetBy(dx: -0.5, dy: -0.5).contains(need)
+    }
+
+    /// Ausschnitt (Seitenpunkte), den eine Canvas gerade zeigt
+    private static func window(of c: PKCanvasView) -> CGRect {
+        let z = max(c.zoomScale, 0.0001)
+        return CGRect(x: c.contentOffset.x / z, y: c.contentOffset.y / z, width: c.bounds.width / z, height: c.bounds.height / z)
+    }
+
+    /// Zoom und Ausschnitt setzen: fremde Striche und Korrektur sofort, die eigene Zeichenflaeche nicht mitten im Strich.
+    ///
+    /// Jede Canvas, deren Zoomstufe wechselt oder deren Ausschnitt wandert, liegt dabei unter einem Deckbild und ist
+    /// selbst unsichtbar (`coverWhileRedrawing`): Beim Zoomwechsel zeichnet PencilKit alles neu; beim Verschieben zeigt
+    /// PencilKit ein Bild lang die alten Kacheln an der neuen Stelle - die Tinte sprang um den Weg des Ausschnitts (im
+    /// Simulator aufgenommen: 5 x 7 pt bei 600 %, ein Bild lang; "bewegen sich ganz leicht, dann sofort zurueck").
+    /// Das trat nur auf, wenn die Seite still stand und PencilKit gerade gezeichnet hatte (nach einem Strich); beim
+    /// Scrollen und Pinchen nicht (gemessen, 0,23 pt). Dort (`followViewport`, `coverMoves` false) kein Deckbild: es
+    /// wuerde bei jedem Bild des Herauszoomens erneuert und liesse am Rand Tinte fehlen.
+    private func apply(_ l: InkLayout, coverMoves: Bool) {
         inkLayout = l
         let z = min(max(1, l.zoom), Self.maxCanvasZoom)
         let zoomChanges = !isDrawing && abs(z - canvas.zoomScale) > 0.001
-        // Jede Canvas, deren Zoomstufe wechselt, zeichnet alle Striche neu: bis dahin Deckbild, Canvas unsichtbar
-        var switching: [PKCanvasView] = zoomChanges ? [canvas] : []
-        if let f = foreignInk, abs(z - f.zoomScale) > 0.001 { switching.append(f) }
-        if let c = correctionView?.ink, abs(z - c.zoomScale) > 0.001 { switching.append(c) }
-        if !switching.isEmpty {
-            if zoomChanges { endTranslucentHole() }             // die Maske passt nach dem Wechsel nicht mehr
-            beginZoomSwitch(switching)
+        let moves = !isDrawing && !zoomChanges && !Self.same(l.window, inkWindow)
+        func changes(_ c: PKCanvasView) -> (zoom: Bool, move: Bool) {
+            let zoom = abs(z - c.zoomScale) > 0.001
+            return (zoom, !zoom && !Self.same(l.window, Self.window(of: c)))
         }
+        var zoomed: [PKCanvasView] = zoomChanges ? [canvas] : [], moved: [PKCanvasView] = moves ? [canvas] : []
+        for c in [foreignInk, correctionView?.ink].compactMap({ $0 }) {
+            let ch = changes(c)
+            if ch.zoom { zoomed.append(c) } else if ch.move { moved.append(c) }
+        }
+        if zoomChanges || moves { removeTranslucentHole() }     // die Maske passt nach dem Wechsel nicht mehr
+        if !zoomed.isEmpty { coverWhileRedrawing(zoomed, for: Self.zoomSwitchReveal, zoom: true) }
+        if !moved.isEmpty, coverMoves, PencilTuning.coverWindowMoves { coverWhileRedrawing(moved, for: Self.windowMoveReveal, zoom: false) }
         foreignLayerViews.forEach { $0.setRenderScale(Self.objectScale(lastRenderScale), zoom: l.zoom) }   // importierte Loesungen ebenso
         if let f = foreignInk { Self.place(f, pageSize: geometry.pageSize, layout: l) }
         correctionView?.setZoom(l.zoom, window: l.window)
-        guard !isDrawing else { return }
-        guard zoomChanges || !Self.same(l.window, inkWindow) else { return }
+        guard zoomChanges || moves else { return }
         if zoomChanges {
             Self.rescalesMade += 1
+            StiftZaehler.bump(.zoomstufeGewechselt)
         } else {
-            endTranslucentHole()                                // die Maske passt nach dem Verschieben nicht mehr
             Self.windowMoves += 1
+            StiftZaehler.bump(coverMoves ? .ausschnittNachStrich : .ausschnittBeimScrollen)
+            let now = inkWindow
+            if abs(now.width - l.window.width) > 0.01 || abs(now.height - l.window.height) > 0.01 { Self.windowResizes += 1 }
         }
         Self.place(canvas, pageSize: geometry.pageSize, layout: l)
     }
@@ -330,6 +388,8 @@ final class PageInkView: UIView {
 
     /// Messung (Tests): wie oft der Ausschnitt nur verschoben wurde (ohne Neuzeichnen der ganzen Seite)
     private(set) static var windowMoves = 0
+    /// Messung (Tests): wie oft sich dabei auch die Groesse des Ausschnitts geaendert hat (PencilKit baut dann neu auf)
+    private(set) static var windowResizes = 0
 
     /// Bis zu diesem Zoom zeigt die Canvas immer die ganze Seite, genau wie bis 1.0.7 (auch grosse Seiten wie A1/A0;
     /// sichtbar soll sich dort nichts aendern). Der Ausschnitt gilt nur darueber, wo es bisher nicht schaerfer ging.
@@ -339,19 +399,45 @@ final class PageInkView: UIView {
     /// passt: die ganze Seite (wie bisher). Sonst der sichtbare Teil `viewport` (Seitenpunkte) mit Rand `margin`; passt
     /// auch der nicht, eine Zoomstufe tiefer (bis `wholePageZoom`, dann wieder die ganze Seite wie bisher). nil: die
     /// ganze Seite ist zu gross und der sichtbare Teil unbekannt oder weit weg.
+    ///
+    /// Der Ausschnitt ist immer gleich gross, solange der sichtbare Teil gleich gross ist (`window(around:in:margin:keeping:)`).
     nonisolated static func inkLayout(pageSize size: CGSize, viewport: CGRect?, zoom wanted: CGFloat, screen: CGFloat,
-                                      budget: CGFloat = inkPixelBudget, margin: CGFloat = windowMargin) -> InkLayout? {
+                                      budget: CGFloat = inkPixelBudget, margin: CGFloat = windowMargin,
+                                      keeping size0: CGSize? = nil) -> InkLayout? {
         let page = CGRect(origin: .zero, size: size)
         func pixels(_ r: CGRect, _ z: CGFloat) -> CGFloat { r.width * r.height * z * z * screen * screen }
         let z0 = min(max(1, wanted.isFinite ? wanted : 1), maxCanvasZoom)
         if z0 <= wholePageZoom + 0.001 || pixels(page, z0) <= budget { return InkLayout(zoom: z0, window: page) }
-        guard let v = viewport, !v.isNull, v.width > 0, v.height > 0 else { return nil }
-        let near = v.insetBy(dx: -v.width * margin, dy: -v.height * margin).integral.intersection(page)
-        guard !near.isNull, near.width > 0, near.height > 0 else { return nil }
+        guard let v = viewport, !v.isNull, v.width > 0, v.height > 0,
+              let near = window(around: v, in: page, margin: margin, keeping: size0) else { return nil }
         var z = z0
         while z > wholePageZoom + 0.001, pixels(near, z) > budget { z = zoomSteps.last { $0 < z - 0.001 } ?? 1 }
         if z <= wholePageZoom + 0.001 || pixels(page, z) <= budget { return InkLayout(zoom: z, window: page) }
         return InkLayout(zoom: z, window: near)
+    }
+
+    /// Ausschnitt um den sichtbaren Teil `v` mit Rand, ganz auf der Seite. Seine GROESSE haengt nur von der Groesse des
+    /// sichtbaren Teils ab, nicht von seiner Lage: Am Seitenrand wird er auf die Seite geschoben statt beschnitten.
+    ///
+    /// Meldung des Inhabers 20.11.2026 abends (Testfassung e337d759): "Scrollen mit dem Finger hakt". Bis dahin war der
+    /// Ausschnitt der auf ganze Punkte gerundete, an der Seite beschnittene Bereich: Seine Groesse aenderte sich beim
+    /// Scrollen fast jedes Mal (Rundung um einen Punkt, am Seitenrand laufend). Jede neue Groesse baut die Zeichenflaeche
+    /// von PencilKit neu auf (gemessen mit echtem Wischen, `testFingerScrollenHaktNicht`: bei 300 % 50 Umbauten in 15
+    /// Wischern, Hauptthread dreimal so lang beschaeftigt wie ohne Ausschnitt). Jetzt wird beim Scrollen nur noch
+    /// verschoben, wie PencilKit selbst scrollt. `keeping`: bisherige Groesse; weicht die neue um hoechstens einen Punkt
+    /// ab (Rechengenauigkeit), bleibt die bisherige. nil: der sichtbare Teil mit Rand liegt nicht auf der Seite.
+    nonisolated static func window(around v: CGRect, in page: CGRect, margin: CGFloat, keeping: CGSize? = nil) -> CGRect? {
+        guard v.insetBy(dx: -v.width * margin, dy: -v.height * margin).intersects(page) else { return nil }
+        var w = min(page.width, (v.width * (1 + 2 * margin)).rounded(.up))
+        var h = min(page.height, (v.height * (1 + 2 * margin)).rounded(.up))
+        if let k = keeping, abs(k.width - w) <= 1, abs(k.height - h) <= 1, k.width <= page.width, k.height <= page.height {
+            w = k.width
+            h = k.height
+        }
+        guard w > 0, h > 0 else { return nil }
+        let x = min(max(page.minX, (v.midX - w / 2).rounded()), page.maxX - w)
+        let y = min(max(page.minY, (v.midY - h / 2).rounded()), page.maxY - h)
+        return CGRect(x: x, y: y, width: w, height: h)
     }
 
     /// Teil der Seite (Seitenpunkte), der gerade zu sehen sein kann: das Fenster, beschnitten von allen Vorfahren, die
@@ -372,35 +458,136 @@ final class PageInkView: UIView {
     /// Der Zoom steigt dabei nie (das macht `setRenderScale` nach dem Zoomen), er sinkt nur, wenn der Ausschnitt beim
     /// Herauszoomen sonst zu gross wuerde. Zeigt die Canvas die ganze Seite, kostet das nichts.
     func followViewport() {
-        guard !isDrawing, lastRenderScale > 0 else { return }
+        guard !isDrawing, lastRenderScale > 0, !zoomGestureRunning else { return }
         let page = CGRect(origin: .zero, size: geometry.pageSize)
         guard layoutDeferred || inkLayout.window != page else { return }
         guard let v = viewportInPage() else { return }
-        if !layoutDeferred {
-            let half = Self.windowMargin / 2
-            let need = v.insetBy(dx: -v.width * half, dy: -v.height * half).intersection(page)
-            if need.isNull || need.isEmpty || inkLayout.window.insetBy(dx: -0.5, dy: -0.5).contains(need) { return }
-        }
+        if !layoutDeferred, Self.covers(inkLayout.window, needed(v)) { return }
         let zoom = layoutDeferred ? wantedZoom : min(wantedZoom, inkLayout.zoom)
-        guard let l = Self.inkLayout(pageSize: geometry.pageSize, viewport: v, zoom: zoom, screen: layoutScreen) else { return }
+        guard let l = Self.inkLayout(pageSize: geometry.pageSize, viewport: v, zoom: zoom, screen: layoutScreen,
+                                     keeping: layoutDeferred ? nil : inkLayout.window.size) else { return }
         layoutDeferred = false
-        apply(l)
+        apply(l, coverMoves: false)
     }
 
     override func didMoveToWindow() {
         super.didMoveToWindow()
         scrollObservation = nil
-        guard window != nil else { return }
+        enclosingScroll?.pinchGestureRecognizer?.removeTarget(self, action: #selector(zoomGestureChanged(_:)))
+        enclosingScroll = nil
+        guard window != nil else {
+            removePinchUnderlay()
+            return
+        }
         var v = superview
         while let a = v, !(a is UIScrollView) || a is PKCanvasView { v = a.superview }
         if let scroll = v as? UIScrollView {
+            enclosingScroll = scroll
             scrollObservation = scroll.observe(\.contentOffset, options: []) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.followViewport() }
             }
+            scroll.pinchGestureRecognizer?.addTarget(self, action: #selector(zoomGestureChanged(_:)))
         }
         // PDFKit setzt Rahmen und Lage erst nach dem Einsetzen
         DispatchQueue.main.async { [weak self] in self?.followViewport() }
     }
+
+    // MARK: Zoomen mit zwei Fingern: die Zeichenflaeche bleibt unberuehrt
+
+    /// Liegen die Finger zum Zoomen auf oder federt der Zoom zurueck? Dann aendert sich an der Zeichenflaeche nichts.
+    var zoomGestureRunning: Bool {
+        guard let s = enclosingScroll else { return false }
+        let state = s.pinchGestureRecognizer?.state
+        if state == .began || state == .changed || s.isZooming { return true }
+        // Zurueckfedern hoechstens `zoomBounceLimit` nach dem Loslassen: nach schnellem Zoomen ueber das Maximum blieb
+        // `isZoomBouncing` (nachgestellt) dauerhaft gesetzt, die Seite wurde nie mehr scharf
+        return s.isZoomBouncing && CACurrentMediaTime() - zoomGestureEnded < Self.zoomBounceLimit
+    }
+    private var zoomGestureEnded: CFTimeInterval = 0
+    static let zoomBounceLimit: CFTimeInterval = 0.6
+
+    @objc private func zoomGestureChanged(_ g: UIPinchGestureRecognizer) {
+        switch g.state {
+        case .began: showPinchUnderlay()
+        case .ended, .cancelled, .failed:
+            zoomGestureEnded = CACurrentMediaTime()
+            settleAfterZoomGesture()
+        default: break
+        }
+    }
+
+    /// Nach dem Zoomen (Finger weg, Zurueckfedern vorbei, kurz Ruhe) einmal die verlangte Aufloesung setzen
+    private func settleAfterZoomGesture() {
+        guard !settleScheduled else { return }
+        settleScheduled = true
+        func check(_ quietSince: CFTimeInterval?) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) { [weak self] in
+                guard let self else { return }
+                if self.zoomGestureRunning { return check(nil) }
+                let since = quietSince ?? CACurrentMediaTime()
+                guard CACurrentMediaTime() - since >= Self.zoomGestureQuiet else { return check(since) }
+                self.settleScheduled = false
+                // Aufloesung aus dem Massstab, in dem die Seite jetzt auf dem Bildschirm steht (wie
+                // `PDFEditorController.renderScale`): Nach schnellem Zoomen ueber das Maximum kam fuer die sichtbare Seite
+                // sonst keine Aufloesung mehr an, sie blieb unscharf (nachgestellt mit echtem Pinchen)
+                let screen = self.pendingRenderScale?.screen ?? self.layoutScreen
+                let request = self.pendingRenderScale
+                self.pendingRenderScale = nil
+                if let shown = self.shownScale() {
+                    self.setRenderScale(PDFEditorController.renderScale(screen: screen, zoom: shown), screen: screen)
+                } else if let p = request {
+                    self.setRenderScale(p.scale, screen: p.screen)
+                }
+                // die Hilfsflaeche geht, sobald die Zeichenflaeche wieder offen ist (Deckbild eines Wechsels weg)
+                if self.zoomSwitch == nil { self.removePinchUnderlay() }
+            }
+        }
+        check(nil)
+    }
+
+    /// Bildschirmpunkte je Seitenpunkt, wie die Seite gerade im Fenster steht (nil ohne Fenster)
+    func shownScale() -> CGFloat? {
+        guard let window else { return nil }
+        let o = content.convert(CGPoint.zero, to: window)
+        let x = content.convert(CGPoint(x: 1, y: 0), to: window), y = content.convert(CGPoint(x: 0, y: 1), to: window)
+        let det = abs((x.x - o.x) * (y.y - o.y) - (x.y - o.y) * (y.x - o.x))
+        return det > 0 && det.isFinite ? det.squareRoot() : nil
+    }
+
+    /// Ruhe nach dem Zoomen, bevor die Zeichenflaeche neu gezeichnet wird
+    static let zoomGestureQuiet: CFTimeInterval = 0.15
+
+    /// Zeigt die Zeichenflaeche nur einen Ausschnitt, liegt beim Zoomen darunter die ganze Seite in der bisherigen
+    /// Aufloesung (hoechstens 4-fach, nur Anzeige). Die Zeichenflaeche selbst bleibt unveraendert; dort, wo sie Tinte
+    /// zeigt, deckt sie die Hilfsflaeche.
+    private func showPinchUnderlay() {
+        let page = CGRect(origin: .zero, size: geometry.pageSize)
+        guard pinchUnderlay == nil, window != nil, inkLayout.window != page else { return }
+        var all = canvas.drawing
+        if let f = foreignInk { all.append(f.drawing) }
+        if let c = correctionView?.ink { all.append(c.drawing) }
+        guard !all.strokes.isEmpty else { return }
+        let u = Self.foreignCanvas(size: geometry.pageSize)
+        u.drawing = all
+        var z = Self.wholePageZoom
+        while z > 1, page.width * page.height * z * z * layoutScreen * layoutScreen > Self.inkPixelBudget {
+            z = Self.zoomSteps.last { $0 < z - 0.001 } ?? 1
+        }
+        Self.place(u, pageSize: geometry.pageSize, layout: InkLayout(zoom: z, window: page))
+        content.insertSubview(u, belowSubview: canvas)
+        pinchUnderlay = u
+        Self.pinchUnderlaysMade += 1
+    }
+
+    private func removePinchUnderlay() {
+        pinchUnderlay?.removeFromSuperview()
+        pinchUnderlay = nil
+    }
+
+    /// Messung (Tests): Hilfsflaechen beim Zoomen
+    private(set) static var pinchUnderlaysMade = 0
+    /// Liegt gerade die Hilfsflaeche unter der Zeichenflaeche? (Tests)
+    var hasPinchUnderlay: Bool { pinchUnderlay != nil }
 
     /// Messung (`EditorStrichBleibtTests`): wie oft eine Zeichenflaeche ihre Zoomstufe gewechselt hat (PencilKit zeichnet
     /// dann alle Striche neu) und wie viele Deckbilder angelegt wurden
@@ -418,44 +605,65 @@ final class PageInkView: UIView {
     /// steht nur das Deckbild; nach `zoomSwitchReveal` zeigt sich die Canvas und das Deckbild geht in 0,1 s weg.
     /// PencilKit meldet nach einem Zoomwechsel kein "fertig gezeichnet" (gemessen: 0 Meldungen), darum die feste Zeit;
     /// kommt die Meldung doch (`inkRendered`), geht es frueher. Beim naechsten Strich sofort (`endTranslucentHole`).
-    private func beginZoomSwitch(_ canvases: [PKCanvasView]) {
-        finishZoomSwitch(animated: false)
+    ///
+    /// Dasselbe beim Verschieben des Ausschnitts (`zoom` false), dort nur `windowMoveReveal` lang und ohne Ausblenden.
+    /// Laeuft schon ein Wechsel, bleiben dessen Deckbilder (sie zeigen den Stand davor an der richtigen Stelle der
+    /// Seite); neue Canvas kommen dazu, und es dauert hoechstens bis zum spaeteren Ende. Jede Canvas hat ihre eigene
+    /// Maske (eine Ebene kann nur EINE Ebene maskieren; c9dcc5b9 teilte eine fuer alle).
+    private func coverWhileRedrawing(_ canvases: [PKCanvasView], for duration: CFTimeInterval, zoom: Bool) {
         guard window != nil else { return }
-        var covers: [UIView] = [], masked: [PKCanvasView] = []
-        let hidden = CALayer()
+        if zoomSwitch == nil {
+            zoomSwitchID += 1
+            zoomSwitch = ZoomSwitch(id: zoomSwitchID, started: CACurrentMediaTime())
+        }
+        guard var s = zoomSwitch else { return }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for c in canvases where !c.isHidden && c.alpha > 0 && !c.drawing.strokes.isEmpty && c.layer.mask == nil {
-            guard let superview = c.superview, let cover = c.snapshotView(afterScreenUpdates: false) else { continue }
+        for c in canvases where !s.entries.contains(where: { $0.canvas === c }) {
+            guard !c.isHidden, c.alpha > 0, !c.drawing.strokes.isEmpty, c.layer.mask == nil, let superview = c.superview,
+                  let cover = c.snapshotView(afterScreenUpdates: false) else { continue }
             cover.transform = c.transform
             cover.center = c.center
             cover.isUserInteractionEnabled = false
             superview.insertSubview(cover, aboveSubview: c)
-            c.layer.mask = hidden
-            covers.append(cover)
-            masked.append(c)
+            let mask = CALayer()
+            c.layer.mask = mask
+            s.entries.append((c, mask, cover))
+            Self.coversMade += 1
         }
         CATransaction.commit()
-        guard !covers.isEmpty else { return }
-        Self.coversMade += covers.count
-        zoomSwitchID += 1
-        zoomSwitch = (zoomSwitchID, covers, masked, hidden, CACurrentMediaTime())
-        let id = zoomSwitchID
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.zoomSwitchReveal) { [weak self] in
-            guard let self, self.zoomSwitch?.id == id else { return }
-            self.finishZoomSwitch(animated: true)
+        guard !s.entries.isEmpty else {
+            zoomSwitch = nil
+            return
+        }
+        s.zoom = s.zoom || zoom
+        s.revealAt = max(s.revealAt, CACurrentMediaTime() + duration)
+        zoomSwitch = s
+        let id = s.id
+        DispatchQueue.main.asyncAfter(deadline: .now() + duration) { [weak self] in
+            guard let self, let now = self.zoomSwitch, now.id == id, CACurrentMediaTime() >= now.revealAt - 0.005 else { return }
+            self.finishZoomSwitch(animated: now.zoom)
         }
     }
 
-    /// Laufender Zoomwechsel: Deckbilder, unsichtbare Canvas, deren Maske, Beginn
-    private var zoomSwitch: (id: Int, covers: [UIView], masked: [PKCanvasView], mask: CALayer, started: CFTimeInterval)?
+    /// Laufender Wechsel: je Canvas Maske und Deckbild; Ende frühestens `revealAt`; `zoom`: mit Zoomwechsel (Ausblenden)
+    private struct ZoomSwitch {
+        let id: Int
+        let started: CFTimeInterval
+        var entries: [(canvas: PKCanvasView, mask: CALayer, cover: UIView)] = []
+        var revealAt: CFTimeInterval = 0
+        var zoom = false
+    }
+    private var zoomSwitch: ZoomSwitch?
     private var zoomSwitchID = 0
     /// Frueher als so meldet PencilKit "fertig" womoeglich noch fuer den Stand davor
     static let zoomSwitchMinimum: CFTimeInterval = 0.08
     /// So lange steht nur das Deckbild (gemessen: neue Kacheln nach rund 45 ms fertig; bisher lag das Deckbild 0,35 s
     /// ueber der schon sichtbaren Canvas und ging in 0,15 s weg)
     static let zoomSwitchReveal: CFTimeInterval = 0.3
-    /// Liegt gerade ein Deckbild ueber einem Zoomwechsel? (Tests)
+    /// Verschobener Ausschnitt: PencilKit zeigt die Kacheln ein Bild lang an der alten Stelle (gemessen), drei Bilder Ruhe
+    static let windowMoveReveal: CFTimeInterval = 0.05
+    /// Liegt gerade ein Deckbild ueber einem Zoomwechsel oder verschobenen Ausschnitt? (Tests)
     var isSwitchingZoom: Bool { zoomSwitch != nil }
 
     /// Canvas wieder zeigen (im selben Bild wie das Deckbild beginnt zu verschwinden)
@@ -464,14 +672,14 @@ final class PageInkView: UIView {
         zoomSwitch = nil
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for c in s.masked where c.layer.mask === s.mask { c.layer.mask = nil }
+        for e in s.entries where e.canvas.layer.mask === e.mask { e.canvas.layer.mask = nil }
+        if !animated { s.entries.forEach { $0.cover.removeFromSuperview() } }
+        if !zoomGestureRunning, !settleScheduled { removePinchUnderlay() }   // Zeichenflaeche wieder offen
         CATransaction.commit()
-        guard animated else {
-            s.covers.forEach { $0.removeFromSuperview() }
-            return
-        }
-        UIView.animate(withDuration: 0.1, delay: 0, options: [.allowUserInteraction], animations: { s.covers.forEach { $0.alpha = 0 } }) { _ in
-            s.covers.forEach { $0.removeFromSuperview() }
+        guard animated else { return }
+        let covers = s.entries.map(\.cover)
+        UIView.animate(withDuration: 0.1, delay: 0, options: [.allowUserInteraction], animations: { covers.forEach { $0.alpha = 0 } }) { _ in
+            covers.forEach { $0.removeFromSuperview() }
         }
     }
 
@@ -525,6 +733,11 @@ final class PageInkView: UIView {
     /// laege die Markierung kurz doppelt). Vor einem neuen Strich und einem Zoomwechsel sofort.
     func endTranslucentHole() {
         finishZoomSwitch(animated: false)                      // ein neuer Strich muss sofort zu sehen sein
+        removeTranslucentHole()
+    }
+
+    /// Nur die Maske des durchscheinenden Tauschs (ohne einen laufenden Zoomwechsel zu beenden)
+    private func removeTranslucentHole() {
         guard let hole = translucentHole else { return }
         translucentHole = nil
         CATransaction.begin()
@@ -536,7 +749,7 @@ final class PageInkView: UIView {
 
     private func coverReplacement(_ stroke: PKStroke, replacing old: PKStroke, others: [PKStroke]) {
         guard window != nil else { return }
-        endTranslucentHole()
+        removeTranslucentHole()
         let page = CGRect(origin: .zero, size: geometry.pageSize)
         let cover = UIView(frame: page)
         cover.isUserInteractionEnabled = false
@@ -630,7 +843,7 @@ final class PageInkView: UIView {
     /// PencilKit hat fertig gezeichnet (`canvasViewDidFinishRendering`): Deckbilder, die lange genug liegen, gehen weg
     func inkRendered() {
         Self.renderingsFinished += 1
-        if let s = zoomSwitch {
+        if let s = zoomSwitch, s.zoom {
             let wait = Self.zoomSwitchMinimum - (CACurrentMediaTime() - s.started)
             if wait <= 0 {
                 finishZoomSwitch(animated: true)
@@ -655,7 +868,7 @@ final class PageInkView: UIView {
     private func dropReplacementCover(_ view: UIView) {
         guard let i = replacementCovers.firstIndex(where: { $0.view === view }) else { return }
         replacementCovers.remove(at: i)
-        if translucentHole?.cover === view { endTranslucentHole() }
+        if translucentHole?.cover === view { removeTranslucentHole() }
         UIView.animate(withDuration: 0.08, delay: 0, options: [.allowUserInteraction], animations: { view.alpha = 0 }) { _ in
             view.removeFromSuperview()
         }
@@ -1211,7 +1424,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // feste Stufen: jeder Wechsel zeichnet die Tinte neu, das soll nicht bei jedem kleinen Pinch passieren
         // ab dem 4-fachen zeigt die Zeichenflaeche nur den sichtbaren Teil der Seite (`PageInkView.inkLayout`): Die
         // Grenze ist die Flaeche, nicht mehr der Zoom (bis 1.0.7 hoechstens 4-fach, bei 600 % verpixelt)
-        let steps = PageInkView.zoomSteps
+        let steps = PencilTuning.sharpInkWindow ? PageInkView.zoomSteps : PageInkView.zoomSteps.filter { $0 <= PageInkView.wholePageZoom }
         let step = steps.first { $0 >= zoom } ?? steps[steps.count - 1]
         return min(limit, screen * step)
     }
@@ -1341,6 +1554,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Der Neuaufbau schreibt nie (alles ist schon im Store), nur offene Rueckgaengig-Schritte abschliessen
         for v in allOverlays where v.loaded { commitPendingUndo(v) }
         for v in allOverlays { keepPaletteFocus(leaving: v) }
+        if shownLayout != nil { StiftZaehler.bump(.seitenNeuAufgebaut) }
         live = [:]
         parked = []
         shownLayout = layout
@@ -1652,6 +1866,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schritt auf den jetzigen Stand der Seite anwenden: geladene Canvas sofort, sonst den gespeicherten Stand
     private func applyInk(_ step: InkUndoStep, key: String, undoing: Bool) {
         func change(_ d: PKDrawing) -> PKDrawing { undoing ? step.reverted(on: d) : step.reapplied(on: d) }
+        StiftZaehler.bump(undoing ? .rueckgaengig : .wiederholen)
         if let overlay = boundOverlay(forKey: key), overlay.loaded {
             setDrawing(change(overlay.canvas.drawing), forKey: key)
             return
@@ -1786,6 +2001,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             }
         } else {
             overlay.lastShrinkAllowed = CACurrentMediaTime()        // Radierer, Lasso: weniger Striche sind gewollt
+            StiftZaehler.bump(.ohneStiftGeaendert)
+            if overlay.isDrawing { StiftZaehler.bump(.ohneStiftGeaendertBeimAufliegen) }
         }
         // Stift liegt noch auf (Radierer, Lasso; beim Stift kommt die Meldung kurz vor dem Absetzen): einmal beim
         // Absetzen sichern statt bei jeder Zwischenmeldung (`PencilTuning.saveOnLift`)
@@ -1799,6 +2016,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
         // ein Absetzen, dessen Meldung noch aussteht, bleibt gemerkt (`PageInkView.lifts`)
         inkTrace?("Werkzeug an")
+        if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAn) }
         if !PencilTuning.liftBelongsToItsStroke { overlay(of: canvasView)?.lifts = [] }
         overlay(of: canvasView)?.reportedWhileDrawing = false
         overlay(of: canvasView)?.endTranslucentHole()            // der neue Strich muss ueberall zu sehen sein
@@ -1814,6 +2032,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView) else { return }
         inkTrace?("Werkzeug aus")
+        if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAus) }
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
         let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool, ruler: canvasView.isRulerActive)
