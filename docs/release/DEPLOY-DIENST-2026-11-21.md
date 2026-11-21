@@ -42,3 +42,10 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
 6. Bibliothek hochgeladen (14:00, `tools/wissensbank-hochladen.sh`, auf Wunsch des Inhabers „Mach du das“ von der
    Hauptsitzung ausgeführt): 2 266 Dateien im Volume; Prüfung im Container: „Stand 2026-11-20: 29 Fächer, 1065
    Einheiten, 26571 Abschnitte, davon 12788 mit Folien-/Aufgabentext. Schalter an.“ Danach „Schalter True, aktiv True“.
+7. Erster Test des Inhabers am iPad (15:08): normale KI-Antwort statt Wissensbank. Zwei Gründe: (a) Das Konto, mit dem
+   das iPad angemeldet ist (Apple-Anmeldung), stand im Dienst auf Hochschule „hildesheim“, die App selbst auf „luh“
+   (auf dem Gerät geprüft: die Konto-Kennung der App ist die des Kontos); die Wissensbank gilt nur für LUH-Konten.
+   Mit Okay des Inhabers („Ja, auf LUH“) per `accounts.set_university` auf „luh“ gestellt; danach meldet der Dienst
+   die Wissensbank für das Konto. Wann und wodurch das Konto auf Hildesheim kam, ist nicht protokolliert (nur über
+   „Hochschule wechseln“ möglich). (b) Die Anfrage trug ein Bild („Bereich an KI“ bzw. „Ganze Seite an KI“); mit Bild
+   wird die Wissensbank bisher bewusst nicht gefragt (App und Dienst). Ob das geändert wird, entscheidet der Inhaber.
