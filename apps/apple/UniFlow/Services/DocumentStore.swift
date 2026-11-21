@@ -286,7 +286,15 @@ final class DocumentStore: ObservableObject {
     private(set) var forcedSaveSeconds = 0.0
     private var monitor: NWPathMonitor?
     private var lifecycle: [NSObjectProtocol] = []
+    /// Bilder der Notizen im Speicher (dekodiert bis 2400 Pixel, rund 15 MB je Foto). Was gerade keine Seite zeigt,
+    /// bleibt nur bis `MemoryBudget.idleNoteImageBytes` liegen und faellt bei einer Speicherwarnung ganz heraus
+    /// (`trimImages`); beim naechsten Anzeigen laedt es neu (`loadImage`).
     private(set) var images: [String: UIImage] = [:]
+    /// Reihenfolge, in der die Bilder in den Speicher kamen (aelteste zuerst)
+    private var imageOrder: [String] = []
+    /// Vom Editor gesetzt: Bilder, die eine Seite gerade zeigt (sichtbar oder geparkt). Sie bleiben immer im Speicher -
+    /// eine Seite, die neu gezeichnet wird, faende ihr Bild sonst nicht. nil (kein Editor meldet): nichts faellt heraus.
+    var imagesInUse: (() -> Set<String>)?
     /// Bilder, die gerade laden, mit allen, die auf sie warten
     private var imageWaiters: [String: [() -> Void]] = [:]
 
@@ -635,9 +643,40 @@ final class DocumentStore: ObservableObject {
             if let (data, http) = try? await api.data(src), http.statusCode == 200 { loaded = UIImage(data: data) }
             let waiting = imageWaiters.removeValue(forKey: src) ?? []
             guard let loaded else { return }
-            images[src] = loaded
+            remember(loaded, for: src)
             waiting.forEach { $0() }
+            trimImages()
         }
+    }
+
+    private func remember(_ image: UIImage, for src: String) {
+        images[src] = image
+        imageOrder.removeAll { $0 == src }
+        imageOrder.append(src)
+    }
+
+    /// Speicher eines dekodierten Bildes (Byte)
+    nonisolated static func decodedBytes(_ image: UIImage) -> Int {
+        if let cg = image.cgImage { return cg.bytesPerRow * cg.height }
+        return Int(image.size.width * image.scale * image.size.height * image.scale * 4)
+    }
+
+    /// Bilder, die gerade keine Seite zeigt, bis auf `limit` Byte aus dem Speicher nehmen (aelteste zuerst).
+    /// Speicherwarnung: `limit` 0. Liefert die Zahl der entfernten Bilder.
+    @discardableResult
+    func trimImages(limit: Int = MemoryBudget.current.idleNoteImageBytes) -> Int {
+        guard limit < .max, let inUse = imagesInUse?() else { return 0 }
+        var idle = 0
+        for (src, image) in images where !inUse.contains(src) { idle += Self.decodedBytes(image) }
+        guard idle > limit else { return 0 }
+        var removed = 0
+        for src in imageOrder where idle > limit && !inUse.contains(src) {
+            guard let image = images.removeValue(forKey: src) else { continue }
+            idle -= Self.decodedBytes(image)
+            removed += 1
+        }
+        imageOrder.removeAll { images[$0] == nil }
+        return removed
     }
 
     /// Bild fuer ein Bildobjekt hochladen (`POST /api/files/{id}/assets`, wie `insertImageFile` im Web-Editor) und
@@ -652,7 +691,8 @@ final class DocumentStore: ObservableObject {
         let r = try await api.upload("/api/files/\(file.id)/assets", fields: [:], fileField: "upload", fileName: name,
                                      mimeType: usePNG ? "image/png" : "image/jpeg", data: data)
         guard let url = r["url"]?.string, url.hasPrefix("/") else { throw ShareExportError.notLoaded }
-        images[url] = image
+        remember(image, for: url)
+        trimImages()
         return url
     }
 
@@ -1113,9 +1153,13 @@ final class DocumentStore: ObservableObject {
         lifecycle.append(center.addObserver(forName: .uniflowAccountSynced, object: nil, queue: .main) { [weak self] _ in
             Task { @MainActor in await self?.engine.refreshFromServer() }
         })
-        // Speicherdruck (iPad mit 3 GB): die eigene PDF-Instanz der Miniaturen freigeben, sie entsteht bei Bedarf neu
+        // Speicherdruck (iPad mit 3 GB): die eigene PDF-Instanz der Miniaturen freigeben, sie entsteht bei Bedarf neu;
+        // dazu die Bilder der Notizen, die gerade keine Seite zeigt
         lifecycle.append(center.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in await self?.offscreenPDF.release() }
+            Task { @MainActor in
+                self?.trimImages(limit: 0)
+                await self?.offscreenPDF.release()
+            }
         })
     }
 
