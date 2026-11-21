@@ -83,6 +83,21 @@ enum AIEndpoints: LocalEndpointModule {
             let ownNotes = text("own_notes")
             let shareable = fileID != nil && PyText.strip(ownNotes).isEmpty && imageJPEG == nil
                 && PageExplain.isShareable(mode: mode, selection: text("selection"), question: text("question"))
+            // StudiNow-Wissensbank VOR dem Erklaerungsspeicher (21.11.2026). Meldung des Inhabers am iPad: "Wenn man die
+            // Seite erklaeren lassen will, erkennt er die Wissensbank gar nicht mehr, nur noch per Ausschnitt oder Foto."
+            // Die ganze Seite kam bisher zuerst aus dem Erklaerungsspeicher (eigener, dann der geteilte des Dienstes) und
+            // erreichte den Dienst nie - die Wissensbank wurde fuer jede schon einmal erklaerte Seite nicht gefragt.
+            // Jetzt fragt die App zuerst kurz nach (`POST /api/ai/wissensbank`): Treffer -> diese Antwort (1 Credit,
+            // geht nie in den geteilten Speicher); kein Treffer, schon geliefert, alter Dienst oder Fehler -> kostet
+            // nichts, weiter wie bisher (Erklaerungsspeicher, dann KI).
+            if shareable, !force, let service = ctx.ai.serviceProvider as? StudiNowAI, service.wissensbankEnabled,
+               let stelle = Wissensbank.request(mode: mode, fileName: fileName, course: course, page: page, pageText: pageText, selection: ""),
+               let r = try? await service.json("POST", "/api/ai/wissensbank", body: .object([
+                   "mode": .string(mode), "request_id": .string(StudiNowAI.newRequestID()), "wissensbank": stelle])),
+               r["treffer"]?.bool == true, let answer = r["answer"]?.string, !answer.isEmpty {
+                return .json(["answer": .string(answer), "cards": .null, "sources": [], "explain": .null,
+                              "credits": r["credits"] ?? .null, "wissensbank": Wissensbank.fields(in: r)])
+            }
             var explainKey: PageExplainBuilder.Key?
             if let fileID, shareable || mode == "ask" {
                 explainKey = try? await PageExplainBuilder.key(fileID: fileID, page: page, ctx: ctx)

@@ -66,6 +66,49 @@ final class WissensbankTests: XCTestCase {
         XCTAssertNil(Wissensbank.feedbackToken(info))
     }
 
+    /// Meldung des Inhabers 21.11.2026: "Seite erklären" kam nie aus der Wissensbank, weil der Erklaerungsspeicher zuerst
+    /// antwortete. Die ganze Seite fragt jetzt zuerst kurz bei der Wissensbank nach: Treffer -> diese Antwort, ohne
+    /// die KI zu rufen; kein Treffer (oder alter Dienst) -> kostet nichts, weiter wie bisher.
+    func testWholePageAsksTheWissensbankBeforeAnythingElse() async throws {
+        let (ai, fake) = make()
+        ai.wissensbankEnabled = true
+        let b = try await backend(ai)
+        await fake.on("POST", "/api/ai/wissensbank", 200, ["treffer": true, "answer": "## Seite 2\n\nErklärung aus der Bibliothek", "credits": credits,
+                                                           "source": "wissensbank", "wissensbank_key": "explain:Fach/G0001/01#Q1-Seite-2",
+                                                           "wissensbank": ["badge": "Aus der StudiNow-Wissensbank", "status": "", "hinweise": []]])
+        var r = await post(b, "/api/ai/tutor", ["mode": "explain", "file_id": "f1", "page": 2, "page_text": "Folientext der Seite zwei"])
+        XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
+        XCTAssertEqual(r.json?["answer"]?.string, "## Seite 2\n\nErklärung aus der Bibliothek")
+        XCTAssertTrue(Wissensbank.isFromWissensbank(r.json?["wissensbank"]), "Abzeichen: Antwort aus der Wissensbank")
+        XCTAssertEqual(r.json?["explain"], .null, "geht nicht in den Erklaerungsspeicher")
+        let probeRequest = await fake.last("/api/ai/wissensbank")
+        let probe = try JSONValue.parse(try XCTUnwrap(probeRequest?.body))
+        XCTAssertEqual(probe["mode"]?.string, "explain")
+        XCTAssertEqual(probe["wissensbank"]?["text"]?.string, "Folientext der Seite zwei")
+        XCTAssertEqual(probe["wissensbank"]?["seite"]?.double, 2)
+        let relayBefore = await fake.last("/api/ai/relay")
+        XCTAssertNil(relayBefore, "Treffer: die KI wird nicht gerufen")
+        // kein Treffer: weiter zur KI wie bisher
+        await fake.on("POST", "/api/ai/wissensbank", 200, ["treffer": false, "grund": "kein_treffer"])
+        await fake.on("POST", "/api/ai/relay", 200, ["answer": "KI-Antwort", "credits": credits])
+        r = await post(b, "/api/ai/tutor", ["mode": "explain", "file_id": "f1", "page": 1, "page_text": "Eine ganz andere Seite"])
+        XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
+        XCTAssertEqual(r.json?["answer"]?.string, "KI-Antwort")
+        XCTAssertFalse(Wissensbank.isFromWissensbank(r.json?["wissensbank"]))
+        // alter Dienst (kennt die Vorab-Frage nicht): stolpert nicht
+        await fake.on("POST", "/api/ai/wissensbank", 404, ["detail": "Not Found"])
+        await fake.on("POST", "/api/ai/relay", 200, ["answer": "KI-Antwort 2", "credits": credits])
+        r = await post(b, "/api/ai/tutor", ["mode": "explain", "file_id": "f1", "page": 3, "page_text": "Noch eine andere Seite"])
+        XCTAssertEqual(r.json?["answer"]?.string, "KI-Antwort 2")
+        // ohne Meldung des Dienstes: keine Vorab-Frage
+        ai.wissensbankEnabled = false
+        let asked = await fake.requests.filter { $0.url.hasSuffix("/api/ai/wissensbank") }.count
+        await fake.on("POST", "/api/ai/relay", 200, ["answer": "KI-Antwort 3", "credits": credits])
+        _ = await post(b, "/api/ai/tutor", ["mode": "explain", "file_id": "f1", "page": 4, "page_text": "Seite vier"])
+        let askedAfter = await fake.requests.filter { $0.url.hasSuffix("/api/ai/wissensbank") }.count
+        XCTAssertEqual(askedAfter, asked, "Wissensbank nicht gemeldet: nichts zusaetzlich")
+    }
+
     func testOtherModesImagesAndMissingFilesSendNothing() async throws {
         let (ai, fake) = make()
         ai.wissensbankEnabled = true
