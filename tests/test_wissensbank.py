@@ -327,6 +327,9 @@ def test_two_header_lines_are_not_a_part_of_a_slide(lib):
     args = dict(mode="explain", datei="Statik_Folien_neu_v2.pdf", kurs=KURS_STATIK, seite=3, ausschnitt=True)
     assert key(lib, **args, text=kopf) is None
     assert key(lib, **args, text=lang) == K_S3
+    # auch wenn die Bibliothek zur Seite keinen markierten Folientext hat (Vergleich mit dem ganzen Abschnitt)
+    satz = "Das Loslager überträgt nur eine Kraft senkrecht zur Unterlage und ist einwertig."
+    assert key(lib, **{**args, "seite": 5}, text=satz) is None
 
 
 def test_task_without_numbers_needs_the_file_title(lib):

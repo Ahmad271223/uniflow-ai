@@ -747,9 +747,10 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
                     # Dateititel unbekannt (nur der Kurs passt): eine Aufgabe ohne Zahlen im Text ("... fuer das gegebene
                     # Gatter ...") kann jedes Jahr eine andere sein - nur mit Zahlen, die dann genau stimmen muessen
                     r = None
-                if r and ausschnitt and cand.kind == "seite" and cand.explicit and len(q) <= len(cand.sh) and \
-                        _overlap(q, qset, cand.sh) < AUSSCHNITT_GEMEINSAM:
-                    r = None                                    # zwei Zeilen Kopf oder Titel belegen keine Folie
+                if r and ausschnitt and cand.kind == "seite" and _overlap(q, qset, cand.sh) < AUSSCHNITT_GEMEINSAM:
+                    # zwei Zeilen Kopf oder Titel belegen keine Folie (gemessen: Kopf einer Folie traf die fast gleich
+                    # ueberschriebene Folie eines anderen Studiengangs)
+                    r = None
                 if r:
                     dist = abs((sec.page or 0) - seite) if (seite and sec.page) else 9999
                     found.append((r[0], r[1], dist, at, cand))
