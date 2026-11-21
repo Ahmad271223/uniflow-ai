@@ -643,6 +643,7 @@ final class StudoraAccountLink: ObservableObject {
     private func clearCredits() {
         credits = nil
         lastCharge = nil
+        studinowAI?.wissensbankEnabled = false
     }
 
     /// Stand neu laden (`GET /api/entitlements`: beide Toepfe und die Pakete); ein Fehler laesst den letzten Stand
@@ -654,6 +655,8 @@ final class StudoraAccountLink: ObservableObject {
         guard accountEpoch == epoch else { return }                 // inzwischen anderes Konto: der Stand gehoert nicht hierher
         if let c = state?.credits { credits = c } else if creditsClient.tokens.load() == nil { clearCredits() }
         if let packs = state?.packs, packs != creditPacks { creditPacks = packs }
+        // StudiNow-Wissensbank: die Angaben zur Stelle gehen nur mit, solange der Dienst sie fuer dieses Konto meldet
+        if let state { studinowAI?.wissensbankEnabled = state.wissensbank }
     }
 
     // MARK: Credit-Pakete (Auftrag des Inhabers vom 15.11.2026, CreditStore.swift)
@@ -1155,12 +1158,12 @@ struct StudoraCredits: Equatable {
         func fetch() async throws -> StudoraCredits? { try await fetchState()?.credits }
 
         /// Stand beider Toepfe und die Pakete des Dienstes (`credits`, `credit_packs`); nil ohne Token oder ohne Antwort
-        func fetchState() async throws -> (credits: StudoraCredits?, packs: [CreditPacks.Pack])? {
+        func fetchState() async throws -> (credits: StudoraCredits?, packs: [CreditPacks.Pack], wissensbank: Bool)? {
             guard let t = tokens.load() else { return nil }
             let url = (base.hasSuffix("/") ? String(base.dropLast()) : base) + "/api/entitlements"
             let r = try await http.send(AIHTTPRequest(method: "GET", url: url, headers: ["Accept": "application/json", "Authorization": "Bearer \(t)"], body: nil))
             guard (200..<300).contains(r.status), let j = try? JSONValue.parse(r.body) else { return nil }
-            return (parse(j["credits"]), CreditPacks.packs(from: j["credit_packs"]))
+            return (parse(j["credits"]), CreditPacks.packs(from: j["credit_packs"]), j["wissensbank"]?.bool == true)
         }
     }
 }

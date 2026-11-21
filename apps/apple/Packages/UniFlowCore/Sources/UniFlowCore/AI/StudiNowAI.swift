@@ -28,9 +28,12 @@ public struct AIRelayTask: Sendable, Equatable {
     /// Ausschnitt der Seite als JPEG ("Bereich an KI"); nur bei `tutor:*`
     public var image: Data?
     public var requestID: String?
+    /// StudiNow-Wissensbank (20.11.2026, app/wissensbank.py): Angaben zur Stelle (`datei`, `kurs`, `seite`, `text`) fuer
+    /// `tutor:explain`/`tutor:steps`; geht nur mit, wenn der Dienst die Funktion meldet (`StudiNowAI.wissensbankEnabled`)
+    public var wissensbank: JSONValue?
 
     public init(_ name: String, cache: Bool = false, fresh: Bool = false, routeText: String? = nil, options: JSONValue? = nil,
-                exam: Bool? = nil, image: Data? = nil, requestID: String? = nil) {
+                exam: Bool? = nil, image: Data? = nil, requestID: String? = nil, wissensbank: JSONValue? = nil) {
         self.name = name
         self.cache = cache
         self.fresh = fresh
@@ -39,6 +42,7 @@ public struct AIRelayTask: Sendable, Equatable {
         self.exam = exam
         self.image = image
         self.requestID = requestID
+        self.wissensbank = wissensbank
     }
 
     /// Aufgabe der laufenden Anfrage (nil = keine; dann antwortet nur das eigene ChatGPT)
@@ -58,11 +62,70 @@ public struct AIRelayTask: Sendable, Equatable {
     /// `op` mit dieser Aufgabe ausfuehren; Rueckgabe dazu der Credits-Stand der letzten Antwort des Dienstes (`credits`
     /// mit `charged`, `replay`), `.null` ohne StudiNow-KI (eigenes ChatGPT)
     public static func run<T: Sendable>(_ task: AIRelayTask, _ op: @Sendable () async throws -> T) async throws -> (value: T, credits: JSONValue) {
+        let r = try await runReport(task, op)
+        return (r.value, r.credits)
+    }
+
+    /// Wie `run`, dazu die Felder der Wissensbank aus der Antwort des Dienstes (`AIRelayMeter.wissensbank`, sonst `.null`)
+    public static func runReport<T: Sendable>(_ task: AIRelayTask, _ op: @Sendable () async throws -> T) async throws
+        -> (value: T, credits: JSONValue, wissensbank: JSONValue) {
         let meter = AIRelayMeter()
         let value = try await AIRelayMeter.$current.withValue(meter) {
             try await $current.withValue(task) { try await op() }
         }
-        return (value, meter.credits)
+        return (value, meter.credits, meter.wissensbank)
+    }
+}
+
+/// StudiNow-Wissensbank in der App (20.11.2026, app/wissensbank.py): Felder der Antwort des Dienstes und Texte.
+/// Der Dienst entscheidet alles (Pro AI, LUH, Treffer ueber den Wortlaut, 1 Credit); die App zeigt nur das Abzeichen
+/// und nach einer Wiederholung die Ja/Nein-Frage. Ein alter Dienst liefert die Felder nicht: dann zeigt die App nichts.
+public enum Wissensbank {
+    public static let badge = "Aus der StudiNow-Wissensbank"
+    public static let question = "Gefällt dir diese Antwort besser?"
+    public static let thanksYes = "Danke! Wir prüfen die Antwort und nehmen sie vielleicht in die Wissensbank auf."
+    public static let thanksNo = "Danke für deine Rückmeldung."
+    /// Modi, fuer die die App die Stelle mitschickt (wie `wissensbank.MODES` im Dienst)
+    public static let modes: Set<String> = ["explain", "steps"]
+    /// so viel Seitentext bzw. markierter Text geht hoechstens mit (wie `wissensbank.TEXT_MAX`)
+    public static let textMax = 20_000
+    /// Felder der Relay-Antwort, die die App weiterreicht
+    static let fieldNames = ["source", "wissensbank_key", "wissensbank", "feedback_token", "feedback_question"]
+
+    /// Angaben zur Stelle fuer den Dienst: Dateititel wie in Stud.IP, Kurs, Seite und der verglichene Text (markierter
+    /// Text, sonst die ganze Seite); nil, wenn der Modus nicht passt oder es keinen Text gibt
+    public static func request(mode: String, fileName: String, course: String, page: Int, pageText: String, selection: String) -> JSONValue? {
+        guard modes.contains(mode), !fileName.isEmpty else { return nil }
+        let sel = selection.trimmingCharacters(in: .whitespacesAndNewlines)
+        let text = sel.isEmpty ? pageText : selection
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
+        return .object(["datei": .string(fileName), "kurs": .string(course), "seite": .number(Double(page)),
+                        "text": .string(String(text.prefix(textMax)))])
+    }
+
+    /// Felder der Wissensbank aus einer Antwort des Dienstes; `.null`, wenn er keine schickt (alter Dienst, Schalter aus)
+    public static func fields(in response: JSONValue) -> JSONValue {
+        var o: [String: JSONValue] = [:]
+        for k in fieldNames { if let v = response[k], !v.isNull { o[k] = v } }
+        return o["wissensbank_key"] == nil && o["source"]?.string != "wissensbank" ? .null : .object(o)
+    }
+
+    /// Antwort kommt aus der Wissensbank
+    public static func isFromWissensbank(_ info: JSONValue?) -> Bool { info?["source"]?.string == "wissensbank" }
+
+    /// Zeile unter dem Abzeichen: "geprueft" bzw. die Hinweise der Bibliothek ("KI-Loesung, ungeprueft" ...)
+    public static func detail(_ info: JSONValue?) -> String? {
+        guard isFromWissensbank(info) else { return nil }
+        var parts: [String] = []
+        if let s = info?["wissensbank"]?["status"]?.string, !s.isEmpty { parts.append(s) }
+        for h in info?["wissensbank"]?["hinweise"]?.array ?? [] { if let t = h.string, !t.isEmpty { parts.append(t) } }
+        return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    /// Einmal-Kennung fuer die Ja/Nein-Frage (nur nach einer Wiederholung)
+    public static func feedbackToken(_ info: JSONValue?) -> String? {
+        guard let t = info?["feedback_token"]?.string, !t.isEmpty else { return nil }
+        return t
     }
 }
 
@@ -72,6 +135,7 @@ public final class AIRelayMeter: @unchecked Sendable {
     private let lock = NSLock()
     private var _credits: JSONValue = .null
     private var _shared = false
+    private var _wissensbank: JSONValue = .null
 
     public init() {}
 
@@ -79,11 +143,14 @@ public final class AIRelayMeter: @unchecked Sendable {
 
     public var credits: JSONValue { lock.withLock { _credits } }
     public var shared: Bool { lock.withLock { _shared } }
+    /// Felder der Wissensbank der letzten Antwort (`Wissensbank.fields`), `.null` ohne
+    public var wissensbank: JSONValue { lock.withLock { _wissensbank } }
 
     func record(_ response: JSONValue) {
         lock.withLock {
             if let c = response["credits"], !c.isNull { _credits = c }
             _shared = response["shared"]?.bool ?? false
+            _wissensbank = Wissensbank.fields(in: response)
         }
     }
 }
@@ -254,6 +321,15 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
     /// Warten vor dem zweiten Versuch (Tests ersetzen es)
     let retrySleep: @Sendable (Double) async throws -> Void
 
+    private let flagLock = NSLock()
+    private var _wissensbank = false
+    /// Der Dienst meldet die Wissensbank fuer dieses Konto (`wissensbank: true` in GET /api/entitlements). Nur dann gehen
+    /// die Angaben zur Stelle (`AIRelayTask.wissensbank`) mit; sonst bleibt die Anfrage wie bisher.
+    public var wissensbankEnabled: Bool {
+        get { flagLock.withLock { _wissensbank } }
+        set { flagLock.withLock { _wissensbank = newValue } }
+    }
+
     /// `consent` ist Pflicht (kein Standardwert): jede StudiNow-KI fragt vor der ersten Anfrage nach der Einwilligung
     public init(base: String, http: ServiceHTTPTransport, tokens: AccountTokenStore, consent: AIConsentGate,
                 onCredits: (@Sendable (JSONValue) -> Void)? = nil, onSignedOut: (@Sendable () -> Void)? = nil,
@@ -285,6 +361,7 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
         if let r = task.routeText, !r.isEmpty { body["route_text"] = .string(String(r.prefix(2000))) }
         if let o = task.options { body["options"] = o }
         if let e = task.exam { body["exam"] = .bool(e) }
+        if let wb = task.wissensbank, wissensbankEnabled, task.image == nil, task.name.hasPrefix("tutor:") { body["wissensbank"] = wb }
         if let image = task.image {
             guard task.name.hasPrefix("tutor:") else { throw Self.error(400, "image_not_allowed", "Bilder gibt es nur für die KI-Hilfe.") }
             guard image.count <= Self.imageMaxBytes else {

@@ -65,6 +65,10 @@ def _account(user: dict) -> dict:
             "tarif_auswahl": _rows(conn, "SELECT plan, chosen_at FROM plan_choices WHERE user_id=?", (uid,)),
             "stripe": {"kunde": _rows(conn, "SELECT customer_id, created_at FROM stripe_customers WHERE user_id=?", (uid,)),
                        "abos": _rows(conn, "SELECT subscription_id, event_created FROM stripe_subscription_state WHERE user_id=?", (uid,))},
+            # Wissensbank (20.11.2026): welche Stellen das Konto schon bekommen hat, offene Ja/Nein-Fragen
+            "wissensbank_erhalten": _rows(conn, "SELECT wb_key, served, delivered_at FROM wissensbank_delivered WHERE user_id=? "
+                                                "ORDER BY delivered_at", (uid,)),
+            "wissensbank_offene_fragen": _rows(conn, "SELECT wb_key, created_at FROM wissensbank_feedback WHERE user_id=?", (uid,)),
             "seiten_erklaerungen": _rows(conn, "SELECT record_name, file_key, page, mode, variant, payload, version, created_at "
                                                "FROM page_explain WHERE owner_id=? ORDER BY created_at", (uid,)),
         }

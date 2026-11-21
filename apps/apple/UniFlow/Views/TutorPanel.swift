@@ -108,6 +108,10 @@ struct TutorPanel: View {
         var mode: String = "ask"
         /// `explain` der Antwort (Erklaerungsspeicher): gespeicherte Antwort mit Quelle, oder null bei einer Live-Antwort
         var explain: JSONValue? = nil
+        /// StudiNow-Wissensbank (20.11.2026): Abzeichen bzw. Ja/Nein-Kennung des Dienstes (`Wissensbank.fields`), nil ohne
+        var wissensbank: JSONValue? = nil
+        /// Antwort auf "Gefaellt dir diese Antwort besser?" (true = Ja); nil = noch offen
+        var feedback: Bool? = nil
     }
 
     /// Erklaerungsspeicher (04.11.2026): Beschriftung unter einer gespeicherten Antwort - ehrlich, woher sie kommt;
@@ -502,6 +506,12 @@ struct TutorPanel: View {
                     } else {
                         AIMarkdownText(Self.shownText(msg), size: Self.answerSize).accessibilityIdentifier("tutor.answer")
                     }
+                    // Antwort aus der StudiNow-Wissensbank (Abzeichen) bzw. nach einer Wiederholung die Ja/Nein-Frage
+                    if let info = msg.wissensbank {
+                        TutorWissensbankLine(info: info, answered: msg.feedback, busy: busy) { better in
+                            Task { await sendFeedback(m, better: better) }
+                        }
+                    }
                     // gespeicherte Antwort (Erklaerungsspeicher): Herkunft und der Weg zu einer frischen Antwort
                     if let stored = Self.storedLabel(msg.explain) {
                         UFFlexWrap(gap: 8, rowGap: 6) {
@@ -659,7 +669,8 @@ struct TutorPanel: View {
             try Task.checkCancellation()        // Antwort nach "Stopp": nicht mehr zeigen
             studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Fusszeile
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
-                                    sources: r["sources"]?.array ?? [], mode: mode, explain: r["explain"].flatMap { $0.isNull ? nil : $0 }))
+                                    sources: r["sources"]?.array ?? [], mode: mode, explain: r["explain"].flatMap { $0.isNull ? nil : $0 },
+                                    wissensbank: r["wissensbank"].flatMap { $0.isNull ? nil : $0 }))
             // fuer "Zuletzt" auf KI-Start (lokal, je Container)
             if mode != "flashcards" { AIRecents.shared.record(question: Self.label(mode: mode, input: typed), answer: r.s("answer") ?? "", fileID: fileID) }
             persistConversation()
@@ -680,6 +691,14 @@ struct TutorPanel: View {
         }
         // die Sitzung kann waehrend der Anfrage das Modell gewechselt haben: Stand neu laden, die Fusszeile nennt es
         await chatgpt?.refresh()
+    }
+
+    /// "Gefaellt dir diese Antwort besser?" beantworten (`POST /api/ai/feedback` ueber das lokale Backend an den Dienst).
+    /// Die Frage verschwindet sofort; ein Fehler (offline, alter Dienst) bleibt still - es geht nur um eine Stimme.
+    private func sendFeedback(_ m: Binding<Message>, better: Bool) async {
+        guard m.wrappedValue.feedback == nil, let token = Wissensbank.feedbackToken(m.wrappedValue.wissensbank), let api = session.api else { return }
+        m.wrappedValue.feedback = better
+        _ = try? await api.value("/api/ai/feedback", method: "POST", body: .object(["token": .string(token), "better": .bool(better)]))
     }
 
     // MARK: Ganzes Dokument
@@ -1099,6 +1118,49 @@ struct TutorAttachmentCard: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(UF.surface2))
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier("tutor.attachment")
+    }
+}
+
+/// StudiNow-Wissensbank unter einer Antwort (20.11.2026): Abzeichen "Aus der StudiNow-Wissensbank" mit "geprueft" bzw.
+/// den Hinweisen der Bibliothek ("KI-Loesung, ungeprueft"), oder nach einer Wiederholung die Frage "Gefaellt dir diese
+/// Antwort besser?" mit Ja/Nein. Ohne Felder des Dienstes zeigt sie nichts. Einfache Ansicht ohne Rekursion.
+struct TutorWissensbankLine: View {
+    let info: JSONValue
+    let answered: Bool?
+    let busy: Bool
+    let answer: (Bool) -> Void
+
+    var body: some View {
+        if Wissensbank.isFromWissensbank(info) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                UFIcon("book", size: 13).foregroundStyle(UF.ok)
+                Text(Wissensbank.badge).ufFont(12, 650, lh: 1.35).foregroundStyle(UF.text2)
+                if let d = Wissensbank.detail(info) {
+                    Text("· " + d).ufFont(12, lh: 1.35).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.vertical, 2)
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier("tutor.wissensbank")
+        } else if Wissensbank.feedbackToken(info) != nil {
+            if let answered {
+                Text(answered ? Wissensbank.thanksYes : Wissensbank.thanksNo).ufFont(12, lh: 1.35).foregroundStyle(UF.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("tutor.wissensbank.thanks")
+            } else {
+                UFFlexWrap(gap: 8, rowGap: 6) {
+                    Text(Wissensbank.question).ufFont(12.5, 650, lh: 1.35).foregroundStyle(UF.text2)
+                    UFButton("Ja", icon: "check", kind: .ghost, size: .small) { answer(true) }
+                        .disabled(busy)
+                        .accessibilityIdentifier("tutor.wissensbank.yes")
+                    UFButton("Nein", kind: .ghost, size: .small) { answer(false) }
+                        .disabled(busy)
+                        .accessibilityIdentifier("tutor.wissensbank.no")
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("tutor.wissensbank.question")
+            }
+        }
     }
 }
 
