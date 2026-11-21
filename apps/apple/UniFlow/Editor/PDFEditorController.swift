@@ -1555,6 +1555,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         for v in allOverlays where v.loaded { commitPendingUndo(v) }
         for v in allOverlays { keepPaletteFocus(leaving: v) }
         if shownLayout != nil { StiftZaehler.bump(.seitenNeuAufgebaut) }
+        StiftSpur.log("Seiten neu aufgebaut (erstes Mal: \(shownLayout == nil))")
         live = [:]
         parked = []
         shownLayout = layout
@@ -1799,6 +1800,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             dropUndo(forKey: overlay.pageKey)
         }
         if overlay.loaded { StiftZaehler.bump(.neuGeladen) }
+        StiftSpur.log("Zeichnung aus dem Speicher gesetzt: geladen \(overlay.loaded), fremd \(remote), Striche \(overlay.canvas.drawing.strokes.count) -> \(next.strokes.count)")
         overlay.lastShrinkAllowed = CACurrentMediaTime()
         overlay.isApplyingDrawing = true
         overlay.canvas.drawing = next
@@ -1834,6 +1836,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     }
 
     private func dropUndo(forKey key: String) {
+        StiftSpur.log("Verlauf einer Seite verworfen (hatte Eintraege: \(undoTargets[key] != nil))")
         guard let t = undoTargets.removeValue(forKey: key) else { return }
         documentUndo.removeAllActions(withTarget: t)
     }
@@ -1844,6 +1847,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// (Fehlerbericht 13.11.2026). Schritte ohne Aenderung werden nicht gemerkt (sie leerten nur "Wiederholen").
     private func registerUndo(key: String, restore old: PKDrawing, redo new: PKDrawing) {
         let step = InkUndoStep.between(old, new)
+        StiftSpur.log("Schritt merken: -\(step.removed.count) +\(step.added.count)\(step.isEmpty ? " (leer, nicht gemerkt)" : ""), vorher \(old.strokes.count) nachher \(new.strokes.count) Striche, Gruppe \(documentUndo.groupingLevel), kannZurueck \(documentUndo.canUndo), kannVor \(documentUndo.canRedo)")
         guard !step.isEmpty else { return }
         documentUndo.beginSeparateStep()                    // nie mit einem anderen Strich/Radieren zusammen
         registerInk(step, key: key, undoing: true)
@@ -1867,6 +1871,12 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private func applyInk(_ step: InkUndoStep, key: String, undoing: Bool) {
         func change(_ d: PKDrawing) -> PKDrawing { undoing ? step.reverted(on: d) : step.reapplied(on: d) }
         StiftZaehler.bump(undoing ? .rueckgaengig : .wiederholen)
+        if StiftSpur.isOn {
+            let o = boundOverlay(forKey: key)
+            let before = o?.canvas.drawing
+            let after = before.map(change)
+            StiftSpur.log("Schritt anwenden (\(undoing ? "zurueck" : "vor")): Schritt -\(step.removed.count) +\(step.added.count), Seite gebunden \(o != nil) geladen \(o?.loaded == true), Striche \(before?.strokes.count ?? -1) -> \(after?.strokes.count ?? -1), tatsaechlich geaendert \(before.map { InkUndoStep.between($0, after ?? $0) }.map { "-\($0.removed.count) +\($0.added.count)" } ?? "?"), Fokus \(StiftSpur.focus)")
+        }
         if let overlay = boundOverlay(forKey: key), overlay.loaded {
             setDrawing(change(overlay.canvas.drawing), forKey: key)
             return
@@ -1927,6 +1937,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Rueckgaengig-Schritt von `before` nach `after`. Ohne gebundenes, geladenes Overlay nur im Store.
     func replaceInk(key: String, before: PKDrawing, after: PKDrawing) {
         guard canEdit else { return }
+        StiftSpur.log("Handschrift ersetzt (eigenes Lasso, Einfuegen): \(before.strokes.count) -> \(after.strokes.count) Striche")
         if let overlay = boundOverlay(forKey: key), overlay.loaded {
             commitPendingUndo(overlay)
             overlay.isApplyingDrawing = true
@@ -1956,6 +1967,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func canvasViewDrawingDidChange(_ canvasView: PKCanvasView) {
         inkTrace?("Zeichnung geaendert (\(canvasView.drawing.strokes.count) Striche\(overlay(of: canvasView)?.isApplyingDrawing == true ? ", vom Programm" : ""))")
+        if StiftSpur.isOn {
+            let o = overlay(of: canvasView)
+            StiftSpur.log("Zeichnung geaendert: \(canvasView.drawing.strokes.count) Striche, Werkzeug \(type(of: canvasView.tool)), vomProgramm \(o?.isApplyingDrawing == true), liegtAuf \(o?.isDrawing == true), geladen \(o?.loaded == true), zurueck/vor laeuft \(documentUndo.isUndoing)/\(documentUndo.isRedoing), Fokus \(StiftSpur.focus)")
+        }
         guard let overlay = overlay(of: canvasView), !overlay.isApplyingDrawing else { return }
         defer { reloadIfDeferred(overlay) }                         // der Strich ist da: ein verschobenes Laden kann laufen
         // Laden laeuft noch: `apply` uebernimmt die frueh gezeichneten Striche und sichert sie
@@ -2017,6 +2032,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // ein Absetzen, dessen Meldung noch aussteht, bleibt gemerkt (`PageInkView.lifts`)
         inkTrace?("Werkzeug an")
         if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAn) }
+        StiftSpur.log("Werkzeug an: \(type(of: canvasView.tool)), \(canvasView.drawing.strokes.count) Striche")
         if !PencilTuning.liftBelongsToItsStroke { overlay(of: canvasView)?.lifts = [] }
         overlay(of: canvasView)?.reportedWhileDrawing = false
         overlay(of: canvasView)?.endTranslucentHole()            // der neue Strich muss ueberall zu sehen sein
@@ -2033,6 +2049,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         guard let overlay = overlay(of: canvasView) else { return }
         inkTrace?("Werkzeug aus")
         if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAus) }
+        StiftSpur.log("Werkzeug aus: \(type(of: canvasView.tool)), \(canvasView.drawing.strokes.count) Striche, Sichern offen \(overlay.storePending), Schritt offen \(overlay.undoPending)")
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
         let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool, ruler: canvasView.isRulerActive)
@@ -2533,15 +2550,19 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     func undo() {
         if correction != nil { correctionUndo.undo(); return }      // Korrektur-Modus: nur die Korrektur
+        StiftSpur.log("PFEIL ZURUECK: schreibbar \(writable), kannZurueck \(documentUndo.canUndo), kannVor \(documentUndo.canRedo), Gruppe \(documentUndo.groupingLevel), offene Schritte \(allOverlays.filter(\.undoPending).count), liegtAuf \(allOverlays.filter(\.isDrawing).count), Fokus \(StiftSpur.focus)")
         guard writable else { return }                      // ausgeblendet oder ohne Schreiben im Tarif: nur ansehen
         allOverlays.forEach(commitPendingUndo)
         documentUndo.undo()
+        StiftSpur.log("Pfeil zurueck fertig: kannZurueck \(documentUndo.canUndo), kannVor \(documentUndo.canRedo), Gruppe \(documentUndo.groupingLevel)")
     }
 
     func redo() {
         if correction != nil { correctionUndo.redo(); return }
+        StiftSpur.log("PFEIL VOR: schreibbar \(writable), kannZurueck \(documentUndo.canUndo), kannVor \(documentUndo.canRedo), Gruppe \(documentUndo.groupingLevel), Fokus \(StiftSpur.focus)")
         guard writable else { return }
         documentUndo.redo()
+        StiftSpur.log("Pfeil vor fertig: kannZurueck \(documentUndo.canUndo), kannVor \(documentUndo.canRedo), Gruppe \(documentUndo.groupingLevel)")
     }
 
     func fitWidth() {

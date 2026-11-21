@@ -184,6 +184,117 @@ extension EditorStrichBleibtTests {
         for zoom in [CGFloat(1), 6] { try await lassoBleibt(zoom: zoom) }
     }
 
+    /// Wie oben, aber "Schritt zurueck" und "Schritt vor", WAEHREND die Auswahl des Lassos noch steht (nicht erst nach
+    /// dem Aufheben): danach Auswahl aufheben, ein Strich daneben, beobachten. Die Striche liegen nach jedem Schritt
+    /// dort, wo der Schritt sie hinlegt, kein Strich ist doppelt oder fehlt, und nichts bewegt sich spaeter von selbst.
+    func testLassoSchrittZurueckWaehrendDieAuswahlSteht() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let fx = try await makeFixture(pages: 2)
+        var store = try await openStore(fx)
+        store.canvasChanged(pageKey: "p1", drawing: Self.volleSeite(strokes: 800))
+        await store.flush()
+        await store.close()
+        store = try await openStore(fx)
+        let shown = show(store, pencilOnly: false)
+        defer { hide(shown) }
+        let overlay = try await waitForOverlay(shown.editor, page: 0)
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        let editor = shown.editor, window = shown.window, canvas = overlay.canvas
+        let start = Uhr.now()
+        var spur: [String] = []
+        editor.inkTrace = { spur.append(String(format: "%.2f %@", Uhr.since(start), $0)) }
+        editor.tools.select(.lasso)
+        try await Task.sleep(nanoseconds: 400_000_000)
+        guard let lassoFlaeche = TestFinger.selectionView(in: canvas) else { throw MessFehler("keine Lasso-Flaeche von PencilKit") }
+        let frei = Self.freieFlaeche(overlay, in: window)
+        let box = CGRect(x: 22, y: 26, width: 560, height: 113).intersection(frei.insetBy(dx: 6, dy: 6))
+        let gewaehlt = Set(canvas.drawing.strokes.filter { box.insetBy(dx: -1, dy: -1).contains($0.renderBounds) }.map { $0.path.creationDate })
+        func lage(_ d: PKDrawing) -> CGPoint {
+            let mine = d.strokes.filter { gewaehlt.contains($0.path.creationDate) }
+            guard !mine.isEmpty else { return CGPoint(x: -1000, y: -1000) }
+            let n = CGFloat(mine.count)
+            return CGPoint(x: mine.reduce(0) { $0 + $1.renderBounds.midX } / n, y: mine.reduce(0) { $0 + $1.renderBounds.midY } / n)
+        }
+        func anzahl(_ d: PKDrawing) -> Int { d.strokes.filter { gewaehlt.contains($0.path.creationDate) }.count }
+        let lage0 = lage(canvas.drawing), anzahl0 = anzahl(canvas.drawing)
+        var bahn: [CGPoint] = []
+        let ecken = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY), CGPoint(x: box.maxX, y: box.maxY),
+                     CGPoint(x: box.minX, y: box.maxY), CGPoint(x: box.minX, y: box.minY + 2)]
+        for i in 0..<(ecken.count - 1) {
+            let a = ecken[i], b = ecken[i + 1]
+            let n = max(2, Int(hypot(b.x - a.x, b.y - a.y) / 8))
+            for k in 0..<n { bahn.append(CGPoint(x: a.x + (b.x - a.x) * CGFloat(k) / CGFloat(n), y: a.y + (b.y - a.y) * CGFloat(k) / CGFloat(n))) }
+        }
+        bahn.append(ecken[ecken.count - 1])
+        try await TestFinger.strich(bahn.map { overlay.content.convert($0, to: nil) }, in: window, step: 0.008, ziel: lassoFlaeche)
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        var verlauf: [String] = []
+        var vonSelbst = 0
+        func beobachte(_ phase: String, sekunden: Double, soll: CGPoint) async throws {
+            let ende = Uhr.now() + sekunden
+            var letzte = lage(canvas.drawing)
+            verlauf.append(String(format: "%.2f %@: Lage %.1f / %.1f, Soll %.1f / %.1f, %d von %d gewaehlten, %d gesamt, Fokus %@", Uhr.since(start), phase,
+                                  letzte.x, letzte.y, soll.x, soll.y, anzahl(canvas.drawing), anzahl0, canvas.drawing.strokes.count,
+                                  UIResponder.uf_current.map { String(describing: type(of: $0)) } ?? "-"))
+            while Uhr.now() < ende {
+                let l = lage(canvas.drawing)
+                if hypot(l.x - letzte.x, l.y - letzte.y) > 0.5 {
+                    vonSelbst += 1
+                    verlauf.append(String(format: "%.2f %@: VON SELBST bewegt auf %.1f / %.1f (%d gewaehlte, %d gesamt)", Uhr.since(start), phase, l.x, l.y,
+                                          anzahl(canvas.drawing), canvas.drawing.strokes.count))
+                    letzte = l
+                }
+                try await Task.sleep(nanoseconds: 50_000_000)
+            }
+            XCTAssertEqual(letzte.x, soll.x, accuracy: 0.5, "\(phase): Lage waagerecht")
+            XCTAssertEqual(letzte.y, soll.y, accuracy: 0.5, "\(phase): Lage senkrecht")
+            XCTAssertEqual(anzahl(canvas.drawing), anzahl0, "\(phase): kein gewaehlter Strich doppelt oder weg")
+            XCTAssertEqual(canvas.drawing.strokes.count, 800, "\(phase): kein Strich doppelt oder weg")
+        }
+        func ziehe(um d: CGVector) async throws {
+            let p = overlay.content.convert(lage(canvas.drawing), to: nil)
+            let finger = TestFinger(at: p, in: window, ziel: lassoFlaeche)
+            for i in 1...30 {
+                try await Task.sleep(nanoseconds: 16_000_000)
+                finger.move(to: CGPoint(x: p.x + d.dx * CGFloat(i) / 30, y: p.y + d.dy * CGFloat(i) / 30))
+            }
+            try await Task.sleep(nanoseconds: 16_000_000)
+            finger.lift()
+            try await Task.sleep(nanoseconds: 600_000_000)
+        }
+        try await ziehe(um: CGVector(dx: 30, dy: 150))
+        let lage1 = lage(canvas.drawing)
+        XCTAssertGreaterThan(lage1.y - lage0.y, 20, "Messaufbau: erstes Ziehen hat verschoben")
+        try await ziehe(um: CGVector(dx: -20, dy: 90))
+        let lage2 = lage(canvas.drawing)
+        XCTAssertGreaterThan(lage2.y - lage1.y, 10, "Messaufbau: zweites Ziehen hat verschoben")
+        try await beobachte("zweimal gezogen, Auswahl steht", sekunden: 1, soll: lage2)
+        editor.undo()
+        try await beobachte("zurueck bei stehender Auswahl", sekunden: 3, soll: lage1)
+        editor.redo()
+        try await beobachte("vor bei stehender Auswahl", sekunden: 3, soll: lage2)
+        editor.undo()
+        try await beobachte("wieder zurueck bei stehender Auswahl", sekunden: 2, soll: lage1)
+        // noch einmal an der Auswahl ziehen (sie steht fuer PencilKit noch am Platz von vor dem Schritt zurueck)
+        try await ziehe(um: CGVector(dx: 40, dy: 60))
+        let lage3 = lage(canvas.drawing)
+        try await beobachte("nach Schritt zurueck erneut gezogen", sekunden: 3, soll: lage3)
+        // Auswahl aufheben, dann beobachten
+        let leer = overlay.content.convert(CGPoint(x: frei.maxX - 8, y: frei.maxY - 8), to: nil)
+        let tipp = TestFinger(at: leer, in: window, ziel: lassoFlaeche)
+        try await Task.sleep(nanoseconds: 60_000_000)
+        tipp.lift()
+        try await beobachte("Auswahl aufgehoben", sekunden: 4, soll: lage3)
+        for z in verlauf { print("[LassoSchritt] \(z)") }
+        for z in spur { print("[LassoSchritt] Spur \(z)") }
+        XCTAssertEqual(vonSelbst, 0, "nichts bewegt sich von selbst")
+        await store.flush()
+        let gespeichert = await store.drawing(forPageKey: "p1")
+        XCTAssertEqual(lage(gespeichert).y, lage3.y, accuracy: 0.5, "gespeichert ist der letzte Stand")
+        XCTAssertEqual(gespeichert.strokes.count, 800, "gespeichert: kein Strich doppelt oder weg")
+        await store.close()
+    }
+
     private func lassoBleibt(zoom: CGFloat) async throws {
         let name = "\(Int(zoom * 100)) %"
         let fx = try await makeFixture(pages: 2)
