@@ -147,6 +147,107 @@ async def relay(request: Request, body: dict = Body(...)):
         return await ai_async.db(_relay_answer, user, name, c, extra)
 
 
+# ---------------------------------------------------------------- Vorab-Frage an die Wissensbank (21.11.2026)
+# Befund am iPad: Bei "ganze Seite erklaeren" sieht die App zuerst in ihrem Erklaerungsspeicher nach (0 Credits) und ruft
+# /api/ai/relay gar nicht mehr - die Wissensbank wurde fuer solche Seiten nie gefragt. Mit dieser Frage kann die App VOR
+# dem Erklaerungsspeicher pruefen, ob die Wissensbank die Stelle liefert. Kein Treffer kostet nichts und erzeugt keine
+# KI-Antwort. Eigener Pfad statt eines Schalters in /api/ai/relay: Ein aelterer Dienst kennt den Pfad nicht (404) und
+# die App faellt auf ihren bisherigen Weg zurueck; einen unbekannten Schalter haette er uebergangen und die KI gerufen.
+
+VORAB_GRUENDE = ("kein_treffer", "schon_geliefert", "nicht_berechtigt", "keine_angaben", "kontingent", "credits", "rate")
+
+
+def _vorab_leer(name: str, grund: str) -> dict:
+    return {"treffer": False, "grund": grund, "task": name}
+
+
+def _vorab_prepare(request: Request, body: dict) -> dict:
+    """Synchroner Teil der Vorab-Frage. Fehler (501, 401, 400, 409) wie /api/ai/relay; alles, was nur heisst "die
+    Wissensbank liefert hier nichts", kommt als `leer` mit Grund zurueck (Status 200, keine Kosten)."""
+    from . import ai_backend, entitlements, wissensbank
+    if not config.is_hosted():
+        raise _err(501, "not_hosted", "Diese Schnittstelle gibt es nur im StudiNow-Dienst.")
+    user = getattr(request.state, "user", None)
+    if not user:
+        raise _err(401, "unauthenticated", "Anmeldung erforderlich.")
+    name = str(body.get("task") or (f"tutor:{body.get('mode')}" if body.get("mode") else ""))
+    task = _tasks().get(name)
+    if task is None or not name.startswith("tutor:") or name.split(":", 1)[1] not in wissensbank.MODES:
+        raise _err(400, "task_unknown", "Die Wissensbank gibt es nur für Erklären und Lösen.")
+    wb = body.get("wissensbank")
+    if not isinstance(wb, dict) or not str(wb.get("text") or "").strip():
+        return {"name": name, "leer": "keine_angaben"}
+    try:
+        if task.right:
+            entitlements.require(request, task.right)
+        entitlements.require_verified_for_ai(request)
+    except HTTPException:
+        return {"name": name, "leer": "nicht_berechtigt"}
+    rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
+    try:
+        c = ai_backend.replay(user["id"], rid)
+    except ai_backend.AIUnavailable as e:
+        raise _err(e.status, e.code, e.message, **e.extra)
+    if c is not None:
+        return {"user": user, "task": task, "name": name, "rid": rid, "c": c, "wb": None}
+    if not wissensbank.enabled() or not wissensbank.allowed_for(user):
+        return {"name": name, "leer": "nicht_berechtigt"}
+    # nur die Angaben zur Stelle zaehlen; `ausschnitt` steht in den Angaben selbst (hier gibt es kein Bild)
+    plan = _wissensbank_plan(user, name, {"wissensbank": wb, "fresh": bool(body.get("fresh"))})
+    if plan is None:
+        return {"name": name, "leer": "kein_treffer"}
+    if not plan.deliver:
+        return {"name": name, "leer": "schon_geliefert"}
+    return {"user": user, "task": task, "name": name, "rid": rid, "c": None, "wb": plan}
+
+
+@router.post("/api/ai/wissensbank")
+async def wissensbank_vorab(request: Request, body: dict = Body(...)):
+    """Vorab-Frage der App: Liefert die Wissensbank diese Stelle? Rumpf {mode: "explain"|"steps" (oder task:
+    "tutor:<modus>"), request_id, wissensbank: {datei, kurs, seite, text, ausschnitt?}, fresh?}.
+
+    Treffer: Antwort wie /api/ai/relay bei einer Wissensbank-Lieferung ({answer, model, shared, replay, credits, task,
+    source: "wissensbank", wissensbank_key, wissensbank: {badge, status, hinweise}}) und `treffer: true`; 1 Credit
+    (`tutor:wissensbank`), Kontingent und Rate-Limit wie dort. Dieselbe request_id noch einmal: dieselbe Antwort ohne
+    neue Kosten (`replay: true`).
+    Kein Treffer: Status 200, {treffer: false, grund, task} - ohne Kosten, ohne Eintrag im Verbrauch, ohne KI.
+    `grund`: kein_treffer | schon_geliefert (dieses Konto hat die Stelle schon bekommen; ueber /api/ai/relay kaeme jetzt
+    die KI mit der Ja/Nein-Frage) | nicht_berechtigt (Schalter aus, Tarif, Hochschule, E-Mail) | keine_angaben |
+    kontingent | credits | rate."""
+    from . import ai_async, ai_backend, wissensbank
+    async with ai_async.slot():
+        pre = await ai_async.db(_vorab_prepare, request, body)
+        name = pre["name"]
+        if "leer" in pre:
+            return _vorab_leer(name, pre["leer"])
+        user, task, rid, c, wb = (pre[k] for k in ("user", "task", "rid", "c", "wb"))
+        if c is not None:
+            # dieselbe request_id noch einmal: nur eine fruehere Wissensbank-Lieferung zaehlt als Treffer
+            extra = await ai_async.db(_wissensbank_replay, user, rid)
+            if extra.get("source") != "wissensbank":
+                return _vorab_leer(name, "kein_treffer")
+            return {**await ai_async.db(_relay_answer, user, name, c, extra), "treffer": True}
+        if task.quota:
+            try:
+                await ai_async.db(entitlements_consume, request, task.quota, rid)
+            except HTTPException:
+                return _vorab_leer(name, "kontingent")
+        try:
+            c = await ai_async.db(wissensbank.deliver, user, wb, rid)
+        except ai_backend.AIUnavailable as e:
+            if task.quota:
+                await ai_async.db(entitlements_refund, request, task.quota, rid)
+            if e.code == "duplicate_request":
+                raise ai_async.http_error(e)
+            return _vorab_leer(name, "rate" if e.code == "ai_rate_limited" else "credits")
+        except Exception:
+            if task.quota:
+                await ai_async.db(entitlements_refund, request, task.quota, rid)
+            raise
+        extra = await ai_async.db(_wissensbank_fields, user, wb, c)
+        return {**await ai_async.db(_relay_answer, user, name, c, extra), "treffer": True}
+
+
 def _wissensbank_plan(user: dict, name: str, body: dict):
     """Vorpruefung der Wissensbank; ein Fehler darin laesst die KI wie bisher antworten (nie ein Abbruch)."""
     try:
