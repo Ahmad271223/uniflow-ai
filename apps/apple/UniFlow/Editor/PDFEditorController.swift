@@ -401,18 +401,29 @@ final class PageInkView: UIView {
     /// ganze Seite ist zu gross und der sichtbare Teil unbekannt oder weit weg.
     ///
     /// Der Ausschnitt ist immer gleich gross, solange der sichtbare Teil gleich gross ist (`window(around:in:margin:keeping:)`).
+    ///
+    /// `wholePageArea` (Geraete bis 4 GB, `MemoryBudget.small`): Die ganze Seite gilt bis `wholePageZoom` nur, solange
+    /// Seitenflaeche x Zoom^2 hoechstens so gross ist (A4 und Folien beim 4-fachen: ja). Groessere Seiten zeigen schon
+    /// darunter den Ausschnitt - eine voll beschriebene A0-Seite kostete beim 3- und 4-fachen sonst 1,2 bzw. 2 GB
+    /// (gemessen 21.11.2026, docs/SPEICHER-STAND.md). `.infinity` (Geraete ab 6 GB): genau wie bisher.
     nonisolated static func inkLayout(pageSize size: CGSize, viewport: CGRect?, zoom wanted: CGFloat, screen: CGFloat,
                                       budget: CGFloat = inkPixelBudget, margin: CGFloat = windowMargin,
-                                      keeping size0: CGSize? = nil) -> InkLayout? {
+                                      keeping size0: CGSize? = nil,
+                                      wholePageArea: CGFloat = MemoryBudget.current.wholePageInkArea) -> InkLayout? {
         let page = CGRect(origin: .zero, size: size)
         func pixels(_ r: CGRect, _ z: CGFloat) -> CGFloat { r.width * r.height * z * z * screen * screen }
+        func whole(_ z: CGFloat) -> Bool {
+            pixels(page, z) <= budget || (z <= wholePageZoom + 0.001 && size.width * size.height * z * z <= wholePageArea)
+        }
         let z0 = min(max(1, wanted.isFinite ? wanted : 1), maxCanvasZoom)
-        if z0 <= wholePageZoom + 0.001 || pixels(page, z0) <= budget { return InkLayout(zoom: z0, window: page) }
+        if whole(z0) { return InkLayout(zoom: z0, window: page) }
         guard let v = viewport, !v.isNull, v.width > 0, v.height > 0,
               let near = window(around: v, in: page, margin: margin, keeping: size0) else { return nil }
         var z = z0
-        while z > wholePageZoom + 0.001, pixels(near, z) > budget { z = zoomSteps.last { $0 < z - 0.001 } ?? 1 }
-        if z <= wholePageZoom + 0.001 || pixels(page, z) <= budget { return InkLayout(zoom: z, window: page) }
+        // ohne Flaechengrenze endet die Suche wie bisher beim 4-fachen (dort gilt wieder die ganze Seite)
+        let lowest: CGFloat = wholePageArea.isFinite ? 1 : wholePageZoom
+        while z > lowest + 0.001, pixels(near, z) > budget { z = zoomSteps.last { $0 < z - 0.001 } ?? 1 }
+        if whole(z) { return InkLayout(zoom: z, window: page) }
         return InkLayout(zoom: z, window: near)
     }
 
@@ -1300,6 +1311,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             }
         })
         store.onPagesChanged = { [weak self] keys in self?.reloadPages(keys) }
+        store.imagesInUse = { [weak self] in self?.imageSourcesInUse ?? [] }
         // Rechtsklick (Mac), Ziehen von Bildern hinein, Mauszeiger je Werkzeug (`EditorMouseSupport.swift`)
         mouseSupport.install(on: pdfView)
     }
@@ -1694,6 +1706,19 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         super.didReceiveMemoryWarning()
         for overlay in parked where !overlay.foreignReleased { overlay.releaseForeign() }
         releaseParkedOverlays()
+        // danach die Bilder der Notizen, die keine Seite mehr zeigt (je Foto rund 15 MB)
+        store.trimImages(limit: 0)
+    }
+
+    /// Bilder der Notizen, die eine Seite gerade zeigt (sichtbar oder geparkt): bleiben im Speicher (`DocumentStore.trimImages`)
+    var imageSourcesInUse: Set<String> {
+        var out = Set<String>()
+        for overlay in allOverlays {
+            for o in overlay.objectsView.shownObjects where o["type"]?.string == "image" {
+                if let src = o["src"]?.string { out.insert(src) }
+            }
+        }
+        return out
     }
 
     /// Geparkte Overlays freigeben (Speicherwarnung), ausser solchen mit noch ungesicherten fruehen Strichen
