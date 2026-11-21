@@ -108,6 +108,25 @@ final class EditorDeviceFixesTests: XCTestCase {
                      "Seite weit weg: kein Ausschnitt")
     }
 
+    /// Ablauf-Protokoll fuer die Fehlersuche am Geraet (`StiftSpur`): ohne die Schalter-Datei aus (nichts wird gemerkt,
+    /// der Text nicht einmal gebaut), eingeschaltet hoechstens `limit` Zeilen, die aeltesten fallen weg.
+    func testStiftSpurIsOffByDefaultAndBounded() {
+        XCTAssertFalse(FileManager.default.fileExists(atPath: StiftSpur.switchURL.path), "im Test liegt keine Schalter-Datei")
+        StiftSpur.setOnForTesting(false)
+        var built = 0
+        func text() -> String { built += 1; return "Ereignis" }
+        StiftSpur.log(text())
+        XCTAssertEqual(built, 0, "aus: der Text wird nicht gebaut")
+        XCTAssertEqual(StiftSpur.linesForTesting, [])
+        StiftSpur.setOnForTesting(true)
+        defer { StiftSpur.setOnForTesting(false) }
+        for i in 0..<(StiftSpur.limit + 50) { StiftSpur.log("Ereignis \(i)") }
+        let lines = StiftSpur.linesForTesting
+        XCTAssertEqual(lines.count, StiftSpur.limit)
+        XCTAssertTrue(lines.last?.hasSuffix("Ereignis \(StiftSpur.limit + 49)") == true)
+        XCTAssertTrue(lines.first?.hasSuffix("Ereignis 50") == true, "die aeltesten Zeilen fallen weg")
+    }
+
     /// Meldung des Inhabers 20.11.2026 abends: "Scrollen mit dem Finger hakt". Der Ausschnitt der Zeichenflaeche behaelt
     /// beim Scrollen seine Groesse (am Seitenrand geschoben statt beschnitten, keine Rundung je nach Lage): PencilKit
     /// verschiebt dann nur, statt die Zeichenflaeche neu aufzubauen.
