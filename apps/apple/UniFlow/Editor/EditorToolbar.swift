@@ -262,8 +262,9 @@ final class EditorToolState: ObservableObject {
         return min(max(next, range.lowerBound), range.upperBound)
     }
 
-    /// Was sich geaendert hat (die Editoren setzen danach das Werkzeug ihrer Zeichenflaechen)
-    enum Change: Equatable { case tool, style, ruler }
+    /// Was sich geaendert hat (die Editoren setzen danach das Werkzeug ihrer Zeichenflaechen). `reflected`: der Editor,
+    /// der die Leiste fuehrt, hat das Objektwerkzeug selbst gewechselt (`reflect`); nur das Dokument daneben folgt.
+    enum Change: Equatable { case tool, style, ruler, reflected }
 
     /// Farben der Leiste (dunkel fuer Stifte, hell fuer den Textmarker), weitere ueber den Farbwaehler
     static let inkColors: [(hex: String, name: String)] = [
@@ -356,9 +357,57 @@ final class EditorToolState: ObservableObject {
     /// Der Editor hat das Objektwerkzeug selbst gewechselt (nach dem Anlegen eines Textes, nach dem Lasso): die Leiste
     /// zeigt es, ohne dass die Editoren erneut reagieren
     func reflect(_ t: Tool) {
-        guard t != tool else { return }
-        previous = tool
-        tool = t
+        if t != tool {
+            previous = tool
+            tool = t
+        }
+        // auch bei gleichem Eintrag: "Auswählen" kann vom Lasso zum Antippen gewechselt haben (`EditorPalette.selectTool`)
+        changes.send(.reflected)
+    }
+
+    // MARK: Geteilte Ansicht: der Editor, in dem zuletzt gearbeitet wurde (21.11.2026)
+
+    /// Hauptdokument und Dokument daneben (z. B. die Notiz) teilen sich diese Leiste. Hier steht der Editor, in dem
+    /// zuletzt gearbeitet wurde (letzte Beruehrung, neue Auswahl): Dorthin gehen eingefuegte Bilder und "Einfügen", dort
+    /// wirken Loeschen, Farbe und Schriftgroesse der Objektleiste. Schwach gehalten; nil (noch nirgends gearbeitet, das
+    /// Dokument daneben ist zu) heisst: das Hauptdokument. Vorher ging jedes Bild ins Hauptdokument - Meldung des
+    /// Inhabers: "Auf die Notiz geht kein Bild drauf".
+    private(set) weak var activeEditor: PDFEditorController?
+    /// Anzahl ausgewaehlter Objekte im Editor, in dem gearbeitet wird (die Objektleiste des Hauptdokuments zeigt dazu
+    /// ihre Aktionen)
+    var onActiveSelection: ((Int) -> Void)?
+
+    /// Die offenen Editoren, die sich diese Leiste teilen (schwach gehalten), fuer "Bild ins andere Dokument ziehen"
+    private var sharedEditors: [WeakEditor] = []
+    private struct WeakEditor { weak var value: PDFEditorController? }
+
+    func register(_ editor: PDFEditorController) {
+        sharedEditors.removeAll { $0.value == nil || $0.value === editor }
+        sharedEditors.append(WeakEditor(value: editor))
+    }
+
+    /// Das andere Dokument der geteilten Ansicht, wenn es gerade zu sehen ist (sonst nil: nur ein Dokument offen)
+    func otherEditor(than editor: PDFEditorController) -> PDFEditorController? {
+        sharedEditors.compactMap(\.value).first { $0 !== editor && $0.viewIfLoaded?.window != nil }
+    }
+
+    /// Schritte "Bild ins andere Dokument" im gemeinsamen Verlauf. Der Verlauf haelt seine Ziele nicht selbst; schliesst
+    /// das Dokument daneben, verschwinden sie mit seinen uebrigen Schritten.
+    var transferSteps: [ImageTransferStep] = []
+
+    /// Es gibt nur eine Auswahl zugleich: Wechselt der Editor, verliert der bisherige seine Auswahl (die Objektleiste gilt
+    /// immer fuer genau einen Editor).
+    func setActiveEditor(_ editor: PDFEditorController?) {
+        guard activeEditor !== editor else { return }
+        if let old = activeEditor, old.objects.hasSelection { old.objects.clearSelection() }
+        activeEditor = editor
+    }
+
+    /// Die Auswahl eines Editors hat sich geaendert. Weitergemeldet wird nur die des Editors, in dem gearbeitet wird
+    /// (ohne Eintrag: die des Hauptdokuments).
+    func selectionChanged(_ count: Int, in editor: PDFEditorController) {
+        guard activeEditor === editor || (activeEditor == nil && editor.ownsToolPicker) else { return }
+        onActiveSelection?(count)
     }
 
     /// Zurueck zum letzten Stift (aus Objektwerkzeugen, "Fertig")

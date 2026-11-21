@@ -90,53 +90,99 @@ extension ObjectEditing {
         drag.overlay.isApplyingDrawing = false
     }
 
-    /// Verschieben beenden: Objekte und Handschrift zusammen, ein Rueckgaengig-Schritt
+    /// Ziehen ohne Aenderung beendet: die Zeichnung zeigt die Striche wieder selbst
+    private func restoreInk(_ drag: (view: UIImageView, before: PKDrawing, overlay: PageInkView)?) {
+        guard let drag else { return }
+        drag.overlay.isApplyingDrawing = true
+        drag.overlay.canvas.drawing = drag.before
+        drag.overlay.isApplyingDrawing = false
+    }
+
+    /// Seite eines Schluessels in Seitenpunkten (nil, solange sie nicht gezeigt wird: dann ohne Grenzen)
+    private func pageRect(_ key: String) -> CGRect? { controller?.boundOverlay(forKey: key).map(Self.page(of:)) }
+
+    /// Verschieben beenden: Objekte und Handschrift zusammen, ein Rueckgaengig-Schritt. Die Auswahl bleibt ganz auf der
+    /// Seite (21.11.2026: ein ueber den Rand gezogenes Bild war danach nicht mehr zu sehen - "das verschwindet dann").
     func finishMove(dx: CGFloat, dy: CGFloat) {
         let sel = selection, ink = inkSelection, drag = inkDrag
         inkDrag = nil
         drag?.view.removeFromSuperview()
-        guard dx != 0 || dy != 0 else {
-            if let drag {
-                drag.overlay.isApplyingDrawing = true
-                drag.overlay.canvas.drawing = drag.before
-                drag.overlay.isApplyingDrawing = false
-            }
-            return
-        }
-        let t = CGAffineTransform(translationX: dx, y: dy)
+        guard dx != 0 || dy != 0 else { restoreInk(drag); return }
         Task {
-            if let sel { await commit(sel.key) { PageObjectEdit.move($0, ids: sel.ids, dx: Double(dx), dy: Double(dy)) } }
+            let key = sel?.key ?? ink?.key ?? ""
+            let overlay = controller?.boundOverlay(forKey: key)
+            var d = CGPoint(x: dx, y: dy)
+            if let page = pageRect(key) {
+                var box = sel.map { s in Self.box(of: overlay?.objectsView.shownObjects ?? [], ids: s.ids) } ?? .null
+                if sel != nil, box.isNull { box = Self.box(of: await objects(key), ids: sel?.ids ?? []) }
+                if let ink {
+                    let drawing: PKDrawing
+                    if let drag { drawing = drag.before } else { drawing = await controller?.inkDrawing(forKey: key) ?? PKDrawing() }
+                    box = box.union(Self.bounds(of: ink.indices, in: drawing))
+                }
+                d = Self.clampedOffset(box, by: d, in: page)
+            }
+            guard abs(d.x) + abs(d.y) > 0.005 else {
+                restoreInk(drag)
+                if let sel { overlay?.objectsView.previewMove(ids: sel.ids, by: .zero) }
+                drawSelection(await objects(key))
+                return
+            }
+            let t = CGAffineTransform(translationX: d.x, y: d.y)
+            holdsFrame = true
+            var changed = true
+            if let sel { changed = await commit(sel.key) { PageObjectEdit.move($0, ids: sel.ids, dx: Double(d.x), dy: Double(d.y)) } }
             if let ink, let drag {
                 controller?.replaceInk(key: ink.key, before: drag.before, after: Self.transformed(drag.before, indices: ink.indices, by: t))
             } else if let ink {
                 await changeInk(ink) { Self.transformed($0, indices: ink.indices, by: t) }
             }
-            drawSelection(await objects(sel?.key ?? ink?.key ?? ""))
+            holdsFrame = false
+            if let sel, !changed { overlay?.objectsView.previewMove(ids: sel.ids, by: .zero) }
+            drawSelection(await objects(key))
         }
     }
 
-    /// Auswahl vergroessern bzw. verkleinern (Pinch, Menue "Größer"/"Kleiner"), um ihre linke obere Ecke
-    func scaleSelection(by f: Double) {
-        guard hasSelection, f > 0 else { return }
-        let sel = selection, ink = inkSelection
+    /// Auswahl vergroessern bzw. verkleinern (Anfasser an der Ecke, zwei Finger, Menue "Größer"/"Kleiner") um `anchor`,
+    /// ohne Angabe um ihre linke obere Ecke; ein Rueckgaengig-Schritt. Das Seitenverhaeltnis bleibt, Objekte und
+    /// Handschrift bleiben zusammen. Grenzen und Lage auf der Seite: `resized`.
+    func scaleSelection(by f: Double, about anchor: CGPoint? = nil) {
+        let sel = selection, ink = inkSelection, drag = inkDrag
+        inkDrag = nil
+        drag?.view.removeFromSuperview()
+        guard hasSelection, f > 0, f.isFinite else { restoreInk(drag); return }
         Task {
-            let list = await objects(sel?.key ?? ink?.key ?? "")
-            if let sel { await commit(sel.key) { PageObjectEdit.scale($0, ids: sel.ids, factorX: f, factorY: f) } }
-            if let ink {
-                await changeInk(ink) { d in
-                    var anchor = Self.bounds(of: ink.indices, in: d).origin
-                    if let sel {
-                        // gemeinsame Ecke mit den Objekten, damit beides zusammenbleibt
-                        for o in list where (o["id"]?.string).map(sel.ids.contains) == true {
-                            if let b = PageObjectEdit.bounds(o, textHeight: Self.textHeight) {
-                                anchor = CGPoint(x: min(anchor.x, CGFloat(b.minX)), y: min(anchor.y, CGFloat(b.minY)))
-                            }
-                        }
-                    }
-                    return Self.transformed(d, indices: ink.indices, by: Self.scaleTransform(f, about: anchor))
-                }
+            let key = sel?.key ?? ink?.key ?? ""
+            let overlay = controller?.boundOverlay(forKey: key)
+            let ids = sel?.ids ?? []
+            let list = await objects(key)
+            var before: PKDrawing?
+            if ink != nil {
+                if let drag { before = drag.before } else { before = await controller?.inkDrawing(forKey: key) }
             }
-            drawSelection(await objects(sel?.key ?? ink?.key ?? ""))
+            let inkBox = ink.flatMap { i in before.map { Self.bounds(of: i.indices, in: $0) } } ?? .null
+            let box = Self.box(of: list, ids: ids).union(inkBox)
+            // ohne gezeigte Seite keine Grenzen der Seite
+            let page = pageRect(key) ?? CGRect(x: -1e6, y: -1e6, width: 2e6, height: 2e6)
+            let about = anchor ?? box.origin
+            let result = Self.resized(list, ids: ids, inkBox: inkBox, by: f, about: about, page: page)
+            guard !box.isNull, abs(result.factor - 1) > 0.0005 || result.box != box else {
+                restoreInk(drag)
+                overlay?.objectsView.preview(nil)
+                drawSelection(list)
+                return
+            }
+            holdsFrame = true
+            var changed = true
+            if let sel {
+                changed = await commit(sel.key) { Self.resized($0, ids: sel.ids, inkBox: inkBox, by: f, about: about, page: page).objects }
+            }
+            if let ink, let before {
+                controller?.replaceInk(key: ink.key, before: before, after: Self.transformed(before, indices: ink.indices, by: result.inkTransform))
+            }
+            holdsFrame = false
+            if sel != nil, !changed { overlay?.objectsView.preview(nil) }
+            drawSelection(await objects(key))
         }
     }
 
@@ -265,21 +311,40 @@ extension ObjectEditing {
 
     // MARK: Bilder
 
-    /// Bild auf eine Seite (hochladen wie im Web, hoechstens halbe Seitenbreite, an `point` bzw. oben links)
+    /// Rahmen fuer ein neues Bild der Groesse `size` (Seitenpunkte): hoechstens halbe Seitenbreite und nie hoeher als die
+    /// Seite. Mit `point` (Ablegen, Rechtsklick) liegt die linke obere Ecke dort, sonst oben im sichtbaren Teil
+    /// `visible` der Seite, waagerecht mittig, und passt ganz hinein. Immer ganz auf der Seite. Vorher lag ein neues Bild
+    /// immer bei y = 60 oben auf der Seite - hineingezoomt und nach unten gescrollt also ausserhalb des Bildschirms.
+    nonisolated static func imageFrame(_ size: CGSize, page: CGRect, visible: CGRect?, at point: CGPoint?) -> CGRect {
+        let margin: CGFloat = 12
+        var scale = min(1, page.width * 0.5 / size.width, page.height / size.height)
+        var area = page
+        if point == nil, let v = visible?.intersection(page), !v.isNull, v.width >= 2 * minimumSide, v.height >= 2 * minimumSide {
+            area = v
+            scale = min(scale, (v.width - 2 * margin) / size.width, (v.height - 2 * margin) / size.height)
+        }
+        let w = size.width * scale, h = size.height * scale
+        let wanted = point ?? CGPoint(x: area.midX - w / 2, y: area.minY + min(60, max(margin, (area.height - h) / 2)))
+        let d = clampedOffset(CGRect(x: wanted.x, y: wanted.y, width: w, height: h), by: .zero, in: point == nil ? area : page)
+        return CGRect(x: wanted.x + d.x, y: wanted.y + d.y, width: w, height: h)
+    }
+
+    /// Bild auf eine Seite (hochladen wie im Web; Groesse und Lage: `imageFrame`), danach ausgewaehlt
     @discardableResult
     func insertImage(_ image: UIImage, on key: String, at point: CGPoint? = nil) async -> Bool {
         guard let c = controller, c.writable, image.size.width > 0, image.size.height > 0 else { return false }
-        let pageWidth = c.boundOverlay(forKey: key)?.geometry.pageSize.width ?? 595
         let src: String
         do { src = try await c.store.uploadNoteImage(Self.normalized(image)) } catch {
             c.onHint?("Bild konnte nicht eingefügt werden.")
             return false
         }
-        let scale = min(1, pageWidth * 0.5 / image.size.width)
-        let p = point ?? CGPoint(x: pageWidth * 0.25, y: 60)
+        // erst nach dem Hochladen messen: bis dahin kann gescrollt worden sein
+        let overlay = c.boundOverlay(forKey: key)
+        let page = overlay.map(Self.page(of:)) ?? CGRect(x: 0, y: 0, width: 595, height: 842)
+        let r = Self.imageFrame(image.size, page: page, visible: overlay?.viewportInPage(), at: point)
         let o: JSONValue = .object(["id": .string(PageOrder.uid()), "type": "image", "src": .string(src),
-                                    "x": .number(Double(p.x)), "y": .number(Double(p.y)),
-                                    "width": .number(Double(image.size.width * scale)), "height": .number(Double(image.size.height * scale)),
+                                    "x": .number(Double(r.minX)), "y": .number(Double(r.minY)),
+                                    "width": .number(Double(r.width)), "height": .number(Double(r.height)),
                                     "rotation": 0, "scaleX": 1, "scaleY": 1, "opacity": 1, "source": "ipad"])
         await place(objects: [o], ink: nil, inkOffset: .zero, on: key)
         return true

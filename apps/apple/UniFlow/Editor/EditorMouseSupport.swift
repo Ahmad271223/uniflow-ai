@@ -220,23 +220,43 @@ extension PDFEditorController {
     /// Seite, auf die eingefuegt wird: Seite der Auswahl, sonst die aktuelle
     var pasteTargetKey: String? { objects.selectedKey ?? currentPageKey }
 
+    // Geteilte Ansicht: Die Tasten und das Bearbeiten-Menue kommen beim Editor an, der die Leiste fuehrt. Gemeint ist der
+    // Editor, in dem zuletzt gearbeitet wurde (`activeEditor`: Hauptdokument oder Dokument daneben).
+
     func canPerformEditAction(_ action: Selector) -> Bool? {
+        let target = activeEditor
         switch action {
-        case #selector(copy(_:)): return acceptsEditorKeys && objects.hasSelection
+        case #selector(copy(_:)): return acceptsEditorKeys && target.objects.hasSelection
         case #selector(cut(_:)), #selector(delete(_:)), #selector(duplicate(_:)):
-            return acceptsEditorKeys && writable && objects.hasSelection
+            return acceptsEditorKeys && target.writable && target.objects.hasSelection
         case #selector(paste(_:)):
-            return acceptsEditorKeys && writable && pasteTargetKey != nil && EditorMouseSupport.pasteboardHasContent
+            return acceptsEditorKeys && target.writable && target.pasteTargetKey != nil && EditorMouseSupport.pasteboardHasContent
         default: return nil
         }
     }
 
-    override func copy(_ sender: Any?) { Task { await objects.copySelection() } }
-    override func cut(_ sender: Any?) { Task { await objects.cutSelection() } }
-    override func delete(_ sender: Any?) { objects.deleteSelection() }
-    override func duplicate(_ sender: Any?) { Task { await objects.duplicateSelection() } }
-    override func paste(_ sender: Any?) {
-        guard let key = pasteTargetKey else { return }
-        Task { await objects.paste(on: key) }
+    override func copy(_ sender: Any?) { let o = activeEditor.objects; Task { await o.copySelection() } }
+    override func cut(_ sender: Any?) { let o = activeEditor.objects; Task { await o.cutSelection() } }
+    override func delete(_ sender: Any?) { activeEditor.objects.deleteSelection() }
+    override func duplicate(_ sender: Any?) { let o = activeEditor.objects; Task { await o.duplicateSelection() } }
+    override func paste(_ sender: Any?) { Task { await pasteClipboard() } }
+
+    /// Einfuegen aus der Zwischenablage (Cmd-V, Bearbeiten-Menue, Drei-Finger-Geste) in den Editor, in dem zuletzt
+    /// gearbeitet wurde: auf die Seite der Auswahl bzw. die aktuelle Seite. `true`, wenn etwas eingefuegt wurde.
+    @discardableResult
+    func pasteClipboard(from pasteboard: UIPasteboard = .general) async -> Bool {
+        let target = activeEditor
+        guard let key = target.pasteTargetKey else { return false }
+        return await target.objects.paste(on: key, pasteboard: pasteboard)
+    }
+
+    /// Gewaehltes Bild (Fotos, Dateien) in den Editor, in dem zuletzt gearbeitet wurde, auf dessen aktuelle Seite
+    /// (21.11.2026; vorher immer ins Hauptdokument, auch wenn man gerade in der Notiz daneben schrieb). `true`, wenn es
+    /// eingefuegt wurde.
+    @discardableResult
+    func insertPickedImage(_ image: UIImage) async -> Bool {
+        let target = activeEditor
+        guard let key = target.currentPageKey else { return false }
+        return await target.objects.insertImage(image, on: key)
     }
 }

@@ -231,6 +231,8 @@ final class PageObjectsView: UIView {
     private var signature = ""
     /// Gezeigte Ansichten je Objekt-ID, fuer die Vorschau beim Ziehen
     private var placed: [String: [Placed]] = [:]
+    /// Objekte, die gerade eine Vorschau mit anderer Groesse zeigen (`preview`)
+    private var previewed: Set<String> = []
     /// Aufloesung fuer Formen und Text (`PageInkView.setRenderScale`)
     private var renderScale: CGFloat = 0
     /// Zuletzt gezeigter Inhalt (fuer `update(images:)`)
@@ -265,6 +267,7 @@ final class PageObjectsView: UIView {
         subviews.forEach { $0.removeFromSuperview() }
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
         placed = [:]
+        previewed = []
 
         // Vorlage zuerst, damit sie hinter Text, Formen und der Tinte liegt (wie im Web)
         PaperTemplate.layers(for: template, size: bounds.size).forEach { layer.addSublayer($0) }
@@ -314,6 +317,46 @@ final class PageObjectsView: UIView {
             for p in placed[id] ?? [] {
                 let t = p.base.concatenating(CGAffineTransform(translationX: d.x, y: d.y))
                 if let v = p.view { v.transform = t } else { p.layer?.setAffineTransform(t) }
+            }
+        }
+        CATransaction.commit()
+    }
+
+    /// Vorschau beim Aendern der Groesse (Anfasser an der Ecke, zwei Finger): Die genannten Objekte erscheinen mit Lage,
+    /// Massstab und - bei Text - Breite aus `objects`, ohne dass das Modell geaendert wird. Vorher zeigte nur der Rahmen
+    /// die neue Groesse, das Bild sprang erst beim Loslassen. `nil` zeigt wieder den gespeicherten Stand.
+    func preview(_ objects: [JSONValue]?) {
+        let list = objects ?? shownObjects.filter { ($0["id"]?.string).map(previewed.contains) == true }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for o in list {
+            guard let id = o["id"]?.string, let parts = placed[id] else { continue }
+            let t = ObjectGeometry.transform(o)
+            for p in parts {
+                guard let v = p.view else { p.layer?.setAffineTransform(t); continue }
+                if o["type"]?.string == "text", let label = v.subviews.first as? UILabel {
+                    // Text aendert die Breite, nicht den Massstab: neu umbrechen
+                    v.bounds = CGRect(origin: .zero, size: ObjectGeometry.textSize(o, label.attributedText ?? NSAttributedString()))
+                    label.frame = v.bounds.insetBy(dx: ObjectGeometry.textPadding, dy: ObjectGeometry.textPadding)
+                }
+                v.transform = t
+            }
+        }
+        CATransaction.commit()
+        previewed = objects == nil ? [] : previewed.union(list.compactMap { $0["id"]?.string })
+    }
+
+    /// Objekte blass zeigen (ein Bild ist auf dem Weg ins andere Dokument, `ObjectTransfer.swift`) bzw. wieder wie
+    /// gespeichert
+    func setDimmed(_ ids: Set<String>, _ dimmed: Bool) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for o in shownObjects {
+            guard let id = o["id"]?.string, ids.contains(id) else { continue }
+            let alpha = ObjectGeometry.opacity(o) * (dimmed ? 0.35 : 1)
+            for p in placed[id] ?? [] {
+                p.view?.alpha = CGFloat(alpha)
+                p.layer?.opacity = Float(alpha)
             }
         }
         CATransaction.commit()
