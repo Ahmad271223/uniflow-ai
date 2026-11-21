@@ -19,12 +19,28 @@ vernachlässigt. a) Bestimmen Sie die Lagerreaktionen in A und B.
 **Lösung.** LOESUNG-1A: Aus der Symmetrie folgt A_v = B_v = F/2 = 6 kN, die waagrechte Lagerkraft A_h ist 0.
 Probe mit dem Momentengleichgewicht um A: B_v · 4 m − 12 kN · 2 m = 0, also B_v = 6 kN. □
 
+**Abgleich mit der Musterlösung.** ABGLEICH-1A: Die (erfundene) Musterlösung der Übungsleitung schreibt „A = B = 6 kN“
+und lässt die Probe weg; nachgerechnet, nicht unabhängig gelöst. Übereinstimmung. □
+
+**Erklärung.** ERKLAERUNG-1A: Die Kraft greift in der Mitte an, deshalb trägt jedes Lager genau die Hälfte.
+
 ## [Q1] Aufgabe 1 b): Größtes Biegemoment
 
 **Aufgabentext.** Für den Träger aus Teil a) mit l = 4 m und F = 12 kN: b) Berechnen Sie das größte Biegemoment und
 geben Sie an, an welcher Stelle der Balkenachse es auftritt.
 
-**Lösung.** LOESUNG-1B: M_max = F · l / 4 = 12 kN · 4 m / 4 = 12 kNm in der Trägermitte. □
+**Lösung.** LOESUNG-1B: M_max = F · l / 4 = 12 kN · 4 m / 4 = 12 kNm in der Trägermitte. □ Abgleich: gleich
+(ABGLEICH-1B-KURZ, erfundene Lösungsfolie 7).
+
+### Abgleich mit den Lösungsfolien
+
+ABGLEICH-1B: Die (erfundenen) Lösungsfolien zeichnen das Momentendreieck mit der Spitze 12 kNm in der Mitte.
+
+- gleiche Zahl, gleiche Stelle
+
+### Merksatz
+
+MERKSATZ-1B: Einzelkraft in der Mitte des Einfeldträgers: größtes Moment F · l / 4 unter der Kraft.
 
 ## [Q1] Aufgabe 2: Kragarm mit Streckenlast
 
@@ -34,6 +50,15 @@ des Biegemoments entlang des Kragarms.
 
 **Lösung (KI-Lösung, ungeprüft).** LOESUNG-2: Resultierende R = q0 · 3 m = 15 kN in 1,5 m Abstand; Einspannmoment
 M_E = 15 kN · 1,5 m = 22,5 kNm. Querkraft linear von 15 kN auf 0, Moment quadratisch. □
+
+## [Q1] Aufgabe 3: Kragträger mit Einzelmoment
+
+**Aufgabentext.** Ein Kragträger der Länge 2 m ist rechts fest eingespannt und wird am freien linken Ende durch ein
+Einzelmoment M0 = 8 kNm belastet. Bestimmen Sie die Einspannreaktionen und skizzieren Sie den Momentenverlauf
+über die gesamte Trägerlänge.
+
+**Abgleich mit der Musterlösung.** ABGLEICH-3: Hier steht nur, was die (erfundene) Musterlösung der Übungsleitung
+nennt: Einspannmoment 8 kNm, keine Querkraft. Eine eigene Lösung fehlt noch.
 
 ## Prüfvermerk
 

@@ -40,6 +40,7 @@ S3 = _quote(G1, "[Q1] Seite 3")
 A1A = _quote(G2, "[Q1] Aufgabe 1 a)")
 A1B = _quote(G2, "[Q1] Aufgabe 1 b)")
 A2 = _quote(G2, "[Q1] Aufgabe 2")
+A3 = _quote(G2, "[Q1] Aufgabe 3")
 ALGO2 = _quote(A1, "[Q1] Seite 2")
 ALGO3 = _quote(A1, "[Q1] Seite 3")
 
@@ -48,6 +49,7 @@ K_S3 = f"explain:{STATIK}/G0001/01#Q1-Seite-3"
 K_1AB = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-1-a+02#Q1-Aufgabe-1-b"
 K_1A = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-1-a"
 K_2 = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-2"
+K_3 = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-3"
 K_ALGO2 = f"explain:{ALGO}/G0001/01#Q1-Seite-2"
 K_ALGO3 = f"explain:{ALGO}/G0001/01#Q1-Seite-3"
 
@@ -89,6 +91,7 @@ CASES = [
     ("Aufgabe 1 b) Zahl gegen eine vorhandene getauscht", "steps", BLATT, "", 1, A1B.replace("F = 12 kN", "F = 4 kN"), None),
     ("Aufgabe 1 a) Dezimalkomma statt Zahl", "steps", BLATT, "", 1, A1A.replace("l = 4 m", "l = 4,5 m"), None),
     ("Aufgabe 2 (KI-Loesung)", "steps", BLATT, "", 2, A2, K_2),
+    ("Aufgabe 3 (nur Abgleich: zugeordnet, aber nicht lieferbar)", "steps", BLATT, "", 2, A3, K_3),
     ("Dateiname NFD und Leerraum", "steps", unicodedata.normalize("NFD", "Übungsblatt  03 -  Balken"), "", 2, A2, K_2),
     ("Folie im Modus Loesen", "steps", FOLIEN, "", 2, S2, None),
     ("Animationsstufe: Grundfolie", "explain", "algo-skript-bsp.pdf", "", 2, ALGO2, K_ALGO2),
@@ -157,6 +160,82 @@ def test_answer_text_and_hints(lib):
     assert "LOESUNG-1A" in text and "LOESUNG-1B" in text and "LOESUNG-2" not in text
 
 
+# ================================================================== Abgleich-Notizen (Entscheidung des Inhabers 21.11.2026)
+# Keine Musterloesungen der Lehrenden herausgeben: die internen Abgleich-Notizen der Bibliothek (Vergleich der eigenen
+# Loesung mit der Loesung der Lehrenden) stehen nie im ausgelieferten Text. Alle Texte hier sind erfunden.
+
+def test_abgleich_paragraph_and_subsection_are_not_delivered_solution_and_explanation_stay(lib):
+    from app import wissensbank
+    hit = wissensbank.match(lib, mode="steps", datei=BLATT, seite=1, text="Gruppenübung 3\n" + A1A + "\n" + A1B)
+    assert hit.key == K_1AB, "Zuordnung unveraendert"
+    text = wissensbank.answer_text(hit.unit, hit.sections)
+    for kept in ("Aufgabentext", "LOESUNG-1A", "ERKLAERUNG-1A", "LOESUNG-1B", "MERKSATZ-1B", "### Merksatz"):
+        assert kept in text, kept
+    for gone in ("ABGLEICH", "Abgleich", "Musterlösung", "Lösungsfolie", "gleiche Zahl, gleiche Stelle"):
+        assert gone not in text, gone
+    assert "in der Trägermitte. □\n" in text, "der Satz vor der Notiz bleibt ganz"
+    # der ganze Abschnitt bleibt lesbar (Hinweise, Pruef-Werkzeug); er wird nie ausgeliefert
+    raw = wissensbank.answer_text(hit.unit, hit.sections, raw=True)
+    assert "ABGLEICH-1A" in raw and "ABGLEICH-1B" in raw and "ABGLEICH-1B-KURZ" in raw
+
+
+def test_section_with_nothing_but_the_abgleich_is_not_deliverable(lib):
+    from app import wissensbank
+    hit = wissensbank.match(lib, mode="steps", datei=BLATT, seite=2, text=A3)
+    assert hit is not None and hit.key == K_3, "die Zuordnung liest weiter den ganzen Abschnitt"
+    assert wissensbank.answer_text(hit.unit, hit.sections) == "", "nur der Aufgabentext waere uebrig: nichts Eigenes"
+    assert "ABGLEICH-3" in wissensbank.answer_text(hit.unit, hit.sections, raw=True)
+
+
+ABGLEICH_FORMS = [
+    ("fett, eigener Absatz", "**Lösung.** L1.\n\n**Abgleich mit der Musterlösung.** WEG eins\nWEG zwei\n\n**Erklärung.** E1.",
+     "**Lösung.** L1.\n\n**Erklärung.** E1."),
+    ("fett mit Doppelpunkt", "**Lösung.** L1.\n\n**Abgleich:** WEG.\n\nE1 bleibt.", "**Lösung.** L1.\n\nE1 bleibt."),
+    ("kursiv", "L1.\n\n*Abgleich (Q2, Seite 9).* WEG.\n\nE1.", "L1.\n\nE1."),
+    ("ohne Auszeichnung am Absatzanfang", "L1.\n\nAbgleich zu G0001 Q1: WEG.\n\nE1.", "L1.\n\nE1."),
+    ("Notiz, direkt danach die Loesung", "**Abgleich.** wie G0001 Aufgabe 3, WEG.\n**Lösung (nachgerechnet).** L1 = 5 kN.",
+     "**Lösung (nachgerechnet).** L1 = 5 kN."),
+    ("Notiz und naechste Marke in einer Zeile", "**Abgleich.** WEG. **Kernergebnis.** K1 = 3.", "**Kernergebnis.** K1 = 3."),
+    ("mitten im Absatz, fett", "**Lösung.** L1 = **5 kN**. **Abgleich mit der ML.** WEG eins\nWEG zwei", "**Lösung.** L1 = **5 kN**."),
+    ("am Satzende, ohne Auszeichnung", "**Lösung.** L1 = **5 kN**. Abgleich: gleich WEG. □\n\nE1.", "**Lösung.** L1 = **5 kN**.\n\nE1."),
+    ("kursiv mitten im Absatz, danach wieder Eigenes", "*Aufgabe.* A1. *Abgleich:* WEG, WEG. *Lösung.* L1.", "*Aufgabe.* A1. *Lösung.* L1."),
+    ("fettes Ergebnis in der Notiz ist keine neue Marke", "**Abgleich.** WEG **F = 3 kN**. WEG **[sic]** WEG.\n\nE1.", "E1."),
+    ("Listenpunkt", "- P1\n- **Abgleich mit der Musterlösung:** WEG\n  WEG weiter\n  - WEG Unterpunkt\n- P2", "- P1\n- P2"),
+    ("Notiz mit ihrer Liste", "**Abgleich.** WEG:\n- WEG a\n- WEG b\n\n- P1 bleibt", "- P1 bleibt"),
+    ("Zitat", "> Vorlage V1\n\nL1.\n\n> **Abgleich.** WEG", "> Vorlage V1\n\nL1."),
+    ("Unterueberschrift bis zur naechsten gleicher Ebene",
+     "L1.\n\n### Abgleich mit der Musterlösung\n\nWEG\n\n#### WEG tiefer\n\nWEG\n\n### Probe\n\nP1.", "L1.\n\n### Probe\n\nP1."),
+    ("Unterueberschrift vierter Ebene", "### Lösung\n\nL1.\n\n#### Abgleich\n\nWEG\n\n### Probe\n\nP1.", "### Lösung\n\nL1.\n\n### Probe\n\nP1."),
+    ("Wort im Fliesstext bleibt", "Der Abgleich der Einheiten zeigt: m/s. Siehe Abgleichstabelle; Abgleichsvermerk: ok.",
+     "Der Abgleich der Einheiten zeigt: m/s. Siehe Abgleichstabelle; Abgleichsvermerk: ok."),
+    ("andere Marke mit dem Wort bleibt", "**Nachrechnung/Abgleich.** Stimmt, mit sympy geprüft.", "**Nachrechnung/Abgleich.** Stimmt, mit sympy geprüft."),
+    ("Code-Block bleibt", "L1.\n\n```python\n# Abgleich der Werte\n**Abgleich** = 1\n```", "L1.\n\n```python\n# Abgleich der Werte\n**Abgleich** = 1\n```"),
+    ("Tabelle bleibt", "| Größe | Abgleich |\n| --- | --- |\n| F | **Abgleich** ok |", "| Größe | Abgleich |\n| --- | --- |\n| F | **Abgleich** ok |"),
+    ("ohne Notiz bleibt alles", "> Vorlage V1\n\n\n\n**Lösung.** L1.", "> Vorlage V1\n\n**Lösung.** L1."),
+    ("nur die Vorlage uebrig (Zitat)", "> Vorlage V1\n\n**Abgleich mit der Musterlösung.** WEG", ""),
+    ("nur der Aufgabentext uebrig", "**Aufgabentext.** Berechnen Sie x.\n\n**Abgleich.** WEG\n\n---", ""),
+    ("Aufgabentext und Loesung in einem Absatz", "**Aufgabentext.** Berechnen Sie x. **Lösung.** x = 2.\n\n**Abgleich.** WEG",
+     "**Aufgabentext.** Berechnen Sie x. **Lösung.** x = 2."),
+    ("nur die Notiz", "**Abgleich: identisch mit G0042 Aufgabe 5 → Erklärung dort.** WEG", ""),
+]
+
+
+@pytest.mark.parametrize("case", ABGLEICH_FORMS, ids=[c[0] for c in ABGLEICH_FORMS])
+def test_without_abgleich_forms(case):
+    from app import wissensbank
+    _name, body, want = case
+    got = wissensbank.without_abgleich(body)
+    assert got == want
+    assert "WEG" not in got
+
+
+def test_heading_of_the_next_part_does_not_belong_to_the_section():
+    """`# [Q2] ...` leitet den naechsten Teil der Datei ein; der Abschnitt davor endet dort (Code-Bloecke ausgenommen)."""
+    from app import wissensbank
+    body = "L1.\n\n```python\n# Kommentar bleibt\n```\n\n# [Q2] Lösungen der Lehrenden: Abgleich\n\nEinleitung zum naechsten Teil.\n"
+    assert wissensbank._own_part(body) == "L1.\n\n```python\n# Kommentar bleibt\n```\n"
+
+
 # ================================================================== Ablauf im Dienst
 
 @pytest.fixture
@@ -209,6 +288,26 @@ def test_first_answer_from_the_wissensbank_then_ai_and_question(wb):
     # eine andere Stelle ist wieder neu
     st, d = ask(app, h, text=S3, seite=3)
     assert d["source"] == "wissensbank" and d["wissensbank_key"] == K_S3 and fake.calls == 1
+
+
+def test_delivered_answer_has_no_abgleich_but_keeps_the_hints_of_the_section(wb):
+    app, fake = wb
+    u, h = user(app, "luh-abgleich@beispiel.de", plan="pro_ai")
+    st, d = ask(app, h, mode="steps", text=A1A, datei=BLATT, seite=1)
+    assert st == 200 and d["source"] == "wissensbank" and d["wissensbank_key"] == K_1A and fake.calls == 0
+    assert "LOESUNG-1A" in d["answer"] and "ERKLAERUNG-1A" in d["answer"]
+    assert "ABGLEICH" not in d["answer"] and "Abgleich" not in d["answer"] and "Musterlösung" not in d["answer"]
+    # der Hinweis steht in der Bibliothek in der Abgleich-Notiz; das Abzeichen zeigt ihn weiter
+    assert "nachgerechnet, nicht unabhängig gelöst" in d["wissensbank"]["hinweise"]
+
+
+def test_section_without_own_solution_gets_the_normal_ai_answer(wb):
+    app, fake = wb
+    u, h = user(app, "luh-abgleich3@beispiel.de", plan="pro_ai")
+    st, d = ask(app, h, mode="steps", text=A3, datei=BLATT, seite=2)
+    assert st == 200 and fake.calls == 1 and d["source"] == "ki", "nur die Notiz zur Musterloesung: nichts zu liefern"
+    assert "wissensbank_key" not in d and "feedback_token" not in d and "ABGLEICH" not in d["answer"]
+    assert ledger(u["id"])[0][0] != "tutor:wissensbank"
 
 
 def test_yes_stores_a_candidate_without_account_and_review_releases_it(wb, capsys):

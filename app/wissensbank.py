@@ -601,7 +601,182 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
 
 # ================================================================== Antworttext und Hinweise
 
-def answer_text(unit: Unit, secs: list[Section]) -> str:
+_HEAD_LINE = re.compile(r"^(#{1,6})\s+(.*)$")
+_ABGLEICH_HEAD = re.compile(r"(?:\[Q\d+\]\s*)?[*_]{0,3}Abgleich")
+_FENCE = re.compile(r"^\s*(```|~~~)")
+_LIST_ITEM = re.compile(r"^([ \t]*)(?:[-*+]|\d+[.)])[ \t]+")
+_LINE_PREFIX = re.compile(r"[ \t]*(?:>[ \t]*)*(?:(?:[-*+]|\d+[.)])[ \t]+)?")     # Einrueckung, Zitat, Listenzeichen
+# "Abgleich" als Marke einer Notiz: fett/kursiv ("**Abgleich mit der Musterlösung.**", "*Abgleich [Q7]:*") oder ohne
+# Auszeichnung am Satzanfang ("... **F < 0**. Abgleich: gleich."); nicht "Abgleichsvermerk", nicht "der Abgleich"
+_ABGLEICH_WORD = re.compile(r"[*_]{0,3}Abgleich(?![a-zäöüß])")
+_SENTENCE_END = re.compile(r"[.!?;□✓)\]`*][ \t\n]+(?:>[ \t]*)*$")
+# naechste Marke nach einer Notiz: "**Lösung (nachgerechnet).**", "**Kernergebnis.**", "*Erklärung:*" - hier geht der
+# eigene Text weiter. Fette Ergebnisse ("**F = 3 kN**") und "**[sic]**" sind keine Marken.
+_LABEL = re.compile(r"(?<![*_\w])(\*{1,3}|_{1,3})(?!Abgleich)[A-ZÄÖÜ][a-zäöüß][^*_\n=]{0,80}?(?:[.:]\1|\1[.:])(?![*_\w])")
+
+
+def _abgleich_start(text: str, pos: int) -> tuple[int, int] | None:
+    """Naechste Abgleich-Marke ab `pos`: (Beginn des Wegfalls, Ende der Marke). Steht die Marke am Zeilenanfang, faellt
+    die Zeile ab ihrem Anfang weg (mit Zitat- und Listenzeichen)."""
+    for m in _ABGLEICH_WORD.finditer(text, pos):
+        i = m.start()
+        before = text[:i]
+        line_from = before.rfind("\n") + 1
+        prefix = _LINE_PREFIX.fullmatch(before[line_from:])
+        at_line_start = prefix is not None and line_from >= pos
+        if m.group(0)[0] in "*_":
+            ok = at_line_start or before[-1:] in (" ", "\t", "(", "")
+        else:
+            first = not before[:line_from].strip()                       # erste Zeile des Absatzes bzw. Listenpunkts
+            listed = prefix is not None and bool(_LIST_ITEM.match(before[line_from:] + "x"))
+            ok = (at_line_start and (first or listed)) or bool(_SENTENCE_END.search(before))
+        if ok:
+            return (line_from if at_line_start else i), m.end()
+    return None
+
+
+def _cut_notes(text: str, open_note: bool = False) -> tuple[str, bool]:
+    """Abgleich-Notizen aus einem Absatz bzw. Listenpunkt nehmen: jede reicht von ihrer Marke bis zur naechsten anderen
+    Marke (`_LABEL`), sonst bis zum Ende. Liefert den Rest und ob die letzte Notiz am Ende noch offen ist."""
+    kept: list[str] = []
+    pos = 0
+    if open_note:
+        nxt = _LABEL.search(text)
+        if not nxt:
+            return "", True
+        pos = nxt.start()
+    while True:
+        cut = _abgleich_start(text, pos)
+        if cut is None:
+            kept.append(text[pos:])
+            return "".join(kept), False
+        kept.append(text[pos:cut[0]].rstrip(" \t"))
+        nxt = _LABEL.search(text, cut[1])
+        if not nxt:
+            return "".join(kept), True
+        if kept[-1] and not kept[-1].endswith("\n"):
+            kept.append(" ")
+        pos = nxt.start()
+
+
+def _paragraph_without_abgleich(lines: list[str]) -> list[str]:
+    """Ein Absatz (Zeilen ohne Leerzeile). Listenpunkte werden einzeln behandelt: eine Notiz in einem Punkt endet mit
+    ihm; eine Notiz im Fliesstext nimmt die Punkte darunter mit ("**Abgleich.**" und darunter die Liste dazu)."""
+    if lines and lines[0].lstrip().startswith("|"):
+        return lines                                                     # Tabellen bleiben ganz
+    chunks: list[tuple[int | None, list[str]]] = []
+    for line in lines:
+        item = _LIST_ITEM.match(line)
+        if item or not chunks:
+            chunks.append((len(item.group(1)) if item else None, [line]))
+        else:
+            chunks[-1][1].append(line)
+    out: list[str] = []
+    open_at: int | None = None        # -1: Notiz im Fliesstext offen, >= 0: im Listenpunkt mit dieser Einrueckung
+    for indent, chunk in chunks:
+        if open_at is not None and open_at >= 0 and indent is not None and indent <= open_at:
+            open_at = None                                               # naechster Punkt derselben Ebene: Notiz zu Ende
+        text, still = _cut_notes("\n".join(chunk), open_note=open_at is not None)
+        if still and open_at is None:
+            open_at = indent if indent is not None else -1
+        elif not still:
+            open_at = None
+        if text.strip():
+            out.extend(ln for ln in text.split("\n") if ln.strip())
+    return out
+
+
+def without_abgleich(body: str) -> str:
+    """Interne Abgleich-Notizen aus einem Abschnitt nehmen (Entscheidung des Inhabers 21.11.2026: keine Musterloesungen
+    der Lehrenden herausgeben, nur die eigene Erklaerung und Loesung). Der Abgleich ist die Pruefnotiz der Bibliothek:
+    Vergleich der eigenen Loesung mit der Loesung der Lehrenden, teils mit deren Wortlaut. Entfernt werden
+    - eine Notiz, die mit der Marke "Abgleich" beginnt - fett oder kursiv ("**Abgleich mit der Musterlösung.** ...",
+      "*Abgleich [Q7]:* ...") oder ohne Auszeichnung am Satzanfang ("Abgleich: gleich."): von der Marke bis zur naechsten
+      Leerzeile bzw. bis zur naechsten anderen Marke im selben Absatz ("**Lösung.**", "**Kernergebnis.**");
+    - ein Listenpunkt, der so beginnt (die uebrigen Punkte bleiben);
+    - eine Unterueberschrift "### Abgleich ..." (bis "######") mit ihrem Inhalt bis zur naechsten Ueberschrift gleicher
+      oder hoeherer Ebene.
+    Der Rest bleibt, wie er ist (Code-Bloecke und Tabellen unberuehrt). Bleibt danach nichts Eigenes (nur das Zitat der
+    Vorlage), ist das Ergebnis leer. Nur fuer den AUSGELIEFERTEN Text; die Zuordnung (`match`) und die Hinweise (`hints`)
+    lesen weiter den ganzen Abschnitt."""
+    out: list[str] = []
+    para: list[str] = []
+    skip_level = 0                 # > 0: Unterabschnitt "### Abgleich" wird uebersprungen
+    in_code = False
+    removed = False
+
+    def flush() -> None:
+        nonlocal removed
+        if para:
+            kept = _paragraph_without_abgleich(para)
+            removed = removed or kept != para
+            out.extend(kept)
+            para.clear()
+
+    for line in str(body or "").split("\n"):
+        fence = bool(_FENCE.match(line))
+        head = None if in_code or fence else _HEAD_LINE.match(line)
+        if skip_level:
+            if head and len(head.group(1)) <= skip_level:
+                skip_level = 0
+            else:
+                if fence:
+                    in_code = not in_code
+                continue
+        if head:
+            flush()
+            if len(head.group(1)) >= 3 and _ABGLEICH_HEAD.match(head.group(2)):
+                skip_level = len(head.group(1))
+                removed = True
+                continue
+            out.append(line)
+        elif fence or in_code:
+            flush()
+            if fence:
+                in_code = not in_code
+            out.append(line)
+        elif not line.strip():
+            flush()
+            out.append(line)
+        else:
+            para.append(line)
+    flush()
+    text = re.sub(r"\n{3,}", "\n\n", "\n".join(out)).strip()
+    if removed and not _has_own_content(text):
+        return ""                  # nur noch die Vorlage (Zitat, Aufgabentext) oder eine Trennlinie: nichts Eigenes mehr
+    return text
+
+
+def _has_own_content(text: str) -> bool:
+    """Steht ausser der Vorlage (`>`-Zitat, "**Aufgabentext.** ...") und Ueberschriften noch etwas Eigenes da?"""
+    for p in re.split(r"\n\s*\n", text):
+        rest = "\n".join(ln for ln in p.split("\n") if not ln.lstrip().startswith(">") and not _HEAD_LINE.match(ln))
+        m = _REF_LABEL.match(rest)
+        if m:
+            nxt = _LABEL.search(rest, m.end())           # "**Aufgabentext.** ... **Lösung.** ..." im selben Absatz
+            rest = rest[nxt.start():] if nxt else ""
+        if re.search(r"\w", rest):
+            return True
+    return False
+
+
+def _own_part(body: str) -> str:
+    """Abschnitt bis zur naechsten Ueberschrift der obersten Ebene ("# [Q5] ..." leitet den naechsten Teil der Datei ein
+    und gehoert nicht mehr zum Abschnitt); Zeilen in Code-Bloecken zaehlen nicht."""
+    lines = body.split("\n")
+    in_code = False
+    for i, line in enumerate(lines):
+        if _FENCE.match(line):
+            in_code = not in_code
+        elif not in_code and line.startswith("# "):
+            return "\n".join(lines[:i])
+    return body
+
+
+def answer_text(unit: Unit, secs: list[Section], *, raw: bool = False) -> str:
+    """Ausgelieferter Text: die Abschnitte ohne interne Abgleich-Notizen (`without_abgleich`). Ein Abschnitt, von dem
+    danach nichts uebrig ist, faellt weg; bleibt gar nichts, ist die Stelle nicht lieferbar (dann antwortet die KI).
+    `raw`: der ganze Abschnitt, wie er in der Bibliothek steht (nur fuer `hints`, wird nie ausgeliefert)."""
     parts = []
     for sec in secs:
         try:
@@ -614,7 +789,10 @@ def answer_text(unit: Unit, secs: list[Section]) -> str:
             continue
         h, b = found[sec.index]
         h = re.sub(r"^\s*\[Q\d+\]\s*", "", h)
-        parts.append(f"## {h}\n\n{b.strip()}")
+        b = b.strip() if raw else without_abgleich(_own_part(b))
+        if not b:
+            continue
+        parts.append(f"## {h}\n\n{b}")
     return "\n\n".join(parts).strip()
 
 
@@ -762,7 +940,9 @@ def plan(user: dict, task: str, body: dict) -> Plan | None:
     text = answer_text(hit.unit, hit.sections)
     if not text:
         return None
-    return Plan(hit.key, True, text, hints(hit.unit, hit.sections, text), "bibliothek", "")
+    # Hinweise ("KI-Lösung, ungeprüft" ...) aus dem ganzen Abschnitt: sie stehen teils in der Abgleich-Notiz
+    return Plan(hit.key, True, text, hints(hit.unit, hit.sections, answer_text(hit.unit, hit.sections, raw=True)),
+                "bibliothek", "")
 
 
 def _expire_feedback(conn: sqlite3.Connection, now: datetime | None = None) -> None:
