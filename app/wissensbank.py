@@ -1,4 +1,4 @@
-"""StudiNow-Wissensbank im Dienst (Auftrag des Inhabers 20.11.2026, fuer 1.0.7; docs/WISSENSBANK.md).
+"""StudiNow-Wissensbank im Dienst (Auftrag des Inhabers 20.11.2026, fuer 1.0.7; docs/WISSENSBANK-STAND.md).
 
 Die private Wissensbibliothek des Inhabers (Seite-fuer-Seite-Erklaerungen und geloeste Aufgaben, Format: MAC-ANLEITUNG.md
 im privaten Repo) liegt NUR auf dem Server, in einem Ordner (`LERNAPP_WISSENSBANK_DIR`, Standard `<Daten>/wissensbank`,

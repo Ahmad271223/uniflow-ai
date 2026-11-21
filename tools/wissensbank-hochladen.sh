@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Laedt die private Wissensbibliothek als StudiNow-Wissensbank auf den Server (app/wissensbank.py, docs/WISSENSBANK.md).
+# Laedt die private Wissensbibliothek als StudiNow-Wissensbank auf den Server (app/wissensbank.py, docs/WISSENSBANK-STAND.md).
 # Laeuft auf dem Mac des Inhabers. Uebertragen werden NUR katalog.json und die Text-Dateien der Einheiten
 # (README.md, 01-*.md, 02-*.md) - keine _pruefung.py, keine Hilfsdateien, keine Original-PDFs.
 #
