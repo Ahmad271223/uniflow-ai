@@ -665,7 +665,9 @@ struct TutorPanel: View {
                 if !notes.isEmpty { body["own_notes"] = .string(notes) }
             }
             try Task.checkCancellation()
+            StiftSpur.log("KI-Anfrage: Modus \(mode), Anhang \(using.map { "\($0.kind)" } ?? "keiner"), Bild \(using?.image?.count ?? 0) Bytes, Text im Anhang/markiert \((body["selection"]?.string ?? "").count) Zeichen, eigene Notizen \(body["own_notes"] != nil), ueber StudiNow-KI \(viaStudiNow), App schickt Wissensbank-Angaben \(studoraAccount?.wissensbankEnabledNow == true)")
             let r = try await api.value("/api/ai/tutor", method: "POST", body: .object(body))
+            StiftSpur.log("KI-Antwort: \((r.s("answer") ?? "").count) Zeichen, Wissensbank-Felder \(r["wissensbank"].map { $0.isNull ? "keine" : "ja, Quelle \($0["source"]?.string ?? "-")" } ?? "keine")")
             try Task.checkCancellation()        // Antwort nach "Stopp": nicht mehr zeigen
             studoraAccount?.noteAIResponse(r)   // Credits-Stand und `charged` fuer die Fusszeile
             messages.append(Message(fromUser: false, text: r.s("answer") ?? "", cards: mode == "flashcards" ? r["cards"]?.array ?? [] : [],
