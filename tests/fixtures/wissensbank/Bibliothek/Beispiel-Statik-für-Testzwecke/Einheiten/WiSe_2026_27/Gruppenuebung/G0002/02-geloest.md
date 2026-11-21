@@ -60,6 +60,31 @@ Einzelmoment M0 = 8 kNm belastet. Bestimmen Sie die Einspannreaktionen und skizz
 **Abgleich mit der Musterlösung.** ABGLEICH-3: Hier steht nur, was die (erfundene) Musterlösung der Übungsleitung
 nennt: Einspannmoment 8 kNm, keine Querkraft. Eine eigene Lösung fehlt noch.
 
+## [Q1] Aufgabe 4: Dreigelenkbogen mit Einzellast (Seite 2)
+
+**Lösung.** LOESUNG-4: Mit A = (4, 0, 7), B = (9, 3, 8), C = (6, 5, 2) in Metern und F = 18 kN am Dreigelenkbogen:
+Hebelarm der Last bezüglich A gleich 3 m, Moment 18 kN · 3 m = 54 kNm. Das Momentengleichgewicht liefert die
+Auflagerkraft in B: 13,5 kN. □
+
+## [Q1] Aufgabe 5: Seilkraft am Kran (Seite 2)
+
+Aufgabentext: Ein Kran hält eine Kiste der Masse 250 kg an einem Seil der Länge 7 m. Das Seil ist um 20 Grad gegen die
+Senkrechte geneigt, weil eine waagrechte Windkraft auf die Kiste wirkt. Berechnen Sie die Seilkraft und die Windkraft.
+
+**Lösung.** LOESUNG-5: Gewichtskraft 2452,5 N; Seilkraft 2452,5 N / cos 20° = 2609,9 N; Windkraft 892,6 N. □
+
+## [Q1] Aufgabe 6: Momentenverlauf am Kragarm (Seite 2)
+
+**Aufgabe.** Skizzieren Sie den Verlauf des Biegemoments über die ganze Länge. Ist das Tragwerk statisch bestimmt?
+
+**Lösung.** LOESUNG-6: Parabel mit dem Größtwert an der Einspannung; ja, drei Lagerreaktionen. □
+
+## [Q1] Aufgabe 7: Momentenverlauf am Gerberträger (Seite 2)
+
+**Aufgabe.** Skizzieren Sie den Verlauf des Biegemoments über die ganze Länge. Ist das Tragwerk statisch bestimmt?
+
+**Lösung.** LOESUNG-7: Zwei Geraden mit Nullstelle im Gelenk; ja, wegen des Gelenks. □
+
 ## Prüfvermerk
 
 Rechnungen mit _pruefung.py nachgerechnet (erfundenes Beispiel).

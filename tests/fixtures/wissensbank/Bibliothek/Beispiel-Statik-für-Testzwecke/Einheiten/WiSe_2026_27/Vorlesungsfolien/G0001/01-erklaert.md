@@ -57,6 +57,15 @@ Schnittgrößen positiv an und rechnet das Gleichgewicht.
 
 Identisch mit G0001 Seite 2 → Erklärung dort.
 
+## [Q1] Seite 5: Lagerarten und ihre Wertigkeit
+
+**Erklärung**
+
+ERKLAERUNG-SEITE-5: Die Folie stellt drei Lagerarten in einer Tabelle gegenüber. Das Loslager überträgt nur eine Kraft
+senkrecht zur Unterlage und ist einwertig. Das Festlager hält in zwei Richtungen und ist zweiwertig. Die feste
+Einspannung überträgt zusätzlich ein Moment und ist dreiwertig. Die Wertigkeit zählt die unbekannten Lagerreaktionen,
+die ein Lager mitbringt; Festlager und Loslager zusammen ergeben drei Unbekannte.
+
 ## Prüfvermerk
 
 Alle Seiten gelesen (erfundenes Beispiel).

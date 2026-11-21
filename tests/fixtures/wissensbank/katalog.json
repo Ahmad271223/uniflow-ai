@@ -1,19 +1,53 @@
 {
-  "version": 1,
-  "stand": "2026-11-20",
-  "hinweis": "ERFUNDENES Testbeispiel fuer tests/test_wissensbank.py - kein echtes Lehrmaterial",
-  "faecher": [
-    {"ordner": "Beispiel-Statik-für-Testzwecke",
-     "einheiten": [
-       {"id": "G0001", "pfad": "Bibliothek/Beispiel-Statik-für-Testzwecke/Einheiten/WiSe_2026_27/Vorlesungsfolien/G0001",
-        "titel": "G0001: Folien Beispiel-Statik, Seiten 1-4", "dateien": ["01-erklaert.md", "README.md"]},
-       {"id": "G0002", "pfad": "Bibliothek/Beispiel-Statik-für-Testzwecke/Einheiten/WiSe_2026_27/Gruppenuebung/G0002",
-        "titel": "G0002: Übungsblatt 03, Balken (gelöst)", "dateien": ["02-geloest.md", "README.md", "_pruefung.py"]}
-     ]},
-    {"ordner": "Beispiel-Algorithmen",
-     "einheiten": [
-       {"id": "G0001", "pfad": "Bibliothek/Beispiel-Algorithmen/Einheiten/_aeltere-PC-Version/direkt/G0001",
-        "titel": "G0001: Skript Beispiel-Algorithmen, Seiten 1-3", "dateien": ["01-erklaert.md", "README.md"]}
-     ]}
-  ]
+ "version": 1,
+ "stand": "2026-11-21",
+ "hinweis": "ERFUNDENES Testbeispiel fuer tests/test_wissensbank.py - kein echtes Lehrmaterial",
+ "faecher": [
+  {
+   "ordner": "Beispiel-Statik-für-Testzwecke",
+   "einheiten": [
+    {
+     "id": "G0001",
+     "pfad": "Bibliothek/Beispiel-Statik-für-Testzwecke/Einheiten/WiSe_2026_27/Vorlesungsfolien/G0001",
+     "titel": "G0001: Folien Beispiel-Statik, Seiten 1-5",
+     "dateien": [
+      "01-erklaert.md",
+      "README.md"
+     ]
+    },
+    {
+     "id": "G0002",
+     "pfad": "Bibliothek/Beispiel-Statik-für-Testzwecke/Einheiten/WiSe_2026_27/Gruppenuebung/G0002",
+     "titel": "G0002: Übungsblatt 03, Balken (gelöst)",
+     "dateien": [
+      "02-geloest.md",
+      "README.md",
+      "_pruefung.py"
+     ]
+    },
+    {
+     "id": "G0003",
+     "pfad": "Bibliothek/Beispiel-Statik-für-Testzwecke/Einheiten/WiSe_2025_26/Gruppenuebung/G0003",
+     "titel": "G0003: Übungsblatt 03 des Vorjahres (gleicher Dateiname, andere Zahlen)",
+     "dateien": [
+      "02-geloest.md"
+     ]
+    }
+   ]
+  },
+  {
+   "ordner": "Beispiel-Algorithmen",
+   "einheiten": [
+    {
+     "id": "G0001",
+     "pfad": "Bibliothek/Beispiel-Algorithmen/Einheiten/_aeltere-PC-Version/direkt/G0001",
+     "titel": "G0001: Skript Beispiel-Algorithmen, Seiten 1-3",
+     "dateien": [
+      "01-erklaert.md",
+      "README.md"
+     ]
+    }
+   ]
+  }
+ ]
 }
