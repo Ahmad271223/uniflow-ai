@@ -1360,7 +1360,11 @@ def feedback(user: dict, token: str, better: bool, now: datetime | None = None) 
             conn.execute("COMMIT")
             raise HTTPException(410, {"detail": "Diese Frage ist abgelaufen.", "code": "feedback_expired"})
         stored = False
-        if better:
+        if str(key).startswith("gemerkt:"):
+            # nach einer gemerkten KI-Antwort (app/wissensbank_ki.py): Ja = Stimme gegen die gemerkte, Nein = dafuer
+            from . import wissensbank_ki
+            wissensbank_ki.vote(conn, key, better)
+        elif better:
             h = hashlib.sha256(answer.encode()).hexdigest()
             cur = conn.execute("UPDATE wissensbank_candidates SET votes_yes=votes_yes+1 WHERE wb_key=? AND answer_hash=?", (key, h))
             if cur.rowcount == 0:
@@ -1393,6 +1397,9 @@ def replay_info(user: dict, rid: str) -> dict | None:
         conn.close()
     if not r:
         return None
+    if str(r[0]).startswith("gemerkt:"):
+        from . import wissensbank_ki
+        return wissensbank_ki.gemerkt_fields()
     return {"source": "wissensbank", "wissensbank_key": r[0],
             "wissensbank": {"badge": BADGE, "status": "geprüft" if str(r[1] or "").startswith("kandidat:") else "", "hinweise": []}}
 

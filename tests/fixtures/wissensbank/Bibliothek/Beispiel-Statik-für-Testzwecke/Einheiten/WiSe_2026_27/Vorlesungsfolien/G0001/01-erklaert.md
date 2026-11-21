@@ -64,7 +64,7 @@ Identisch mit G0001 Seite 2 → Erklärung dort.
 ERKLAERUNG-SEITE-5: Die Folie stellt drei Lagerarten in einer Tabelle gegenüber. Das Loslager überträgt nur eine Kraft
 senkrecht zur Unterlage und ist einwertig. Das Festlager hält in zwei Richtungen und ist zweiwertig. Die feste
 Einspannung überträgt zusätzlich ein Moment und ist dreiwertig. Die Wertigkeit zählt die unbekannten Lagerreaktionen,
-die ein Lager mitbringt; Festlager und Loslager zusammen ergeben drei Unbekannte.
+die ein Lager mitbringt; Festlager und Loslager zusammen ergeben drei Unbekannte. Vergleiche [Q1] Seite 2 in G0001.
 
 ## Prüfvermerk
 
