@@ -39,3 +39,6 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
 4. Schalter gesetzt, Dienst neu gestartet: „Schalter True, aktiv False“ (Bibliothek noch nicht hochgeladen).
 5. **Zurück, falls etwas nicht geht:** Schalter in `deploy/.env` auf 0 und `docker compose up -d`; ganz zurück:
    Schritt 2 mit `2a238f0f`.
+6. Bibliothek hochgeladen (14:00, `tools/wissensbank-hochladen.sh`, auf Wunsch des Inhabers „Mach du das“ von der
+   Hauptsitzung ausgeführt): 2 266 Dateien im Volume; Prüfung im Container: „Stand 2026-11-20: 29 Fächer, 1065
+   Einheiten, 26571 Abschnitte, davon 12788 mit Folien-/Aufgabentext. Schalter an.“ Danach „Schalter True, aktiv True“.
