@@ -1,6 +1,8 @@
+import Combine
 import PDFKit
 import PencilKit
 import SwiftUI
+import UIKit.UIGestureRecognizerSubclass
 import UniFlowCore
 import XCTest
 @testable import UniFlow
@@ -295,6 +297,75 @@ final class BildGroesseTests: XCTestCase {
         XCTAssertEqual(BildProbe.deviation(overlay) ?? 99, 0, accuracy: 0.8)
     }
 
+    /// Ein abgebrochenes oder beendetes Ziehen (ein Finger) beendet keine laufende Zwei-Finger-Geste: die Vorschau
+    /// bleibt, und beim Loslassen wird die Groesse gespeichert
+    func testAbgebrochenesZiehenBeendetKeinenPinch() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let s = try await open()
+        let (overlay, id) = try await insert(s, at: CGPoint(x: 120, y: 150))
+        let start = BildProbe.bounds(await object(s, overlay.pageKey, id))
+        let c = overlay.content.convert(CGPoint(x: start.midX, y: start.midY), to: nil)
+        func pts(_ d: CGFloat) -> (CGPoint, CGPoint) { (CGPoint(x: c.x - d / 2, y: c.y - d * 0.15), CGPoint(x: c.x + d / 2, y: c.y + d * 0.15)) }
+        let fingers = TestFinger.Zwei(pts(220).0, pts(220).1, in: s.window)
+        for i in 1...12 {
+            try await Task.sleep(nanoseconds: 17_000_000)
+            let p = pts(220 - CGFloat(i) * 5)
+            fingers.move(p.0, p.1)
+        }
+        try await Task.sleep(nanoseconds: 40_000_000)
+        let mid = try XCTUnwrap(BildProbe.imageShown(overlay)).width
+        XCTAssertLessThan(mid, start.width - 20, "die Zwei-Finger-Geste laeuft, das Bild ist schon kleiner")
+
+        s.editor.objects.panned(GestellterZug(.cancelled))
+        XCTAssertEqual(BildProbe.imageShown(overlay)?.width ?? 0, mid, accuracy: 0.5, "abgebrochenes Ziehen: Vorschau bleibt")
+        s.editor.objects.panned(GestellterZug(.changed))
+        s.editor.objects.panned(GestellterZug(.ended))
+        XCTAssertEqual(BildProbe.imageShown(overlay)?.width ?? 0, mid, accuracy: 0.5, "beendetes Ziehen: Vorschau bleibt")
+
+        for i in 13...20 {
+            try await Task.sleep(nanoseconds: 17_000_000)
+            let p = pts(220 - CGFloat(i) * 5)
+            fingers.move(p.0, p.1)
+        }
+        try await Task.sleep(nanoseconds: 17_000_000)
+        fingers.lift()
+        try await BildProbe.wait("kleiner gespeichert") { await BildProbe.bounds(self.object(s, overlay.pageKey, id)).width < start.width - 20 }
+        let small = BildProbe.bounds(await object(s, overlay.pageKey, id))
+        XCTAssertEqual(small.width / start.width, 120.0 / 220, accuracy: 0.15)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(BildProbe.deviation(overlay) ?? 99, 0, accuracy: 0.8)
+    }
+
+    /// Schreiben wird durch den Berührungs-Melder nicht langsamer: je Beruehrung genau ein Aufruf beim Aufsetzen (nicht
+    /// je Punkt des Strichs), der nur einen Verweis vergleicht - nichts geht an SwiftUI, solange der Editor derselbe
+    /// bleibt. Die Striche kommen an wie immer.
+    func testBeruehrungsMelderKostetBeimSchreibenNichts() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let s = try await open()
+        s.editor.pencilOnly = false                                        // der Finger schreibt
+        let overlay = try await overlay(s)
+        s.editor.tools.select(.pen)
+        try await Task.sleep(nanoseconds: 1_500_000_000)
+        XCTAssertTrue(s.editor.tools.activeEditor === s.editor, "ein Dokument: es ist von Anfang an das, in dem gearbeitet wird")
+        let probe = try XCTUnwrap(MelderProbe(s.editor), "Melder haengt an der PDF-Ansicht")
+        var published = 0, selections = 0
+        let watch = s.editor.tools.objectWillChange.sink { published += 1 }
+        defer { watch.cancel() }
+        s.editor.tools.onActiveSelection = { _ in selections += 1 }
+        for n in 0..<5 {
+            let y = 120 + CGFloat(n) * 40
+            let line = (0...40).map { overlay.content.convert(CGPoint(x: 80 + CGFloat($0) * 6, y: y + sin(CGFloat($0) / 4) * 8), to: nil) }
+            try await TestFinger.strich(line, in: s.window, step: 0.008)
+            try await Task.sleep(nanoseconds: 350_000_000)
+        }
+        try await BildProbe.wait("fuenf Striche auf der Seite") { overlay.canvas.drawing.strokes.count == 5 }
+        XCTAssertEqual(probe.calls, 5, "ein Aufruf je Beruehrung (41 Punkte je Strich)")
+        XCTAssertEqual(published, 0, "nichts an SwiftUI gemeldet")
+        XCTAssertEqual(selections, 0, "keine Meldung an die Objektleiste")
+        XCTAssertLessThan(probe.median, 0.0005, "Aufruf des Melders (Median) in Sekunden: \(probe.seconds)")
+        print("[Bild] Melder je Beruehrung (s): \(probe.seconds.map { String(format: "%.6f", $0) })")
+    }
+
     // MARK: Regeln dahinter (ohne Fenster)
 
     private func bild(_ id: String, _ r: CGRect) -> JSONValue {
@@ -498,6 +569,40 @@ final class BildGroesseTests: XCTestCase {
         s.editor.undo()
         try await BildProbe.wait("Rueckgaengig: Ausgangsgroesse") { await abs(BildProbe.bounds(self.object(s, overlay.pageKey, id)).width - start.width) < 0.6 }
     }
+}
+
+/// Geste mit vorgegebenem Zustand: ruft im Test die Ziel-Methode so auf, wie UIKit es bei einem abgebrochenen bzw.
+/// beendeten Ziehen tut
+private final class GestellterZug: UIPanGestureRecognizer {
+    private var gestellt: UIGestureRecognizer.State
+    init(_ state: UIGestureRecognizer.State) {
+        gestellt = state
+        super.init(target: nil, action: nil)
+    }
+    override var state: UIGestureRecognizer.State {
+        get { gestellt }
+        set { gestellt = newValue }
+    }
+}
+
+/// Zaehlt und misst den Berührungs-Melder eines Editors (`EditorTouchMarker`)
+@MainActor
+final class MelderProbe {
+    private(set) var calls = 0
+    private(set) var seconds: [Double] = []
+
+    init?(_ editor: PDFEditorController) {
+        guard let marker = editor.pdfView.gestureRecognizers?.compactMap({ $0 as? EditorTouchMarker }).first else { return nil }
+        let old = marker.onTouch
+        marker.onTouch = { [weak self] in
+            let t = CACurrentMediaTime()
+            old?()
+            self?.calls += 1
+            self?.seconds.append(CACurrentMediaTime() - t)
+        }
+    }
+
+    var median: Double { seconds.sorted()[seconds.count / 2] }
 }
 
 /// Hauptdokument und Notiz daneben wie in der App (`DocumentView` mit `CompanionView`)
@@ -751,6 +856,29 @@ final class BildInNotizAppTests: XCTestCase {
             XCTAssertEqual(inMain.count, 1, "im Hauptdokument bleibt alles")
             main.undo()
             try await BildProbe.wait("Rueckgaengig: Bild wieder in der Notiz") { await self.images(side).count == 2 }
+
+            // 6c. Wechsel zwischen den Dokumenten ohne Auswahl (schreiben, scrollen): der Melder setzt nur einen Verweis -
+            // nichts geht an SwiftUI oder an die Objektleiste, und je Beruehrung meldet er sich einmal
+            try await BildProbe.tap(CGPoint(x: free.midX, y: free.maxY - 40), on: sidePage, in: window)
+            XCTAssertNil(side.objects.selection)
+            let mainProbe = MelderProbe(main), sideProbe = MelderProbe(side)
+            var published = 0, selections = 0
+            let watch = main.tools.objectWillChange.sink { published += 1 }
+            let forward = main.tools.onActiveSelection
+            main.tools.onActiveSelection = { n in selections += 1; forward?(n) }
+            let mainSpot = try XCTUnwrap(mainPage.viewportInPage()).intersection(CGRect(origin: .zero, size: mainPage.geometry.pageSize))
+            for _ in 0..<3 {
+                // (ein kurzes Wischen wie beim Blaettern, kein Tipp)
+                try await BildProbe.drag(from: CGPoint(x: mainSpot.midX, y: mainSpot.maxY - 60), to: CGPoint(x: mainSpot.midX, y: mainSpot.maxY - 84), on: mainPage, in: window, steps: 6)
+                XCTAssertTrue(main.tools.activeEditor === main)
+                try await BildProbe.drag(from: CGPoint(x: free.midX, y: free.maxY - 60), to: CGPoint(x: free.midX, y: free.maxY - 84), on: sidePage, in: window, steps: 6)
+                XCTAssertTrue(main.tools.activeEditor === side)
+            }
+            XCTAssertEqual([mainProbe?.calls, sideProbe?.calls], [3, 3], "ein Aufruf je Beruehrung")
+            XCTAssertEqual(published, 0, "Wechsel des Editors meldet nichts an SwiftUI")
+            XCTAssertEqual(selections, 0, "ohne Auswahl keine Meldung an die Objektleiste")
+            watch.cancel()
+            main.tools.onActiveSelection = forward
 
             // 7. wieder im Hauptdokument gearbeitet: das naechste Bild liegt dort
             let mainFree = try XCTUnwrap(mainPage.viewportInPage()).intersection(CGRect(origin: .zero, size: mainPage.geometry.pageSize))

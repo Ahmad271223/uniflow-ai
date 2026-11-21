@@ -343,7 +343,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         }
     }
 
-    @objc private func panned(_ g: UIPanGestureRecognizer) {
+    /// Gehoert das laufende Ziehen an der Auswahl den zwei Fingern (`pinched`)? Dann fasst `panned` es nicht an.
+    private var pinchHoldsGrab: Bool {
+        if let gr = grab, case .pinch = gr.kind { return true }
+        return false
+    }
+
+    @objc func panned(_ g: UIPanGestureRecognizer) {
         switch g.state {
         case .began:
             guard tool.shapeKind != nil || tool == .lasso || tool == .area else {
@@ -358,6 +364,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             v.content.layer.addSublayer(draftLayer)
         case .changed:
             if let gr = grab {
+                if pinchHoldsGrab { return }
                 let t = g.translation(in: gr.overlay.content)
                 switch gr.kind {
                 case .move:
@@ -394,7 +401,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 draftLayer.path = path
             }
         case .ended:
-            if grab != nil { finishGrab(); return }
+            if grab != nil, !pinchHoldsGrab { finishGrab(); return }
             guard let start = panStart else { return }
             panStart = nil
             draftLayer.removeFromSuperlayer()
@@ -430,14 +437,15 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 }
             }
         default:
-            cancelGrab()
+            // ein abgebrochenes Ziehen beendet keine laufende Zwei-Finger-Geste
+            if !pinchHoldsGrab { cancelGrab() }
             panStart = nil
             draftLayer.removeFromSuperlayer()
         }
     }
 
     /// Zwei Finger auf der Auswahl: groesser und kleiner um ihre Mitte, mit Vorschau an den Objekten selbst
-    @objc private func pinched(_ g: UIPinchGestureRecognizer) {
+    @objc func pinched(_ g: UIPinchGestureRecognizer) {
         switch g.state {
         case .began:
             guard grab == nil, let overlay = selectionOverlay else { g.state = .cancelled; return }
