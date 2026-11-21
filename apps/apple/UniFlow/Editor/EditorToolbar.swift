@@ -377,6 +377,24 @@ final class EditorToolState: ObservableObject {
     /// ihre Aktionen)
     var onActiveSelection: ((Int) -> Void)?
 
+    /// Die offenen Editoren, die sich diese Leiste teilen (schwach gehalten), fuer "Bild ins andere Dokument ziehen"
+    private var sharedEditors: [WeakEditor] = []
+    private struct WeakEditor { weak var value: PDFEditorController? }
+
+    func register(_ editor: PDFEditorController) {
+        sharedEditors.removeAll { $0.value == nil || $0.value === editor }
+        sharedEditors.append(WeakEditor(value: editor))
+    }
+
+    /// Das andere Dokument der geteilten Ansicht, wenn es gerade zu sehen ist (sonst nil: nur ein Dokument offen)
+    func otherEditor(than editor: PDFEditorController) -> PDFEditorController? {
+        sharedEditors.compactMap(\.value).first { $0 !== editor && $0.viewIfLoaded?.window != nil }
+    }
+
+    /// Schritte "Bild ins andere Dokument" im gemeinsamen Verlauf. Der Verlauf haelt seine Ziele nicht selbst; schliesst
+    /// das Dokument daneben, verschwinden sie mit seinen uebrigen Schritten.
+    var transferSteps: [ImageTransferStep] = []
+
     /// Es gibt nur eine Auswahl zugleich: Wechselt der Editor, verliert der bisherige seine Auswahl (die Objektleiste gilt
     /// immer fuer genau einen Editor).
     func setActiveEditor(_ editor: PDFEditorController?) {

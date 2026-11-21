@@ -44,6 +44,7 @@ extension PDFEditorController {
         let marker = EditorTouchMarker()
         marker.onTouch = { [weak self] in self?.becomeActiveEditor() }
         pdfView.addGestureRecognizer(marker)
+        tools.register(self)
         if ownsToolPicker, tools.activeEditor == nil { becomeActiveEditor() }
     }
 
@@ -59,6 +60,9 @@ extension PDFEditorController {
     /// Das Dokument daneben verschwindet: Bilder gehen wieder ins Hauptdokument. Hatte es noch eine Auswahl, erfaehrt
     /// die Objektleiste das einen Durchlauf spaeter - nicht mitten im Abbau der Ansicht, waehrend SwiftUI aktualisiert.
     func resignActiveEditor() {
+        // Schritte "Bild ins andere Dokument" brauchen beide Dokumente: sie enden mit diesem
+        for step in tools.transferSteps { editUndo.removeAllActions(withTarget: step) }
+        tools.transferSteps = []
         guard tools.activeEditor === self else { return }
         guard objects.hasSelection else { tools.setActiveEditor(nil); return }
         let tools = tools

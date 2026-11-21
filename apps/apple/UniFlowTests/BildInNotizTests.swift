@@ -95,6 +95,32 @@ enum BildProbe {
         try await Task.sleep(nanoseconds: 150_000_000)
     }
 
+    /// Ein Finger zieht von `a` nach `b` in Punkten des Fensters (auch ueber die Trennlinie ins andere Dokument)
+    static func dragWindow(from a: CGPoint, to b: CGPoint, in window: UIWindow, steps: Int = 24, each: ((CGPoint) -> Void)? = nil) async throws {
+        let finger = TestFinger(at: a, in: window)
+        for i in 1...steps {
+            try await Task.sleep(nanoseconds: 24_000_000)
+            let t = CGFloat(i) / CGFloat(steps)
+            let p = CGPoint(x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t)
+            finger.move(to: p)
+            try await Task.sleep(nanoseconds: 24_000_000)
+            each?(p)
+        }
+        try await Task.sleep(nanoseconds: 60_000_000)
+        finger.lift()
+        try await Task.sleep(nanoseconds: 150_000_000)
+    }
+
+    /// Schwebendes Bild beim Hinueberziehen (im Fenster), nil ohne
+    static func floating(in window: UIWindow) -> UIView? {
+        window.subviews.first { $0.accessibilityIdentifier == ObjectEditing.transferViewID }
+    }
+
+    /// Rahmen "hier landet das Bild" auf einer Seite (Seitenpunkte), nil ohne
+    static func dropFrame(_ overlay: PageInkView) -> CGRect? {
+        find(overlay.content.layer) { $0.name == ObjectEditing.transferFrameName }.compactMap { ($0 as? CAShapeLayer)?.path?.boundingBoxOfPath }.first
+    }
+
     /// Kurzer Tipp mit dem Finger auf einen Punkt der Seite
     static func tap(_ p: CGPoint, on overlay: PageInkView, in window: UIWindow) async throws {
         let finger = TestFinger(at: overlay.content.convert(p, to: nil), in: window)
@@ -453,6 +479,31 @@ final class BildGroesseTests: XCTestCase {
         XCTAssertEqual(ObjectEditing.imageFrame(CGSize(width: 200, height: 100), page: page, visible: nil, at: CGPoint(x: 40, y: 60)).origin, CGPoint(x: 40, y: 60))
     }
 
+    /// Hinueberziehen: Lage und Groesse im Ziel; ein einzelnes Dokument hat kein "anderes"
+    func testLandenImAnderenDokument() async throws {
+        let page = CGRect(x: 0, y: 0, width: 595, height: 842)
+        var l = ObjectEditing.landing(CGSize(width: 200, height: 100), at: CGPoint(x: 300, y: 400), page: page)
+        XCTAssertEqual(l.rect, CGRect(x: 200, y: 350, width: 200, height: 100), "um den Finger, gleiche Groesse")
+        l = ObjectEditing.landing(CGSize(width: 200, height: 100), at: CGPoint(x: 580, y: 10), page: page)
+        XCTAssertEqual(l.rect, CGRect(x: 395, y: 0, width: 200, height: 100), "am Rand: ganz auf der Seite")
+        l = ObjectEditing.landing(CGSize(width: 1190, height: 300), at: CGPoint(x: 300, y: 400), page: page)
+        XCTAssertEqual(l.factor, 0.5, accuracy: 0.0001, "groesser als die Zielseite: passend verkleinert")
+        XCTAssertEqual(l.rect, CGRect(x: 0, y: 325, width: 595, height: 150))
+
+        let o = bild("a", CGRect(x: 700, y: 20, width: 400, height: 200))
+        let moved = ObjectEditing.transferred(o, id: "neu", src: "/api/assets/ziel/x.png", to: CGPoint(x: 300, y: 400), page: page)
+        XCTAssertEqual(BildProbe.bounds(moved), CGRect(x: 100, y: 300, width: 400, height: 200))
+        XCTAssertEqual(moved["id"], "neu")
+        XCTAssertEqual(moved["src"], "/api/assets/ziel/x.png")
+        XCTAssertEqual(Set(moved.object?.keys.map { $0 } ?? []), Set((o.object?.keys.map { $0 } ?? []) + ["source"]), "gleiche Felder wie beim Einfuegen")
+        let wide = ObjectEditing.transferred(bild("b", CGRect(x: 0, y: 0, width: 900, height: 300)), id: "n2", src: "/s", to: CGPoint(x: 10, y: 10), page: page)
+        XCTAssertEqual(BildProbe.bounds(wide).width, 595, accuracy: 0.6)
+        XCTAssertTrue(page.insetBy(dx: -0.6, dy: -0.6).contains(BildProbe.bounds(wide)))
+
+        let s = try await open()
+        XCTAssertNil(s.editor.tools.otherEditor(than: s.editor), "nur ein Dokument offen: kein Hinueberziehen")
+    }
+
     // MARK: "das verschwindet dann"
 
     /// Ein Finger zieht das Bild ueber den Seitenrand hinaus (zur Notiz daneben hin): es bleibt ganz auf der Seite
@@ -748,10 +799,202 @@ final class BildInNotizAppTests: XCTestCase {
         return out
     }
 
+    /// Wunsch des Inhabers (21.11.2026): ein ausgewaehltes Bild ueber die Trennlinie ins andere Dokument ziehen. Haupt ->
+    /// Notiz und zurueck, Rueckgaengig/Wiederholen als EIN Schritt, Loslassen auf der Trennlinie, Ziel nur zum Ansehen,
+    /// und das Bild gehoert danach der Zieldatei (eigene Adresse, dieselben Bytes, nach erneutem Oeffnen noch da).
+    func testBildInsAndereDokumentZiehen() throws {
+        let x = try openSplit()
+        let main = x.main, side = x.side, mainPage = x.mainPage, sidePage = x.sidePage, window = x.env.window, api = x.api
+        func pageRect(_ o: PageInkView) -> CGRect { CGRect(origin: .zero, size: o.geometry.pageSize) }
+        func center(_ r: CGRect) -> CGPoint { CGPoint(x: r.midX, y: r.midY) }
+        /// Bilder im Hauptdokument und in der Notiz
+        func counts() async -> [Int] {
+            let m = await self.images(main).count, n = await self.images(side).count
+            return [m, n]
+        }
+        try run {
+            // Bild im Hauptdokument (noch nirgends gearbeitet), ausgewaehlt
+            let inserted = await main.insertPickedImage(BildProbe.foto())
+            XCTAssertTrue(inserted)
+            var inMain = await self.images(main), inSide = await self.images(side)
+            XCTAssertEqual([inMain.count, inSide.count], [1, 0])
+            let original = try XCTUnwrap(inMain.first), id0 = try XCTUnwrap(original["id"]?.string), src0 = try XCTUnwrap(original["src"]?.string)
+            XCTAssertTrue(src0.hasPrefix("/api/assets/\(x.mainID)/"), src0)
+            let b0 = BildProbe.bounds(original)
+            try await BildProbe.wait("Bild mit Rahmen im Hauptdokument") { BildProbe.imageShown(mainPage) != nil && BildProbe.frameShown(mainPage) != nil }
+
+            // 1. Haupt -> Notiz: ziehen, bis der Finger ueber der Notizseite liegt, und loslassen
+            let sideFree = try XCTUnwrap(sidePage.viewportInPage()).intersection(pageRect(sidePage))
+            let drop = CGPoint(x: sideFree.midX, y: sideFree.minY + 250)
+            var sawFloating = false, sawFrame = false, floatOff: CGFloat = 0, sourceOverEdge: CGFloat = 0
+            try await BildProbe.dragWindow(from: mainPage.content.convert(center(b0), to: nil), to: sidePage.content.convert(drop, to: nil), in: window) { p in
+                if let f = BildProbe.floating(in: window) {
+                    sawFloating = true
+                    if let frame = BildProbe.dropFrame(sidePage) {
+                        if !sawFrame { Self.shot(window, "ziehen-ueber-der-notiz") }
+                        sawFrame = true
+                        // ueber der Zielseite: das schwebende Bild liegt genau dort, wo es landet
+                        let land = sidePage.content.convert(frame.insetBy(dx: 4, dy: 4), to: nil)
+                        floatOff = max(floatOff, abs(f.frame.midX - land.midX), abs(f.frame.midY - land.midY), abs(f.frame.width - land.width))
+                    } else {
+                        floatOff = max(floatOff, abs(f.frame.midX - p.x), abs(f.frame.midY - p.y))
+                    }
+                }
+                if let i = BildProbe.imageShown(mainPage) { sourceOverEdge = max(sourceOverEdge, -i.minX, i.maxX - mainPage.geometry.pageSize.width) }
+            }
+            XCTAssertTrue(sawFloating, "schwebendes Bild folgt dem Finger ausserhalb des eigenen Dokuments")
+            XCTAssertTrue(sawFrame, "die Notizseite zeigt, wo das Bild landet")
+            XCTAssertLessThanOrEqual(floatOff, 2, "schwebendes Bild liegt am Finger bzw. an der Landestelle")
+            XCTAssertLessThanOrEqual(sourceOverEdge, 1, "im Hauptdokument bleibt die Vorschau auf der Seite")
+            try await BildProbe.wait("Bild liegt in der Notiz") { await counts() == [0, 1] }
+            inSide = await self.images(side)
+            let moved = try XCTUnwrap(inSide.first), id1 = try XCTUnwrap(moved["id"]?.string), src1 = try XCTUnwrap(moved["src"]?.string)
+            XCTAssertNotEqual(id1, id0)
+            XCTAssertTrue(src1.hasPrefix("/api/assets/\(x.sheetID)/"), "eigenes Bild der Notiz-Datei: \(src1)")
+            let b1 = BildProbe.bounds(moved)
+            XCTAssertEqual(b1.width, b0.width, accuracy: 0.6, "gleiche Groesse in Seitenpunkten")
+            XCTAssertEqual(b1.height, b0.height, accuracy: 0.6)
+            XCTAssertEqual(b1.midX, drop.x, accuracy: 2, "liegt um den Finger")
+            XCTAssertEqual(b1.midY, drop.y, accuracy: 2)
+            XCTAssertTrue(pageRect(sidePage).insetBy(dx: -0.6, dy: -0.6).contains(b1))
+            try await BildProbe.wait("in der Notiz ausgewaehlt, mit Rahmen") { side.objects.selection?.ids == [id1] && BildProbe.frameShown(sidePage) != nil }
+            XCTAssertNil(main.objects.selection)
+            XCTAssertTrue(main.tools.activeEditor === side, "in der Notiz wird weitergearbeitet")
+            XCTAssertNil(BildProbe.floating(in: window), "schwebendes Bild ist weg")
+            XCTAssertNil(BildProbe.dropFrame(sidePage))
+            // dieselben Bytes, nichts neu kodiert
+            let (data0, _) = try await api.data(src0), (data1, http1) = try await api.data(src1)
+            XCTAssertEqual(http1.statusCode, 200)
+            XCTAssertEqual(data1, data0, "dieselben Bilddaten in der Zieldatei")
+
+            // 2. Rueckgaengig: EIN Schritt holt es zurueck (gleiche Stelle, gleiches Bild), der naechste nimmt das Einfuegen
+            main.undo()
+            try await BildProbe.wait("Rueckgaengig: zurueck im Hauptdokument") { await counts() == [1, 0] }
+            inMain = await self.images(main)
+            XCTAssertEqual(inMain.first?["id"]?.string, id0)
+            XCTAssertEqual(inMain.first?["src"]?.string, src0)
+            XCTAssertEqual(BildProbe.bounds(inMain.first), b0, "an seiner alten Stelle")
+            main.undo()
+            try await BildProbe.wait("zweites Rueckgaengig: das Einfuegen") { await self.images(main).isEmpty }
+            inSide = await self.images(side)
+            XCTAssertTrue(inSide.isEmpty)
+            main.redo()
+            try await BildProbe.wait("Wiederholen: eingefuegt") { await self.images(main).count == 1 }
+            main.redo()
+            try await BildProbe.wait("Wiederholen: wieder in der Notiz") { await counts() == [0, 1] }
+            inSide = await self.images(side)
+            XCTAssertEqual(inSide.first?["id"]?.string, id1)
+            XCTAssertEqual(BildProbe.bounds(inSide.first), b1)
+
+            // 3. Notiz -> Hauptdokument
+            try await BildProbe.wait("Bild in der Notiz zu sehen") { BildProbe.imageShown(sidePage) != nil }
+            try await BildProbe.tap(center(b1), on: sidePage, in: window)
+            try await BildProbe.wait("in der Notiz ausgewaehlt") { side.objects.selection?.ids == [id1] }
+            let mainFree = try XCTUnwrap(mainPage.viewportInPage()).intersection(pageRect(mainPage))
+            let back = CGPoint(x: mainFree.midX, y: mainFree.minY + 200)
+            try await BildProbe.dragWindow(from: sidePage.content.convert(center(b1), to: nil), to: mainPage.content.convert(back, to: nil), in: window)
+            try await BildProbe.wait("Bild liegt im Hauptdokument") { await counts() == [1, 0] }
+            inMain = await self.images(main)
+            let home = try XCTUnwrap(inMain.first), id2 = try XCTUnwrap(home["id"]?.string), src2 = try XCTUnwrap(home["src"]?.string)
+            XCTAssertTrue(src2.hasPrefix("/api/assets/\(x.mainID)/"), "eigenes Bild des Hauptdokuments: \(src2)")
+            let b2 = BildProbe.bounds(home)
+            XCTAssertEqual(b2.width, b0.width, accuracy: 0.6)
+            XCTAssertEqual(b2.midX, back.x, accuracy: 2)
+            XCTAssertEqual(b2.midY, back.y, accuracy: 2)
+            try await BildProbe.wait("im Hauptdokument ausgewaehlt") { main.objects.selection?.ids == [id2] && BildProbe.frameShown(mainPage) != nil }
+            XCTAssertTrue(main.tools.activeEditor === main)
+
+            // 4. auf der Trennlinie losgelassen: bleibt im Hauptdokument, ganz auf der Seite
+            let a = main.pdfView.convert(main.pdfView.bounds, to: nil), b = side.pdfView.convert(side.pdfView.bounds, to: nil)
+            let gapX = a.minX > b.maxX ? (a.minX + b.maxX) / 2 : (b.minX + a.maxX) / 2
+            let start = mainPage.content.convert(center(b2), to: nil)
+            try await BildProbe.dragWindow(from: start, to: CGPoint(x: gapX, y: start.y), in: window)
+            try await Task.sleep(nanoseconds: 500_000_000)
+            inMain = await self.images(main); inSide = await self.images(side)
+            XCTAssertEqual([inMain.count, inSide.count], [1, 0], "Trennlinie: nichts geht hinueber")
+            XCTAssertEqual(inMain.first?["id"]?.string, id2)
+            let b3 = BildProbe.bounds(inMain.first)
+            XCTAssertTrue(pageRect(mainPage).insetBy(dx: -0.6, dy: -0.6).contains(b3), "ganz auf der Seite: \(b3)")
+            XCTAssertNil(BildProbe.floating(in: window))
+            XCTAssertEqual(main.objects.selection?.ids, [id2], "bleibt ausgewaehlt")
+            try await BildProbe.wait("Rahmen wieder auf dem Bild") { (BildProbe.deviation(mainPage) ?? 99) < 0.8 }
+
+            // 5. Ziel nur zum Ansehen: nichts wird verschoben, Hinweis
+            side.canEdit = false
+            var frameOnReadOnly = false
+            try await BildProbe.dragWindow(from: mainPage.content.convert(center(b3), to: nil), to: sidePage.content.convert(drop, to: nil), in: window) { _ in
+                if BildProbe.dropFrame(sidePage) != nil { frameOnReadOnly = true }
+            }
+            XCTAssertFalse(side.writable, "Notiz war beim Loslassen nur zum Ansehen")
+            try await Task.sleep(nanoseconds: 500_000_000)
+            inMain = await self.images(main); inSide = await self.images(side)
+            XCTAssertEqual([inMain.count, inSide.count], [1, 0], "nur ansehen: nichts geht hinueber")
+            XCTAssertEqual(BildProbe.bounds(inMain.first), b3, "das Bild bleibt, wo es war")
+            XCTAssertFalse(frameOnReadOnly, "eine Seite, die nichts annimmt, zeigt keinen Rahmen")
+            XCTAssertNil(BildProbe.floating(in: window))
+            try await BildProbe.wait("Hinweis zu sehen", timeout: 4) { self.shows("nur zum Ansehen", in: window) }
+            side.canEdit = true
+
+            // 5b. das Anlegen in der Zieldatei scheitert (sie nimmt gerade nichts an): nichts geht verloren, nichts doppelt
+            side.store.canEdit = false
+            try await BildProbe.dragWindow(from: mainPage.content.convert(center(b3), to: nil), to: sidePage.content.convert(drop, to: nil), in: window)
+            try await BildProbe.wait("Hinweis zu sehen", timeout: 4) { self.shows("ließ sich nicht ins andere Dokument", in: window) }
+            inMain = await self.images(main); inSide = await self.images(side)
+            XCTAssertEqual([inMain.count, inSide.count], [1, 0], "gescheitert: das Bild bleibt im Hauptdokument")
+            XCTAssertEqual(BildProbe.bounds(inMain.first), b3, "an seinem Platz")
+            XCTAssertNil(BildProbe.floating(in: window))
+            try await BildProbe.wait("Bild wieder deckend und ausgewaehlt") { main.objects.selection?.ids == [id2] && (BildProbe.deviation(mainPage) ?? 99) < 0.8 }
+            let shownAlpha = mainPage.objectsView.subviews.compactMap { $0 as? UIImageView }.last?.alpha ?? 0
+            XCTAssertEqual(shownAlpha, 1, accuracy: 0.01, "nicht mehr blass")
+            side.store.canEdit = true
+            XCTAssertFalse(main.editUndo.undoActionName == "Bild verschieben", "ein gescheitertes Hinueberziehen steht nicht im Verlauf")
+
+            // 6. hinueber und die Notiz neu oeffnen: das Bild ist da und gehoert der Notiz-Datei
+            try await BildProbe.dragWindow(from: mainPage.content.convert(center(b3), to: nil), to: sidePage.content.convert(drop, to: nil), in: window)
+            try await BildProbe.wait("wieder in der Notiz") { await counts() == [0, 1] }
+            inSide = await self.images(side)
+            let kept = try XCTUnwrap(inSide.first), id3 = try XCTUnwrap(kept["id"]?.string), src3 = try XCTUnwrap(kept["src"]?.string)
+            await side.store.flush()
+            let sheetFile = try await api.json("/api/files/\(x.sheetID)", as: LibFile.self)
+            let again = DocumentStore(file: sheetFile, api: api)
+            await again.load()
+            XCTAssertNil(again.errorMessage, again.errorMessage ?? "")
+            var found: JSONValue?
+            for i in 0..<(again.layout?.entries.count ?? 0) {
+                guard let key = again.pageKey(forPageIndex: i) else { continue }
+                if let o = await again.objects(forPageKey: key).first(where: { $0["id"]?.string == id3 }) { found = o }
+            }
+            XCTAssertEqual(found?["src"]?.string, src3, "nach erneutem Oeffnen liegt das Bild in der Notiz")
+            XCTAssertTrue(src3.hasPrefix("/api/assets/\(x.sheetID)/"))
+            let (stored, http) = try await api.data(src3)
+            XCTAssertEqual(http.statusCode, 200)
+            XCTAssertNotNil(UIImage(data: stored), "Bild der Notiz-Datei ist lesbar")
+            await again.close()
+        }
+    }
+
     /// Ganzer Weg der Meldung: Notiz daneben oeffnen, dort arbeiten, Bild einfuegen -> es liegt in der Notiz, sichtbar
     /// und ausgewaehlt, laesst sich dort mit dem Finger verschieben und an der Ecke kleiner ziehen. Wer danach wieder im
     /// Hauptdokument arbeitet, bekommt das naechste Bild dort; ist die Notiz zu, immer das Hauptdokument.
     func testBildLandetImZuletztBenutztenDokument() throws {
+        let x = try openSplit()
+        let env = x.env, main = x.main, side = x.side, mainPage = x.mainPage, sidePage = x.sidePage, window = x.env.window
+        try landetImZuletztBenutzten(env, main, side, mainPage, sidePage, window)
+    }
+
+    struct Split {
+        let env: HostedEnvironment
+        let api: APIClient
+        let main: PDFEditorController
+        let side: PDFEditorController
+        let mainPage: PageInkView
+        let sidePage: PageInkView
+        let mainID: String
+        let sheetID: String
+    }
+
+    /// Dokument oeffnen, "Daneben öffnen" und das eigene Notizblatt waehlen: beide Editoren geladen
+    private func openSplit() throws -> Split {
         try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
         let s = try run { try await self.scene() }
         let previous = UserDefaults.standard.object(forKey: "UFDocPanel")
@@ -774,8 +1017,11 @@ final class BildInNotizAppTests: XCTestCase {
         let main = try XCTUnwrap(all.first { $0.ownsToolPicker }), side = try XCTUnwrap(all.first { !$0.ownsToolPicker })
         XCTAssertTrue(main.writable && side.writable, "beide schreibbar")
         let mainPage = try XCTUnwrap(shownOverlay(main)), sidePage = try XCTUnwrap(shownOverlay(side))
-        let window = env.window
+        return Split(env: env, api: s.api, main: main, side: side, mainPage: mainPage, sidePage: sidePage, mainID: s.main.id, sheetID: s.sheetID)
+    }
 
+    private func landetImZuletztBenutzten(_ env: HostedEnvironment, _ main: PDFEditorController, _ side: PDFEditorController,
+                                          _ mainPage: PageInkView, _ sidePage: PageInkView, _ window: UIWindow) throws {
         try run {
             // 1. noch nirgends gearbeitet: wie bisher ins Hauptdokument
             var ok = await main.insertPickedImage(BildProbe.foto())

@@ -696,6 +696,29 @@ final class DocumentStore: ObservableObject {
         return url
     }
 
+    /// Bild einer anderen Datei als EIGENES Bild dieser Datei anlegen (Bild ins andere Dokument gezogen, 21.11.2026):
+    /// dieselben Bytes unter einer Adresse dieser Datei (`/api/assets/{diese Datei}/…`), nichts wird neu kodiert. Die
+    /// Adresse eines Bildobjekts gehoert zu seiner Datei - mit der Adresse der anderen Datei ginge das Bild verloren,
+    /// sobald jene geloescht wird. Lassen sich die Bytes nicht lesen, das geladene Bild wie beim Einfuegen
+    /// (`uploadNoteImage`). Wirft, wenn hier nicht geschrieben werden darf oder das Anlegen scheitert.
+    func adoptNoteImage(_ src: String, from other: DocumentStore) async throws -> String {
+        guard isWritable else { throw ShareExportError.notLoaded }
+        let kinds = ["png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg", "gif": "image/gif", "webp": "image/webp"]
+        let ext = (src as NSString).pathExtension.lowercased()
+        if let mime = kinds[ext], let (data, http) = try? await other.api.data(src), http.statusCode == 200, !data.isEmpty {
+            let r = try await api.upload("/api/files/\(file.id)/assets", fields: [:], fileField: "upload",
+                                         fileName: "bild-" + PageOrder.uid() + "." + ext, mimeType: mime, data: data)
+            guard let url = r["url"]?.string, url.hasPrefix("/") else { throw ShareExportError.notLoaded }
+            if let image = other.images[src] ?? UIImage(data: data) {
+                remember(image, for: url)
+                trimImages()
+            }
+            return url
+        }
+        guard let image = other.images[src] else { throw ShareExportError.notLoaded }
+        return try await uploadNoteImage(image)
+    }
+
     /// Vom Editor nach jeder Aenderung einer Canvas. Kehrt sofort zurueck. Der Schluessel stammt aus dem
     /// Seitenaufbau, mit dem die Canvas angelegt wurde (bleibt richtig, auch wenn sich die Reihenfolge aendert).
     func canvasChanged(pageKey key: String, drawing: PKDrawing) {

@@ -346,6 +346,22 @@ final class PageObjectsView: UIView {
         previewed = objects == nil ? [] : previewed.union(list.compactMap { $0["id"]?.string })
     }
 
+    /// Objekte blass zeigen (ein Bild ist auf dem Weg ins andere Dokument, `ObjectTransfer.swift`) bzw. wieder wie
+    /// gespeichert
+    func setDimmed(_ ids: Set<String>, _ dimmed: Bool) {
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        for o in shownObjects {
+            guard let id = o["id"]?.string, ids.contains(id) else { continue }
+            let alpha = ObjectGeometry.opacity(o) * (dimmed ? 0.35 : 1)
+            for p in placed[id] ?? [] {
+                p.view?.alpha = CGFloat(alpha)
+                p.layer?.opacity = Float(alpha)
+            }
+        }
+        CATransaction.commit()
+    }
+
     private func add(_ o: JSONValue, images: [String: UIImage]) {
         let t = ObjectGeometry.transform(o)
         let id = o["id"]?.string ?? ""

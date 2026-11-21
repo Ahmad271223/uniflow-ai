@@ -108,6 +108,11 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     private var grab: Grab?
     /// Waehrend eine Aenderung gespeichert wird (erst Objekte, dann Handschrift), bleibt der Rahmen der Vorschau stehen
     var holdsFrame = false
+    /// Bild ins andere Dokument ziehen (`ObjectTransfer.swift`): schwebendes Bild im Fenster, Rahmen auf der Zielseite,
+    /// und ob gerade ein Bild hinuebergeht (solange greift nichts an der Auswahl)
+    var transferView: UIImageView?
+    let transferFrame = CAShapeLayer()
+    var transferring = false
     private var panStart: (overlay: PageInkView, point: CGPoint)?
     private var lassoPoints: [CGPoint] = []
     private var editing: (key: String, id: String, view: UITextView, isNew: Bool)?
@@ -131,7 +136,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         // dem Bild beim Ziehen hinterher und sprang beim Loslassen ("blauer Kasten, der verzerrt mitgeht")
         let still = Dictionary(uniqueKeysWithValues: ["path", "transform", "position", "bounds", "lineWidth", "lineDashPattern",
                                                       "hidden", "opacity"].map { ($0, NSNull() as CAAction) })
-        ([selectionLayer, draftLayer] + handleLayers).forEach { $0.actions = still }
+        ([selectionLayer, draftLayer, transferFrame] + handleLayers).forEach { $0.actions = still }
         tap.require(toFail: doubleTap)
         [tap, doubleTap, pan, pinch].forEach { $0.delegate = self }
     }
@@ -369,6 +374,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 switch gr.kind {
                 case .move:
                     preview(.move(Self.clampedOffset(gr.box, by: t, in: Self.page(of: gr.overlay))))
+                    hoverTransfer(g, gr)                    // geteilte Ansicht: ein Bild kann ins andere Dokument
                 case .corner(let anchor, let corner):
                     let wanted = Self.cornerFactor(anchor: anchor, corner: corner, translation: t)
                     let limit = Self.anchoredLimit(gr.box, anchor: anchor, corner: corner, in: Self.page(of: gr.overlay))
@@ -401,7 +407,11 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 draftLayer.path = path
             }
         case .ended:
-            if grab != nil, !pinchHoldsGrab { finishGrab(); return }
+            if let gr = grab, !pinchHoldsGrab {
+                // ueber einer Seite des anderen Dokuments losgelassen: das Bild geht hinueber; sonst wie immer
+                if !dropTransfer(g, gr) { finishGrab() }
+                return
+            }
             guard let start = panStart else { return }
             panStart = nil
             draftLayer.removeFromSuperlayer()
@@ -464,7 +474,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     // MARK: Ziehen an der Auswahl (verschieben, Ecke, zwei Finger) mit Vorschau
 
     /// Stand beim Aufsetzen und die zuletzt gezeigte Aenderung
-    private struct Grab {
+    struct Grab {
         enum Kind { case move, corner(anchor: CGPoint, corner: CGPoint), pinch }
         let kind: Kind
         let overlay: PageInkView
@@ -506,7 +516,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// Was eine Beruehrung an der Auswahl greift: einen Anfasser (Groesse) oder die Auswahl selbst (verschieben). Gemessen
     /// wird, wo der Finger aufgesetzt hat, nicht wo er nach den ersten Punkten Weg steht.
     private func grip(for g: UIPanGestureRecognizer) -> (PageInkView, Grab.Kind)? {
-        guard grab == nil, let overlay = selectionOverlay else { return nil }
+        guard grab == nil, !transferring, let overlay = selectionOverlay else { return nil }
         let now = g.location(in: overlay.content), t = g.translation(in: overlay.content)
         let p = CGPoint(x: now.x - t.x, y: now.y - t.y)
         let s = Self.screenScale(of: overlay)
@@ -663,6 +673,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     private func finishGrab() {
         guard let g = grab else { return }
         grab = nil
+        endTransferHover(g)
         switch g.change {
         case .move(let d) where abs(d.x) + abs(d.y) > 0.5:
             finishMove(dx: d.x, dy: d.y)
@@ -675,11 +686,19 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     /// Abgebrochen oder nichts geaendert: alles wie vor dem Aufsetzen
-    private func cancelGrab() {
-        guard grab != nil else { return }
+    func cancelGrab() {
+        guard let g = grab else { return }
+        endTransferHover(g)
         preview(.none)
         grab = nil
         cancelInkDrag()
+    }
+
+    /// Das laufende Verschieben herausnehmen, ohne es zu beenden: Das Bild geht ins andere Dokument (`dropTransfer`)
+    func takeGrab() -> Grab? {
+        let g = grab
+        grab = nil
+        return g
     }
 
     func setTool(_ t: Tool) {
