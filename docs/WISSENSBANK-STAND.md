@@ -57,6 +57,11 @@
 - **Keine Musterlösungen der Lehrenden** herausgeben, nur die eigene Erklärung und Lösung, schön formatiert wie eine
   KI-Antwort. Umgesetzt für die Abgleich-Notizen (siehe „Fertig“); was darüber hinaus in der Bibliothek steht, siehe
   „Fehlt“ Punkt 1.
+- **Abschnitte, die auf Lösungen der Lehrenden beruhen** (Nachfrage am 21.11.2026 nachmittags, nach dem Befund unten:
+  Absätze „Musterlösung/Kurzlösung“, Einheiten, die ein Lösungsdokument Zeile für Zeile erklären): Der Inhaber hat
+  entschieden, sie bleiben in der Wissensbank – „einbauen in die Wissensbank, und wenn jemand eine Frage hat und die
+  Lösung passend ist, Lösung angeben aus der Wissensbank“. Es wird also nichts weiter herausgefiltert; nur die internen
+  Abgleich-Notizen werden nicht ausgeliefert.
 - **Probe-Konten**: unverändert einbezogen (zählen als Pro AI); dazu gab es keine neue Aussage.
 - **Treffer** weiterhin nur bei gleicher Seite bzw. gleicher Aufgabe (Wortlaut). Fragen „zum Thema“ ohne gleiche
   Seite/Aufgabe sind **nicht** umgesetzt; möglicher späterer Schritt.
@@ -65,7 +70,8 @@
 
 ## Fehlt / nächste Schritte
 
-1. **Vor dem Einschalten klären: Lösungen der Lehrenden außerhalb der Abgleich-Notizen.** Gemessen an der echten
+1. **Entschieden am 21.11.2026 (bleibt drin, siehe oben) – zur Einordnung: Lösungen der Lehrenden außerhalb der
+   Abgleich-Notizen.** Gemessen an der echten
    Bibliothek (nach dem Filter): In 2 198 Abschnitten stehen weiter die Wörter „Musterlösung“, „Kurzlösung“, „ML“ oder
    „Lösungsfolie“; in rund 1 350 Abschnitten (79 Dateien) als eigene Marke am Absatzanfang, etwa „**Musterlösung.** …“,
    „**Kurzlösung (wörtlich).** …“, „Musterlösung: …“. Dazu rund 2 700 Abschnitte, deren Quelle dem Titel nach selbst ein
