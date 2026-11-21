@@ -361,7 +361,8 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
         if let r = task.routeText, !r.isEmpty { body["route_text"] = .string(String(r.prefix(2000))) }
         if let o = task.options { body["options"] = o }
         if let e = task.exam { body["exam"] = .bool(e) }
-        if let wb = task.wissensbank, wissensbankEnabled, task.image == nil, task.name.hasPrefix("tutor:") { body["wissensbank"] = wb }
+        // auch mit Bild (21.11.2026): die Angaben tragen dann nur den im Ausschnitt erkannten Text (`AIEndpoints`)
+        if let wb = task.wissensbank, wissensbankEnabled, task.name.hasPrefix("tutor:") { body["wissensbank"] = wb }
         if let image = task.image {
             guard task.name.hasPrefix("tutor:") else { throw Self.error(400, "image_not_allowed", "Bilder gibt es nur für die KI-Hilfe.") }
             guard image.count <= Self.imageMaxBytes else {

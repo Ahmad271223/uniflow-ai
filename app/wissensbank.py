@@ -904,13 +904,16 @@ class Plan:
 
 
 def plan(user: dict, task: str, body: dict) -> Plan | None:
-    """None, wenn die Wissensbank fuer diese Anfrage nicht in Frage kommt (Schalter, Tarif, Hochschule, Modus, Bild,
+    """None, wenn die Wissensbank fuer diese Anfrage nicht in Frage kommt (Schalter, Tarif, Hochschule, Modus,
     zweite Meinung, keine Angaben zur Stelle, kein Treffer)."""
     if not task.startswith("tutor:") or not enabled():
         return None
     mode = task.split(":", 1)[1]
     wb = body.get("wissensbank")
-    if mode not in MODES or not isinstance(wb, dict) or body.get("image") or body.get("second_opinion"):
+    # Mit Bild ("Bereich an KI") seit 21.11.2026 erlaubt: Die App schickt dann nur den im Ausschnitt erkannten Text als
+    # Angabe zur Stelle (nie den Text der ganzen Seite); passt er, kommt die Antwort aus der Wissensbank, sonst die KI
+    # mit dem Bild wie bisher.
+    if mode not in MODES or not isinstance(wb, dict) or body.get("second_opinion"):
         return None
     if not allowed_for(user):
         return None

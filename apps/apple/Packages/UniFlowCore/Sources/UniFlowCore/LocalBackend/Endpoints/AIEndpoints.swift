@@ -110,10 +110,15 @@ enum AIEndpoints: LocalEndpointModule {
             // StudiNow-KI (StudiNowAI.swift): Aufgabe `tutor:<modus>`; Zwischenspeicher des Dienstes nur fuer geteilte ganze
             // Seiten (wie app/ai.py), "Neu erklaeren lassen" = `fresh`; das Bild geht als `image` mit (nur tutor:*)
             let routeText = [text("selection"), text("question")].filter { !$0.isEmpty }.joined(separator: " ")
-            // StudiNow-Wissensbank (20.11.2026): Angaben zur Stelle fuer den Dienst (nur explain/steps, nur mit Datei, nie
-            // mit Bild); StudiNowAI schickt sie nur, wenn der Dienst die Funktion meldet
-            let wbRequest = fileID == nil || imageJPEG != nil ? nil
-                : Wissensbank.request(mode: mode, fileName: fileName, course: course, page: page, pageText: pageText, selection: text("selection"))
+            // StudiNow-Wissensbank (20.11.2026): Angaben zur Stelle fuer den Dienst (nur explain/steps, nur mit Datei);
+            // StudiNowAI schickt sie nur, wenn der Dienst die Funktion meldet.
+            // Mit Bild ("Bereich an KI", "Ganze Seite an KI") seit 21.11.2026 ebenfalls - dann zaehlt NUR der im Ausschnitt
+            // erkannte Text (`selection`), nie der Text der ganzen Seite: Der Inhaber hat am iPad eine Aufgabe eingekreist
+            // und bekam die KI statt der Wissensbank ("wenn die Loesung passend ist, Loesung aus der Wissensbank").
+            // Ohne erkannten Text (Zeichnung, Handschrift) bleibt es bei der KI mit Bild.
+            let wbRequest = fileID == nil ? nil
+                : Wissensbank.request(mode: mode, fileName: fileName, course: course, page: page,
+                                      pageText: imageJPEG == nil ? pageText : "", selection: text("selection"))
             let task = AIRelayTask(AIRelayTask.tutor(mode), cache: shareable && !force, fresh: force,
                                    routeText: routeText.isEmpty ? nil : routeText, image: imageJPEG, wissensbank: wbRequest)
             var credits: JSONValue = .null

@@ -390,13 +390,30 @@ def test_only_pro_ai_at_luh_and_only_with_the_switch(wb, monkeypatch):
     assert "wissensbank" not in _j(asgi_call(app, "GET", "/api/entitlements", headers=h_plus))[1]
     st, d = ask(app, h_plus)
     assert st == 403, "Erklaeren bleibt Pro AI"
-    # Bild ("Bereich an KI") und zweite Meinung: nie aus der Wissensbank
+    # zweite Meinung: nie aus der Wissensbank
     _, d = ask(app, h, second_opinion=True)
     assert d["source"] == "ki"
     monkeypatch.setenv("LERNAPP_WISSENSBANK", "0")
     _, d = ask(app, h)
     assert "source" not in d and "wissensbank_key" not in d, "Schalter aus: Antwort wie bisher"
     assert "wissensbank" not in _j(asgi_call(app, "GET", "/api/entitlements", headers=h))[1]
+
+
+def test_circled_area_with_image_is_answered_from_the_wissensbank_when_its_text_matches(wb):
+    """Meldung des Inhabers 21.11.2026 (iPad, eingekreiste Aufgabe = "Bereich an KI", Bild + erkannter Text): Es kam die
+    KI, weil eine Anfrage mit Bild die Wissensbank nie fragte. Jetzt zaehlt der erkannte Text des Ausschnitts: passt er,
+    kommt die Antwort aus der Wissensbank (1 Credit, die KI wird nicht gerufen); passt er nicht, antwortet die KI mit
+    dem Bild wie bisher."""
+    import base64
+    app, fake = wb
+    jpeg = base64.b64encode(b"\xff\xd8\xff\xe0" + b"\x00" * 64).decode()
+    u, h = user(app, "luh-bild@beispiel.de", plan="pro_ai")
+    st, d = ask(app, h, image=jpeg)
+    assert st == 200 and d["source"] == "wissensbank", d
+    assert fake.calls == 0, "Treffer: die KI wird nicht gerufen"
+    assert [r[0] for r in ledger(u["id"])] == ["tutor:wissensbank"]
+    st, d = ask(app, h, image=jpeg, text="Ein ganz anderer Ausschnitt ohne Bezug zur Bibliothek, nur eine Skizze mit Beschriftung.")
+    assert st == 200 and d["source"] == "ki" and fake.calls == 1, "kein Treffer: KI mit Bild wie bisher"
 
 
 def test_university_of_the_account_counts_not_the_client(wb):

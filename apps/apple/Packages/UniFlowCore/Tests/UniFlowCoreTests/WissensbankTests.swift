@@ -80,7 +80,14 @@ final class WissensbankTests: XCTestCase {
         let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0] + [UInt8](repeating: 0, count: 64)).base64EncodedString()
         _ = await post(b, "/api/ai/tutor", ["mode": "explain", "file_id": "f1", "page": 1, "page_text": "Seite", "image": .string(jpeg)])
         body = try await sent(fake)
-        XCTAssertNil(body["wissensbank"], "Bereich an KI (Bild): nie aus der Wissensbank")
+        XCTAssertNil(body["wissensbank"], "Bereich an KI ohne erkannten Text: nie der Text der ganzen Seite")
+        // eingekreiste Aufgabe (Bild mit erkanntem Text): die Wissensbank wird mit diesem Text gefragt (21.11.2026)
+        await fake.on("POST", "/api/ai/relay", 200, ["answer": "KI", "credits": credits])
+        _ = await post(b, "/api/ai/tutor", ["mode": "explain", "file_id": "f1", "page": 1, "page_text": "Seite", "image": .string(jpeg),
+                                             "selection": "Aufgabe 1 a) eingekreist"])
+        body = try await sent(fake)
+        XCTAssertEqual(body["wissensbank"]?["text"]?.string, "Aufgabe 1 a) eingekreist", "Bereich an KI mit Text: Ausschnitt geht an die Wissensbank")
+        XCTAssertNotNil(body["image"], "das Bild geht weiter mit (fuer die KI, falls die Wissensbank nichts hat)")
     }
 
     func testRepeatAnswerCarriesTheQuestionAndFeedbackGoesToTheService() async throws {
