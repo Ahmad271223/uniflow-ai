@@ -195,7 +195,7 @@ final class EditorScaleTests: XCTestCase {
     /// Striche wie vom Editor (`canvasChanged`) in Bloecken zu 25 Seiten. An jedem Messpunkt: ein Strich mehr auf
     /// der vollen Seite 1 (Umrechnung einer vollen Seite), dann genau eine Speicherrunde: ganzes Dokument ans lokale
     /// Backend, dort Stand plus Versionskopie (`AnnotationEndpoints.write`).
-    private func denseScript(pages: Int, perPage: Int, checkpoints: [Int], breakdownAt: Int?, scroll: Bool, reopen: Bool,
+    func denseScript(pages: Int, perPage: Int, checkpoints: [Int], breakdownAt: Int?, scroll: Bool, reopen: Bool,
                              limits: DenseLimits) async throws {
         let m = Messwerte("Dichtes Skript \(pages) x \(perPage)")
         let base = Speicher.now()
@@ -1188,7 +1188,7 @@ final class EditorScaleTests: XCTestCase {
         let file: LibFile
     }
 
-    private func tempDir() throws -> URL {
+    func tempDir() throws -> URL {
         let dir = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-messung-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
@@ -1198,7 +1198,7 @@ final class EditorScaleTests: XCTestCase {
     /// Datei im lokalen Backend angemeldet (Kurs und Datei in der Datenbank, damit Speicherrunden wirklich
     /// geschrieben werden), Original-PDF im Zwischenspeicher des Editors mit passendem Stand (`stamp`), so wie nach
     /// dem ersten Oeffnen einer Datei aus Stud.IP.
-    private func makeFixture(pdf: Data, pageCount: Int) async throws -> Fixture {
+    func makeFixture(pdf: Data, pageCount: Int) async throws -> Fixture {
         let root = try tempDir()
         let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true),
                                     clock: .fixed(berlin: "2026-10-27T10:00:00")!)
@@ -1224,7 +1224,7 @@ final class EditorScaleTests: XCTestCase {
         return Fixture(root: root, host: host, api: api, file: file)
     }
 
-    private func openStore(_ fx: Fixture) async throws -> DocumentStore {
+    func openStore(_ fx: Fixture) async throws -> DocumentStore {
         let store = DocumentStore(file: fx.file, api: fx.api, root: fx.root)
         await store.load()
         XCTAssertNil(store.errorMessage, store.errorMessage ?? "")
@@ -1240,7 +1240,7 @@ final class EditorScaleTests: XCTestCase {
     }
 
     /// Editor als Inhalt eines eigenen Fensters in Bildschirmgroesse (wie PDFEditorView: Stift schreibt, Finger scrollt).
-    private func show(_ store: DocumentStore, pencilOnly: Bool = true) -> Shown {
+    func show(_ store: DocumentStore, pencilOnly: Bool = true) -> Shown {
         let editor: PDFEditorController
         if pencilOnly {
             editor = PDFEditorController(store: store)
@@ -1263,7 +1263,7 @@ final class EditorScaleTests: XCTestCase {
         return Shown(editor: editor, window: window)
     }
 
-    private func hide(_ shown: Shown) {
+    func hide(_ shown: Shown) {
         guard shown.window.rootViewController != nil else { return }
         shown.editor.showToolPicker(false)
         shown.window.isHidden = true
@@ -1271,7 +1271,7 @@ final class EditorScaleTests: XCTestCase {
     }
 
     /// Overlays, die PDFKit gerade in die PDFView eingesetzt hat (aktueller Seitenaufbau).
-    private func installedOverlays(_ editor: PDFEditorController) -> [PageInkView] {
+    func installedOverlays(_ editor: PDFEditorController) -> [PageInkView] {
         var out: [PageInkView] = []
         func walk(_ v: UIView) {
             if let o = v as? PageInkView {
@@ -1284,11 +1284,11 @@ final class EditorScaleTests: XCTestCase {
         return out
     }
 
-    private func installedOverlay(_ editor: PDFEditorController, page: Int) -> PageInkView? {
+    func installedOverlay(_ editor: PDFEditorController, page: Int) -> PageInkView? {
         installedOverlays(editor).first { $0.pageIndex == page }
     }
 
-    private func waitForOverlay(_ editor: PDFEditorController, page: Int, timeout: Double) async throws -> PageInkView {
+    func waitForOverlay(_ editor: PDFEditorController, page: Int, timeout: Double) async throws -> PageInkView {
         let end = Uhr.now() + timeout
         while Uhr.now() < end {
             if let o = installedOverlay(editor, page: page), o.loaded, o.bounds.width > 0 { return o }
@@ -1298,7 +1298,7 @@ final class EditorScaleTests: XCTestCase {
     }
 
     /// Wie `waitForOverlay`, dazu genau `strokes` Striche auf der Canvas.
-    private func waitForCanvas(_ editor: PDFEditorController, page: Int, strokes: Int, timeout: Double) async throws -> PageInkView {
+    func waitForCanvas(_ editor: PDFEditorController, page: Int, strokes: Int, timeout: Double) async throws -> PageInkView {
         let end = Uhr.now() + timeout
         var seen = -1
         while Uhr.now() < end {
@@ -1313,14 +1313,14 @@ final class EditorScaleTests: XCTestCase {
 
     /// Seitenschluessel, fuer die der Editor gerade ein Overlay des aktuellen Seitenaufbaus haelt (sichtbar oder
     /// geparkt). Private Felder ueber Mirror, nur fuer den Messaufbau.
-    private func boundKeys(_ editor: PDFEditorController) -> Set<String> {
+    func boundKeys(_ editor: PDFEditorController) -> Set<String> {
         let mirror = Mirror(reflecting: editor)
         let live = (mirror.children.first { $0.label == "live" }?.value as? [Int: PageInkView]).map { Array($0.values) } ?? []
         let parked = mirror.children.first { $0.label == "parked" }?.value as? [PageInkView] ?? []
         return Set((live + parked).filter { $0.generation == editor.shownLayoutVersion }.map(\.pageKey))
     }
 
-    private func scrollView(_ editor: PDFEditorController) -> UIScrollView? {
+    func scrollView(_ editor: PDFEditorController) -> UIScrollView? {
         func find(_ v: UIView) -> UIScrollView? {
             if let s = v as? UIScrollView, !(v is PKCanvasView) { return s }
             for sub in v.subviews { if let s = find(sub) { return s } }
@@ -1330,7 +1330,7 @@ final class EditorScaleTests: XCTestCase {
     }
 
     /// Strich wie mit dem Stift: Canvas aendert sich, der Editor bekommt die Meldung von PencilKit.
-    private func drawStroke(_ editor: PDFEditorController, on overlay: PageInkView, _ stroke: PKStroke) {
+    func drawStroke(_ editor: PDFEditorController, on overlay: PageInkView, _ stroke: PKStroke) {
         editor.canvasViewDidBeginUsingTool(overlay.canvas)
         var d = overlay.canvas.drawing
         d.strokes.append(stroke)
@@ -1378,7 +1378,7 @@ final class EditorScaleTests: XCTestCase {
     ///   - distance: hoechstens so weit scrollen (Punkte der Scroll-Ansicht); ohne Angabe bis zum Ende.
     ///   - drain: danach hoechstens so lange warten, bis weggescrollte Overlays freigegeben sind (laufende
     ///     Ladevorgaenge halten ihr Overlay bis zum Ende fest).
-    private func scrollThrough(_ shown: Shown, timeLimit: Double, distance: CGFloat? = nil,
+    func scrollThrough(_ shown: Shown, timeLimit: Double, distance: CGFloat? = nil,
                                stepFraction: CGFloat = 0.25, drain: Double = 0) async throws -> ScrollResult {
         let editor = shown.editor
         let scroll = try XCTUnwrap(scrollView(editor), "Scroll-Ansicht der PDFView")
