@@ -108,6 +108,37 @@ final class EditorDeviceFixesTests: XCTestCase {
                      "Seite weit weg: kein Ausschnitt")
     }
 
+    /// Meldung des Inhabers 20.11.2026 abends: "Scrollen mit dem Finger hakt". Der Ausschnitt der Zeichenflaeche behaelt
+    /// beim Scrollen seine Groesse (am Seitenrand geschoben statt beschnitten, keine Rundung je nach Lage): PencilKit
+    /// verschiebt dann nur, statt die Zeichenflaeche neu aufzubauen.
+    func testInkWindowKeepsItsSizeWhileScrolling() throws {
+        let page = CGRect(x: 0, y: 0, width: 595, height: 842)
+        var sizes = Set<String>()
+        // sichtbarer Teil wie am iPad bei 300 %, in krummen Schritten ueber die ganze Seite und ueber ihre Raender hinaus
+        var y: CGFloat = -260.3
+        while y < 900 {
+            let v = CGRect(x: 193.37 + y.truncatingRemainder(dividingBy: 7) * 0.13, y: y, width: 208.5, height: 298.5)
+            if let w = PageInkView.window(around: v, in: page, margin: 0.25) {
+                sizes.insert("\(w.width) x \(w.height)")
+                XCTAssertTrue(page.insetBy(dx: -0.01, dy: -0.01).contains(w), "ganz auf der Seite: \(w)")
+                let visible = v.intersection(page)
+                if !visible.isNull { XCTAssertTrue(w.insetBy(dx: -0.01, dy: -0.01).contains(visible), "sichtbarer Teil \(visible) liegt in \(w)") }
+            }
+            y += 13.7
+        }
+        XCTAssertEqual(sizes.count, 1, "eine Groesse: \(sizes)")
+        XCTAssertNil(PageInkView.window(around: CGRect(x: 100, y: 2000, width: 200, height: 300), in: page, margin: 0.25), "Seite weit weg")
+        // Rechengenauigkeit: weicht die Groesse um hoechstens einen Punkt ab, bleibt die bisherige
+        let a = try XCTUnwrap(PageInkView.window(around: CGRect(x: 100, y: 100, width: 208.0001, height: 298), in: page, margin: 0.25))
+        let b = try XCTUnwrap(PageInkView.window(around: CGRect(x: 120, y: 140, width: 207.9999, height: 298), in: page, margin: 0.25, keeping: a.size))
+        XCTAssertEqual(a.size, b.size)
+        // Seite schmaler als der Ausschnitt: so breit wie die Seite
+        let narrow = try XCTUnwrap(PageInkView.window(around: CGRect(x: -50, y: 300, width: 700, height: 200), in: page, margin: 0.25))
+        XCTAssertEqual(narrow.minX, 0)
+        XCTAssertEqual(narrow.width, 595)
+        XCTAssertEqual(narrow.height, 300)
+    }
+
     /// Bei starkem Zoom zeigt die Canvas nur den sichtbaren Teil; beim Scrollen wandert der Ausschnitt mit (ohne alle
     /// Striche neu zu zeichnen), die Striche bleiben in Seitenpunkten und der sichtbare Teil liegt immer auf der Canvas
     func testWindowedCanvasFollowsScrollingAndKeepsPagePoints() throws {
