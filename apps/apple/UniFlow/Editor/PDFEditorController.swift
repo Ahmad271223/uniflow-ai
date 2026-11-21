@@ -354,8 +354,10 @@ final class PageInkView: UIView {
         guard zoomChanges || moves else { return }
         if zoomChanges {
             Self.rescalesMade += 1
+            StiftZaehler.bump(.zoomstufeGewechselt)
         } else {
             Self.windowMoves += 1
+            StiftZaehler.bump(coverMoves ? .ausschnittNachStrich : .ausschnittBeimScrollen)
             let now = inkWindow
             if abs(now.width - l.window.width) > 0.01 || abs(now.height - l.window.height) > 0.01 { Self.windowResizes += 1 }
         }
@@ -1552,6 +1554,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Der Neuaufbau schreibt nie (alles ist schon im Store), nur offene Rueckgaengig-Schritte abschliessen
         for v in allOverlays where v.loaded { commitPendingUndo(v) }
         for v in allOverlays { keepPaletteFocus(leaving: v) }
+        if shownLayout != nil { StiftZaehler.bump(.seitenNeuAufgebaut) }
         live = [:]
         parked = []
         shownLayout = layout
@@ -1863,6 +1866,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schritt auf den jetzigen Stand der Seite anwenden: geladene Canvas sofort, sonst den gespeicherten Stand
     private func applyInk(_ step: InkUndoStep, key: String, undoing: Bool) {
         func change(_ d: PKDrawing) -> PKDrawing { undoing ? step.reverted(on: d) : step.reapplied(on: d) }
+        StiftZaehler.bump(undoing ? .rueckgaengig : .wiederholen)
         if let overlay = boundOverlay(forKey: key), overlay.loaded {
             setDrawing(change(overlay.canvas.drawing), forKey: key)
             return
@@ -1997,6 +2001,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             }
         } else {
             overlay.lastShrinkAllowed = CACurrentMediaTime()        // Radierer, Lasso: weniger Striche sind gewollt
+            StiftZaehler.bump(.ohneStiftGeaendert)
+            if overlay.isDrawing { StiftZaehler.bump(.ohneStiftGeaendertBeimAufliegen) }
         }
         // Stift liegt noch auf (Radierer, Lasso; beim Stift kommt die Meldung kurz vor dem Absetzen): einmal beim
         // Absetzen sichern statt bei jeder Zwischenmeldung (`PencilTuning.saveOnLift`)
@@ -2010,6 +2016,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
         // ein Absetzen, dessen Meldung noch aussteht, bleibt gemerkt (`PageInkView.lifts`)
         inkTrace?("Werkzeug an")
+        if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAn) }
         if !PencilTuning.liftBelongsToItsStroke { overlay(of: canvasView)?.lifts = [] }
         overlay(of: canvasView)?.reportedWhileDrawing = false
         overlay(of: canvasView)?.endTranslucentHole()            // der neue Strich muss ueberall zu sehen sein
@@ -2025,6 +2032,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView) else { return }
         inkTrace?("Werkzeug aus")
+        if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAus) }
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
         let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool, ruler: canvasView.isRulerActive)
