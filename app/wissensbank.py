@@ -67,7 +67,9 @@ NACHWEIS_ABSTAND = 0.15                  # so viel besser als jeder andere Absch
 NACHWEIS_ZAHLEN = 0.6                    # Aufgaben: Anteil der Zahlen der Anfrage, die im Abschnitt am Stueck stehen
 NACHWEIS_ZAHLEN_BITS = 14.0              # Aufgaben: Gewicht dieser Zahlenfolge (0/1 = 1, Ziffer = 3, sonst 3,3 je Ziffer)
 SCHWELLE_AUSSCHNITT = 0.7                # Ausschnitt einer Folie ("Bereich an KI"): Anteil des Ausschnitts im Folientext
-AUSSCHNITT_BEGRIFFE = 5                  # ein Ausschnitt braucht so viele Begriffe (Zahlenreihen allein treffen nie)
+MIN_BEGRIFFE = 5                         # jede Anfrage braucht so viele Begriffe (Zahlenreihen allein treffen nie)
+AUSSCHNITT_GEMEINSAM = 12                # Ausschnitt einer Folie: mindestens so viele gemeinsame Shingles (keine Kopfzeile)
+KURZ_AUFGABE = 25                        # Aufgabe: unter so vielen Shingles (Anfrage oder Aufgabentext) nur mit Nummer
 MARKERS = ("KI-Lösung, ungeprüft", "unabhängig gelöst: ja", "nachgerechnet, nicht unabhängig gelöst")
 STATUS_TEXT = {"ungeprueft": "ungeprüft", "geprueft": "geprüft", "abgelehnt": "abgelehnt"}
 
@@ -184,7 +186,23 @@ seiten abbildung beispiel sowie dabei welche welcher welches siehe damit daher s
 """.split())
 _TASK_HEAD = re.compile(r"^[ \t]*[a-zäöü]{0,12}aufgabe[ \t]*([a-z]?[ \t]?\d+(?:[ \t]?[.\-][ \t]?\d+)*)", re.M)
 _TASK_WORD = re.compile(r"\baufgabe[ \t]*[a-z]?[ \t]?\d")
+_DATE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b|\b\d{1,2}\.[ \t]?\d{1,2}\.[ \t]?(?:19|20)\d{2}\b")
 _YEAR = re.compile(r"(19|20)\d\d")
+
+
+def dates_of(norm: str) -> frozenset:
+    """Datumsangaben eines (normalisierten) Texts: "2026-10-13", "4.11.2024". Zwei Fassungen desselben Blatts oder
+    Deckblatts unterscheiden sich oft nur darin."""
+    return frozenset(re.sub(r"\s", "", m.group(0)) for m in _DATE.finditer(norm))
+
+
+def labels_in(norm: str, toks: list[str]) -> set[str]:
+    """Aufgabennummern, die der angefragte Text nennt: aus den Ueberschriften ("Aufgabe 16", "Aufgabe 1 - 6") und als
+    Nummer mit Punkt irgendwo im Text ("16.2 Bestimmen Sie ...")."""
+    out = {task_label(m.group(1)) for m in _TASK_HEAD.finditer(norm)}
+    out.update(t for t in toks if t[0].isdigit() and "." in t)
+    out.discard(None)
+    return out
 
 
 def task_label(raw: str) -> str | None:
@@ -201,20 +219,17 @@ def terms(toks: list[str], skip: str | None = None) -> tuple[set[str], set[str],
     words: set[str] = set()
     nums: set[str] = set()
     stream: list[str] = []
+    label = toks.index(skip) if skip and skip in toks else -1     # die Aufgabennummer selbst (erstes Vorkommen)
     points: set[int] = set()
     for i, t in enumerate(toks):
         if t.startswith("punkt"):
             j = i - 1
-            while j >= 0 and (toks[j][0].isdigit() or toks[j] == "+") and i - j <= 5:
+            while j >= 0 and j != label and (toks[j][0].isdigit() or toks[j] == "+") and i - j <= 5:
                 points.add(j)
                 j -= 1
-    skipped = False
     for i, t in enumerate(toks):
         if t[0].isdigit():
-            if i in points or t.count(".") >= 2 or _YEAR.fullmatch(t):
-                continue
-            if t == skip and not skipped:
-                skipped = True
+            if i == label or i in points or t.count(".") >= 2 or _YEAR.fullmatch(t):
                 continue
             stream.append(t)
             if len(t) >= 2:
@@ -391,6 +406,7 @@ class Section:
     bignums: frozenset = frozenset()                            # Zahlen des ganzen Abschnitts (`terms`)
     numseq: array = field(default_factory=lambda: array("I"))   # Zahlen des ganzen Abschnitts in ihrer Reihenfolge (gehasht)
     tasks: bool = False          # der Abschnitt nennt Aufgaben ("Aufgabe 2 ..."): Blatt, Klausur, Mitschrift einer Uebung
+    dates: frozenset = frozenset()                              # Datumsangaben des ganzen Abschnitts (`dates_of`)
 
 
 @dataclass
@@ -475,12 +491,13 @@ def parse_unit(fach: str, entry: dict, root: Path) -> Unit:
             lab = _TASK_HEAD.search(normalize(label)) if kind == "aufgabe" else None
             whole = tokens(h + "\n" + b)
             words, bignums, stream = terms(whole)
-            tasky = kind == "aufgabe" or bool(_TASK_WORD.search(normalize(h + "\n" + b)))
+            whole_norm = normalize(h + "\n" + b)
+            tasky = kind == "aufgabe" or bool(_TASK_WORD.search(whole_norm))
             unit.sections.append(Section(sid, d, i, h, kind, q, page, explicit, shingles(toks), numbers(toks),
                                          number_shingles(toks) if explicit else {},
                                          (lm.group(1), lm.group(2), int(lm.group(3))) if lm else None, len(b),
                                          task_label(lab.group(1)) if lab else None, _hashes(words), frozenset(bignums),
-                                         array("I", [hash(t) & 0xFFFFFFFF for t in stream]), tasky))
+                                         array("I", [hash(t) & 0xFFFFFFFF for t in stream]), tasky, dates_of(whole_norm)))
     # Quellen: Kopf der Dateien, sonst README (Tabelle "Quelle Q1 | titel ...")
     if not srcs:
         try:
@@ -692,8 +709,13 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
     if len(q) < MIN_GEMEINSAM:
         return None
     qset, qnums, qnumsh = set(q), numbers(toks), number_shingles(toks)
-    if ausschnitt and len(terms(toks)[0]) < AUSSCHNITT_BEGRIFFE:
-        ausschnitt = False                # nur Zahlen oder Formelzeichen: kein Ausschnitt, der eine Folie belegen kann
+    _qwords, _qbig, qstream = terms(toks)
+    if len(_qwords) < MIN_BEGRIFFE:
+        # nur Zahlen oder Formelzeichen (Wahrheitstafel, Zahlenreihe, einzelne Formel): Die drei-Wort-Folgen aus 0 und 1
+        # stehen in jeder Tabelle - so ein Text belegt keine Stelle
+        return None
+    qbits = sum(number_bits(t) for t in qstream)
+    qlabels = labels_in(normalize(text[:TEXT_MAX]), toks)
     title = norm_title(datei)
     by_title = sorted(lib.title_index().get(title, set())) if title else []
     rounds = [(by_title, 0.0, True)]
@@ -717,6 +739,17 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
                     # "identisch mit G00xx Seite N": verglichen und geliefert wird die Stelle, auf die verwiesen wird
                     at, cand = _resolve(lib, unit, sec)
                 r = score(q, qset, qnums, cand, strict=strict, qnumsh=qnumsh, partial=ausschnitt)
+                if r and cand.kind == "aufgabe" and min(len(q), len(cand.sh)) < KURZ_AUFGABE and cand.label not in qlabels:
+                    # ein kurzer Satz ("Bestimmen Sie die Impulsantwort. Ist das System kausal?") steht in vielen Aufgaben
+                    # mit verschiedenen Loesungen: nur, wenn der angefragte Text die Nummer dieser Aufgabe nennt
+                    r = None
+                if r and cand.kind == "aufgabe" and not titled and qbits < NACHWEIS_ZAHLEN_BITS:
+                    # Dateititel unbekannt (nur der Kurs passt): eine Aufgabe ohne Zahlen im Text ("... fuer das gegebene
+                    # Gatter ...") kann jedes Jahr eine andere sein - nur mit Zahlen, die dann genau stimmen muessen
+                    r = None
+                if r and ausschnitt and cand.kind == "seite" and cand.explicit and len(q) <= len(cand.sh) and \
+                        _overlap(q, qset, cand.sh) < AUSSCHNITT_GEMEINSAM:
+                    r = None                                    # zwei Zeilen Kopf oder Titel belegen keine Folie
                 if r:
                     dist = abs((sec.page or 0) - seite) if (seite and sec.page) else 9999
                     found.append((r[0], r[1], dist, at, cand))
@@ -821,6 +854,9 @@ def _anchored_page(pool: list, seite: int | None, text: str):
     other = max([other] + rivals)
     if qn - cand.bignums or not _accept(share, common, other):
         return None
+    qd = dates_of(normalize(text))
+    if qd and cand.dates and not (qd & cand.dates):
+        return None                                             # anderes Datum: andere Fassung (Deckblatt, Kopf)
     return at, [cand], share
 
 
@@ -836,6 +872,7 @@ def _anchored_tasks(pool: list, text: str):
     if not heads or not tasks:
         return None
     chosen: list[tuple[float, Unit, list[Section]]] = []
+    qdates = dates_of(norm)
     for i, m in enumerate(heads[:2 * MAX_ABSCHNITTE]):
         label = task_label(m.group(1))
         seg = norm[m.start():heads[i + 1].start() if i + 1 < len(heads) else len(norm)]
@@ -856,17 +893,21 @@ def _anchored_tasks(pool: list, text: str):
             common = sum(1 for h in words if h in qh)
             nums = frozenset().union(*(c.bignums for _at, c in members))
             numbers_ok = not (qn - nums)
+            dates = frozenset().union(*(c.dates for _at, c in members))
+            if qdates and dates and not (qdates & dates):
+                numbers_ok = False                              # anderes Datum: anderes Semester
             if numbers_ok:
                 block, total = max(number_block(stream, c.numseq) for _at, c in members)
                 numbers_ok = block >= NACHWEIS_ZAHLEN_BITS and block >= NACHWEIS_ZAHLEN * total
             scored.append((common / len(qh), common, numbers_ok, members))
+        # dieselbe Nummer in mehreren Einheiten (gleicher Dateiname in mehreren Semestern): Es zaehlen nur die, deren
+        # Zahlen zur Anfrage passen. Stimmen die Zahlen in zweien, ist es dieselbe Aufgabe; dann die mit mehr Begriffen.
+        scored = [x for x in scored if x[2]]
         if not scored:
             continue
         scored.sort(key=lambda x: -x[0])
-        share, common, numbers_ok, members = scored[0]
-        ids = {id(c) for _at, c in members}
-        rivals = [x[0] for x in scored[1:] if {id(c) for _at, c in x[3]} != ids]
-        if numbers_ok and _accept(share, common, max([other] + rivals)):
+        share, common, _ok, members = scored[0]
+        if _accept(share, common, other):
             chosen.append((share, members[0][0], [c for at, c in members if at is members[0][0]]))
     if not chosen:
         return None

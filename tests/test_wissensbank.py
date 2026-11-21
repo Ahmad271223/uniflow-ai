@@ -236,6 +236,209 @@ def test_heading_of_the_next_part_does_not_belong_to_the_section():
     assert wissensbank._own_part(body) == "L1.\n\n```python\n# Kommentar bleibt\n```\n"
 
 
+# ================================================================== Text aus echten PDFs (Messung 21.11.2026)
+# Gemessen mit Text, wie die App ihn schickt (PDFKit-Seitentext, Vision-Text eingekreister Ausschnitte): Der Wortlaut
+# allein traf selten. Die Regeln dazu stehen in app/wissensbank.py; hier je Regel ein Treffer und die Gegenproben.
+# Vorgabe des Inhabers: lieber kein Treffer als eine falsche Loesung. Alle Texte sind erfunden.
+
+K_S5 = f"explain:{STATIK}/G0001/01#Q1-Seite-5"
+K_4 = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-4"
+K_4_VORJAHR = f"steps:{STATIK}/G0003/02#Q1-Aufgabe-4"
+K_5 = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-5"
+K_6 = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-6"
+K_7 = f"steps:{STATIK}/G0002/02#Q1-Aufgabe-7"
+KURS_STATIK = "Beispiel-Statik für Testzwecke (WiSe 2026/27)"
+# Seite 5 der Folien, wie die Textebene sie liefert: Stichworte einer Tabelle, kein Satz der Erklaerung
+S5 = ("Lagerarten und ihre Wertigkeit\nLoslager einwertig\nFestlager zweiwertig\nfeste Einspannung dreiwertig\n"
+      "Wertigkeit = Zahl der unbekannten Lagerreaktionen\nBeispiel-Statik für Testzwecke 5")
+# Aufgabe 4 des Blatts: die Bibliothek hat dazu nur die Loesung, keinen Aufgabentext
+A4 = ("Aufgabe 4 (6 Punkte)\nEin Dreigelenkbogen hat die Punkte A = (4, 0, 7), B = (9, 3, 8) und C = (6, 5, 2) (Angaben in "
+      "Metern).\nIm Punkt C greift die Last F = 18 kN an. Bestimmen Sie den Hebelarm der Last um den Punkt A\nund mit dem "
+      "Momentengleichgewicht die Auflagerkraft im Punkt B.")
+A4_VORJAHR = A4.replace("(4, 0, 7)", "(2, 0, 5)").replace("(9, 3, 8)", "(7, 1, 6)").replace("(6, 5, 2)", "(8, 3, 4)").replace("18 kN", "24 kN")
+A5 = ("Ein Kran hält eine Kiste der Masse 250 kg an einem Seil der Länge 7 m. Das Seil ist um 20 Grad gegen die Senkrechte "
+      "geneigt, weil eine waagrechte Windkraft auf die Kiste wirkt. Berechnen Sie die Seilkraft und die Windkraft.")
+KURZ = "Skizzieren Sie den Verlauf des Biegemoments über die ganze Länge. Ist das Tragwerk statisch bestimmt?"
+S2_HALB = " ".join(S2.split()[:34])                  # eingekreister Teil der Folie Seite 2 (etwa die Haelfte)
+ALGO_TEIL = " ".join(ALGO2.split()[:26])             # steht auf Seite 2 und auf der Aufbaustufe Seite 3
+
+
+def key(lib, **kw):
+    from app import wissensbank
+    hit = wissensbank.match(lib, **kw)
+    return hit.key if hit else None
+
+
+def test_split_umlauts_of_pdf_text_layers_are_joined():
+    """LaTeX-PDFs liefern in der Textebene das Trema getrennt vor dem Buchstaben (PDFKit: "f¨ ur", auch ueber den
+    Zeilenumbruch), andere Programme dahinter; Klammerteile aus Formelschriften liegen im Privatbereich."""
+    from app import wissensbank
+    assert wissensbank.tokens("Fakult¨ at f¨ ur Bauwesen\n¨\nUbungsblatt 3") == ["fakultät", "für", "bauwesen", "übungsblatt", "3"]
+    assert wissensbank.tokens("Tr¨ager, gr¨oßer, f ̈ur, fu¨r, Träger") == ["träger", "grösser", "für", "für", "träger"]
+    assert wissensbank.tokens("x = \uf8eb 4\n7 \uf8f6 ﬁnden") == ["x", "=", "4", "7", "finden"]
+    assert wissensbank.tokens("Lager-\nreaktionen") == ["lagerreaktionen"]
+
+
+def test_whole_page_with_split_umlauts_matches_like_the_clean_text(lib):
+    kaputt = S3.replace("ä", "¨ a").replace("ö", "¨ o").replace("ü", "¨ u").replace("ß", "ß")
+    assert kaputt != S3 and key(lib, mode="explain", datei=FOLIEN, seite=3, text=kaputt) == K_S3
+
+
+def test_circled_part_of_a_slide_needs_containment_not_similarity(lib):
+    """"Bereich an KI": nur ein Teil der Folie. Ohne Kennzeichen gilt die Aehnlichkeit zur ganzen Folie (kein Treffer),
+    als Ausschnitt das Enthaltensein."""
+    umbenannt = dict(mode="explain", datei="Statik_Folien_neu_v2.pdf", kurs=KURS_STATIK, seite=2, text=S2_HALB)
+    assert key(lib, **umbenannt) is None
+    assert key(lib, **umbenannt, ausschnitt=True) == K_S2
+    # ein Ausschnitt mit fremdem Text dazwischen ist nicht mehr "enthalten"
+    fremd = S2_HALB + " Die Photosynthese wandelt Lichtenergie in chemische Energie um und findet in den Chloroplasten statt."
+    assert key(lib, **{**umbenannt, "text": fremd}, ausschnitt=True) is None
+    # anderer Kurs: kein Treffer
+    assert key(lib, **{**umbenannt, "kurs": "Einführung in die Chemie"}, ausschnitt=True) is None
+
+
+def test_ambiguous_part_only_with_the_sent_page(lib):
+    """Derselbe Ausschnitt steht auf zwei Folien (Aufbaustufe): Es zaehlt die mitgeschickte PDF-Seite - und nur bei
+    bekanntem Dateititel. Sonst kein Treffer."""
+    datei = "algo-skript-bsp.pdf"
+    assert key(lib, mode="explain", datei=datei, seite=2, text=ALGO_TEIL, ausschnitt=True) == K_ALGO2
+    assert key(lib, mode="explain", datei=datei, seite=3, text=ALGO_TEIL, ausschnitt=True) == K_ALGO3
+    assert key(lib, mode="explain", datei=datei, seite=9, text=ALGO_TEIL, ausschnitt=True) is None
+    assert key(lib, mode="explain", datei="skript-umbenannt.pdf", kurs="Beispiel-Algorithmen", seite=2, text=ALGO_TEIL,
+               ausschnitt=True) is None, "Titel unbekannt: die Seitennummer einer anderen Datei sagt nichts"
+
+
+def test_number_rows_alone_never_match_as_a_part(lib):
+    """Eine reine Zahlenreihe (Tabelle, Wahrheitstafel) belegt keine Folie, auch wenn die Zahlen dort stehen."""
+    zahlen = "5, 2, 4, 6, 1, 3\n1, 2, 3, 4, 5, 6"
+    assert key(lib, mode="explain", datei="algo-skript-bsp.pdf", seite=3, text=zahlen, ausschnitt=True) is None
+    assert key(lib, mode="explain", datei="algo-skript-bsp.pdf", seite=3, text=zahlen) is None
+    # fast nur Zahlen, woertlich von Seite 3: unter MIN_BEGRIFFE Begriffen belegt ein Text keine Stelle
+    zeile = "Das Feld 5, 2, 4, 6, 1, 3 wird nach sechs Durchläufen zu 1, 2, 3, 4, 5, 6"
+    assert zeile in " ".join(ALGO3.split())
+    assert key(lib, mode="explain", datei="algo-skript-bsp.pdf", seite=3, text=zeile, ausschnitt=True) is None
+
+
+def test_two_header_lines_are_not_a_part_of_a_slide(lib):
+    """Kopfzeile oder Titel (wenige Woerter) stehen aehnlich auf vielen Folien: Ein Ausschnitt braucht mindestens
+    AUSSCHNITT_GEMEINSAM gemeinsame Wortfolgen mit dem Folientext."""
+    kopf = " ".join(S3.split()[:11])
+    lang = " ".join(S3.split()[:22])
+    args = dict(mode="explain", datei="Statik_Folien_neu_v2.pdf", kurs=KURS_STATIK, seite=3, ausschnitt=True)
+    assert key(lib, **args, text=kopf) is None
+    assert key(lib, **args, text=lang) == K_S3
+
+
+def test_task_without_numbers_needs_the_file_title(lib):
+    """Dateititel unbekannt, nur der Kurs passt: Eine Aufgabe ohne Zahlen im Text kann jedes Jahr eine andere sein (die
+    Angaben stehen dann im Bild). Mit bekanntem Dateititel trifft derselbe Text."""
+    aufgabe = "Aufgabe 7\n" + KURZ
+    assert {s.sid: s.explicit for s in lib.unit(STATIK, "G0002").sections}["02#Q1-Aufgabe-7"] is True
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=aufgabe) == K_7
+    assert key(lib, mode="steps", datei="Blatt_neu.pdf", kurs=KURS_STATIK, seite=2, text=aufgabe) is None
+
+
+def test_slide_without_slide_text_by_title_page_and_terms(lib):
+    """Die Bibliothek hat zu Seite 5 nur die Erklaerung. Treffer nur mit bekanntem Dateititel, genau dieser Seitennummer
+    und den Begriffen der Seite - und nur, wenn keine andere Seite annaehernd so gut passt."""
+    assert key(lib, mode="explain", datei=FOLIEN, seite=5, text=S5) == K_S5
+    assert key(lib, mode="explain", datei=FOLIEN, seite=5, text=S5.replace("ä", "¨ a")) == K_S5
+    assert key(lib, mode="explain", datei=FOLIEN, seite=1, text=S5) is None, "andere Seite"
+    assert key(lib, mode="explain", datei=FOLIEN, seite=6, text=S5) is None, "Seite gibt es in der Bibliothek nicht"
+    assert key(lib, mode="explain", datei="Statik_Folien_neu_v2.pdf", kurs=KURS_STATIK, seite=5, text=S5) is None, "Titel unbekannt"
+    assert key(lib, mode="steps", datei=FOLIEN, seite=5, text=S5) is None, "Folie im Modus Loesen"
+    anderes = ("Werkstoffe im Bauwesen\nBeton druckfest\nStahl zugfest\nHolz leicht\nKennwerte = Festigkeit und "
+               "Steifigkeit der Baustoffe\nBeispiel-Statik für Testzwecke 5")
+    assert key(lib, mode="explain", datei=FOLIEN, seite=5, text=anderes) is None, "anderer Inhalt auf Seite 5 (neue Fassung)"
+    # eine Seite mit Aufgaben geht nie ueber diesen Weg (Blaetter gleichen sich im Wortlaut, nur die Zahlen aendern sich)
+    assert key(lib, mode="explain", datei=FOLIEN, seite=5, text="Aufgabe 2 (4 Punkte)\n" + S5) is None
+    # nur knapp die Haelfte der Begriffe der Seite steht im Abschnitt (Seite wurde stark erweitert): kein Treffer
+    assert key(lib, mode="explain", datei=FOLIEN, seite=5, text=S5 + "\n" + anderes.replace("Beispiel-Statik für Testzwecke 5", "")) is None
+
+
+def test_evidence_thresholds():
+    from app import wissensbank
+    assert (wissensbank.NACHWEIS_ANTEIL, wissensbank.NACHWEIS_BEGRIFFE, wissensbank.NACHWEIS_ABSTAND) == (0.6, 6, 0.15)
+    assert wissensbank._accept(0.8, 9, 0.5)
+    assert not wissensbank._accept(0.8, 9, 0.7), "eine andere Stelle passt fast so gut: kein Treffer"
+    assert not wissensbank._accept(0.55, 9, 0.0) and not wissensbank._accept(0.9, 5, 0.0)
+    assert (wissensbank.SCHWELLE_AUSSCHNITT, wissensbank.AUSSCHNITT_GEMEINSAM, wissensbank.MIN_BEGRIFFE, wissensbank.KURZ_AUFGABE) == (0.7, 12, 5, 25)
+    assert (wissensbank.NACHWEIS_ZAHLEN, wissensbank.NACHWEIS_ZAHLEN_BITS) == (0.6, 14.0)
+
+
+def test_task_without_task_text_by_title_number_terms_and_numbers(lib):
+    """Die Bibliothek hat zu Aufgabe 4 nur die Loesung. Treffer nur mit Dateititel, Aufgabennummer, den Begriffen und den
+    Zahlen der Aufgabe in ihrer Reihenfolge."""
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A4) == K_4
+    assert key(lib, mode="explain", datei=BLATT, seite=2, text=A4) == K_4.replace("steps:", "explain:")
+    from app import wissensbank
+    hit = wissensbank.match(lib, mode="steps", datei=BLATT, seite=2, text=A4)
+    assert "LOESUNG-4:" in wissensbank.answer_text(hit.unit, hit.sections)
+
+
+def test_same_file_name_in_two_semesters_numbers_decide(lib):
+    """Sorge des Inhabers: gleicher Dateiname, gleiche Aufgabe, andere Zahlen. Die Zahlen waehlen das Semester; passen
+    sie zu keinem, gibt es keinen Treffer."""
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A4_VORJAHR) == K_4_VORJAHR
+    neu = A4.replace("(4, 0, 7)", "(1, 0, 3)").replace("(9, 3, 8)", "(5, 2, 9)").replace("(6, 5, 2)", "(7, 4, 1)").replace("18 kN", "30 kN")
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=neu) is None, "neues Semester, neue Zahlen"
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A4.replace("18 kN", "19 kN")) is None, "eine Zahl anders"
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A4.replace("(9, 3, 8)", "(9, 8, 3)")) is None, "Zahlen vertauscht"
+
+
+def test_task_route_needs_readable_numbers_the_right_number_and_the_title(lib):
+    # Texterkennung hat die Zahlen nicht gelesen: kein Treffer (gleiche Aufgabe eines anderen Jahres saehe genauso aus)
+    ohne = re.sub(r"\(\d, \d, \d\)", "", A4).replace("18 kN", "")
+    assert "7" not in ohne.split("Punkte)")[1] and key(lib, mode="steps", datei=BLATT, seite=2, text=ohne) is None
+    # die Aufgabe steht unter einer anderen Nummer (verschoben) oder ohne Ueberschrift
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A4.replace("Aufgabe 4", "Aufgabe 2")) is None
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A4.replace("Aufgabe 4 (6 Punkte)\n", "")) is None
+    # anderer Dateititel, auch mit passendem Kurs
+    assert key(lib, mode="steps", datei="Blatt_neu.pdf", kurs=KURS_STATIK, seite=2, text=A4) is None
+    # andere Aufgabe unter der Nummer 4
+    andere = ("Aufgabe 4 (6 Punkte)\nEin Fachwerk mit den Knoten A = (4, 0, 7), B = (9, 3, 8) und C = (6, 5, 2) trägt im Knoten C "
+              "eine Kraft von 18 kN. Bestimmen Sie die Stabkräfte mit dem Knotenpunktverfahren und nennen Sie die Nullstäbe.")
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=andere) is None
+
+
+def test_number_evidence_weighs_digits():
+    from array import array
+
+    from app import wissensbank
+    seq = array("I", [hash(t) & 0xFFFFFFFF for t in "4 2 4 0 7 9 3 8 6 5 2 18 3 54".split()])
+    assert wissensbank.number_block("4 0 7 9 3 8 6 5 2 18".split(), seq)[0] == pytest.approx(31.6)
+    assert wissensbank.number_block("9 3 8 4 0 7".split(), seq)[0] == pytest.approx(9.0), "nur am Stueck"
+    assert wissensbank.number_bits("0") == 1.0 and wissensbank.number_bits("7") == 3.0 and wissensbank.number_bits("13.5") == pytest.approx(9.9)
+    words, nums, stream = wissensbank.terms(wissensbank.tokens("Aufgabe 4 (1+2 Punkte) am 02.11.2026: F = 18 kN, l = 4 m, Intervallen"), skip="4")
+    assert stream == ["18", "4"] and nums == {"18"} and "interv" in words
+
+
+def test_plain_aufgabentext_label_counts_as_task_text(lib):
+    """"Aufgabentext: ..." ohne Fettdruck (so steht es in vielen Einheiten) ist der Aufgabentext der Bibliothek: dann gilt
+    der strenge Wortlaut-Vergleich mit allen Zahlen."""
+    unit = lib.unit(STATIK, "G0002")
+    assert {s.sid: s.explicit for s in unit.sections}["02#Q1-Aufgabe-5"] is True
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A5) == K_5
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=A5.replace("250 kg", "300 kg")) is None
+    assert key(lib, mode="steps", datei="Blatt_neu.pdf", kurs=KURS_STATIK, seite=2, text=A5) == K_5, "Wortlaut traegt auch ueber den Kurs"
+
+
+def test_short_generic_task_text_only_with_its_number(lib):
+    """Derselbe kurze Satz steht in Aufgabe 6 und 7 mit verschiedenen Loesungen (gemessen an einer Aufgabensammlung).
+    Ohne die Nummer im angefragten Text gibt es keinen Treffer."""
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text=KURZ) is None
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text="Aufgabe 7\n" + KURZ) == K_7
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text="Aufgabe 6\n" + KURZ) == K_6
+    assert key(lib, mode="steps", datei=BLATT, seite=2, text="Aufgabe 9\n" + KURZ) is None
+    # ein langer, eindeutiger Aufgabentext braucht die Nummer nicht (Aufgabe unter neuer Nummer, gleicher Inhalt)
+    assert key(lib, mode="steps", datei=BLATT, seite=1, text="Aufgabe 9\n" + A1A) == K_1A
+
+
+def test_other_date_means_other_version():
+    from app import wissensbank
+    assert wissensbank.dates_of(wissensbank.normalize("Version vom 2026-10-13, Blatt vom 4. 11. 2024")) == {"2026-10-13", "4.11.2024"}
+
+
 # ================================================================== Ablauf im Dienst
 
 @pytest.fixture
@@ -416,6 +619,34 @@ def test_circled_area_with_image_is_answered_from_the_wissensbank_when_its_text_
     assert st == 200 and d["source"] == "ki" and fake.calls == 1, "kein Treffer: KI mit Bild wie bisher"
 
 
+def test_circled_part_of_a_slide_is_recognised_by_the_image(wb):
+    """Der Dienst erkennt den Ausschnitt am Bild (oder am Feld `ausschnitt`): Ein eingekreister Teil einer Folie trifft
+    dann ueber das Enthaltensein; derselbe Text ohne Bild gilt als ganze Seite und trifft nicht."""
+    import base64
+    app, fake = wb
+    jpeg = base64.b64encode(b"\xff\xd8\xff\xe0" + b"\x00" * 64).decode()
+    u, h = user(app, "luh-ausschnitt@beispiel.de", plan="pro_ai")
+
+    def frage(**extra):
+        wbody = {"datei": "Statik_Folien_neu_v2.pdf", "kurs": KURS_STATIK, "seite": 2, "text": S2_HALB, **extra.pop("wb", {})}
+        body = {"task": "tutor:explain", "prompt": "SEITENTEXT:\n" + S2_HALB, "request_id": uuid.uuid4().hex, "wissensbank": wbody, **extra}
+        return _j(asgi_call(app, "POST", "/api/ai/relay", headers=h, body=json.dumps(body)))
+
+    st, d = frage()
+    assert st == 200 and d["source"] == "ki" and fake.calls == 1, "ohne Bild: ganze Seite, kein Treffer"
+    st, d = frage(image=jpeg)
+    assert st == 200 and d["source"] == "wissensbank" and d["wissensbank_key"] == K_S2 and fake.calls == 1
+    assert "ERKLAERUNG-SEITE-2" in d["answer"]
+    u2, h2 = user(app, "luh-ausschnitt2@beispiel.de", plan="pro_ai")
+    h = h2
+    st, d = frage(wb={"ausschnitt": True})
+    assert st == 200 and d["source"] == "wissensbank", "Feld der App (auch fuer markierten Text ohne Bild)"
+    u3, h3 = user(app, "luh-ausschnitt3@beispiel.de", plan="pro_ai")
+    h = h3
+    st, d = frage(image=jpeg, wb={"ausschnitt": False})
+    assert st == 200 and d["source"] == "ki", "das Feld geht vor"
+
+
 def test_university_of_the_account_counts_not_the_client(wb):
     app, fake = wb
     _u, h = user(app, "hsh@beispiel.de", plan="pro_ai", uni="hsh")
@@ -472,7 +703,7 @@ def test_fixture_is_invented_and_small():
     assert len(files) <= 10 and sum(p.stat().st_size for p in files) < 20_000
     kat = json.loads((FIXTURE / "katalog.json").read_text(encoding="utf-8"))
     assert "ERFUNDENES" in kat["hinweis"] and len(kat["faecher"]) == 2
-    assert sum(len(f["einheiten"]) for f in kat["faecher"]) == 3
+    assert sum(len(f["einheiten"]) for f in kat["faecher"]) == 4
 
 
 def test_open_questions_expire_after_seven_days(wb):
