@@ -85,6 +85,10 @@ final class EditorBridge: ObservableObject {
         objectMode = controller?.objects.isActive ?? false
     }
 
+    /// Objekte des Editors, in dem zuletzt gearbeitet wurde (geteilte Ansicht: Hauptdokument oder Dokument daneben).
+    /// Dort wirken Loeschen, Farbe und Schriftgroesse der Objektleiste (`EditorToolState.activeEditor`).
+    var selectionObjects: ObjectEditing? { controller?.activeEditor.objects }
+
     func undo() { controller?.undo() }
     func redo() { controller?.redo() }
     func fitWidth() { controller?.fitWidth() }
@@ -2186,11 +2190,11 @@ struct DocumentView: View {
 
     /// Gewaehltes Bild auf die aktuelle Seite
     private func insertPicked(_ image: UIImage?) {
-        guard let image, let c = bridge.controller, let key = c.currentPageKey else {
+        guard let image, let c = bridge.controller else {
             if image == nil { actionError = "Das Bild ließ sich nicht öffnen." }
             return
         }
-        Task { await c.objects.insertImage(image, on: key) }
+        Task { await c.insertPickedImage(image) }
     }
 
     private var pageInfo: some View {
@@ -3302,15 +3306,15 @@ struct ObjectToolbar: View {
         HStack(spacing: 6) {
             Menu {
                 ForEach(colors, id: \.0) { c in
-                    Button(c.1) { bridge.controller?.objects.recolorSelection(c.0) }
+                    Button(c.1) { bridge.selectionObjects?.recolorSelection(c.0) }
                 }
             } label: { Image(systemName: "paintpalette").frame(width: 30, height: 30) }
                 .accessibilityLabel("Farbe")
-            Button { bridge.controller?.objects.resizeText(by: -2) } label: { Image(systemName: "textformat.size.smaller").frame(width: 30, height: 30) }
+            Button { bridge.selectionObjects?.resizeText(by: -2) } label: { Image(systemName: "textformat.size.smaller").frame(width: 30, height: 30) }
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
-            Button { bridge.controller?.objects.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
+            Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
-            Button(role: .destructive) { bridge.controller?.objects.deleteSelection() } label: {
+            Button(role: .destructive) { bridge.selectionObjects?.deleteSelection() } label: {
                 Image(systemName: "trash").frame(width: 30, height: 30)
             }
             .disabled(bridge.objectSelection == 0).accessibilityLabel("Auswahl löschen")
@@ -3546,7 +3550,17 @@ struct PDFEditorView: UIViewControllerRepresentable {
             bridge?.pageIndex = i
             bridge?.pageKey = key
         }
-        vc.objects.onSelectionChange = { [weak bridge] n in bridge?.objectSelection = n }
+        // Geteilte Ansicht: Die Objektleiste des Hauptdokuments gilt fuer den Editor, in dem gearbeitet wird - sie zeigt
+        // darum dessen Auswahl (`EditorToolState.selectionChanged`), auch die im Dokument daneben
+        if ownsToolPicker {
+            vc.objects.onSelectionChange = { [weak vc] n in if let vc { vc.tools.selectionChanged(n, in: vc) } }
+            vc.tools.onActiveSelection = { [weak bridge] n in if let bridge, bridge.objectSelection != n { bridge.objectSelection = n } }
+        } else {
+            vc.objects.onSelectionChange = { [weak bridge, weak vc] n in
+                if let bridge, bridge.objectSelection != n { bridge.objectSelection = n }
+                if let vc { vc.tools.selectionChanged(n, in: vc) }
+            }
+        }
         vc.objects.onToolChange = { [weak bridge] t in bridge?.objectTool = t }
         vc.onObjectModeChange = { [weak bridge] on, t in
             if bridge?.objectMode != on { bridge?.objectMode = on }

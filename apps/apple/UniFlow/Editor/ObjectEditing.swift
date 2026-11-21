@@ -4,10 +4,17 @@ import UIKit
 import UniFlowCore
 
 /// Objekt-Werkzeuge im Editor (Editor-Schritt 6, P1-4 bis P1-7): Werkzeugmodus "Objekte" neben der Tinte. Die Canvas
-/// nimmt dann keine Eingabe an; Antippen waehlt aus oder legt an, Ziehen verschiebt, zwei Finger aendern die Groesse,
-/// doppelt Antippen bearbeitet Text (mit dem Pencil per Scribble), das Lasso waehlt mehrere Objekte. Felder und
-/// Regeln wie im Web-Editor (`PageObjectEdit`); gespeichert ueber `DocumentStore.editObjects`, Rueckgaengig ueber den
-/// Verlauf des Dokuments.
+/// nimmt dann keine Eingabe an; Antippen waehlt aus oder legt an, Ziehen verschiebt, die Anfasser an den Ecken des
+/// Rahmens oder zwei Finger aendern die Groesse, doppelt Antippen bearbeitet Text (mit dem Pencil per Scribble), das
+/// Lasso waehlt mehrere Objekte. Felder und Regeln wie im Web-Editor (`PageObjectEdit`); gespeichert ueber
+/// `DocumentStore.editObjects`, Rueckgaengig ueber den Verlauf des Dokuments.
+///
+/// Meldung des Inhabers am iPad (21.11.2026): Ein Bild lasse sich "verschieben, aber nicht kleiner machen", es
+/// "verschwindet", und "wenn man das zieht, ist außen ein blauer Kasten, der verzerrt mitgeht". Nachgestellt
+/// (`BildGroesseTests`): Groesse ging nur mit zwei Fingern, und dabei zoomte die Seite statt des Bildes; ein ueber den
+/// Seitenrand gezogenes Bild blieb ausserhalb der Seite; der Rahmen lief dem Bild mit einer Viertelsekunde Nachlauf
+/// hinterher (stille Animation von Core Animation). Seither: Anfasser an den Ecken, Vorschau am Bild selbst, alles bleibt
+/// auf der Seite, Rahmen ohne Nachlauf.
 @MainActor
 final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDelegate {
     enum Tool: String, CaseIterable {
@@ -66,6 +73,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// PDF-Text ist ausgewaehlt (Leiste zeigt Markieren/Unterstreichen/Durchstreichen)
     var onTextSelection: ((Bool) -> Void)?
     private var selectionObserver: NSObjectProtocol?
+    private var scaleObserver: NSObjectProtocol?
     var color = "#e5322d"
     var lineWidth = 2.0
     /// Auswahl (eine Seite)
@@ -91,6 +99,15 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     private lazy var pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
     private let selectionLayer = CAShapeLayer()
     private let draftLayer = CAShapeLayer()
+    /// Anfasser an den vier Ecken des Auswahlrahmens: daran zieht ein Finger oder der Stift die Auswahl groesser und
+    /// kleiner (die Ecke gegenueber bleibt stehen)
+    private let handleLayers = (0..<4).map { _ in CAShapeLayer() }
+    /// Rechteck um die Auswahl in Seitenpunkten (Objekte und Handschrift); der Rahmen liegt `frameGap` weiter aussen
+    private(set) var selectionBox = CGRect.null
+    /// Laufendes Ziehen an der Auswahl
+    private var grab: Grab?
+    /// Waehrend eine Aenderung gespeichert wird (erst Objekte, dann Handschrift), bleibt der Rahmen der Vorschau stehen
+    var holdsFrame = false
     private var panStart: (overlay: PageInkView, point: CGPoint)?
     private var lassoPoints: [CGPoint] = []
     private var editing: (key: String, id: String, view: UITextView, isNew: Bool)?
@@ -104,6 +121,17 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             l.lineDashPattern = [4, 3]
             l.lineWidth = 1
         }
+        selectionLayer.name = "objects.selection"
+        for h in handleLayers {
+            h.name = "objects.handle"
+            h.fillColor = UIColor.white.cgColor
+            h.strokeColor = UIColor.systemBlue.cgColor
+        }
+        // Eigene Ebenen aendern Lage und Form sonst mit einer stillen Animation von einer Viertelsekunde: Der Rahmen lief
+        // dem Bild beim Ziehen hinterher und sprang beim Loslassen ("blauer Kasten, der verzerrt mitgeht")
+        let still = Dictionary(uniqueKeysWithValues: ["path", "transform", "position", "bounds", "lineWidth", "lineDashPattern",
+                                                      "hidden", "opacity"].map { ($0, NSNull() as CAAction) })
+        ([selectionLayer, draftLayer] + handleLayers).forEach { $0.actions = still }
         tap.require(toFail: doubleTap)
         [tap, doubleTap, pan, pinch].forEach { $0.delegate = self }
     }
@@ -128,10 +156,16 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                     self.onTextSelection?(self.tool == .markup && !(self.controller?.pdfView.currentSelection?.string ?? "").isEmpty)
                 }
             }
+            // Zoom der Seite: Strich des Rahmens und Anfasser bleiben auf dem Bildschirm gleich gross
+            scaleObserver = NotificationCenter.default.addObserver(forName: .PDFViewScaleChanged, object: c.pdfView, queue: .main) { [weak self] _ in
+                MainActor.assumeIsolated { self?.refreshFrame() }
+            }
         } else {
             if tool == .markup { tool = .select }
             if let o = selectionObserver { NotificationCenter.default.removeObserver(o) }
             selectionObserver = nil
+            if let o = scaleObserver { NotificationCenter.default.removeObserver(o) }
+            scaleObserver = nil
             onTextSelection?(false)
         }
     }
@@ -227,17 +261,35 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
         guard isActive, tool != .markup else { return false }
         if g === pan {
-            // Ziehen mit Form-, Lasso- oder Bereichswerkzeug, oder auf der Auswahl; sonst scrollt die Ansicht
+            // Ziehen mit Form-, Lasso- oder Bereichswerkzeug, oder auf der Auswahl bzw. an einem ihrer Anfasser; sonst
+            // scrollt die Ansicht
             if tool.shapeKind != nil || tool == .lasso || tool == .area { return true }
-            guard let key = selectedKey, let (v, p) = locate(g), v.pageKey == key else { return false }
-            return selectionLayer.path?.boundingBoxOfPath.insetBy(dx: -12, dy: -12).contains(p) == true
+            return grip(for: pan) != nil
         }
-        if g === pinch { return hasSelection }
+        if g === pinch {
+            // zwei Finger AUF der Auswahl aendern ihre Groesse; daneben zoomt die Seite wie immer
+            guard grab == nil, let overlay = selectionOverlay else { return false }
+            let reach = 30 / Self.screenScale(of: overlay)
+            return selectionBox.insetBy(dx: -reach, dy: -reach).contains(g.location(in: overlay.content))
+        }
         return true
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
         g === tap || g === doubleTap
+    }
+
+    /// Ziehen und die Zwei-Finger-Geste AUF der Auswahl gehoeren der Auswahl: Scrollen und Zoomen der Seite warten, bis
+    /// feststeht, dass die Geste ihr nicht gilt (`gestureRecognizerShouldBegin` sagt nein), und laufen dann wie immer.
+    /// Vorher gewann die Geste der Seite: mit zwei Fingern auf dem Bild zoomte die Seite, das Bild blieb, wie es war,
+    /// und in einer schmalen Spalte scrollte die Seite, statt das Bild zu verschieben (nachgestellt 21.11.2026). Gilt
+    /// nur im Objektmodus mit "Auswählen" (nur dann gibt es eine Auswahl); bei Formen, Lasso und Bereich bleibt alles wie
+    /// bisher, und ausserhalb des Objektmodus haengen diese Gesten gar nicht an der Ansicht.
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldBeRequiredToFailBy other: UIGestureRecognizer) -> Bool {
+        guard isActive, tool == .select, other.view is UIScrollView else { return false }
+        if g === pan { return other is UIPanGestureRecognizer }
+        if g === pinch { return other is UIPinchGestureRecognizer }
+        return false
     }
 
     @objc private func tapped(_ g: UITapGestureRecognizer) {
@@ -294,12 +346,32 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     @objc private func panned(_ g: UIPanGestureRecognizer) {
         switch g.state {
         case .began:
+            guard tool.shapeKind != nil || tool == .lasso || tool == .area else {
+                // Auswahl: verschieben oder an einer Ecke die Groesse aendern
+                guard let (overlay, kind) = grip(for: g) else { g.state = .cancelled; return }
+                beginGrab(kind, on: overlay)
+                return
+            }
             guard let (v, p) = locate(g) else { g.state = .cancelled; return }
             panStart = (v, p)
             lassoPoints = [p]
-            if tool.shapeKind != nil || tool == .lasso || tool == .area { v.content.layer.addSublayer(draftLayer) }
-            else { beginInkDrag(on: v) }
+            v.content.layer.addSublayer(draftLayer)
         case .changed:
+            if let gr = grab {
+                let t = g.translation(in: gr.overlay.content)
+                switch gr.kind {
+                case .move:
+                    preview(.move(Self.clampedOffset(gr.box, by: t, in: Self.page(of: gr.overlay))))
+                case .corner(let anchor, let corner):
+                    let wanted = Self.cornerFactor(anchor: anchor, corner: corner, translation: t)
+                    let limit = Self.anchoredLimit(gr.box, anchor: anchor, corner: corner, in: Self.page(of: gr.overlay))
+                    // ueber die Ecke gegenueber hinaus gezogen: so klein wie moeglich (die Grenze setzt `resized`)
+                    preview(.scale(max(0.001, min(wanted, limit)), anchor))
+                case .pinch:
+                    break
+                }
+                return
+            }
             guard let start = panStart else { return }
             let p = g.location(in: start.overlay.content)
             if let kind = tool.shapeKind {
@@ -320,13 +392,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 if shape.loop { path.addLines(between: lassoPoints) }
                 if !shape.rect.isNull { path.addRect(shape.rect) }
                 draftLayer.path = path
-            } else {
-                let d = g.translation(in: start.overlay.content)
-                selectionLayer.setAffineTransform(CGAffineTransform(translationX: d.x, y: d.y))
-                if let sel = selection { start.overlay.objectsView.previewMove(ids: sel.ids, by: d) }
-                inkDrag?.view.transform = CGAffineTransform(translationX: d.x, y: d.y)
             }
         case .ended:
+            if grab != nil { finishGrab(); return }
             guard let start = panStart else { return }
             panStart = nil
             draftLayer.removeFromSuperlayer()
@@ -360,43 +428,257 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                         select(key: key, ids: Set(ids), in: list, ink: ink)
                     }
                 }
-            } else if hasSelection {
-                selectionLayer.setAffineTransform(.identity)
-                let d = g.translation(in: start.overlay.content)
-                let moved = abs(d.x) + abs(d.y) > 0.5
-                if let sel = selection, !moved { start.overlay.objectsView.previewMove(ids: sel.ids, by: .zero) }
-                finishMove(dx: moved ? d.x : 0, dy: moved ? d.y : 0)
             }
         default:
-            if let sel = selection { panStart?.overlay.objectsView.previewMove(ids: sel.ids, by: .zero) }
-            cancelInkDrag()
+            cancelGrab()
             panStart = nil
             draftLayer.removeFromSuperlayer()
-            selectionLayer.setAffineTransform(.identity)
         }
     }
 
+    /// Zwei Finger auf der Auswahl: groesser und kleiner um ihre Mitte, mit Vorschau an den Objekten selbst
     @objc private func pinched(_ g: UIPinchGestureRecognizer) {
-        guard hasSelection else { return }
         switch g.state {
+        case .began:
+            guard grab == nil, let overlay = selectionOverlay else { g.state = .cancelled; return }
+            beginGrab(.pinch, on: overlay)
         case .changed:
-            let b = selectionLayer.path?.boundingBoxOfPath ?? .zero
-            selectionLayer.setAffineTransform(CGAffineTransform(translationX: b.minX, y: b.minY).scaledBy(x: g.scale, y: g.scale)
-                .translatedBy(x: -b.minX, y: -b.minY))
+            guard let gr = grab, case .pinch = gr.kind else { return }
+            preview(.scale(Double(g.scale), CGPoint(x: gr.box.midX, y: gr.box.midY)))
         case .ended:
-            selectionLayer.setAffineTransform(.identity)
-            let f = Double(g.scale)
-            guard abs(f - 1) > 0.02 else { return }
-            scaleSelection(by: f)
+            guard let gr = grab, case .pinch = gr.kind else { return }
+            finishGrab()
         default:
-            selectionLayer.setAffineTransform(.identity)
+            if let gr = grab, case .pinch = gr.kind { cancelGrab() }
         }
+    }
+
+    // MARK: Ziehen an der Auswahl (verschieben, Ecke, zwei Finger) mit Vorschau
+
+    /// Stand beim Aufsetzen und die zuletzt gezeigte Aenderung
+    private struct Grab {
+        enum Kind { case move, corner(anchor: CGPoint, corner: CGPoint), pinch }
+        let kind: Kind
+        let overlay: PageInkView
+        /// gezeigte Objekte der Seite beim Aufsetzen
+        let list: [JSONValue]
+        let ids: Set<String>
+        /// Rechteck um die ausgewaehlte Handschrift (`.null` ohne) und um die ganze Auswahl
+        let inkBox: CGRect
+        let box: CGRect
+        var change = Change.none
+    }
+
+    /// Aenderung an der Auswahl: Versatz, oder Faktor um einen festen Punkt (Seitenpunkte)
+    enum Change: Equatable { case none, move(CGPoint), scale(Double, CGPoint) }
+
+    /// Kleinste laengere Seite einer Auswahl nach dem Verkleinern (Seitenpunkte): bleibt greifbar
+    static let minimumSide: CGFloat = 24
+    /// Abstand des Rahmens von der Auswahl (Seitenpunkte)
+    static let frameGap: CGFloat = 4
+    /// Anfasser: sichtbarer Halbmesser und Halbmesser, in dem eine Beruehrung ihn trifft (Bildschirmpunkte)
+    static let handleRadius: CGFloat = 7
+    static let handleReach: CGFloat = 24
+
+    /// Seite der Auswahl, wenn sie gerade gezeigt wird
+    private var selectionOverlay: PageInkView? {
+        guard let key = selectedKey, !selectionBox.isNull, let overlay = controller?.boundOverlay(forKey: key), overlay.window != nil else { return nil }
+        return overlay
+    }
+
+    nonisolated static func page(of overlay: PageInkView) -> CGRect { CGRect(origin: .zero, size: overlay.geometry.pageSize) }
+
+    /// Bildschirmpunkte je Seitenpunkt (Zoom der Seite; in der schmalen Spalte daneben unter 1)
+    static func screenScale(of overlay: PageInkView) -> CGFloat {
+        let a = overlay.content.convert(CGPoint.zero, to: nil), b = overlay.content.convert(CGPoint(x: 100, y: 0), to: nil)
+        let s = hypot(b.x - a.x, b.y - a.y) / 100
+        return s.isFinite && s > 0.01 ? s : 1
+    }
+
+    /// Was eine Beruehrung an der Auswahl greift: einen Anfasser (Groesse) oder die Auswahl selbst (verschieben). Gemessen
+    /// wird, wo der Finger aufgesetzt hat, nicht wo er nach den ersten Punkten Weg steht.
+    private func grip(for g: UIPanGestureRecognizer) -> (PageInkView, Grab.Kind)? {
+        guard grab == nil, let overlay = selectionOverlay else { return nil }
+        let now = g.location(in: overlay.content), t = g.translation(in: overlay.content)
+        let p = CGPoint(x: now.x - t.x, y: now.y - t.y)
+        let s = Self.screenScale(of: overlay)
+        if controller?.writable == true, let c = Self.corner(at: p, of: selectionBox, reach: Self.handleReach / s) {
+            return (overlay, .corner(anchor: c.anchor, corner: c.corner))
+        }
+        let reach = Self.frameGap + 12
+        return selectionBox.insetBy(dx: -reach, dy: -reach).contains(p) ? (overlay, .move) : nil
+    }
+
+    /// Ecke der Auswahl unter einem Punkt (und die Ecke gegenueber, die beim Ziehen stehen bleibt). Ausserhalb der
+    /// Auswahl zaehlt der volle Umkreis des Anfassers, innen hoechstens ein Drittel der kuerzeren Seite - ein kleines
+    /// Objekt laesst sich so weiter in seiner Mitte greifen und verschieben.
+    nonisolated static func corner(at p: CGPoint, of box: CGRect, reach: CGFloat) -> (corner: CGPoint, anchor: CGPoint)? {
+        guard !box.isNull else { return nil }
+        let inner = min(reach, max(min(box.width, box.height) / 3, reach / 4))
+        let limit = box.contains(p) ? inner : reach
+        // die Anfasser sitzen auf den Ecken des Rahmens, gezogen wird die Ecke der Auswahl
+        let shown = corners(box.insetBy(dx: -frameGap, dy: -frameGap)), all = corners(box)
+        guard let i = shown.indices.min(by: { hypot(shown[$0].x - p.x, shown[$0].y - p.y) < hypot(shown[$1].x - p.x, shown[$1].y - p.y) }),
+              hypot(shown[i].x - p.x, shown[i].y - p.y) <= limit else { return nil }
+        return (all[i], all[(i + 2) % 4])
+    }
+
+    /// Ecken im Uhrzeigersinn ab links oben (die Ecke gegenueber steht zwei weiter)
+    nonisolated static func corners(_ r: CGRect) -> [CGPoint] {
+        [CGPoint(x: r.minX, y: r.minY), CGPoint(x: r.maxX, y: r.minY), CGPoint(x: r.maxX, y: r.maxY), CGPoint(x: r.minX, y: r.maxY)]
+    }
+
+    /// Faktor, wenn die Ecke `corner` um `translation` gezogen wird und `anchor` stehen bleibt: der Weg des Fingers
+    /// entlang der Diagonale (das Seitenverhaeltnis bleibt)
+    nonisolated static func cornerFactor(anchor: CGPoint, corner: CGPoint, translation t: CGPoint) -> Double {
+        let v = CGPoint(x: corner.x - anchor.x, y: corner.y - anchor.y)
+        let length = v.x * v.x + v.y * v.y
+        guard length > 1 else { return 1 }
+        return Double(((v.x + t.x) * v.x + (v.y + t.y) * v.y) / length)
+    }
+
+    /// Groesster Faktor, bei dem die Auswahl von `anchor` aus noch auf die Seite passt (mindestens 1)
+    nonisolated static func anchoredLimit(_ box: CGRect, anchor: CGPoint, corner: CGPoint, in page: CGRect) -> Double {
+        let roomX = corner.x >= anchor.x ? page.maxX - anchor.x : anchor.x - page.minX
+        let roomY = corner.y >= anchor.y ? page.maxY - anchor.y : anchor.y - page.minY
+        var limit = Double.infinity
+        if box.width > 0.5 { limit = min(limit, Double(roomX / box.width)) }
+        if box.height > 0.5 { limit = min(limit, Double(roomY / box.height)) }
+        return max(1, limit)
+    }
+
+    /// Versatz, mit dem `box` ganz auf der Seite bleibt (ist sie groesser als die Seite: mit dem die Seite bedeckt bleibt)
+    nonisolated static func clampedOffset(_ box: CGRect, by d: CGPoint, in page: CGRect) -> CGPoint {
+        guard !box.isNull else { return d }
+        func clamp(_ v: CGFloat, _ a: CGFloat, _ b: CGFloat) -> CGFloat { min(max(v, min(a, b)), max(a, b)) }
+        return CGPoint(x: clamp(d.x, page.minX - box.minX, page.maxX - box.maxX), y: clamp(d.y, page.minY - box.minY, page.maxY - box.maxY))
+    }
+
+    /// Rechteck um die Objekte mit diesen IDs (Seitenpunkte), `.null` ohne
+    nonisolated static func box(of list: [JSONValue], ids: Set<String>) -> CGRect {
+        var box = CGRect.null
+        for o in list where (o["id"]?.string).map(ids.contains) == true {
+            if let b = PageObjectEdit.bounds(o, textHeight: textHeight) {
+                box = box.union(CGRect(x: b.minX, y: b.minY, width: b.maxX - b.minX, height: b.maxY - b.minY))
+            }
+        }
+        return box
+    }
+
+    /// Objekte um `anchor` skalieren: Massstab wie `PageObjectEdit.scale` (Text: die Breite), dazu rueckt jedes Objekt so,
+    /// dass `anchor` stehen bleibt und mehrere Objekte ihre Lage zueinander behalten. Das Speicherformat bleibt.
+    nonisolated static func scaled(_ list: [JSONValue], ids: Set<String>, by f: Double, about anchor: CGPoint) -> [JSONValue] {
+        var out = PageObjectEdit.scale(list, ids: ids, factorX: f, factorY: f)
+        for o in list {
+            guard let id = o["id"]?.string, ids.contains(id) else { continue }
+            let dx = ((o["x"]?.double ?? 0) - Double(anchor.x)) * (f - 1), dy = ((o["y"]?.double ?? 0) - Double(anchor.y)) * (f - 1)
+            if abs(dx) > 0.004 || abs(dy) > 0.004 { out = PageObjectEdit.move(out, ids: [id], dx: dx, dy: dy) }
+        }
+        return out
+    }
+
+    /// Ergebnis einer Groessenaenderung: Faktor in den Grenzen, geaenderte Objekte, Rechteck danach und dieselbe
+    /// Abbildung fuer die Handschrift
+    struct Resized {
+        var factor: Double
+        var objects: [JSONValue]
+        var box: CGRect
+        var inkTransform: CGAffineTransform
+    }
+
+    /// Auswahl (Objekte `ids` aus `list`, Handschrift in `inkBox`) um `anchor` mit `wanted` skalieren. Grenzen: die
+    /// laengere Seite nie unter `minimumSide`, nie groesser als die Seite; danach rueckt die Auswahl, falls noetig, ganz auf
+    /// die Seite. Vorschau und Speichern rechnen beide hiermit - was man beim Ziehen sieht, wird gespeichert.
+    nonisolated static func resized(_ list: [JSONValue], ids: Set<String>, inkBox: CGRect, by wanted: Double, about anchor: CGPoint,
+                                    page: CGRect) -> Resized {
+        let before = box(of: list, ids: ids).union(inkBox)
+        guard !before.isNull, wanted.isFinite, wanted > 0 else { return Resized(factor: 1, objects: list, box: before, inkTransform: .identity) }
+        let longest = max(before.width, before.height)
+        let lower = longest > minimumSide ? Double(minimumSide / longest) : 1
+        var upper = Double.infinity
+        if before.width > 0.5 { upper = min(upper, Double(page.width / before.width)) }
+        if before.height > 0.5 { upper = min(upper, Double(page.height / before.height)) }
+        let f = min(max(wanted, lower), max(1, upper))
+        let scaledList = scaled(list, ids: ids, by: f, about: anchor)
+        let scale = scaleTransform(f, about: anchor)
+        var after = box(of: scaledList, ids: ids)
+        if !inkBox.isNull { after = after.union(inkBox.applying(scale)) }
+        var d = clampedOffset(after, by: .zero, in: page)
+        if abs(d.x) < 0.01 { d.x = 0 }
+        if abs(d.y) < 0.01 { d.y = 0 }
+        let objects = d == .zero ? scaledList : PageObjectEdit.move(scaledList, ids: ids, dx: Double(d.x), dy: Double(d.y))
+        return Resized(factor: f, objects: objects, box: after.offsetBy(dx: d.x, dy: d.y),
+                       inkTransform: scale.concatenating(CGAffineTransform(translationX: d.x, y: d.y)))
+    }
+
+    private func beginGrab(_ kind: Grab.Kind, on overlay: PageInkView) {
+        beginInkDrag(on: overlay)                           // ausgewaehlte Handschrift geht als Bild mit
+        let list = overlay.objectsView.shownObjects, ids = selection?.ids ?? []
+        let inkBox = inkDrag?.view.frame ?? .null
+        let box = Self.box(of: list, ids: ids).union(inkBox)
+        grab = Grab(kind: kind, overlay: overlay, list: list, ids: ids, inkBox: inkBox, box: box.isNull ? selectionBox : box)
+    }
+
+    /// Aenderung zeigen, ohne zu speichern: Objekte, Handschrift und Rahmen mit Anfassern im selben Schritt, ohne
+    /// Animation - der Rahmen liegt in jedem Bild auf der Auswahl.
+    private func preview(_ change: Change) {
+        guard var g = grab else { return }
+        g.change = change
+        grab = g
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        switch change {
+        case .none:
+            g.overlay.objectsView.previewMove(ids: g.ids, by: .zero)
+            g.overlay.objectsView.preview(nil)
+            inkDrag?.view.transform = .identity
+            showFrame(g.box, on: g.overlay)
+        case .move(let d):
+            g.overlay.objectsView.previewMove(ids: g.ids, by: d)
+            inkDrag?.view.transform = CGAffineTransform(translationX: d.x, y: d.y)
+            showFrame(g.box.offsetBy(dx: d.x, dy: d.y), on: g.overlay)
+        case .scale(let f, let anchor):
+            let r = Self.resized(g.list, ids: g.ids, inkBox: g.inkBox, by: f, about: anchor, page: Self.page(of: g.overlay))
+            g.overlay.objectsView.preview(r.objects.filter { ($0["id"]?.string).map(g.ids.contains) == true })
+            if let view = inkDrag?.view {
+                // die Ansicht dreht und skaliert um ihre Mitte: die Abbildung der Seite dorthin umrechnen
+                let c = CGPoint(x: g.inkBox.midX, y: g.inkBox.midY), to = c.applying(r.inkTransform)
+                view.transform = CGAffineTransform(a: r.inkTransform.a, b: r.inkTransform.b, c: r.inkTransform.c, d: r.inkTransform.d,
+                                                   tx: to.x - c.x, ty: to.y - c.y)
+            }
+            showFrame(r.box, on: g.overlay)
+        }
+        CATransaction.commit()
+    }
+
+    /// Loslassen: die zuletzt gezeigte Aenderung speichern (ein Rueckgaengig-Schritt)
+    private func finishGrab() {
+        guard let g = grab else { return }
+        grab = nil
+        switch g.change {
+        case .move(let d) where abs(d.x) + abs(d.y) > 0.5:
+            finishMove(dx: d.x, dy: d.y)
+        case .scale(let f, let anchor) where abs(f - 1) > 0.005:
+            scaleSelection(by: f, about: anchor)
+        default:
+            grab = g
+            cancelGrab()
+        }
+    }
+
+    /// Abgebrochen oder nichts geaendert: alles wie vor dem Aufsetzen
+    private func cancelGrab() {
+        guard grab != nil else { return }
+        preview(.none)
+        grab = nil
+        cancelInkDrag()
     }
 
     func setTool(_ t: Tool) {
+        let changed = tool != t
         tool = t
         onToolChange?(t)
-        controller?.objectToolChangedInternally(t)          // die feste Leiste zeigt das neue Werkzeug
+        controller?.objectToolChangedInternally(t, changed: changed)   // die feste Leiste zeigt das neue Werkzeug
     }
 
     private func rect(_ a: CGPoint, _ b: CGPoint) -> CGRect {
@@ -406,6 +688,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     // MARK: Auswahl
 
     func select(key: String, ids: Set<String>, in list: [JSONValue], ink: [Int] = []) {
+        cancelGrab()
+        // geteilte Ansicht: Wer etwas auswaehlt, arbeitet in diesem Editor (die Auswahl im anderen endet)
+        if !ids.isEmpty || !ink.isEmpty { controller?.becomeActiveEditor() }
         selection = ids.isEmpty ? nil : (key, ids)
         inkSelection = ink.isEmpty ? nil : (key, ink)
         drawSelection(list)
@@ -413,27 +698,58 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     func clearSelection() {
+        cancelGrab()
         selection = nil
         inkSelection = nil
-        selectionLayer.removeFromSuperlayer()
-        selectionLayer.path = nil
+        hideFrame()
         onSelectionChange?(0)
     }
 
     func drawSelection(_ list: [JSONValue]) {
-        guard let key = selectedKey, let overlay = controller?.boundOverlay(forKey: key) else { selectionLayer.removeFromSuperlayer(); return }
-        var box = CGRect.null
-        if let sel = selection {
-            for o in list where (o["id"]?.string).map(sel.ids.contains) == true {
-                if let b = PageObjectEdit.bounds(o, textHeight: Self.textHeight) {
-                    box = box.union(CGRect(x: b.minX, y: b.minY, width: b.maxX - b.minX, height: b.maxY - b.minY))
-                }
-            }
-        }
+        guard !holdsFrame else { return }
+        guard let key = selectedKey, let overlay = controller?.boundOverlay(forKey: key) else { hideFrame(); return }
+        var box = selection.map { Self.box(of: list, ids: $0.ids) } ?? .null
         if let ink = inkSelection, overlay.loaded { box = box.union(Self.bounds(of: ink.indices, in: overlay.canvas.drawing)) }
         guard !box.isNull else { clearSelection(); return }
-        selectionLayer.path = CGPath(rect: box.insetBy(dx: -4, dy: -4), transform: nil)
+        showFrame(box, on: overlay)
+    }
+
+    /// Rahmen und Anfasser um `box` (Seitenpunkte) zeigen. Strich und Anfasser sind auf dem Bildschirm immer gleich
+    /// gross, egal wie weit die Seite gezoomt ist (schmale Spalte daneben: unter 1-fach, hineingezoomt: mehrfach).
+    private func showFrame(_ box: CGRect, on overlay: PageInkView) {
+        selectionBox = box
+        let s = Self.screenScale(of: overlay)
+        let frame = box.insetBy(dx: -Self.frameGap, dy: -Self.frameGap)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        selectionLayer.path = CGPath(rect: frame, transform: nil)
+        selectionLayer.lineWidth = 1.5 / s
+        selectionLayer.lineDashPattern = [NSNumber(value: Double(5 / s)), NSNumber(value: Double(4 / s))]
         if selectionLayer.superlayer !== overlay.content.layer { overlay.content.layer.addSublayer(selectionLayer) }
+        let r = Self.handleRadius / s
+        let shown = controller?.writable == true
+        for (h, c) in zip(handleLayers, Self.corners(frame)) {
+            h.bounds = CGRect(x: 0, y: 0, width: 2 * r, height: 2 * r)
+            h.position = c
+            h.path = CGPath(ellipseIn: h.bounds, transform: nil)
+            h.lineWidth = 1.5 / s
+            h.isHidden = !shown
+            if h.superlayer !== overlay.content.layer { overlay.content.layer.addSublayer(h) }
+        }
+        CATransaction.commit()
+    }
+
+    private func hideFrame() {
+        selectionBox = .null
+        selectionLayer.removeFromSuperlayer()
+        selectionLayer.path = nil
+        handleLayers.forEach { $0.removeFromSuperlayer() }
+    }
+
+    /// Zoom der Seite hat sich geaendert: Rahmen und Anfasser in der neuen Groesse
+    private func refreshFrame() {
+        guard grab == nil, let overlay = selectionOverlay else { return }
+        showFrame(selectionBox, on: overlay)
     }
 
     // MARK: Aktionen auf der Auswahl (Leiste im Objektmodus)
@@ -529,12 +845,15 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     // MARK: Speichern mit Rueckgaengig
 
-    func commit(_ key: String, undoable: Bool = true, _ change: @escaping ([JSONValue]) -> [JSONValue]) async {
-        guard let c = controller, c.writable else { return }
-        guard let before = await c.store.editObjects(pageKey: key, change) else { return }
+    /// `true`, wenn sich etwas geaendert hat
+    @discardableResult
+    func commit(_ key: String, undoable: Bool = true, _ change: @escaping ([JSONValue]) -> [JSONValue]) async -> Bool {
+        guard let c = controller, c.writable else { return false }
+        guard let before = await c.store.editObjects(pageKey: key, change) else { return false }
         let after = await objects(key)
         if undoable { registerUndo(key: key, restore: before, then: after) }
         if let sel = selection, sel.key == key { drawSelection(after) }
+        return true
     }
 
     /// Rueckgaengig stellt `restore` her. Der Gegenschritt (Wiederholen: `then`) wird sofort im Handler angemeldet:

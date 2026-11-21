@@ -183,8 +183,10 @@ extension PDFEditorController {
     }
 
     @objc func deleteSelectedObjects(_ sender: Any?) {
-        guard acceptsEditorKeys, objects.selection != nil else { return }
-        objects.deleteSelection()
+        // geteilte Ansicht: die Auswahl kann im Dokument daneben liegen (`activeEditor`)
+        let target = activeEditor.objects
+        guard acceptsEditorKeys, target.selection != nil else { return }
+        target.deleteSelection()
     }
 
     @objc func finishObjectsKey(_ sender: Any?) {
@@ -192,7 +194,8 @@ extension PDFEditorController {
         // nur am Mac (Vorgabe 11.11.2026: am iPad bleibt alles wie in baddff02)
         if Self.isMac, presentationMode { onEndPresentation?(); return }
         guard acceptsEditorKeys, objects.isActive else { return }
-        if objects.selection != nil { objects.clearSelection() } else { finishObjectTools() }
+        let target = activeEditor.objects
+        if target.selection != nil { target.clearSelection() } else { finishObjectTools() }
     }
 
     /// Nicht, waehrend getippt wird (Textobjekt, Feld der KI-Hilfe), ein Blatt darueber liegt oder die Ansicht fixiert ist

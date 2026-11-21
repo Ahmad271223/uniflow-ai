@@ -1175,7 +1175,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
         if action == #selector(editorKey(_:)) { return acceptsEditorKeys }
         if let edit = canPerformEditAction(action) { return edit }
-        if action == #selector(deleteSelectedObjects(_:)) { return acceptsEditorKeys && objects.selection != nil }
+        if action == #selector(deleteSelectedObjects(_:)) { return acceptsEditorKeys && activeEditor.objects.selection != nil }
         if action == #selector(finishObjectsKey(_:)) { return (Self.isMac && presentationMode) || (acceptsEditorKeys && objects.isActive) }
         return super.canPerformAction(action, withSender: sender)
     }
@@ -1314,6 +1314,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         store.imagesInUse = { [weak self] in self?.imageSourcesInUse ?? [] }
         // Rechtsklick (Mac), Ziehen von Bildern hinein, Mauszeiger je Werkzeug (`EditorMouseSupport.swift`)
         mouseSupport.install(on: pdfView)
+        // geteilte Ansicht: Bilder und "Einfügen" gehen in den Editor, in dem zuletzt gearbeitet wurde (`ActiveEditor.swift`)
+        installActiveEditorMarker()
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -1354,6 +1356,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             for t in undoTargets.values { documentUndo.removeAllActions(withTarget: t) }
             undoTargets = [:]
             documentUndo.removeAllActions(withTarget: pageUndoTarget)
+            // ebenso die Schritte seiner Objekte (Bild eingefuegt, verschoben, Groesse geaendert), und Bilder gehen
+            // wieder ins Hauptdokument
+            documentUndo.removeAllActions(withTarget: objects)
+            resignActiveEditor()
         }
     }
 
@@ -2881,6 +2887,13 @@ extension PDFEditorController: UIPencilInteractionDelegate {
     ///   letzten Stift zurueck; "Bereich an KI" geht immer (schreibt nichts).
     /// - `initial`: beim Oeffnen steht die Leiste nie auf einem Objektwerkzeug.
     func toolsChanged(_ change: EditorToolState.Change, initial: Bool = false) {
+        if change == .reflected {
+            // Der Editor, der die Leiste fuehrt, hat das Objektwerkzeug selbst gewechselt (nach einem Text, nach dem
+            // Lasso). Er selbst hat schon alles getan; das Dokument daneben folgt, sonst griffe "Auswählen" dort erst
+            // nach erneutem Antippen in der Leiste.
+            if !ownsToolPicker, let object = tools.tool.objectTool { sideObjectTool(object) }
+            return
+        }
         // Wahl aus Leiste, Tastatur oder Apple Pencil: die schwebende Palette zeigt sie (kam sie aus der Palette, nicht)
         if ownsToolPicker, let f = floatingPalette, !f.isApplying { f.reflect() }
         noteStyles()
@@ -2903,7 +2916,7 @@ extension PDFEditorController: UIPencilInteractionDelegate {
 
     private func objectToolChosen(_ t: EditorToolState.Tool, tool: ObjectEditing.Tool) {
         setPaletteObjectToolActive(true)
-        guard ownsToolPicker else { return }                // andere Haelfte der geteilten Ansicht: nur nicht schreiben
+        guard ownsToolPicker else { sideObjectTool(tool); return }
         guard writable || tool == .area else {
             DispatchQueue.main.async { [weak self] in self?.tools.selectLastInk() }
             return
@@ -2922,10 +2935,28 @@ extension PDFEditorController: UIPencilInteractionDelegate {
         onObjectModeChange?(objects.isActive, objects.tool)
     }
 
+    /// Dokument daneben (andere Haelfte der geteilten Ansicht): "Auswählen" und das Lasso greifen auch hier - Bilder,
+    /// Text und Formen antippen, verschieben, Groesse aendern, loeschen (21.11.2026: ein Bild in der Notiz liess sich
+    /// nicht anfassen, es gab dort keinen Objektmodus). Bei den uebrigen Objektwerkzeugen (`sideObjectTools`) bleibt es
+    /// wie bisher: hier schreibt die Zeichenflaeche dann nur nicht. `nil`: ein Werkzeug der Zeichenflaeche ist gewaehlt.
+    private func sideObjectTool(_ tool: ObjectEditing.Tool?) {
+        let usable = tool.map { writable && Self.sideObjectTools.contains($0) } ?? false
+        if objects.isActive != usable { objects.setActive(usable) }
+        if usable, let tool, objects.tool != tool { objects.tool = tool }
+        // `setActive(false)` gibt die Zeichenflaechen frei: solange ein Objektwerkzeug gewaehlt ist, bleiben sie zu
+        if paletteObjectToolActive { allOverlays.forEach(applyOwnNotes) }
+        onObjectModeChange?(objects.isActive, objects.tool)
+    }
+
     /// Ein Werkzeug der Zeichenflaeche ist gewaehlt: Objektmodus aus
     private func leavePaletteObjectTool() {
+        guard ownsToolPicker else {
+            if objects.isActive { sideObjectTool(nil) }
+            setPaletteObjectToolActive(false)
+            return
+        }
         setPaletteObjectToolActive(false)
-        guard ownsToolPicker, objects.isActive else { return }
+        guard objects.isActive else { return }
         objects.setActive(false)
         onObjectModeChange?(false, objects.tool)
     }
@@ -2966,9 +2997,14 @@ extension PDFEditorController: UIPencilInteractionDelegate {
 
     /// Der Editor hat das Objektwerkzeug selbst gewechselt (nach dem Anlegen eines Textes, nach dem Lasso): die Leiste
     /// zeigt es
-    func objectToolChangedInternally(_ t: ObjectEditing.Tool) {
+    func objectToolChangedInternally(_ t: ObjectEditing.Tool, changed: Bool = true) {
         rememberObjectChoice(t)
-        if ownsToolPicker { tools.reflect(EditorToolState.Tool.forObject(t)) }
+        if ownsToolPicker {
+            tools.reflect(EditorToolState.Tool.forObject(t))
+        } else if changed {
+            // Dokument daneben (dort gibt es nur Antippen und Lasso): die Leiste und das Hauptdokument folgen
+            tools.select(EditorToolState.Tool.forObject(t))
+        }
         onObjectModeChange?(objects.isActive, t)
     }
 
