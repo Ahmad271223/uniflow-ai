@@ -59,6 +59,15 @@ KURS_ZUSCHLAG = 0.1                      # Suche ueber alle Einheiten des Kurses
 SEITE_JACCARD = 0.5                      # Folien: Seite und Folientext muessen sich auch insgesamt aehneln (Jaccard)
 MIN_GEMEINSAM = 8                        # mindestens so viele gemeinsame Shingles (Titelfolien u. a. treffen nie)
 MAX_ABSCHNITTE = 8                       # so viele Aufgaben einer Seite werden hoechstens zusammen geliefert
+# Stelle ueber Dateititel und Nummer (21.11.2026, `_anchored`): fuer Abschnitte, deren Wortlaut die Anfrage nicht traegt
+# (kein Folien-/Aufgabentext in der Bibliothek oder nur eine Kurzfassung). Werte gemessen an 223 echten Kursdateien.
+NACHWEIS_ANTEIL = 0.6                    # Anteil der Begriffe der Anfrage, die im Abschnitt stehen
+NACHWEIS_BEGRIFFE = 6                    # mindestens so viele gemeinsame Begriffe
+NACHWEIS_ABSTAND = 0.15                  # so viel besser als jeder andere Abschnitt derselben Einheiten
+NACHWEIS_ZAHLEN = 0.6                    # Aufgaben: Anteil der Zahlen der Anfrage, die im Abschnitt am Stueck stehen
+NACHWEIS_ZAHLEN_BITS = 14.0              # Aufgaben: Gewicht dieser Zahlenfolge (0/1 = 1, Ziffer = 3, sonst 3,3 je Ziffer)
+SCHWELLE_AUSSCHNITT = 0.7                # Ausschnitt einer Folie ("Bereich an KI"): Anteil des Ausschnitts im Folientext
+AUSSCHNITT_BEGRIFFE = 5                  # ein Ausschnitt braucht so viele Begriffe (Zahlenreihen allein treffen nie)
 MARKERS = ("KI-Lösung, ungeprüft", "unabhängig gelöst: ja", "nachgerechnet, nicht unabhängig gelöst")
 STATUS_TEXT = {"ungeprueft": "ungeprüft", "geprueft": "geprüft", "abgelehnt": "abgelehnt"}
 
@@ -103,10 +112,26 @@ _TOKEN = re.compile(r"\d+(?:\.\d+)*|[^\W\d_]+|[=+<>≤≥≠≈∫∑∏√∞�
 _DECIMAL = re.compile(r"(?<=\d),(?=\d)")
 
 
+# Textebene echter PDFs (gemessen am 21.11.2026 mit PDFKit an 740 Kursdateien): LaTeX-Dateien liefern Umlaute getrennt -
+# das Trema steht VOR dem Buchstaben, mit Leerzeichen oder Zeilenumbruch dazwischen ("f¨ ur", "Fakult¨at", "¨\nUbungsblatt");
+# NFKC macht aus "¨" ein Leerzeichen mit kombinierendem Trema. Selten steht es dahinter ("fu¨r").
+_TREMA_BEFORE = re.compile("[ \t]?\u0308[ \t]*\n?[ \t]*([aouAOU])")
+_TREMA_AFTER = re.compile("([aouAOU])[ \t]\u0308")
+_PRIVATE = re.compile("[\ue000-\uf8ff]")       # Teile grosser Klammern aus Formelschriften (Privatbereich)
+
+
+def _umlaut(m: re.Match) -> str:
+    return unicodedata.normalize("NFC", m.group(1) + "\u0308")
+
+
 def normalize(text: str) -> str:
-    """NFKC (x₁ -> x1, ² -> 2, Ligaturen), Silbentrennung am Zeilenende zusammenziehen, Kleinschreibung, Dezimalkomma ->
-    Punkt, Markdown-Zeichen weg. Ziffern und Formelzeichen bleiben."""
+    """NFKC (x₁ -> x1, ² -> 2, Ligaturen fi/fl, Formelbuchstaben), getrennte Umlaute zusammensetzen, Silbentrennung am
+    Zeilenende zusammenziehen, Kleinschreibung (ß -> ss), Dezimalkomma -> Punkt, Markdown-Zeichen weg. Ziffern und
+    Formelzeichen bleiben."""
     t = unicodedata.normalize("NFKC", str(text or ""))
+    t = _PRIVATE.sub(" ", t)
+    if "\u0308" in t:
+        t = _TREMA_AFTER.sub(_umlaut, _TREMA_BEFORE.sub(_umlaut, t))
     t = t.replace("­", "")
     t = _HYPHEN.sub(r"\1\2", t)
     t = t.casefold()
@@ -145,6 +170,93 @@ def number_shingles(toks: list[str], k: int = SHINGLE) -> dict[int, int]:
 def _missing(need: dict[int, int], have: dict[int, int]) -> int:
     """Wie viele Zaehlungen aus `need` in `have` fehlen (Multimengen)."""
     return sum(max(0, n - have.get(h, 0)) for h, n in need.items())
+
+
+# Woerter ohne Aussage fuer den Inhaltsnachweis: Funktionswoerter und die ueblichen Wendungen von Aufgabenblaettern
+_STOP = frozenset("""
+aber alle allen aller alles also auch auf aus bei beim bis bzw dabei dann dass dazu dem den denen der deren des dessen
+die dies diese diesem diesen dieser dieses doch dort durch eine einem einen einer eines sich sie sind wird werden wurde
+kann kann können soll sollen muss müssen hat haben ist war sein seine ihrer ihre ihren ihrem ihres für gegen gilt
+gelten hier hinweis hinweise jede jedem jeden jeder jedes jeweils mehr mit nach nicht noch nur oder ohne sowie über
+unter und vom von vor wenn wie wird wobei zwei zwischen zum zur zeigen bestimmen berechnen berechne bestimme geben
+gegeben gegebenen gesucht folgende folgenden folgender folgendes aufgabe aufgaben punkte punkt lösung lösungen seite
+seiten abbildung beispiel sowie dabei welche welcher welches siehe damit daher somit etwa lassen lässt sei seien
+""".split())
+_TASK_HEAD = re.compile(r"^[ \t]*[a-zäöü]{0,12}aufgabe[ \t]*([a-z]?[ \t]?\d+(?:[ \t]?[.\-][ \t]?\d+)*)", re.M)
+_TASK_WORD = re.compile(r"\baufgabe[ \t]*[a-z]?[ \t]?\d")
+_YEAR = re.compile(r"(19|20)\d\d")
+
+
+def task_label(raw: str) -> str | None:
+    """Aufgabennummer in einer Form: "1.2", "1 - 6" -> "1.6", "H 3" -> "h3" (Eingabe schon klein geschrieben)."""
+    t = re.sub(r"\s", "", str(raw or "")).replace("-", ".").strip(".")
+    return t or None
+
+
+def terms(toks: list[str], skip: str | None = None) -> tuple[set[str], set[str], list[str]]:
+    """(Begriffe, Zahlen, Zahlen in ihrer Reihenfolge) fuer den Inhaltsnachweis. Begriffe: Woerter ab 4 Buchstaben ohne
+    `_STOP`, auf 6 Buchstaben gekuerzt (Intervall, Intervalle, Intervallen sind derselbe Begriff). Zahlen: ab zwei
+    Ziffern oder mit Komma; die Reihenfolge enthaelt auch einzelne Ziffern (`P = (4, 7, 9)` -> 4, 7, 9). Nicht gezaehlt:
+    Jahreszahlen und Datumsangaben, Punktzahlen ("(60 Punkte)", "(1+2 Punkte)") und die Aufgabennummer `skip`."""
+    words: set[str] = set()
+    nums: set[str] = set()
+    stream: list[str] = []
+    points: set[int] = set()
+    for i, t in enumerate(toks):
+        if t.startswith("punkt"):
+            j = i - 1
+            while j >= 0 and (toks[j][0].isdigit() or toks[j] == "+") and i - j <= 5:
+                points.add(j)
+                j -= 1
+    skipped = False
+    for i, t in enumerate(toks):
+        if t[0].isdigit():
+            if i in points or t.count(".") >= 2 or _YEAR.fullmatch(t):
+                continue
+            if t == skip and not skipped:
+                skipped = True
+                continue
+            stream.append(t)
+            if len(t) >= 2:
+                nums.add(t)
+        elif len(t) >= 4 and t.isalpha() and t not in _STOP:
+            words.add(t[:6])
+    return words, nums, stream
+
+
+def number_bits(tok: str) -> float:
+    """Gewicht einer Zahl fuer den Zahlennachweis: 0 und 1 sagen wenig (Wahrheitstafeln), mehrstellige Zahlen viel."""
+    digits = tok.replace(".", "")
+    return 1.0 if tok in ("0", "1") else 3.0 if len(digits) == 1 else 3.3 * len(digits)
+
+
+def number_block(stream: list[str], seq: array) -> tuple[float, float]:
+    """(Gewicht der laengsten Zahlenfolge der Anfrage, die im Abschnitt AM STUECK steht; Gewicht aller Zahlen der
+    Anfrage). `P = (4, 7, 9), Q = (3, 8, 5)` steht in der Loesung derselben Aufgabe wieder so da; dieselbe Aufgabe mit
+    anderen Zahlen (anderes Semester) hat keine lange gemeinsame Folge."""
+    stream = stream[:150]
+    bits = [number_bits(t) for t in stream]
+    total = sum(bits)
+    if not stream or not len(seq):
+        return 0.0, total
+    q = [hash(t) & 0xFFFFFFFF for t in stream]
+    where: dict[int, list[int]] = {}
+    for j, h in enumerate(seq):
+        where.setdefault(h, []).append(j)
+    best = 0.0
+    prev: dict[int, float] = {}                   # Ende der Folge im Abschnitt -> Gewicht der Folge bis hier
+    for i, h in enumerate(q):
+        cur: dict[int, float] = {}
+        for j in where.get(h, ()):
+            cur[j] = prev.get(j - 1, 0.0) + bits[i]
+            if cur[j] > best:
+                best = cur[j]
+        prev = cur
+    return best, total
+
+
+def _hashes(items) -> array:
+    return array("I", sorted({hash(x) & 0xFFFFFFFF for x in items}))
 
 
 def norm_title(name: str) -> str:
@@ -252,8 +364,9 @@ def sources_of(quellen) -> list[Source]:
     return out
 
 
-_REF_LABEL = re.compile(r"^\s*\*{1,2}(Folientext|Folieninhalt|Aufgabentext|Aufgabenstellung|Aufgabe\b|Vorlage|Text der Seite|"
-                        r"Seitentext|Seite \d+[^*]*?(Folieninhalt|Aufgabentext|Folientext))[^*]*\*{0,2}[.:]?\s*", re.I)
+_REF_LABEL = re.compile(r"^\s*(?:\*{1,2}(Folientext|Folieninhalt|Aufgabentext|Aufgabenstellung|Aufgabe\b|Vorlage|Text der Seite|"
+                        r"Seitentext|Seite \d+[^*]*?(Folieninhalt|Aufgabentext|Folientext))[^*]*\*{0,2}[.:]?"
+                        r"|(?:Aufgabentext|Aufgabenstellung|Folientext)[ \t]*:)\s*", re.I)
 _LINK = re.compile(r"(?:identisch mit|entspricht|Erklärung (?:in|dort:?))\s+(?:komplett\s+)?(G\d{4})\b[^\n→]{0,40}?"
                    r"(?:\[?(Q\d+)\]?\s*)?(?:Seite|S\.|Folie)\s*(\d+)", re.I)
 
@@ -273,6 +386,11 @@ class Section:
     numsh: dict                  # Shingles mit Zahl und Anzahl (nur mit ausdruecklichem Text)
     link: tuple | None           # (Einheit, Q, Seite) bei "identisch mit G00xx Seite N"
     body_len: int
+    label: str | None = None     # Aufgabennummer ("1.2"), nur bei Aufgaben
+    words: array = field(default_factory=lambda: array("I"))   # Begriffe des ganzen Abschnitts (`terms`, gehasht)
+    bignums: frozenset = frozenset()                            # Zahlen des ganzen Abschnitts (`terms`)
+    numseq: array = field(default_factory=lambda: array("I"))   # Zahlen des ganzen Abschnitts in ihrer Reihenfolge (gehasht)
+    tasks: bool = False          # der Abschnitt nennt Aufgaben ("Aufgabe 2 ..."): Blatt, Klausur, Mitschrift einer Uebung
 
 
 @dataclass
@@ -354,9 +472,15 @@ def parse_unit(fach: str, entry: dict, root: Path) -> Unit:
             while sid in seen:
                 sid, n = f"{base}-{n}", n + 1
             seen.add(sid)
+            lab = _TASK_HEAD.search(normalize(label)) if kind == "aufgabe" else None
+            whole = tokens(h + "\n" + b)
+            words, bignums, stream = terms(whole)
+            tasky = kind == "aufgabe" or bool(_TASK_WORD.search(normalize(h + "\n" + b)))
             unit.sections.append(Section(sid, d, i, h, kind, q, page, explicit, shingles(toks), numbers(toks),
                                          number_shingles(toks) if explicit else {},
-                                         (lm.group(1), lm.group(2), int(lm.group(3))) if lm else None, len(b)))
+                                         (lm.group(1), lm.group(2), int(lm.group(3))) if lm else None, len(b),
+                                         task_label(lab.group(1)) if lab else None, _hashes(words), frozenset(bignums),
+                                         array("I", [hash(t) & 0xFFFFFFFF for t in stream]), tasky))
     # Quellen: Kopf der Dateien, sonst README (Tabelle "Quelle Q1 | titel ...")
     if not srcs:
         try:
@@ -485,7 +609,7 @@ def _overlap(q: array, qset: set, r: array) -> int:
 
 
 def score(q: array, qset: set, qnums: frozenset, sec: Section, *, strict: float = 0.0,
-          qnumsh: dict | None = None) -> tuple[float, float] | None:
+          qnumsh: dict | None = None, partial: bool = False) -> tuple[float, float] | None:
     """(Ueberlappung, Jaccard) oder None, wenn der Abschnitt nicht passt.
 
     Mit Folien-/Aufgabentext: |Q∩R| / min(|Q|, |R|) >= SCHWELLE (ganze Seite gegen Folie oder markierte Aufgabe gegen
@@ -493,14 +617,22 @@ def score(q: array, qset: set, qnums: frozenset, sec: Section, *, strict: float 
     gemeinsame Shingles. Zahlen (mit ausdruecklichem Text): Ist die Anfrage der kleinere Teil, muss jede Zahl der Anfrage
     mit ihren Nachbarwoertern im Abschnitt stehen, sonst jede Zahl des Abschnitts in der Anfrage - bei Aufgaben ohne
     Ausnahme, bei Folien darf jede zehnte fehlen (z. B. eine Fusszeile). Ohne ausdruecklichen Text: alle Zahlen der
-    Anfrage kommen im Abschnitt vor."""
+    Anfrage kommen im Abschnitt vor.
+
+    `partial` (Ausschnitt einer Folie, "Bereich an KI"): Die Anfrage ist nur ein Teil der Folie. Dann zaehlt, dass
+    SCHWELLE_AUSSCHNITT des Ausschnitts im Folientext steht; die Aehnlichkeit zur ganzen Folie (Jaccard) entfaellt.
+    Dass genau eine Stelle passt, prueft `match`."""
     if not len(q) or not len(sec.sh):
         return None
     common = _overlap(q, qset, sec.sh)
     if common < MIN_GEMEINSAM:
         return None
     small = min(len(q), len(sec.sh))
-    if sec.explicit:
+    part = partial and sec.kind == "seite" and sec.explicit
+    if part:
+        ov = common / len(q)
+        need = SCHWELLE_AUSSCHNITT + strict
+    elif sec.explicit:
         ov = common / small
         need = SCHWELLE + strict
     else:
@@ -518,7 +650,7 @@ def score(q: array, qset: set, qnums: frozenset, sec: Section, *, strict: float 
     if missing > allowed:
         return None
     jac = common / (len(q) + len(sec.sh) - common)
-    if sec.kind == "seite" and sec.explicit and jac < SEITE_JACCARD:
+    if sec.kind == "seite" and sec.explicit and jac < SEITE_JACCARD and not part:
         return None
     return ov, jac
 
@@ -543,9 +675,15 @@ def key_of(mode: str, unit: Unit, secs: list[Section]) -> str:
     return f"{mode}:{unit.fach}/{unit.uid}/" + "+".join(s.sid for s in secs)
 
 
-def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | None = None, text: str = "") -> Hit | None:
-    """Beste Stelle der Wissensbank fuer die Anfrage, oder None. Erst Einheiten, deren `quellen` den Dateititel nennen;
-    ohne Treffer alle Einheiten des Kurses (strenger)."""
+def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | None = None, text: str = "",
+          ausschnitt: bool = False) -> Hit | None:
+    """Beste Stelle der Wissensbank fuer die Anfrage, oder None. Erst Einheiten, deren `quellen` den Dateititel nennen
+    (Wortlaut, sonst `_anchored`: Dateititel + Nummer + Inhaltsnachweis); ohne Treffer alle Einheiten des Kurses (nur
+    Wortlaut, strenger).
+
+    `ausschnitt`: Der Text ist nur ein Teil der Seite ("Bereich an KI": erkannter Text eines eingekreisten Ausschnitts).
+    Fuer Folien gilt dann das Enthaltensein (`score(partial=True)`) und es muss genau eine Stelle passen; passen mehrere,
+    entscheidet die mitgeschickte PDF-Seite, sonst gibt es keinen Treffer."""
     kinds = MODES.get(mode)
     if not kinds or not text.strip():
         return None
@@ -554,6 +692,8 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
     if len(q) < MIN_GEMEINSAM:
         return None
     qset, qnums, qnumsh = set(q), numbers(toks), number_shingles(toks)
+    if ausschnitt and len(terms(toks)[0]) < AUSSCHNITT_BEGRIFFE:
+        ausschnitt = False                # nur Zahlen oder Formelzeichen: kein Ausschnitt, der eine Folie belegen kann
     title = norm_title(datei)
     by_title = sorted(lib.title_index().get(title, set())) if title else []
     rounds = [(by_title, 0.0, True)]
@@ -576,11 +716,23 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
                 if sec.link and not sec.explicit:
                     # "identisch mit G00xx Seite N": verglichen und geliefert wird die Stelle, auf die verwiesen wird
                     at, cand = _resolve(lib, unit, sec)
-                r = score(q, qset, qnums, cand, strict=strict, qnumsh=qnumsh)
+                r = score(q, qset, qnums, cand, strict=strict, qnumsh=qnumsh, partial=ausschnitt)
                 if r:
                     dist = abs((sec.page or 0) - seite) if (seite and sec.page) else 9999
                     found.append((r[0], r[1], dist, at, cand))
+        if ausschnitt:
+            pages = {id(f[4]): f for f in found if f[4].kind == "seite"}
+            if len(pages) > 1:
+                # derselbe Ausschnitt steht auf mehreren Folien (Aufbaustufen, Gliederung): nur die mitgeschickte Seite
+                exact = {id(f[4]) for f in pages.values() if f[2] == 0 and titled}
+                keep = exact if len(exact) == 1 else set()
+                found = [f for f in found if f[4].kind != "seite" or id(f[4]) in keep]
         if not found:
+            # der Wortlaut traegt nicht (kein Folien-/Aufgabentext in der Bibliothek, Formeln, Kurzfassung): Stelle ueber
+            # Dateititel und Seite bzw. Aufgabennummer, Inhalt ueber die Begriffe - nur mit bekanntem Dateititel
+            hit = _anchored(lib, units, title, mode, kinds, seite, text[:TEXT_MAX]) if titled else None
+            if hit is not None:
+                return hit
             continue
         # Folie/Seite vor Aufgabe beim Erklaeren; dann Jaccard (Animationsstufen), dann Naehe der Seitennummer
         pref = {k: i for i, k in enumerate(kinds)}
@@ -597,6 +749,131 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
             secs = [s0]
         return Hit(unit, secs, best[0], best[1], key_of(mode, unit, secs))
     return None
+
+
+# ---------------------------------------------------------------- Stelle ueber Dateititel und Nummer (21.11.2026)
+# Gemessen an den echten Kursdateien (PDFKit-Text, Vision-Text eingekreister Aufgaben): Der Wortlaut allein trifft selten,
+# weil die Bibliothek zu vielen Aufgaben nur die Loesung hat (kein Aufgabentext) oder die Vorlage in eigenen Worten
+# zusammenfasst, und weil Formeln in der Textebene anders aussehen. Sicher bleibt es so:
+#   1. Der Dateititel nennt die Einheit und die Quelle (wie bisher, `quellen`).
+#   2. Die Stelle ist eindeutig benannt: Seitennummer bzw. Aufgabennummer aus der Ueberschrift im angefragten Text.
+#   3. Inhaltsnachweis: mindestens NACHWEIS_BEGRIFFE Begriffe und NACHWEIS_ANTEIL der Begriffe der Anfrage stehen im
+#      Abschnitt, jede groessere Zahl der Anfrage ebenfalls, und kein anderer Abschnitt derselben Einheiten passt
+#      annaehernd so gut (NACHWEIS_ABSTAND). Steht derselbe Titel in mehreren Einheiten (Semestern), entscheidet der
+#      Inhalt; ohne klaren Sieger gibt es keinen Treffer.
+# Gleicher Dateiname mit anderem Inhalt, andere Aufgabe unter derselben Nummer, verschobene Nummern: kein Treffer.
+
+def _share(qwords: set, words: array) -> tuple[float, int]:
+    common = sum(1 for h in words if h in qwords)
+    return common / len(qwords), common
+
+
+def _anchored(lib: Library, units: list, title: str, mode: str, kinds: tuple, seite: int | None, text: str) -> Hit | None:
+    pool: list[tuple[Unit, Section, Unit, Section]] = []      # (Einheit, Abschnitt, geliefert wird: Einheit, Abschnitt)
+    for fach, uid in units:
+        unit = lib.unit(fach, uid)
+        if unit is None:
+            continue
+        allowed_q = {s.kurz for s in unit.sources if title in s.titles}
+        for sec in unit.sections:
+            if sec.kind not in kinds or (allowed_q and None not in allowed_q and sec.q and sec.q not in allowed_q):
+                continue
+            at, cand = _resolve(lib, unit, sec) if sec.link and not sec.explicit else (unit, sec)
+            pool.append((unit, sec, at, cand))
+    for kind in kinds:
+        found = _anchored_page(pool, seite, text) if kind == "seite" else _anchored_tasks(pool, text)
+        if found:
+            unit, secs, share = found
+            return Hit(unit, secs, share, 0.0, key_of(mode, unit, secs))
+    return None
+
+
+def _accept(share: float, common: int, other: float) -> bool:
+    return share >= NACHWEIS_ANTEIL and common >= NACHWEIS_BEGRIFFE and share - other >= NACHWEIS_ABSTAND
+
+
+def _anchored_page(pool: list, seite: int | None, text: str):
+    """Seite `seite` der Datei: der Abschnitt mit dieser Seitennummer, wenn die Begriffe der Seite dazu passen.
+    Nur fuer Folien und Skripte: Nennt die Anfrage oder der Abschnitt eine Aufgabe ("Aufgabe 2 ..."), gilt dieser Weg
+    nicht - Klausuren und Blaetter gleichen sich von Jahr zu Jahr im Wortlaut und unterscheiden sich nur in den Zahlen
+    (gemessen: derselbe Dateiname in mehreren Jahren); dafuer gibt es `_anchored_tasks` mit Zahlennachweis."""
+    if not seite or _TASK_WORD.search(normalize(text)):
+        return None
+    qw, qn, _stream = terms(tokens(text))
+    qh = set(_hashes(qw))
+    if len(qh) < NACHWEIS_BEGRIFFE:
+        return None
+    here: list[tuple[float, int, Unit, Section]] = []
+    other = 0.0
+    for _unit, sec, at, cand in pool:
+        if sec.kind != "seite" or cand.tasks:
+            continue
+        share, common = _share(qh, cand.words)
+        if sec.page == seite:
+            here.append((share, common, at, cand))
+        else:
+            other = max(other, share)
+    if not here:
+        return None
+    here.sort(key=lambda x: -x[0])
+    share, common, at, cand = here[0]
+    rivals = [x[0] for x in here[1:] if x[3] is not cand]      # dieselbe Seitennummer in einer anderen Einheit (Semester)
+    other = max([other] + rivals)
+    if qn - cand.bignums or not _accept(share, common, other):
+        return None
+    return at, [cand], share
+
+
+def _anchored_tasks(pool: list, text: str):
+    """Aufgaben mit Ueberschrift im angefragten Text ("Aufgabe 1.2 ..."): je Aufgabe der Abschnitt mit dieser Nummer,
+    wenn die Begriffe des Aufgabentexts (bis zur naechsten Ueberschrift) dazu passen UND die Zahlen der Aufgabe dort am
+    Stueck in derselben Reihenfolge stehen (`number_block`). Ohne Zahlen in der Anfrage gibt es hier keinen Treffer: Die
+    Texterkennung laesst Zahlen und Formeln oft weg, und gleiche Aufgaben mit anderen Zahlen (anderes Semester, gemessen
+    an den Kurzklausuren mehrerer Jahre) haben dieselben Begriffe."""
+    norm = normalize(text)
+    heads = list(_TASK_HEAD.finditer(norm))
+    tasks = [x for x in pool if x[1].kind == "aufgabe"]
+    if not heads or not tasks:
+        return None
+    chosen: list[tuple[float, Unit, list[Section]]] = []
+    for i, m in enumerate(heads[:2 * MAX_ABSCHNITTE]):
+        label = task_label(m.group(1))
+        seg = norm[m.start():heads[i + 1].start() if i + 1 < len(heads) else len(norm)]
+        qw, qn, stream = terms(tokens(seg), skip=label)
+        qh = set(_hashes(qw))
+        if len(qh) < NACHWEIS_BEGRIFFE or sum(number_bits(t) for t in stream) < NACHWEIS_ZAHLEN_BITS:
+            continue                                            # zu wenig Text oder zu wenige Zahlen zum Nachpruefen
+        groups: dict[tuple, list[tuple[Unit, Section]]] = {}   # je Einheit und Quelle: die Abschnitte mit dieser Nummer
+        other = 0.0
+        for unit, sec, at, cand in tasks:
+            if sec.label == label:
+                groups.setdefault((unit.fach, unit.uid, sec.q), []).append((at, cand))
+            else:
+                other = max(other, _share(qh, cand.words)[0])
+        scored = []
+        for members in groups.values():
+            words = {h for _at, c in members for h in c.words}
+            common = sum(1 for h in words if h in qh)
+            nums = frozenset().union(*(c.bignums for _at, c in members))
+            numbers_ok = not (qn - nums)
+            if numbers_ok:
+                block, total = max(number_block(stream, c.numseq) for _at, c in members)
+                numbers_ok = block >= NACHWEIS_ZAHLEN_BITS and block >= NACHWEIS_ZAHLEN * total
+            scored.append((common / len(qh), common, numbers_ok, members))
+        if not scored:
+            continue
+        scored.sort(key=lambda x: -x[0])
+        share, common, numbers_ok, members = scored[0]
+        ids = {id(c) for _at, c in members}
+        rivals = [x[0] for x in scored[1:] if {id(c) for _at, c in x[3]} != ids]
+        if numbers_ok and _accept(share, common, max([other] + rivals)):
+            chosen.append((share, members[0][0], [c for at, c in members if at is members[0][0]]))
+    if not chosen:
+        return None
+    chosen.sort(key=lambda x: -x[0])
+    unit = chosen[0][1]
+    secs = {id(c): c for _share_, at, cs in chosen if at is unit for c in cs}
+    return unit, sorted(secs.values(), key=lambda c: (c.datei, c.index))[:MAX_ABSCHNITTE], chosen[0][0]
 
 
 # ================================================================== Antworttext und Hinweise
@@ -924,8 +1201,11 @@ def plan(user: dict, task: str, body: dict) -> Plan | None:
         seite = int(wb.get("seite")) if wb.get("seite") not in (None, "") else None
     except (TypeError, ValueError):
         seite = None
+    # Ausschnitt ("Bereich an KI"): die App schickt dann ein Bild mit und als Text nur den im Ausschnitt erkannten Text;
+    # ein ausdrueckliches Feld `ausschnitt` (kuenftige App, auch fuer markierten Text) geht vor
+    part = wb.get("ausschnitt") if isinstance(wb.get("ausschnitt"), bool) else bool(body.get("image"))
     hit = match(lib, mode=mode, datei=str(wb.get("datei") or "")[:400], kurs=str(wb.get("kurs") or "")[:400], seite=seite,
-                text=str(wb.get("text") or "")[:TEXT_MAX])
+                text=str(wb.get("text") or "")[:TEXT_MAX], ausschnitt=part)
     if hit is None:
         return None
     conn = connect()
