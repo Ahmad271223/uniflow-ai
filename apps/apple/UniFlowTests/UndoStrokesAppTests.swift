@@ -462,6 +462,35 @@ final class UndoStrokesAppTests: XCTestCase {
         XCTAssertEqual(ids(erase.reverted(on: PKDrawing(strokes: [a, c]))), ids(PKDrawing(strokes: [a, b, c])))
     }
 
+    /// Ablauf vom iPad des Inhabers 21.11.2026: Das Lasso verschiebt EIN Stueck eines mit dem Pixel-Radierer geteilten
+    /// Strichs (beide Stuecke: dieselbe Bahn, Erstellzeit, Lage - nur der sichtbare Teil ist verschieden). "Zurueck"
+    /// verlor bis dahin das verschobene Stueck (247 -> 246 Striche), jedes weitere "vor/zurueck" wieder eines.
+    func testLassoMoveOfOnePieceOfAnErasedStrokeIsUndoneWithoutLosingIt() {
+        let whole = newStroke(1), other = newStroke(2)
+        func piece(_ x: CGFloat, _ w: CGFloat) -> PKStroke {
+            PKStroke(ink: whole.ink, path: whole.path, transform: whole.transform,
+                     mask: UIBezierPath(rect: CGRect(x: whole.renderBounds.minX + x, y: whole.renderBounds.minY - 5, width: w, height: whole.renderBounds.height + 10)))
+        }
+        let w = whole.renderBounds.width
+        let left = piece(0, w * 0.4), right = piece(w * 0.6, w * 0.4)
+        XCTAssertNotEqual(InkUndoStep.Identity(left), InkUndoStep.Identity(right), "zwei Stuecke desselben Strichs sind verschiedene Striche")
+        var moved = left
+        moved.transform = left.transform.translatedBy(x: 60, y: 30)
+        let before = PKDrawing(strokes: [left, right, other]), after = PKDrawing(strokes: [right, other, moved])
+        let step = InkUndoStep.between(before, after)
+        XCTAssertEqual(step.removed.count, 1); XCTAssertEqual(step.added.count, 1)
+        XCTAssertEqual(step.removed.first.map { InkUndoStep.Identity($0.stroke) }, InkUndoStep.Identity(left), "gemerkt ist das verschobene Stueck, nicht das liegengebliebene")
+        var d = after
+        for round in 1...3 {
+            d = step.reverted(on: d)
+            XCTAssertEqual(d.strokes.count, 3, "Runde \(round): zurueck verliert kein Stueck")
+            XCTAssertEqual(Set(d.strokes.map(InkUndoStep.Identity.init)), Set(before.strokes.map(InkUndoStep.Identity.init)), "Runde \(round): Stand wie vorher")
+            d = step.reapplied(on: d)
+            XCTAssertEqual(d.strokes.count, 3, "Runde \(round): vor verliert kein Stueck")
+            XCTAssertEqual(Set(d.strokes.map(InkUndoStep.Identity.init)), Set(after.strokes.map(InkUndoStep.Identity.init)), "Runde \(round): Stand wie nachher")
+        }
+    }
+
     func testHeldDurationFromPencilTimestamps() {
         let moving = (0..<50).map { RawPencilSample(location: CGPoint(x: CGFloat($0) * 2, y: 0), time: Double($0) / 240) }
         XCTAssertLessThan(RawStroke.heldDuration(moving, radius: 6) ?? 1, 0.03)

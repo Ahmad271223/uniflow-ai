@@ -32,6 +32,14 @@ struct InkUndoStep {
         let transform: [Double]
         let masked: Bool
         let width: Double
+        /// Welcher Teil des Strichs sichtbar ist (Maske: Rahmen und Abschnitte der Bahn). Der Pixel-Radierer teilt
+        /// einen Strich in Stuecke mit DERSELBEN Bahn, Erstellzeit und Lage - sie unterscheiden sich nur hierin.
+        ///
+        /// Ablauf vom iPad des Inhabers 21.11.2026 (`StiftSpur`): Lasso verschiebt 107 Striche, darunter EIN Stueck
+        /// eines radierten Strichs; "zurueck" machte aus 247 Strichen 246, das naechste "zurueck" 245. Ohne dieses Feld
+        /// galten das verschobene Stueck und das liegengebliebene als derselbe Strich: Der Schritt merkte sich das
+        /// falsche Stueck, und beim Zuruecklegen hiess es "ist schon da" - das verschobene Stueck war weg.
+        let visible: [Double]
 
         init(_ s: PKStroke) {
             created = s.path.creationDate.timeIntervalSinceReferenceDate
@@ -43,6 +51,12 @@ struct InkUndoStep {
             let t = s.transform
             transform = [t.a, t.b, t.c, t.d, t.tx, t.ty].map { Double($0) }
             masked = s.mask != nil
+            if let m = s.mask {
+                let b = m.bounds
+                visible = [b.minX, b.minY, b.width, b.height].map { Double($0) } + s.maskedPathRanges.flatMap { [Double($0.lowerBound), Double($0.upperBound)] }
+            } else {
+                visible = []
+            }
             width = s.path.count > 0 ? Double(s.path[0].size.width) : 0
         }
     }
