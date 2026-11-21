@@ -31,6 +31,25 @@ enum StiftZaehler {
         case neuLadenVerschoben
         /// 2 s nach dem Absetzen weniger Striche als erwartet (ohne Radieren, Rueckgaengig, Neuladen): Verlust
         case fehltNachAbsetzen
+        // Fehlersuche 21.11.2026 ("mit dem Lasso Verschobenes geht ab und zu von selber zurueck", "Schritt zurueck /
+        // vor laeuft nicht gut", "Schreiben wirkt wackelig"): im Simulator nicht nachzustellen, darum mitgezaehlt
+        /// Lasso oder Radierer aufgesetzt / abgesetzt (PencilKit meldet "Werkzeug an" / "aus" ohne Stift-Werkzeug)
+        case ohneStiftAn
+        case ohneStiftAus
+        /// Lasso oder Radierer hat die Zeichnung geaendert; davon, waehrend das Werkzeug noch auflag (wird erst beim
+        /// Absetzen gesichert)
+        case ohneStiftGeaendert
+        case ohneStiftGeaendertBeimAufliegen
+        /// Schritt zurueck / Schritt vor auf die Handschrift einer Seite angewendet
+        case rueckgaengig
+        case wiederholen
+        /// Seiten des offenen Dokuments neu aufgebaut (neue Seitenliste; alle Zeichenflaechen laden neu)
+        case seitenNeuAufgebaut
+        /// Zeichenflaeche bei starkem Zoom: Zoomstufe gewechselt / Ausschnitt verschoben beim Scrollen / Ausschnitt
+        /// verschoben bei stehender Seite (nach einem Strich, mit Deckbild)
+        case zoomstufeGewechselt
+        case ausschnittBeimScrollen
+        case ausschnittNachStrich
     }
 
     /// Zustand hinter einem Schloss (gezaehlt wird vom Hauptthread, geschrieben daneben)

@@ -695,6 +695,93 @@ final class EditorScaleTests: XCTestCase {
         m.finish()
     }
 
+    /// Meldung des Inhabers 20.11.2026 abends (Testfassung e337d759): "Scrollen mit dem Finger hakt". ECHTES Wischen mit
+    /// einem Finger (`TestFinger`, die Scroll-Ansicht von PDFKit scrollt und rollt aus) ueber volle Seiten (je 300
+    /// Striche) bei 100 %, 300 % und 600 %. Gemessen: Pausen des Hauptthreads, Abstand der Bilder (CADisplayLink) und
+    /// wie oft die Zeichenflaeche dabei umgebaut wurde. `TINTE_ALT=1`: Rueckfall ohne Ausschnitt zum Vergleich.
+    func testFingerScrollenHaktNicht() async throws {
+        try XCTSkipUnless(TestFinger.verfuegbar, "Beruehrung laesst sich in dieser iOS-Version nicht nachstellen")
+        let m = Messwerte("Finger-Scrollen")
+        let sharp = ProcessInfo.processInfo.environment["TINTE_ALT"] != "1"
+        PencilTuning.sharpInkWindow = sharp
+        defer { PencilTuning.sharpInkWindow = true }
+        m.text("Fassung", sharp ? "scharf ueber 4-fach (Ausschnitt)" : "Rueckfall: hoechstens 4-fach, ganze Seite")
+        let pages = 8
+        let fx = try await makeFixture(pdf: Skript.pdf(pages: pages, .schlicht), pageCount: pages)
+        let store = try await openStore(fx)
+        for i in 0..<pages { store.canvasChanged(pageKey: "p\(i + 1)", drawing: Handschrift.page(i, strokes: 300)) }
+        _ = await store.pageStructureDocument()
+        await store.flush()
+        let shown = show(store)
+        defer { hide(shown) }
+        let editor = shown.editor, window = shown.window
+        _ = try await waitForCanvas(editor, page: 0, strokes: 300, timeout: 30)
+        let scroll = try XCTUnwrap(scrollView(editor), "Scroll-Ansicht der PDFView")
+        let fit = editor.pdfView.scaleFactor
+        let main = Hauptthread()
+        main.start()
+        defer { main.stop() }
+        let takt = Bildtakt()
+        takt.start()
+        defer { takt.stop() }
+        let mid = CGPoint(x: window.bounds.midX, y: window.bounds.midY)
+        func drag(_ d: CGVector, steps: Int = 14) async throws {
+            let a = CGPoint(x: mid.x - d.dx / 2, y: mid.y - d.dy / 2)
+            let finger = TestFinger(at: a, in: window)
+            for i in 1...steps {
+                try await Task.sleep(nanoseconds: 16_000_000)
+                let t = CGFloat(i) / CGFloat(steps)
+                finger.move(to: CGPoint(x: a.x + d.dx * t, y: a.y + d.dy * t))
+            }
+            try await Task.sleep(nanoseconds: 16_000_000)
+            finger.lift()
+            try await Task.sleep(nanoseconds: 900_000_000)          // ausrollen
+        }
+        var worstGap = 0.0
+        for zoom in [CGFloat(1), 3, 6] {
+            editor.pdfView.scaleFactor = fit * zoom
+            try await Task.sleep(nanoseconds: 1_800_000_000)
+            _ = main.take()
+            _ = takt.take()
+            let moves0 = PageInkView.windowMoves, rescales0 = PageInkView.rescalesMade, covers0 = PageInkView.coversMade
+            let resizes0 = PageInkView.windowResizes
+            let start = scroll.contentOffset
+            var travelled: CGFloat = 0
+            var last = start
+            func track() { travelled += abs(scroll.contentOffset.y - last.y) + abs(scroll.contentOffset.x - last.x); last = scroll.contentOffset }
+            for _ in 0..<3 {
+                try await drag(CGVector(dx: 0, dy: -420)); track()
+                try await drag(CGVector(dx: 0, dy: -420)); track()
+                try await drag(CGVector(dx: 0, dy: 420)); track()
+                if zoom > 1 {
+                    try await drag(CGVector(dx: -300, dy: -200)); track()
+                    try await drag(CGVector(dx: 300, dy: 200)); track()
+                }
+            }
+            let name = "\(Int(zoom * 100)) %"
+            let frames = takt.take()
+            m.add("\(name): gescrollt", Double(travelled), "pt")
+            m.blocking("\(name): Hauptthread", main.take())
+            m.add("\(name): Bilder", Double(frames.count), "")
+            m.add("\(name): laengster Abstand zweier Bilder", frames.max * 1000, "ms")
+            m.add("\(name): Bilder mit Abstand ueber 25 ms", Double(frames.over25), "")
+            m.add("\(name): Bilder mit Abstand ueber 50 ms", Double(frames.over50), "")
+            m.add("\(name): Ausschnitt gewandert", Double(PageInkView.windowMoves - moves0), "mal")
+            m.add("\(name): dabei Groesse geaendert", Double(PageInkView.windowResizes - resizes0), "mal")
+            m.add("\(name): Zoomstufe gewechselt", Double(PageInkView.rescalesMade - rescales0), "mal")
+            m.add("\(name): Deckbilder", Double(PageInkView.coversMade - covers0), "")
+            if let o = installedOverlays(editor).first {
+                m.text("\(name): Zeichenflaeche", "Zoom \(o.canvas.zoomScale), Ausschnitt \(o.inkWindow), Seite \(o.geometry.pageSize)")
+            }
+            XCTAssertGreaterThan(travelled, 600, "\(name): der Finger hat gescrollt")
+            XCTAssertEqual(PageInkView.windowResizes - resizes0, 0, "\(name): beim Scrollen wird die Zeichenflaeche nur verschoben, nie neu aufgebaut")
+            worstGap = max(worstGap, frames.max)
+        }
+        m.add("laengster Abstand zweier Bilder insgesamt", worstGap * 1000, "ms")
+        await store.close()
+        m.finish()
+    }
+
     /// Rueckmeldung des Inhabers 21.11.2026 (Testfassung c9dcc5b9): "Beim Schreiben bewegt sich das auch gerade ab und zu,
     /// davor war das nie so". Echter Strich mit dem Finger (`TestFinger`, PencilKit zeichnet selbst) bei 100 %, 300 % und
     /// 600 %, jeweils nach kurzem Verschieben der Seite. Vor, waehrend und nach dem Strich in jedem Bild: vorhandene Tinte
@@ -1713,6 +1800,44 @@ final class Hauptthread {
     func stop() {
         task?.cancel()
         task = nil
+    }
+}
+
+/// Abstand der Bilder auf dem Bildschirm (CADisplayLink): Haelt der Hauptthread ein Bild auf, fehlt es hier.
+@MainActor
+final class Bildtakt: NSObject {
+    struct Summary {
+        var count = 0
+        var max = 0.0
+        var over25 = 0
+        var over50 = 0
+    }
+
+    private var link: CADisplayLink?
+    private var last: CFTimeInterval = 0
+    private var gaps: [Double] = []
+
+    func start() {
+        let l = CADisplayLink(target: self, selector: #selector(tick(_:)))
+        l.add(to: .main, forMode: .common)
+        link = l
+    }
+
+    @objc private func tick(_ l: CADisplayLink) {
+        let now = CACurrentMediaTime()
+        if last > 0 { gaps.append(now - last) }
+        last = now
+    }
+
+    func take() -> Summary {
+        let g = gaps
+        gaps = []
+        return Summary(count: g.count, max: g.max() ?? 0, over25: g.filter { $0 > 0.025 }.count, over50: g.filter { $0 > 0.05 }.count)
+    }
+
+    func stop() {
+        link?.invalidate()
+        link = nil
     }
 }
 

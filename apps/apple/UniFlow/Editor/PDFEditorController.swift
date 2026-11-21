@@ -352,7 +352,15 @@ final class PageInkView: UIView {
         if let f = foreignInk { Self.place(f, pageSize: geometry.pageSize, layout: l) }
         correctionView?.setZoom(l.zoom, window: l.window)
         guard zoomChanges || moves else { return }
-        if zoomChanges { Self.rescalesMade += 1 } else { Self.windowMoves += 1 }
+        if zoomChanges {
+            Self.rescalesMade += 1
+            StiftZaehler.bump(.zoomstufeGewechselt)
+        } else {
+            Self.windowMoves += 1
+            StiftZaehler.bump(coverMoves ? .ausschnittNachStrich : .ausschnittBeimScrollen)
+            let now = inkWindow
+            if abs(now.width - l.window.width) > 0.01 || abs(now.height - l.window.height) > 0.01 { Self.windowResizes += 1 }
+        }
         Self.place(canvas, pageSize: geometry.pageSize, layout: l)
     }
 
@@ -380,6 +388,8 @@ final class PageInkView: UIView {
 
     /// Messung (Tests): wie oft der Ausschnitt nur verschoben wurde (ohne Neuzeichnen der ganzen Seite)
     private(set) static var windowMoves = 0
+    /// Messung (Tests): wie oft sich dabei auch die Groesse des Ausschnitts geaendert hat (PencilKit baut dann neu auf)
+    private(set) static var windowResizes = 0
 
     /// Bis zu diesem Zoom zeigt die Canvas immer die ganze Seite, genau wie bis 1.0.7 (auch grosse Seiten wie A1/A0;
     /// sichtbar soll sich dort nichts aendern). Der Ausschnitt gilt nur darueber, wo es bisher nicht schaerfer ging.
@@ -389,19 +399,45 @@ final class PageInkView: UIView {
     /// passt: die ganze Seite (wie bisher). Sonst der sichtbare Teil `viewport` (Seitenpunkte) mit Rand `margin`; passt
     /// auch der nicht, eine Zoomstufe tiefer (bis `wholePageZoom`, dann wieder die ganze Seite wie bisher). nil: die
     /// ganze Seite ist zu gross und der sichtbare Teil unbekannt oder weit weg.
+    ///
+    /// Der Ausschnitt ist immer gleich gross, solange der sichtbare Teil gleich gross ist (`window(around:in:margin:keeping:)`).
     nonisolated static func inkLayout(pageSize size: CGSize, viewport: CGRect?, zoom wanted: CGFloat, screen: CGFloat,
-                                      budget: CGFloat = inkPixelBudget, margin: CGFloat = windowMargin) -> InkLayout? {
+                                      budget: CGFloat = inkPixelBudget, margin: CGFloat = windowMargin,
+                                      keeping size0: CGSize? = nil) -> InkLayout? {
         let page = CGRect(origin: .zero, size: size)
         func pixels(_ r: CGRect, _ z: CGFloat) -> CGFloat { r.width * r.height * z * z * screen * screen }
         let z0 = min(max(1, wanted.isFinite ? wanted : 1), maxCanvasZoom)
         if z0 <= wholePageZoom + 0.001 || pixels(page, z0) <= budget { return InkLayout(zoom: z0, window: page) }
-        guard let v = viewport, !v.isNull, v.width > 0, v.height > 0 else { return nil }
-        let near = v.insetBy(dx: -v.width * margin, dy: -v.height * margin).integral.intersection(page)
-        guard !near.isNull, near.width > 0, near.height > 0 else { return nil }
+        guard let v = viewport, !v.isNull, v.width > 0, v.height > 0,
+              let near = window(around: v, in: page, margin: margin, keeping: size0) else { return nil }
         var z = z0
         while z > wholePageZoom + 0.001, pixels(near, z) > budget { z = zoomSteps.last { $0 < z - 0.001 } ?? 1 }
         if z <= wholePageZoom + 0.001 || pixels(page, z) <= budget { return InkLayout(zoom: z, window: page) }
         return InkLayout(zoom: z, window: near)
+    }
+
+    /// Ausschnitt um den sichtbaren Teil `v` mit Rand, ganz auf der Seite. Seine GROESSE haengt nur von der Groesse des
+    /// sichtbaren Teils ab, nicht von seiner Lage: Am Seitenrand wird er auf die Seite geschoben statt beschnitten.
+    ///
+    /// Meldung des Inhabers 20.11.2026 abends (Testfassung e337d759): "Scrollen mit dem Finger hakt". Bis dahin war der
+    /// Ausschnitt der auf ganze Punkte gerundete, an der Seite beschnittene Bereich: Seine Groesse aenderte sich beim
+    /// Scrollen fast jedes Mal (Rundung um einen Punkt, am Seitenrand laufend). Jede neue Groesse baut die Zeichenflaeche
+    /// von PencilKit neu auf (gemessen mit echtem Wischen, `testFingerScrollenHaktNicht`: bei 300 % 50 Umbauten in 15
+    /// Wischern, Hauptthread dreimal so lang beschaeftigt wie ohne Ausschnitt). Jetzt wird beim Scrollen nur noch
+    /// verschoben, wie PencilKit selbst scrollt. `keeping`: bisherige Groesse; weicht die neue um hoechstens einen Punkt
+    /// ab (Rechengenauigkeit), bleibt die bisherige. nil: der sichtbare Teil mit Rand liegt nicht auf der Seite.
+    nonisolated static func window(around v: CGRect, in page: CGRect, margin: CGFloat, keeping: CGSize? = nil) -> CGRect? {
+        guard v.insetBy(dx: -v.width * margin, dy: -v.height * margin).intersects(page) else { return nil }
+        var w = min(page.width, (v.width * (1 + 2 * margin)).rounded(.up))
+        var h = min(page.height, (v.height * (1 + 2 * margin)).rounded(.up))
+        if let k = keeping, abs(k.width - w) <= 1, abs(k.height - h) <= 1, k.width <= page.width, k.height <= page.height {
+            w = k.width
+            h = k.height
+        }
+        guard w > 0, h > 0 else { return nil }
+        let x = min(max(page.minX, (v.midX - w / 2).rounded()), page.maxX - w)
+        let y = min(max(page.minY, (v.midY - h / 2).rounded()), page.maxY - h)
+        return CGRect(x: x, y: y, width: w, height: h)
     }
 
     /// Teil der Seite (Seitenpunkte), der gerade zu sehen sein kann: das Fenster, beschnitten von allen Vorfahren, die
@@ -428,7 +464,8 @@ final class PageInkView: UIView {
         guard let v = viewportInPage() else { return }
         if !layoutDeferred, Self.covers(inkLayout.window, needed(v)) { return }
         let zoom = layoutDeferred ? wantedZoom : min(wantedZoom, inkLayout.zoom)
-        guard let l = Self.inkLayout(pageSize: geometry.pageSize, viewport: v, zoom: zoom, screen: layoutScreen) else { return }
+        guard let l = Self.inkLayout(pageSize: geometry.pageSize, viewport: v, zoom: zoom, screen: layoutScreen,
+                                     keeping: layoutDeferred ? nil : inkLayout.window.size) else { return }
         layoutDeferred = false
         apply(l, coverMoves: false)
     }
@@ -1517,6 +1554,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Der Neuaufbau schreibt nie (alles ist schon im Store), nur offene Rueckgaengig-Schritte abschliessen
         for v in allOverlays where v.loaded { commitPendingUndo(v) }
         for v in allOverlays { keepPaletteFocus(leaving: v) }
+        if shownLayout != nil { StiftZaehler.bump(.seitenNeuAufgebaut) }
         live = [:]
         parked = []
         shownLayout = layout
@@ -1828,6 +1866,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schritt auf den jetzigen Stand der Seite anwenden: geladene Canvas sofort, sonst den gespeicherten Stand
     private func applyInk(_ step: InkUndoStep, key: String, undoing: Bool) {
         func change(_ d: PKDrawing) -> PKDrawing { undoing ? step.reverted(on: d) : step.reapplied(on: d) }
+        StiftZaehler.bump(undoing ? .rueckgaengig : .wiederholen)
         if let overlay = boundOverlay(forKey: key), overlay.loaded {
             setDrawing(change(overlay.canvas.drawing), forKey: key)
             return
@@ -1962,6 +2001,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             }
         } else {
             overlay.lastShrinkAllowed = CACurrentMediaTime()        // Radierer, Lasso: weniger Striche sind gewollt
+            StiftZaehler.bump(.ohneStiftGeaendert)
+            if overlay.isDrawing { StiftZaehler.bump(.ohneStiftGeaendertBeimAufliegen) }
         }
         // Stift liegt noch auf (Radierer, Lasso; beim Stift kommt die Meldung kurz vor dem Absetzen): einmal beim
         // Absetzen sichern statt bei jeder Zwischenmeldung (`PencilTuning.saveOnLift`)
@@ -1975,6 +2016,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidBeginUsingTool(_ canvasView: PKCanvasView) {
         // ein Absetzen, dessen Meldung noch aussteht, bleibt gemerkt (`PageInkView.lifts`)
         inkTrace?("Werkzeug an")
+        if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAn) }
         if !PencilTuning.liftBelongsToItsStroke { overlay(of: canvasView)?.lifts = [] }
         overlay(of: canvasView)?.reportedWhileDrawing = false
         overlay(of: canvasView)?.endTranslucentHole()            // der neue Strich muss ueberall zu sehen sein
@@ -1990,6 +2032,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     func canvasViewDidEndUsingTool(_ canvasView: PKCanvasView) {
         guard let overlay = overlay(of: canvasView) else { return }
         inkTrace?("Werkzeug aus")
+        if !(canvasView.tool is PKInkingTool) { StiftZaehler.bump(.ohneStiftAus) }
         overlay.isDrawing = false
         overlay.setRenderScale(currentRenderScale, screen: screenScale)     // ein Zoom waehrend des Strichs wird nachgeholt
         let lift = StrokeLift(samples: overlay.rawRecorder.take(), inking: canvasView.tool is PKInkingTool, ruler: canvasView.isRulerActive)
