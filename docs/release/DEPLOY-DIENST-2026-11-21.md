@@ -54,3 +54,10 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
    schickt dann nur den im Ausschnitt erkannten Text. Vorher: Python voll 4008 bestanden, 0 Fehler; Backup
    `uniflow-2026-11-21_1430.tar.gz`. Danach: Container healthy, `dienst-check.sh`: alle Prüfungen bestanden,
    Wissensbank aktiv. Zurück: Schritt 2 mit `55ac3f3f`.
+9. Drittes Update 20:50 auf `89cf11db` (Freigabe des Inhabers „Ja, ausrollen“): einzige Dienst-Änderung gegenüber
+   `bffe510f` ist `app/wissensbank.py` – Abgleich mit Text aus echten PDFs (getrennte Umlaute, eigener Weg für
+   eingekreiste Ausschnitte, Sperren gegen gleiche Aufgaben anderer Jahre); Messung in `docs/WISSENSBANK-STAND.md`.
+   Anlass: Am iPad kam auch mit Angaben der App („Anhang area, 299 Zeichen“) nie ein Treffer. Vorher: Python voll 4025
+   bestanden, 0 Fehler; Backup `uniflow-2026-11-21_2049.tar.gz`. Danach: Container healthy, `dienst-check.sh`: alle
+   Prüfungen bestanden, Wissensbank aktiv mit dem neuen Abgleich. Zurück: Schritt 2 mit `bffe510f`.
+
