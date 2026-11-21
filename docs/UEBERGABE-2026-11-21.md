@@ -77,3 +77,21 @@ stehen noch aus.**
   --domain-type appDataContainer --domain-identifier de.uniflow.ai --source "Library/Application
   Support/StiftSpur.txt" --destination <Datei>` (ebenso `StiftZaehler.json`).
 - Der Inhaber arbeitet in der KI-Hilfe über „Bereich an KI“ (Einkreisen), nicht über „Erklären“ zur ganzen Seite.
+
+## 5. Zwischenstand der beiden Helfer (beide angehalten, 15:30)
+
+- **Wissensbank-Abgleich:** `server/wissensbank` @ `894bcc1f` (`[WIP]`, nur `app/wissensbank.py`), Notiz
+  `~/Studora-Builds/fix-wissensbank-logs/STAND-PAUSE.md`, Messung unter `…/messung/`. **Nicht ausrollbar:** In den
+  Gegenproben des letzten Laufs zählt das Prüfskript 25 neue „falsch“, die noch nicht von Hand angesehen sind (im Lauf
+  davor waren 6 von 21 echte Falsch-Treffer, dagegen kamen zwei Sperren). Keine Tests für die neuen Regeln, Stand-Dokument
+  nicht nachgeführt. Gemessen mit PDFKit/Vision wie in der App (am Mac): Folien-Ausschnitt 15,7 % → 45,6 %, ganze Folie
+  20,7 % → 49,3 %, eingekreiste Aufgabe eines Übungsblatts 18,9 % → 20,7 %, Klausuraufgabe 1,3 % → 1,6 %. Hauptgrund bei
+  Aufgaben liegt in der Bibliothek: 6 927 von 11 252 Aufgaben-Abschnitten haben keinen Aufgabentext. „594/600“ vom
+  20.11. war mit dem Text der Bibliothek selbst gefragt. Vorschläge für die App: Feld `wissensbank.ausschnitt`,
+  Semester/Datum der Datei mitschicken (Schutz bei gleichem Dateinamen im nächsten Semester).
+- **Bild in der Notiz daneben:** `app/bild-in-notiz` @ `7f5d5726` (`[WIP]`, baut), Worktree `~/Studora-Builds/wt-bild-notiz`,
+  Notiz `~/Studora-Builds/fix-bild-logs/STAND-PAUSE.md`. Laut Bericht alle vier Punkte im Simulator nachgestellt und
+  behoben (aktiver Editor `EditorToolState.activeEditor`, Objektmodus „Auswählen“/Lasso auch im Dokument daneben, vier
+  Anfasser, Begrenzung auf die Seite). Abschlusslauf auf dem Endstand abgebrochen (61 grün, 0 rot; mehrere Klassen
+  fehlen). Nicht gemischt, nicht am iPad gezeigt.
+
