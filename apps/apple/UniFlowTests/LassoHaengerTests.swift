@@ -269,7 +269,15 @@ extension EditorStrichBleibtTests {
         let lage2 = lage(canvas.drawing)
         XCTAssertGreaterThan(lage2.y - lage1.y, 10, "Messaufbau: zweites Ziehen hat verschoben")
         try await beobachte("zweimal gezogen, Auswahl steht", sekunden: 1, soll: lage2)
+        let beendet0 = editor.inkSelectionsEnded
+        XCTAssertTrue(String(describing: type(of: UIResponder.uf_current as Any)).contains("Selection") || (UIResponder.uf_current as? UIView)?.isDescendant(of: canvas) == true,
+                      "Messaufbau: die Auswahl steht und haelt den Fokus")
         editor.undo()
+        // die Auswahl von PencilKit ist beendet (am Geraet blieb sie stehen und zeigte weiter ihr altes Bild), das
+        // Werkzeug ist weiter das Lasso, der Fokus liegt nicht mehr bei der Auswahl
+        XCTAssertEqual(editor.inkSelectionsEnded, beendet0 + 1, "Schritt zurueck beendet die stehende Auswahl")
+        XCTAssertTrue(canvas.tool is PKLassoTool, "Werkzeug bleibt das Lasso")
+        XCTAssertFalse(String(describing: type(of: UIResponder.uf_current as Any)).contains("SelectionView"), "die Auswahl haelt den Fokus nicht mehr")
         try await beobachte("zurueck bei stehender Auswahl", sekunden: 3, soll: lage1)
         editor.redo()
         try await beobachte("vor bei stehender Auswahl", sekunden: 3, soll: lage2)

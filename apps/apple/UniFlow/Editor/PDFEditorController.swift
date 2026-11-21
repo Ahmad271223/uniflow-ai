@@ -1802,6 +1802,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         if overlay.loaded { StiftZaehler.bump(.neuGeladen) }
         StiftSpur.log("Zeichnung aus dem Speicher gesetzt: geladen \(overlay.loaded), fremd \(remote), Striche \(overlay.canvas.drawing.strokes.count) -> \(next.strokes.count)")
         overlay.lastShrinkAllowed = CACurrentMediaTime()
+        if overlay.loaded { endInkSelection(on: overlay) }
         overlay.isApplyingDrawing = true
         overlay.canvas.drawing = next
         overlay.isApplyingDrawing = false
@@ -1912,6 +1913,44 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         allOverlays.first { $0.pageKey == key && $0.generation == shownLayoutVersion }
     }
 
+    /// Messung (Tests): wie oft eine stehende Lasso-Auswahl beendet wurde, bevor das Programm die Zeichnung setzte
+    private(set) var inkSelectionsEnded = 0
+
+    /// Stehende Lasso-Auswahl von PencilKit beenden, BEVOR das Programm die Zeichnung setzt (Schritt zurueck / vor,
+    /// neu geladener Stand, eigenes Lasso).
+    ///
+    /// Meldungen des Inhabers 21.11.2026 (iPad A16, Stift): "Den Zurueck-Pfeil kann man nach Lasso-Aenderungen nur
+    /// einmal benutzen" und "mit dem Lasso Verschobenes geht nach ein paar Sekunden ab und zu von selber zurueck".
+    /// Ablauf vom Geraet (`StiftSpur`): drei Mal verschoben, drei Mal "zurueck" - jeder Schritt wurde richtig auf die
+    /// Zeichnung angewendet (-48 +48, -49 +49, -50 +50), aber der Fokus blieb die ganze Zeit bei `PKSelectionView`:
+    /// Die Auswahl von PencilKit blieb stehen und zeigte weiter ihr eigenes Bild der Striche am verschobenen Platz,
+    /// ueber der schon zurueckgesetzten Zeichnung. Zu sehen war darum nichts ("geht nicht"), und sobald die Auswahl
+    /// spaeter verschwand (Tipp daneben, neues Einkreisen), sprang alles "von selbst" zurueck. Im Simulator endet die
+    /// Auswahl beim Setzen der Zeichnung von allein, darum war es dort nicht nachzustellen.
+    ///
+    /// PencilKit hat keinen Aufruf "Auswahl aufheben"; ein Werkzeugwechsel hebt sie auf (wie beim Antippen des
+    /// Stifts in der Leiste). Darum kurz ein anderes Werkzeug und sofort zurueck zum Lasso - solange die Zeichnung noch
+    /// der Stand der Auswahl ist, aendert das Aufheben nichts an ihr. Meldungen von PencilKit dabei zaehlen nicht als
+    /// Aenderung des Nutzers. Der Fokus geht zurueck an den Editor.
+    private func endInkSelection(on overlay: PageInkView) {
+        guard PencilTuning.endInkSelectionBeforeSettingDrawing, overlay.canvas.tool is PKLassoTool else { return }
+        let canvas = overlay.canvas
+        let focus = UIResponder.uf_current as? UIView
+        let held = focus.map { $0 !== canvas && $0.isDescendant(of: canvas) } ?? false
+        let lasso = canvas.tool
+        let was = overlay.isApplyingDrawing
+        overlay.isApplyingDrawing = true
+        canvas.tool = PKInkingTool(.pen, color: .black, width: 1)
+        canvas.tool = lasso
+        overlay.isApplyingDrawing = was
+        inkSelectionsEnded += 1
+        // haelt die Auswahl den Fokus noch, gibt sie ihn ab; der Anker uebernimmt (Tastenbefehle, Rueckgaengig)
+        if held, let f = UIResponder.uf_current as? UIView, f !== canvas, f.isDescendant(of: canvas) {
+            if ownsToolPicker, pickerWanted, anchor.window != nil { anchor.becomeFirstResponder() } else { f.resignFirstResponder() }
+        }
+        StiftSpur.log("Lasso-Auswahl beendet vor dem Setzen: Fokus vorher \(focus.map { String(describing: type(of: $0)) } ?? "-"), nachher \(StiftSpur.focus)")
+    }
+
     /// Zeichnung einer Seite aus dem Verlauf setzen: auf der gebundenen Canvas oder, ohne Overlay, nur im Store
     /// (ein spaeter angelegtes Overlay laedt dann diesen Stand). Ist die Seite nicht im Bild, springt die Ansicht
     /// hin, damit man sieht, was zurueckgenommen wurde.
@@ -1920,6 +1959,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         if let overlay = boundOverlay(forKey: key) {
             if overlay.loaded {
                 overlay.lastShrinkAllowed = CACurrentMediaTime()            // Rueckgaengig/Wiederholen: weniger Striche sind gewollt
+                endInkSelection(on: overlay)
                 overlay.isApplyingDrawing = true
                 overlay.canvas.drawing = drawing
                 overlay.isApplyingDrawing = false
@@ -1940,6 +1980,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         StiftSpur.log("Handschrift ersetzt (eigenes Lasso, Einfuegen): \(before.strokes.count) -> \(after.strokes.count) Striche")
         if let overlay = boundOverlay(forKey: key), overlay.loaded {
             commitPendingUndo(overlay)
+            endInkSelection(on: overlay)
             overlay.isApplyingDrawing = true
             overlay.canvas.drawing = after
             overlay.isApplyingDrawing = false

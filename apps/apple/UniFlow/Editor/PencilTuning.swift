@@ -48,6 +48,11 @@ enum PencilTuning {
     /// lang die alten Kacheln an der neuen Stelle. Jetzt liegt dabei kurz ein Deckbild darueber
     /// (`PageInkView.coverWhileRedrawing`). `false`: ohne, wie c9dcc5b9 (Gegenprobe in der Aufnahme).
     static var coverWindowMoves = true
+    /// Meldung des Inhabers 21.11.2026 ("Zurueck-Pfeil geht nach Lasso-Aenderungen nur einmal", "Verschobenes geht von
+    /// selber zurueck"): Eine stehende Lasso-Auswahl von PencilKit wird beendet, bevor das Programm die Zeichnung setzt
+    /// (`PDFEditorController.endInkSelection`). `false`: wie bis dahin - die Auswahl bleibt stehen und zeigt am Geraet
+    /// weiter ihr altes Bild (Gegenprobe im Test).
+    static var endInkSelectionBeforeSettingDrawing = true
     /// Scharfe Tinte ueber 4-fachem Zoom (de82ea35: Zeichenflaeche bis 10-fach, dann nur der sichtbare Ausschnitt).
     /// `false`: wie vor de82ea35 - hoechstens 4-fach, immer die ganze Seite (bei 600 % zeigt der Bildschirm die Tinte dann
     /// rund doppelt vergroessert, weicher). Rueckfall, falls die Tinte beim Zoomen auf dem Geraet doch verrutscht.
