@@ -10,11 +10,33 @@ import Foundation
 /// - `POST /api/modules/{id}/exam-generator/offer` {file_ids} -> Stand beim Dienst (Preis, je Probeklausur fertig/gekauft)
 /// - `POST /api/modules/{id}/exam-generator/buy` {file_ids, count} -> gekauft; schickt die Seitentexte nur bei Bedarf
 /// - `POST /api/modules/{id}/exam-generator/collect` {file_ids} -> fertige, gekaufte PDFs ins Modul legen
+/// - `POST /api/exam-generator/collect` -> alles Gekaufte des Kontos abholen, ohne Auswahl (22.11.2026): eine
+///   Probeklausur war fertig und bezahlt, kam aber nie aufs iPad, weil nur das offene Kauf-Blatt abholte. Das Modul
+///   ergibt sich aus den Fingerabdruecken der Unterlagen (`moduleID(forFiles:)`).
 ///
 /// Nur ueber die StudiNow-KI des Kontos (auch wenn daneben ein eigenes ChatGPT verbunden ist); ohne sie 403
 /// `exam_generator_needs_service`.
+/// Nie zwei Abhol-Laeufe zugleich (Kauf-Blatt und Abholen von selbst): sonst laege dieselbe PDF doppelt im Ordner
+actor ExamShopGate {
+    static let shared = ExamShopGate()
+    private var busy = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func run<T: Sendable>(_ body: @Sendable () async throws -> T) async throws -> T {
+        while busy { await withCheckedContinuation { waiting.append($0) } }
+        busy = true
+        defer {
+            busy = false
+            if !waiting.isEmpty { waiting.removeFirst().resume() }
+        }
+        return try await body()
+    }
+}
+
 enum ExamGeneratorShop {
     static let folderName = "Probeklausuren"
+    /// die zwei PDFs je Probeklausur: Kennung beim Dienst und Zusatz im Titel
+    static let parts = [("aufgaben", "Aufgaben"), ("loesungen", "Lösungen")]
     static let needsService = "Der Klausur-Generator läuft über die StudiNow-KI. Melde dich dafür mit deinem StudiNow-Konto an (StudiNow Pro AI)."
 
     static func relay(_ ctx: LocalContext) throws -> StudiNowAI {
@@ -97,6 +119,59 @@ enum ExamGeneratorShop {
         }
     }
 
+    /// Modul einer Probeklausur aus den Fingerabdruecken ihrer Unterlagen: das Modul, in dem die meisten davon liegen
+    /// (aktive Kurse, wie die Auswahl). nil = keine der Unterlagen ist auf diesem Geraet einem Modul zugeordnet.
+    static func moduleID(forFiles shas: [String], _ c: SQLiteConnection) throws -> Int64? {
+        let list = Array(Set(shas.map { $0.lowercased() }.filter { $0.count == 64 })).sorted().prefix(500)
+        guard !list.isEmpty else { return nil }
+        let marks = Array(repeating: "?", count: list.count).joined(separator: ",")
+        return try c.queryOne("""
+            SELECT c.module_id AS m, COUNT(DISTINCT lower(f.content_sha256)) AS n
+            FROM files f JOIN courses c ON c.id=f.course_id JOIN modules mo ON mo.id=c.module_id
+            WHERE c.active=1 AND f.deleted_at IS NULL AND lower(f.content_sha256) IN (\(marks))
+            GROUP BY c.module_id ORDER BY n DESC, m LIMIT 1
+            """, list.map { .text($0) })?["m"]?.int64
+    }
+
+    /// Alles Gekaufte des Kontos abholen, das noch nie auf diesem Geraet lag (`GET /api/exam-shop/mine`). Was schon
+    /// einmal abgelegt war, bleibt in Ruhe, auch wenn es inzwischen geloescht ist: sonst kaeme eine bewusst geloeschte
+    /// Probeklausur bei jedem Start wieder (wiederholen geht ueber das Kauf-Blatt, „Fertige abholen“).
+    /// `added` nennt je Datei Modul und Titel, `pending` zaehlt, was der Dienst noch erstellt, `unplaced`, was zu
+    /// keinem Modul dieses Geraets passt.
+    static func collectAll(_ ctx: LocalContext) async throws -> JSONValue {
+        let relay = try relay(ctx)
+        return try await ExamShopGate.shared.run { () async throws -> JSONValue in
+            let items = try await relay.json("GET", "/api/exam-shop/mine")["items"]?.array ?? []
+            let had = try await ctx.database.transaction { c -> Set<String> in
+                try ensureTable(c)
+                return Set(try c.query("SELECT key, which FROM exam_shop_saved").map { "\($0["key"]?.string ?? "")|\($0["which"]?.string ?? "")" })
+            }
+            var added: [JSONValue] = []
+            var unplaced = 0
+            for item in items where item["paid"]?.bool == true && item["status"]?.string == "ready" {
+                guard let key = item["key"]?.string else { continue }
+                let missing = parts.filter { !had.contains("\(key)|\($0.0)") }
+                guard !missing.isEmpty else { continue }
+                let shas = (item["files"]?.array ?? []).compactMap(\.string)
+                let place = try await ctx.database.withConnection { c -> (Int64, String)? in
+                    guard let m = try moduleID(forFiles: shas, c) else { return nil }
+                    return (m, try c.scalar("SELECT name FROM modules WHERE id=?", [.integer(m)])?.string ?? "")
+                }
+                guard let place else { unplaced += 1; continue }
+                let n = item["variant"]?.int ?? 0
+                for (which, label) in missing {
+                    let data = try await relay.download("/api/exam-shop/item/\(key)/pdf/\(which)")
+                    let title = "Probeklausur \(n) – \(label)"
+                    let fid = try await store(data, title: title, moduleID: place.0, key: key, which: which, ctx: ctx)
+                    added.append(["key": .string(key), "which": .string(which), "file_id": .string(fid), "variant": .number(Double(n)),
+                                  "title": .string(title), "module_id": .number(Double(place.0)), "module": .string(place.1)])
+                }
+            }
+            let pending = items.filter { ["pending", "running"].contains($0["status"]?.string ?? "") }.count
+            return ["added": .array(added), "pending": .number(Double(pending)), "unplaced": .number(Double(unplaced))]
+        }
+    }
+
     /// Antwort des Dienstes plus, was davon schon auf dem Geraet liegt
     static func withSaved(_ v: JSONValue, _ ctx: LocalContext) async throws -> JSONValue {
         guard var o = v.object else { return v }
@@ -172,22 +247,30 @@ extension ExamGeneratorEndpoints {
             let m = Int64(req.intParam("module_id"))
             let p = try await ExamGeneratorShop.picked(req, ctx)
             let v = try await relay.json("POST", "/api/exam-shop/offer", body: ["files": ExamGeneratorShop.filesJSON(p)])
-            let have = try await ExamGeneratorShop.saved(ctx)
-            var added: [JSONValue] = []
-            for item in v["variants"]?.array ?? [] where item["paid"]?.bool == true && item["status"]?.string == "ready" {
-                guard let key = item["key"]?.string else { continue }
-                let n = item["variant"]?.int ?? 0
-                for (which, label) in [("aufgaben", "Aufgaben"), ("loesungen", "Lösungen")] where have[key]?[which] == nil {
-                    let data = try await relay.download("/api/exam-shop/item/\(key)/pdf/\(which)")
-                    let fid = try await ExamGeneratorShop.store(data, title: "Probeklausur \(n) – \(label)", moduleID: m, key: key, which: which, ctx: ctx)
-                    added.append(["key": .string(key), "which": .string(which), "file_id": .string(fid), "variant": .number(Double(n))])
+            // hinter der Sperre: laeuft gerade das Abholen von selbst, liegt danach schon alles da
+            let added = try await ExamShopGate.shared.run { () async throws -> [JSONValue] in
+                let have = try await ExamGeneratorShop.saved(ctx)
+                var added: [JSONValue] = []
+                for item in v["variants"]?.array ?? [] where item["paid"]?.bool == true && item["status"]?.string == "ready" {
+                    guard let key = item["key"]?.string else { continue }
+                    let n = item["variant"]?.int ?? 0
+                    for (which, label) in ExamGeneratorShop.parts where have[key]?[which] == nil {
+                        let data = try await relay.download("/api/exam-shop/item/\(key)/pdf/\(which)")
+                        let fid = try await ExamGeneratorShop.store(data, title: "Probeklausur \(n) – \(label)", moduleID: m, key: key, which: which, ctx: ctx)
+                        added.append(["key": .string(key), "which": .string(which), "file_id": .string(fid), "variant": .number(Double(n))])
+                    }
                 }
+                return added
             }
             var out = try await ExamGeneratorShop.withSaved(v, ctx).object ?? [:]
             out["added"] = .array(added)
             out["pending"] = .number(Double((v["variants"]?.array ?? []).filter {
                 $0["owned"]?.bool == true && ["pending", "running"].contains($0["status"]?.string ?? "") }.count))
             return .json(.object(out))
+        }
+
+        router.post("/api/exam-generator/collect") { _, ctx in
+            return .json(try await ExamGeneratorShop.collectAll(ctx))
         }
     }
 }

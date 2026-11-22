@@ -138,12 +138,35 @@ def test_first_buyer_creates_everyone_else_buys_ready(hosted, fake):
     assert st == 409 and d["code"] == "needs_texts" and used(hosted, hb) == 30
 
 
+def test_mine_lists_bought_exams_of_the_account_only(hosted, fake):
+    """22.11.2026: das Geraet holt Gekauftes von selbst ab und braucht dafuer die Liste des Kontos ohne Auswahl."""
+    ua, ha = user(hosted, "pk-mine-a@beispiel.de", plan="pro_ai")
+    ub, hb = user(hosted, "pk-mine-b@beispiel.de", plan="pro_ai")
+    st, d = jcall(hosted, "GET", "/api/exam-shop/mine", ha)
+    assert st == 200 and d == {"items": []}
+
+    st, d = jcall(hosted, "POST", "/api/exam-shop/buy", ha, {"files": FILES, "count": 2, "texts": TEXTS, "wait_s": 30})
+    assert st == 200, d
+    st, m = jcall(hosted, "GET", "/api/exam-shop/mine", ha)
+    assert st == 200 and [(i["variant"], i["status"], i["paid"], i["title"]) for i in m["items"]] == \
+        [(1, "ready", True, "Probeklausur 1"), (2, "ready", True, "Probeklausur 2")], m
+    assert m["items"][0]["key"] == d["variants"][0]["key"] and m["items"][0]["set_key"] == d["set_key"]
+    assert m["items"][0]["files"] == sorted([SHA_VL, SHA_UB, SHA_AK]), "Fingerabdruecke der Unterlagen, sonst nichts"
+    assert "Folgen" not in json.dumps(m) and "doc_type" not in json.dumps(m)
+
+    # ein anderes Konto sieht davon nichts; ohne Pro AI gibt es die Liste nicht
+    assert jcall(hosted, "GET", "/api/exam-shop/mine", hb)[1] == {"items": []}
+    up, hp = user(hosted, "pk-mine-plus@beispiel.de", plan="plus")
+    assert call(hosted, "GET", "/api/exam-shop/mine", hp)[0] == 403
+
+
 def test_failure_costs_nothing_and_can_be_retried(hosted, fake):
     u, h = user(hosted, "pk-fehler@beispiel.de", plan="pro_ai")
     fake.fail_exam = True
     st, d = jcall(hosted, "POST", "/api/exam-shop/buy", h, {"files": FILES, "count": 1, "texts": TEXTS, "wait_s": 30})
     assert st == 200 and d["variants"][0]["status"] == "failed" and not d["variants"][0]["owned"], d
     assert used(hosted, h) == 0, "nichts berechnet"
+    assert jcall(hosted, "GET", "/api/exam-shop/mine", h)[1] == {"items": []}, "Gescheitertes steht nicht in der Liste"
     fake.fail_exam = False
     st, d = jcall(hosted, "POST", "/api/exam-shop/buy", h, {"files": FILES, "count": 1, "texts": TEXTS, "wait_s": 30})
     assert st == 200 and d["variants"][0]["status"] == "ready" and d["variants"][0]["paid"], d

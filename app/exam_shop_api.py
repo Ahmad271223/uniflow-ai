@@ -5,6 +5,8 @@
 - `POST /api/exam-shop/buy` {files, count, texts?, wait_s?} -> gekauft; `409 needs_texts`, wenn neue Probeklausuren
   erzeugt werden muessen und der Dienst die Seitentexte nicht hat; `429 credits_exhausted` wie ueberall
 - `GET /api/exam-shop/item/{key}/pdf/{aufgaben|loesungen}` -> PDF (nur gekauft und fertig)
+- `GET /api/exam-shop/mine` -> alle Probeklausuren des Kontos mit Stand und den Fingerabdruecken ihrer Unterlagen
+  (damit holt das Geraet Gekauftes von selbst ab)
 
 Nur Pro AI (Recht `can_use_ai_explanations`) und mit bestaetigter E-Mail-Adresse, wie die uebrige StudiNow-KI.
 """
@@ -56,6 +58,12 @@ async def offer(request: Request) -> dict:
     except exam_shop.ShopError as e:
         raise _err(e)
     return await run_in_threadpool(exam_shop.overview, uid, exam_shop.set_key_of(files))
+
+
+@router.get("/api/exam-shop/mine")
+async def mine(request: Request) -> dict:
+    uid = _user(request)
+    return await run_in_threadpool(exam_shop.mine, uid)
 
 
 @router.post("/api/exam-shop/buy")

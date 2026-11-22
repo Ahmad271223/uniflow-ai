@@ -24,6 +24,8 @@ final class ExamGeneratorShopTests: XCTestCase {
         var requests: [AIHTTPRequest] = []
         var hasTexts = false
         var paid = false
+        /// Antwort auf `GET /api/exam-shop/mine` (Abholen ohne Auswahl)
+        var mine: [JSONValue] = []
 
         func body(_ r: AIHTTPRequest) -> JSONValue { (try? JSONValue.parse(r.body ?? Data())) ?? .null }
 
@@ -45,6 +47,9 @@ final class ExamGeneratorShopTests: XCTestCase {
         func send(_ r: AIHTTPRequest) async throws -> ServiceHTTPResponse {
             lock.withLock { requests.append(r) }
             if r.url.hasSuffix("/api/exam-shop/offer") { return .init(status: 200, body: state().serialized()) }
+            if r.url.hasSuffix("/api/exam-shop/mine") {
+                return .init(status: 200, body: JSONValue.object(["items": .array(lock.withLock { mine })]).serialized())
+            }
             if r.url.hasSuffix("/api/exam-shop/buy") {
                 if body(r)["texts"] == nil && !hasTexts {
                     return .init(status: 409, body: Data(#"{"detail": {"detail": "Seitentexte", "code": "needs_texts"}}"#.utf8))
@@ -133,5 +138,92 @@ final class ExamGeneratorShopTests: XCTestCase {
         let b = try await backend(nil)
         let d = await post(b, "/api/modules/1/exam-generator/offer", ["file_ids": ["f-vl"]], status: 403)
         XCTAssertEqual(d["code"]?.string ?? d["detail"]?["code"]?.string, "exam_generator_needs_service")
+        let all = await post(b, "/api/exam-generator/collect", .object([:]), status: 403)
+        XCTAssertEqual(all["code"]?.string ?? all["detail"]?["code"]?.string, "exam_generator_needs_service")
+    }
+
+    // MARK: Abholen ohne Auswahl (22.11.2026: fertig und bezahlt, aber nie auf dem iPad angekommen)
+
+    private func mineItem(_ n: Int, set: Character = "2", status: String = "ready", paid: Bool = true, files: [String]) -> JSONValue {
+        let sk = String(repeating: set, count: 40)
+        let item: [String: JSONValue] = ["key": .string("pk-\(sk)-" + String(format: "%02d", n)), "set_key": .string(sk),
+                                         "variant": .number(Double(n)), "status": .string(status), "owned": true, "paid": .bool(paid),
+                                         "files": .array(files.map(JSONValue.string))]
+        return .object(item)
+    }
+
+    private func userFiles(_ b: LocalBackend) async throws -> [String] {
+        try await b.context.database.withConnection { c in
+            try c.query("""
+                SELECT f.title, d.name AS folder, d.module_id, f.deleted_at IS NOT NULL AS gone FROM files f JOIN folders d ON d.id=f.folder_id
+                WHERE f.course_id='__user__' ORDER BY d.module_id, f.title
+                """).map { "\($0["title"]?.string ?? "")|\($0["folder"]?.string ?? "")|\($0["module_id"]?.int ?? 0)|\($0["gone"]?.int ?? 0)" }
+        }
+    }
+
+    func testCollectAllPutsBoughtExamsIntoTheModuleOfTheirFilesWithoutASelection() async throws {
+        let shop = FakeShop()
+        let b = try await backend(shop)
+        let shaVL = String(repeating: "a", count: 64), shaUB = String(repeating: "b", count: 64), shaOther = String(repeating: "c", count: 64)
+        try await b.context.database.transaction { c in
+            try c.execute("INSERT INTO modules(id, name, color, sort) VALUES (2, 'Digitale Systeme', '#175ee8', 1)")
+            try c.execute("INSERT INTO courses(id, title, subject, kind, active, module_id, created_at) VALUES ('c2', 'GDS', 'GDS', 'vorlesung', 1, 2, 't')")
+            try c.execute("INSERT INTO files(id, course_id, name, chdate, status, content_sha256) VALUES ('g1', 'c2', 'Kap 2.pdf', 10, 'neu', ?), ('g2', 'c2', 'Kap 3.pdf', 20, 'neu', ?)",
+                          [.text(shaVL), .text(shaUB.uppercased())])
+            try c.execute("UPDATE files SET content_sha256=? WHERE id='f-vl'", [.text(shaOther)])
+        }
+        // Probeklausur 1: fertig und bezahlt (2 von 3 Unterlagen in Modul 2, eine in Modul 1); Nummer 2 wird noch erstellt;
+        // eine dritte passt zu keiner Datei dieses Geraets
+        shop.mine = [mineItem(1, files: [shaVL, shaUB, shaOther]),
+                     mineItem(2, status: "running", paid: false, files: [shaVL, shaUB, shaOther]),
+                     mineItem(1, set: "3", files: [String(repeating: "d", count: 64)])]
+
+        let got = await post(b, "/api/exam-generator/collect", .object([:]))
+        XCTAssertEqual(got["added"]?.array?.count, 2, "Aufgaben und Lösungen von Probeklausur 1")
+        XCTAssertEqual(got["added"]?.array?.first?["module"]?.string, "Digitale Systeme")
+        XCTAssertEqual(got["added"]?.array?.first?["module_id"]?.int, 2)
+        XCTAssertEqual(got["pending"]?.int, 1)
+        XCTAssertEqual(got["unplaced"]?.int, 1)
+        XCTAssertEqual(shop.requests.filter { $0.url.contains("/pdf/") }.count, 2, "nur die zwei PDFs der fertigen, bezahlten")
+        XCTAssertFalse(shop.requests.contains { $0.url.hasSuffix("/offer") || $0.url.hasSuffix("/buy") }, "ohne Auswahl, ohne Kauf")
+        let files = try await userFiles(b)
+        XCTAssertEqual(files, ["Probeklausur 1 – Aufgaben|Probeklausuren|2|0", "Probeklausur 1 – Lösungen|Probeklausuren|2|0"])
+
+        // zweiter Lauf: nichts doppelt
+        let again = await post(b, "/api/exam-generator/collect", .object([:]))
+        XCTAssertEqual(again["added"]?.array?.count, 0)
+        XCTAssertEqual(shop.requests.filter { $0.url.contains("/pdf/") }.count, 2)
+
+        // Nummer 2 wird fertig: kommt beim naechsten Lauf dazu
+        shop.mine[1] = mineItem(2, files: [shaVL, shaUB, shaOther])
+        let later = await post(b, "/api/exam-generator/collect", .object([:]))
+        XCTAssertEqual((later["added"]?.array ?? []).compactMap { $0["title"]?.string }, ["Probeklausur 2 – Aufgaben", "Probeklausur 2 – Lösungen"])
+        XCTAssertEqual(later["pending"]?.int, 0)
+
+        // bewusst geloescht: kommt von selbst nicht wieder
+        try await b.context.database.execute("UPDATE files SET deleted_at='2026-11-22T12:00:00' WHERE course_id='__user__' AND title LIKE 'Probeklausur 1%'")
+        let afterDelete = await post(b, "/api/exam-generator/collect", .object([:]))
+        XCTAssertEqual(afterDelete["added"]?.array?.count, 0)
+        XCTAssertEqual(shop.requests.filter { $0.url.contains("/pdf/") }.count, 4)
+    }
+
+    func testCollectAllAndTheSheetNeverStoreTheSamePDFTwice() async throws {
+        let shop = FakeShop()
+        let b = try await backend(shop)
+        let sel: JSONValue = ["file_ids": ["f-vl", "f-ub"], "count": 1]
+        _ = await post(b, "/api/modules/1/exam-generator/buy", sel)
+        let shas = try await b.context.database.withConnection { c in
+            try c.query("SELECT content_sha256 FROM files WHERE id IN ('f-vl','f-ub')").compactMap { $0["content_sha256"]?.string }
+        }
+        XCTAssertEqual(shas.count, 2, "der Kauf hat die Fingerabdruecke nachgeholt")
+        shop.mine = [mineItem(1, set: "1", files: shas)]
+
+        // Kauf-Blatt und Abholen von selbst gleichzeitig
+        async let a = post(b, "/api/modules/1/exam-generator/collect", sel)
+        async let c = post(b, "/api/exam-generator/collect", .object([:]))
+        let (ra, rc) = await (a, c)
+        XCTAssertEqual((ra["added"]?.array?.count ?? 0) + (rc["added"]?.array?.count ?? 0), 2, "zusammen genau Aufgaben und Lösungen")
+        let files = try await userFiles(b)
+        XCTAssertEqual(files, ["Probeklausur 1 – Aufgaben|Probeklausuren|1|0", "Probeklausur 1 – Lösungen|Probeklausuren|1|0"])
     }
 }

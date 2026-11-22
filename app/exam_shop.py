@@ -215,6 +215,39 @@ def overview(user_id: str, set_key: str) -> dict:
             "has_material": material_path(set_key).exists()}
 
 
+def mine(user_id: str) -> dict:
+    """Alle Probeklausuren des Kontos (bezahlt oder noch in Arbeit), ueber alle Unterlagen hinweg. Damit holt ein Geraet
+    Gekauftes von selbst ab, ohne die Auswahl von damals zu kennen (22.11.2026: eine Probeklausur war fertig und
+    bezahlt, kam aber nie aufs iPad, weil nur das offene Kauf-Blatt abholte). `files` sind die Fingerabdruecke der
+    Unterlagen: daran erkennt das Geraet das Modul. Namen kennt der Dienst nicht."""
+    c = connect()
+    try:
+        with c:
+            stale = _expire_stale(c)
+    finally:
+        c.close()
+    for k in stale:
+        refund_all(k)
+    c = connect()
+    try:
+        rows = c.execute("""
+            SELECT p.key, p.state, i.set_key, i.variant, i.status, i.title, s.files
+            FROM purchases p JOIN items i ON i.key=p.key LEFT JOIN sets s ON s.set_key=i.set_key
+            WHERE p.user_id=? AND p.state IN ('paid','reserved') ORDER BY p.created_at, i.variant""", (user_id,)).fetchall()
+    finally:
+        c.close()
+    items = []
+    for r in rows:
+        try:
+            shas = [f["sha256"] for f in json.loads(r["files"] or "[]")]
+        except (ValueError, TypeError, KeyError):
+            shas = []
+        items.append({"key": r["key"], "set_key": r["set_key"], "variant": r["variant"], "status": r["status"],
+                      "title": r["title"] if r["status"] == "ready" else None,
+                      "owned": True, "paid": r["state"] == "paid", "files": shas})
+    return {"items": items}
+
+
 # ---------------------------------------------------------------- Kaufen
 
 def _reserve(user_id: str, key: str) -> str:

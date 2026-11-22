@@ -27,7 +27,9 @@ enum ExamGenerator {
     static let buyTitle = "Probeklausuren kaufen"
     static let back = "Zurück"
     static let close = "Schließen"
-    static let working = "StudiNow erstellt deine Probeklausuren. Das dauert einige Minuten. Du kannst das Blatt schließen; fertige Probeklausuren holst du hier wieder ab."
+    /// Ordner im Modul (im Kern `ExamGeneratorShop.folderName`)
+    static let folderName = "Probeklausuren"
+    static let working = "StudiNow erstellt deine Probeklausuren. Das dauert einige Minuten. Du kannst das Blatt schließen: Fertige Probeklausuren landen von selbst in der Bibliothek, im Ordner „Probeklausuren“ dieses Moduls."
     static let fetchAgain = "Fertige abholen"
     static let sendNote = "Für neue Probeklausuren gehen die Seitentexte der gewählten Dateien einmal an StudiNow und die KI. Fertige Probeklausuren sind sofort da. Klappt etwas nicht, kostet es nichts."
     static let savedNote = "Fertige Probeklausuren liegen in der Bibliothek im Ordner „Probeklausuren“ dieses Moduls."
@@ -421,6 +423,8 @@ struct ExamGeneratorBuy: View {
                 try? await Task.sleep(nanoseconds: 8_000_000_000)
             }
         }
+        // Blatt zu, waehrend der Dienst noch erstellt: die App holt von selbst weiter ab (`ExamShopInbox`, 22.11.2026)
+        .onDisappear { if pending { ExamShopInbox.shared.watch() } }
         .ufCreditShop(isPresented: $shop)
     }
 
