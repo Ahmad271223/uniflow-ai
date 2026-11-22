@@ -68,4 +68,16 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
     `dienst-check.sh`: alle Prüfungen bestanden, Wissensbank aktiv; die Route steht im Router von `ai_relay` neben
     `/api/ai/relay` (im Container nachgesehen; ein Aufruf mit Anmeldung wurde nicht gemacht – Bestätigung durch den Test
     des Inhabers am iPad). Zurück: Schritt 2 mit `89cf11db`.
+11. Fünftes Update 22.11.2026 12:14 auf `07e26fea` (Freigabe des Inhabers „Ja, beides an“ auf die Frage, ob das Update
+    ausgerollt und beide neuen Teile eingeschaltet werden dürfen): `app/wissensbank_ki.py` neu (KI mit Auszügen aus der
+    Wissensbank; gemerkte KI-Antworten), dazu Haken in `app/ai_relay.py`, `app/wissensbank.py`,
+    `app/wissensbank_pruefen.py`. In `deploy/.env` ergänzt: `LERNAPP_WISSENSBANK_KONTEXT=1`,
+    `LERNAPP_WISSENSBANK_MERKEN=sofort` (Kopie davor: `.env.vor-wissensbank-ki-2026-11-22`). Entscheidungen des Inhabers
+    zum Merken: nur dieselbe Stelle (gleiches Fach, Übungsblatt, Aufgabe), dann direkt, 1 Credit für den Nächsten.
+    Vorher: Python voll 4046 bestanden, 0 Fehler; Backup `uniflow-2026-11-22_1213.tar.gz`. Danach: Container healthy,
+    `dienst-check.sh`: alle Prüfungen bestanden, beide Schalter im Container gesetzt.
+    Nicht geprüft: ob die KI unpassende Auszüge ignoriert (nur mit echten Anfragen möglich – Test des Inhabers).
+    Vor der Veröffentlichung von 1.0.7: Datenschutz/AGB um die gemerkten Antworten ergänzen (Textvorschlag im Bericht
+    des Helfers, `docs/WISSENSBANK-STAND.md`). Zurück: beide Zeilen aus `.env` nehmen und `docker compose up -d`;
+    ganz zurück: Schritt 2 mit `cdda3e89`.
 
