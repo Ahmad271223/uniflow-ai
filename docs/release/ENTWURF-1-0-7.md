@@ -100,29 +100,52 @@ Was im Code dazu gilt (geprüft 20.11.2026, Zweig `sync-pruefungsanmeldungen`):
 Funktion im Dienst hinter dem Schalter `LERNAPP_WISSENSBANK` (Standard aus). Die App zeigt nichts, solange der Dienst
 sie nicht meldet. Gilt nur für Pro AI und nur für Konten der Leibniz Universität Hannover (Hochschule am Konto).
 
+**Stand 22.11.2026:** Fassung unten ersetzt den Entwurf vom 20.11. Sie deckt ab, was inzwischen im Dienst läuft:
+eingekreister Bereich („Bereich an KI“) geht mit, Vorab-Frage bei „Seite erklären“, KI mit Auszügen
+(`LERNAPP_WISSENSBANK_KONTEXT`), gemerkte KI-Antworten (`LERNAPP_WISSENSBANK_MERKEN=sofort`, Entscheidung des Inhabers:
+nur dieselbe Stelle, direkt, 1 Credit). **Noch nicht vom Inhaber freigegeben, noch nicht auf der Website.**
+
 **Datenschutz (neu, z. B. als Ergänzung zu Abschnitt 8c „KI-Hilfe“):**
 
-> **StudiNow-Wissensbank (Pro AI, Leibniz Universität Hannover).** Fragst du die KI-Hilfe nach einer Erklärung
-> („Erklären“) oder einer Lösung („Lösen“), schickt die App zusätzlich den Dateinamen, wie er in Stud.IP heißt, den
-> Kursnamen, die Seitenzahl und den Text der Seite bzw. den markierten Text an den StudiNow-Dienst. Diese Angaben
-> stehen ohnehin schon in der Anfrage an die KI. Der Dienst vergleicht den Text mit der StudiNow-Wissensbank, einer
-> von uns erstellten Sammlung von Erklärungen und Lösungen. Passt der Wortlaut, bekommst du die Antwort aus der
-> Wissensbank statt einer neuen KI-Antwort; sie ist mit „Aus der StudiNow-Wissensbank“ gekennzeichnet. Der Text deiner
-> Seite wird dafür nicht gespeichert. Zu deinem Konto speichern wir, welche Stellen der Wissensbank du schon bekommen
+> **StudiNow-Wissensbank (Pro AI, Leibniz Universität Hannover).** Fragst du die KI-Hilfe zu einer Seite, zu
+> markiertem Text oder zu einem eingekreisten Bereich, schickt die App zusätzlich den Dateinamen, wie er in Stud.IP
+> heißt, den Kursnamen, die Seitenzahl und den Text der Seite bzw. den im Ausschnitt erkannten Text an den
+> StudiNow-Dienst. Diese Angaben stehen ohnehin schon in der Anfrage an die KI. Der Dienst vergleicht den Text mit der
+> StudiNow-Wissensbank, einer von uns erstellten Sammlung von Erklärungen und Lösungen.
+>
+> *Antwort aus der Wissensbank.* Passt die Stelle genau, bekommst du die Antwort aus der Wissensbank statt einer neuen
+> KI-Antwort; sie ist mit „Aus der StudiNow-Wissensbank“ gekennzeichnet.
+>
+> *KI-Antwort mit Wissen aus der Wissensbank.* Passt keine Stelle genau, kann der Dienst der KI passende Auszüge aus
+> der Wissensbank mitgeben. Die Antwort bleibt eine KI-Antwort und ist mit „Mit Wissen aus der StudiNow-Wissensbank“
+> gekennzeichnet.
+>
+> *Gemerkte KI-Antworten.* Enthält deine Anfrage nichts Persönliches (keine eigene Frage, keine eigene Lösung, keine
+> eigenen Notizen, auch nicht im eingekreisten Bereich), speichern wir die KI-Antwort zusammen mit dem Dateinamen, dem
+> Kursnamen, der Seitenzahl und dem Text des Ausschnitts aus dem Kursmaterial – ohne Bezug zu deinem Konto. Dein
+> bisheriges Gespräch mit der KI-Hilfe geht in solche Anfragen nicht ein. Fragt ein anderer Nutzer desselben Kurses zu
+> genau derselben Stelle derselben Datei, bekommt er diese Antwort statt einer neuen KI-Antwort; sie ist als „Gemerkte
+> KI-Antwort“ gekennzeichnet.
+>
+> *Was wir zu deinem Konto speichern.* Welche Stellen der Wissensbank und welche gemerkten Antworten du schon bekommen
 > hast (Stelle und Zeitpunkt), damit du beim nächsten Mal eine neue KI-Antwort bekommst. Danach fragt die App: „Gefällt
-> dir diese Antwort besser?“ Tippst du „Ja“, speichern wir die neue KI-Antwort als Vorschlag für die Wissensbank –
-> ohne Bezug zu deinem Konto und ohne deine Frage. Wir prüfen solche Vorschläge, bevor andere Nutzer sie bekommen
-> können. Bis du antwortest, höchstens 7 Tage, liegt die KI-Antwort mit deinem Konto verknüpft beim Dienst; danach
-> wird diese Verknüpfung gelöscht. Die Liste der bekommenen Stellen wird mit deinem Konto gelöscht und ist im
-> Datenexport enthalten. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Erklärungen und Lösungen der KI-Hilfe), für die
-> Vorschläge Art. 6 Abs. 1 lit. f DSGVO (Verbesserung der Wissensbank).
+> dir diese Antwort besser?“ Deine Antwort („Ja“ oder „Nein“) zählt als Stimme für oder gegen die bisherige Antwort;
+> bei „Ja“ kann die neue KI-Antwort als Vorschlag für die Wissensbank gespeichert werden – ohne Bezug zu deinem Konto
+> und ohne deine Frage. Bis du antwortest, höchstens 7 Tage, liegt die KI-Antwort mit deinem Konto verknüpft beim
+> Dienst; danach wird diese Verknüpfung gelöscht. Die Liste der bekommenen Stellen wird mit deinem Konto gelöscht und
+> ist im Datenexport enthalten. Gemerkte Antworten ohne Kontobezug bleiben gespeichert, bis sie abgewählt oder von uns
+> entfernt werden.
+>
+> Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (Erklärungen und Lösungen der KI-Hilfe); für gemerkte Antworten und
+> Vorschläge Art. 6 Abs. 1 lit. f DSGVO (gleiche Antworten nicht mehrfach erzeugen, Verbesserung der Wissensbank).
 
 **Nutzungsbedingungen (neuer Punkt im § Credits):**
 
-> **Antworten aus der StudiNow-Wissensbank:** Eine Antwort aus der Wissensbank kostet 1 Credit, wie eine einfache
-> KI-Antwort. Fragst du dieselbe Stelle noch einmal, bekommst du eine neue KI-Antwort, die wie üblich berechnet wird.
-> Auch Antworten aus der Wissensbank können Fehler enthalten; Lösungen mit dem Hinweis „KI-Lösung, ungeprüft“ sind
-> nicht mit einer offiziellen Musterlösung verglichen.
+> **Antworten aus der StudiNow-Wissensbank und gemerkte KI-Antworten:** Eine Antwort aus der Wissensbank und eine
+> gemerkte KI-Antwort kosten je 1 Credit. Eine KI-Antwort mit Wissen aus der Wissensbank wird wie jede KI-Antwort
+> berechnet. Fragst du dieselbe Stelle noch einmal, bekommst du eine neue KI-Antwort, die wie üblich berechnet wird.
+> Auch Antworten aus der Wissensbank und gemerkte KI-Antworten können Fehler enthalten; Lösungen mit dem Hinweis
+> „KI-Lösung, ungeprüft“ sind nicht mit einer offiziellen Musterlösung verglichen.
 
 **Für den Inhaber (nicht veröffentlichen):**
 
