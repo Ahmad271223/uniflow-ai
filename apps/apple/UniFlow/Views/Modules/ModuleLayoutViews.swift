@@ -187,6 +187,7 @@ struct ModuleWeekFileRow: View {
     var body: some View {
         HStack(spacing: 6) {
             UFDocRow(f: f, open: open)
+            ErklaerungBadge(fileID: id)                                     // Erklärung von StudiNow (nur mit Angebot)
             if let k = f.s("suggest_key"), let label = f.s("suggest_label") {
                 ModuleSuggestionChip(label: label, reason: f.s("suggest_reason") ?? "") { place(k) }
             }

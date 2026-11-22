@@ -999,7 +999,8 @@ ACCOUNT_TABLES = ("vault", "sync_jobs", "entitlements", "usage", "usage_requests
                   "identities", "reset_tokens", "verify_tokens", "sessions", "credit_months", "credit_wallets",
                   "invites", "invite_redemptions", "invite_rewards",
                   "plan_choices", "stripe_customers", "stripe_subscription_state", "app_login_codes", "ai_usage_user_month",
-                  "push_tokens", "wissensbank_delivered", "wissensbank_feedback")
+                  "push_tokens", "wissensbank_delivered", "wissensbank_feedback",
+                  "erklaerung_kaeufe")
 
 
 def _has_table(conn, name: str) -> bool:
