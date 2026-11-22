@@ -3137,6 +3137,9 @@ struct TutorAttachment: Equatable, Identifiable {
     let page: Int?
     /// Ausschnitt als JPEG (Bereich, ganze Seite)
     var image: Data? = nil
+    /// Im Ausschnitt liegen keine eigenen Notizen (Handschrift, Text, Formen, Bilder): nur dann darf die KI-Antwort
+    /// dazu fuer andere gemerkt werden (`area_clean`, Wissensbank 22.11.2026)
+    var clean = false
 
     /// so viel Text geht hoechstens mit (der Prompt kuerzt die Markierung ebenso)
     static let maxText = 4000
@@ -3213,7 +3216,12 @@ extension PDFEditorController {
         guard let image = Self.renderArea(page: page, entry: entry, objects: objects, rect: r), let cg = image.cgImage,
               let jpeg = image.jpegData(compressionQuality: Self.areaJPEGQuality) else { return nil }
         let text = await Self.recognizeText(cg)
-        return TutorAttachment(kind: kind, text: String(text.prefix(TutorAttachment.maxText)), page: entry.pdfIndex, image: jpeg)
+        // eigene Notizen im Ausschnitt? Ein Objekt ohne bekannte Lage gilt als darin (im Zweifel nicht teilbar)
+        let clean = !objects.contains { o in
+            guard let b = PageObjectEdit.bounds(o, textHeight: ObjectEditing.textHeight) else { return true }
+            return CGRect(x: b.minX, y: b.minY, width: b.maxX - b.minX, height: b.maxY - b.minY).insetBy(dx: -2, dy: -2).intersects(r)
+        }
+        return TutorAttachment(kind: kind, text: String(text.prefix(TutorAttachment.maxText)), page: entry.pdfIndex, image: jpeg, clean: clean)
     }
 
     /// "Bereich an KI": Rahmen bzw. Schleife auf einer Seite losgelassen -> Ausschnitt in die KI-Hilfe

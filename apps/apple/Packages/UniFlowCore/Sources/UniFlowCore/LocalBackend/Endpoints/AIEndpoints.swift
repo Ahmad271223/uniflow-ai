@@ -116,9 +116,17 @@ enum AIEndpoints: LocalEndpointModule {
             let studip = fileID == nil ? "" : ((try? await ctx.database.withConnection { try CourseContext.forFile($0, fileID: fileID, today: today) }) ?? "")
             let sources = mode == "flashcards" ? [] : try await tutorSources(fileID: fileID, fileName: fileName, page: page, text: pageText,
                                                                               selection: text("selection"), question: text("question"), ctx: ctx)
+            // `teilbar` (22.11.2026, gemerkte KI-Antworten, `app/wissensbank_ki.py`): "Erklären"/"Schritte" zu einer Stelle,
+            // in der nichts Persoenliches steckt - keine Frage, keine eigene Loesung, keine eigenen Notizen; mit Bild nur,
+            // wenn die App meldet, dass im Ausschnitt keine eigenen Notizen liegen (`area_clean`). Nur mit gemeldeter
+            // Wissensbank. Dann geht auch der bisherige Gespraechsverlauf NICHT in den Prompt: Die Antwort darf an andere
+            // weitergegeben werden und soll nichts aus frueheren eigenen Fragen tragen.
+            let teilbar = Wissensbank.modes.contains(mode) && (ctx.ai.serviceProvider as? StudiNowAI)?.wissensbankEnabled == true
+                && fileID != nil && PyText.strip(text("question")).isEmpty && PyText.strip(text("own_solution")).isEmpty
+                && PyText.strip(ownNotes).isEmpty && (imageJPEG == nil || AIPrompts.truthy(body.value("area_clean")))
             var prompt = AIPrompts.tutor(mode: mode, pageText: pageText, selection: text("selection"), question: text("question"),
                                          ownSolution: text("own_solution"), course: course, fileName: fileName, page: .int(String(page)),
-                                         sources: sources.map(PyJSON.init), history: AIPrompts.tutorHistory(body.value("history")),
+                                         sources: sources.map(PyJSON.init), history: teilbar ? [] : AIPrompts.tutorHistory(body.value("history")),
                                          studip: studip, pageIndex: pageIndex, ownNotes: ownNotes)
             if imageJPEG != nil { prompt += "\n\n" + AIPrompts.tutorImageNote }
             let answer: String
@@ -133,7 +141,7 @@ enum AIEndpoints: LocalEndpointModule {
             // Ohne erkannten Text (Zeichnung, Handschrift) bleibt es bei der KI mit Bild.
             let wbRequest = fileID == nil ? nil
                 : Wissensbank.request(mode: mode, fileName: fileName, course: course, page: page,
-                                      pageText: imageJPEG == nil ? pageText : "", selection: text("selection"))
+                                      pageText: imageJPEG == nil ? pageText : "", selection: text("selection"), teilbar: teilbar)
             let task = AIRelayTask(AIRelayTask.tutor(mode), cache: shareable && !force, fresh: force,
                                    routeText: routeText.isEmpty ? nil : routeText, image: imageJPEG, wissensbank: wbRequest)
             var credits: JSONValue = .null
@@ -163,7 +171,7 @@ enum AIEndpoints: LocalEndpointModule {
             }
             var explain: JSONValue = .null
             // eine Antwort aus der Wissensbank geht nur an diesen Nutzer: nie in den (geteilten) Erklaerungsspeicher
-            if shareable, let key = explainKey, !Wissensbank.isFromWissensbank(wissensbank) {
+            if shareable, let key = explainKey, !Wissensbank.staysOutOfSharedStore(wissensbank) {
                 explain = await PageExplainBuilder.store(answer: answer, key: key, mode: mode, model: nil, ctx: ctx, cloud: ctx.docIndex.explainCloud,
                                                          cipher: ctx.docIndex.cipher).json
             }

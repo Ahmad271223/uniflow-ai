@@ -59,7 +59,8 @@ final class WissensbankTests: XCTestCase {
         XCTAssertEqual(r.status, 200, String(decoding: r.body, as: UTF8.self))
         body = try await sent(fake)
         XCTAssertEqual(body["wissensbank"], ["datei": "Übungsblatt 03 - Balken.pdf", "kurs": "Beispiel-Statik", "seite": 2,
-                                             "text": "Aufgabe 1 a) markiert"], "markierter Text vor dem Seitentext")
+                                             "text": "Aufgabe 1 a) markiert", "teilbar": true],
+                       "markierter Text vor dem Seitentext; ohne Frage und Notizen teilbar")
         let info = r.json?["wissensbank"]
         XCTAssertTrue(Wissensbank.isFromWissensbank(info))
         XCTAssertEqual(Wissensbank.detail(info), "KI-Lösung, ungeprüft")
@@ -107,6 +108,60 @@ final class WissensbankTests: XCTestCase {
         _ = await post(b, "/api/ai/tutor", ["mode": "explain", "file_id": "f1", "page": 4, "page_text": "Seite vier"])
         let askedAfter = await fake.requests.filter { $0.url.hasSuffix("/api/ai/wissensbank") }.count
         XCTAssertEqual(askedAfter, asked, "Wissensbank nicht gemeldet: nichts zusaetzlich")
+    }
+
+    /// Gemerkte KI-Antworten und KI mit Auszuegen (22.11.2026): `teilbar` geht nur mit, wenn nichts Persoenliches in der
+    /// Anfrage steckt; dann bleibt auch der Gespraechsverlauf aus dem Prompt. Die freie Frage schickt die Angaben zur
+    /// Stelle mit (fuer Auszuege), aber nie `teilbar`.
+    func testTeilbarOnlyWithoutAnythingPersonal() async throws {
+        let (ai, fake) = make()
+        ai.wissensbankEnabled = true
+        let b = try await backend(ai)
+        let jpeg = Data([0xFF, 0xD8, 0xFF, 0xE0] + [UInt8](repeating: 0, count: 64)).base64EncodedString()
+        let history: JSONValue = [["role": "user", "text": "Meine fruehere Frage mit Namen"], ["role": "assistant", "text": "Fruehere Antwort"]]
+        func ask(_ extra: [String: JSONValue]) async throws -> JSONValue {
+            await fake.on("POST", "/api/ai/relay", 200, ["answer": "KI", "credits": credits])
+            var body: [String: JSONValue] = ["file_id": "f1", "page": 2, "page_text": "Seitentext", "history": history,
+                                             "own_notes": .string(extra["own_notes"]?.string ?? "")]
+            for (k, v) in extra { body[k] = v }
+            // eigene Notizen bzw. Bild/Markierung: nie der Weg ueber die Vorab-Frage, immer das Relay
+            _ = await post(b, "/api/ai/tutor", .object(body))
+            return try await sent(fake)
+        }
+        // eingekreister Bereich ohne eigene Notizen: teilbar, Verlauf nicht im Prompt
+        var sentBody = try await ask(["mode": "explain", "image": .string(jpeg), "selection": "Aufgabe 1 a) eingekreist", "area_clean": true])
+        XCTAssertEqual(sentBody["wissensbank"]?["teilbar"], true)
+        XCTAssertFalse((sentBody["prompt"]?.string ?? "").contains("Meine fruehere Frage"), "teilbar: der Verlauf geht nicht in den Prompt")
+        // eigene Notizen im Ausschnitt (kein `area_clean`): nicht teilbar, Verlauf wie bisher
+        sentBody = try await ask(["mode": "explain", "image": .string(jpeg), "selection": "Aufgabe 1 a) eingekreist"])
+        XCTAssertNil(sentBody["wissensbank"]?["teilbar"], "Bild ohne Zusicherung: nicht teilbar")
+        XCTAssertNotNil(sentBody["wissensbank"], "die Angaben zur Stelle gehen trotzdem mit")
+        XCTAssertTrue((sentBody["prompt"]?.string ?? "").contains("Meine fruehere Frage"), "nicht teilbar: Verlauf wie bisher")
+        // markierter Text, aber eigene Notizen zur Seite
+        sentBody = try await ask(["mode": "steps", "selection": "Aufgabe 1 a) markiert", "own_notes": "meine Notiz"])
+        XCTAssertNil(sentBody["wissensbank"]?["teilbar"], "eigene Notizen: nicht teilbar")
+        // freie Frage: Angaben zur Stelle ja (fuer Auszuege), teilbar nie
+        sentBody = try await ask(["mode": "ask", "question": "Warum ist das so?", "selection": "Aufgabe 1 a) markiert"])
+        XCTAssertEqual(sentBody["wissensbank"]?["text"]?.string, "Aufgabe 1 a) markiert")
+        XCTAssertNil(sentBody["wissensbank"]?["teilbar"], "Frage: nie teilbar")
+        // ohne gemeldete Wissensbank: nichts davon, Verlauf wie bisher
+        ai.wissensbankEnabled = false
+        sentBody = try await ask(["mode": "explain", "image": .string(jpeg), "selection": "Aufgabe 1 a) eingekreist", "area_clean": true])
+        XCTAssertNil(sentBody["wissensbank"])
+        XCTAssertTrue((sentBody["prompt"]?.string ?? "").contains("Meine fruehere Frage"))
+    }
+
+    /// Antwortfelder der neuen Wege kommen durch und halten die Antwort aus dem geteilten Erklaerungsspeicher
+    func testFieldsOfRememberedAndContextAnswers() {
+        let gemerkt = Wissensbank.fields(in: ["answer": "A", "source": "gemerkt", "gemerkt": ["hinweis": "Gemerkte KI-Antwort"]])
+        XCTAssertTrue(Wissensbank.isRemembered(gemerkt))
+        XCTAssertTrue(Wissensbank.staysOutOfSharedStore(gemerkt))
+        let kontext = Wissensbank.fields(in: ["answer": "A", "source": "ki", "wissensbank_kontext": true])
+        XCTAssertTrue(Wissensbank.usesContext(kontext))
+        XCTAssertTrue(Wissensbank.staysOutOfSharedStore(kontext))
+        XCTAssertFalse(Wissensbank.isFromWissensbank(kontext))
+        XCTAssertEqual(Wissensbank.fields(in: ["answer": "A", "source": "ki"]), .null, "normale KI-Antwort: keine Felder")
+        XCTAssertFalse(Wissensbank.staysOutOfSharedStore(.null))
     }
 
     func testOtherModesImagesAndMissingFilesSendNothing() async throws {

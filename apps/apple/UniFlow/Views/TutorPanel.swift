@@ -616,11 +616,14 @@ struct TutorPanel: View {
     /// Rumpf von POST /api/ai/tutor: `selection` = markierter bzw. erkannter Text, `image` = Ausschnitt als JPEG
     /// (Base64, "Bereich an KI"; Vertrag wie app/server.py `ai.tutor_image`)
     static func requestBody(fileID: String, page: Int, mode: String, history: JSONValue, typed: String, selection: String,
-                            image: Data?, force: Bool) -> [String: JSONValue] {
+                            image: Data?, force: Bool, areaClean: Bool = false) -> [String: JSONValue] {
         var body: [String: JSONValue] = ["file_id": .string(fileID), "page": .number(Double(page)), "mode": .string(mode), "history": history]
         if mode == "check" { body["own_solution"] = .string(typed) } else if !typed.isEmpty { body["question"] = .string(typed) }
         if !selection.isEmpty { body["selection"] = .string(String(selection.prefix(TutorAttachment.maxText))) }
-        if let image, !image.isEmpty { body["image"] = .string(image.base64EncodedString()) }
+        if let image, !image.isEmpty {
+            body["image"] = .string(image.base64EncodedString())
+            if areaClean { body["area_clean"] = true }          // im Ausschnitt liegen keine eigenen Notizen
+        }
         if force { body["force"] = true }
         return body
     }
@@ -642,7 +645,8 @@ struct TutorPanel: View {
         let using = given == nil ? attached : nil
         let page = using?.page ?? page()
         var body = Self.requestBody(fileID: fileID, page: page, mode: mode, history: Self.history(messages), typed: typed,
-                                    selection: given ?? using?.text ?? selection(), image: using?.image, force: force)
+                                    selection: given ?? using?.text ?? selection(), image: using?.image, force: force,
+                                    areaClean: using?.clean == true)
         if let t = Tab.tab(for: mode), t != tab, mode != "check" { tab = t }
         let quoted = given ?? using.flatMap { $0.text.isEmpty ? nil : $0.text }
         let question = Message(fromUser: true, text: Self.label(mode: mode, input: typed, force: force)
@@ -1144,6 +1148,14 @@ struct TutorWissensbankLine: View {
             .padding(.vertical, 2)
             .accessibilityElement(children: .combine)
             .accessibilityIdentifier("tutor.wissensbank")
+        } else if Wissensbank.isRemembered(info) {
+            Text(info["gemerkt"]?["hinweis"]?.string ?? Wissensbank.rememberedLine).ufFont(12, 650, lh: 1.35).foregroundStyle(UF.text2)
+                .padding(.vertical, 2)
+                .accessibilityIdentifier("tutor.wissensbank.gemerkt")
+        } else if Wissensbank.feedbackToken(info) == nil, Wissensbank.usesContext(info) {
+            Text(Wissensbank.contextLine).ufFont(12, lh: 1.35).foregroundStyle(UF.muted)
+                .padding(.vertical, 2)
+                .accessibilityIdentifier("tutor.wissensbank.kontext")
         } else if Wissensbank.feedbackToken(info) != nil {
             if let answered {
                 Text(answered ? Wissensbank.thanksYes : Wissensbank.thanksNo).ufFont(12, lh: 1.35).foregroundStyle(UF.muted)

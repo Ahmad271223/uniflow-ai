@@ -89,29 +89,56 @@ public enum Wissensbank {
     public static let modes: Set<String> = ["explain", "steps"]
     /// so viel Seitentext bzw. markierter Text geht hoechstens mit (wie `wissensbank.TEXT_MAX`)
     public static let textMax = 20_000
+    /// Modi, in denen die Angaben zur Stelle an den Dienst gehen: dazu die freie Frage (`ask`) - der genaue Abgleich
+    /// bleibt im Dienst auf explain/steps beschraenkt, bei einer Frage kann er der KI aber passende Auszuege mitgeben
+    /// (`app/wissensbank_ki.py`, 22.11.2026)
+    public static let requestModes: Set<String> = ["explain", "steps", "ask"]
+    public static let contextLine = "Mit Wissen aus der StudiNow-Wissensbank"
+    public static let rememberedLine = "Gemerkte KI-Antwort"
     /// Felder der Relay-Antwort, die die App weiterreicht
-    static let fieldNames = ["source", "wissensbank_key", "wissensbank", "feedback_token", "feedback_question"]
+    static let fieldNames = ["source", "wissensbank_key", "wissensbank", "feedback_token", "feedback_question",
+                             "wissensbank_kontext", "gemerkt"]
 
     /// Angaben zur Stelle fuer den Dienst: Dateititel wie in Stud.IP, Kurs, Seite und der verglichene Text (markierter
-    /// Text, sonst die ganze Seite); nil, wenn der Modus nicht passt oder es keinen Text gibt
-    public static func request(mode: String, fileName: String, course: String, page: Int, pageText: String, selection: String) -> JSONValue? {
-        guard modes.contains(mode), !fileName.isEmpty else { return nil }
+    /// Text, sonst die ganze Seite); nil, wenn der Modus nicht passt oder es keinen Text gibt.
+    /// `teilbar`: In der Anfrage steckt nichts Persoenliches (keine Frage, keine eigene Loesung, kein Verlauf, keine
+    /// eigenen Notizen - auch nicht im Bild). Nur dann darf der Dienst die KI-Antwort fuer andere merken bzw. eine
+    /// gemerkte liefern; das Feld geht nur als `true` mit.
+    public static func request(mode: String, fileName: String, course: String, page: Int, pageText: String, selection: String,
+                               teilbar: Bool = false) -> JSONValue? {
+        guard requestModes.contains(mode), !fileName.isEmpty else { return nil }
         let sel = selection.trimmingCharacters(in: .whitespacesAndNewlines)
         let text = sel.isEmpty ? pageText : selection
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return nil }
-        return .object(["datei": .string(fileName), "kurs": .string(course), "seite": .number(Double(page)),
-                        "text": .string(String(text.prefix(textMax)))])
+        var o: [String: JSONValue] = ["datei": .string(fileName), "kurs": .string(course), "seite": .number(Double(page)),
+                                      "text": .string(String(text.prefix(textMax)))]
+        if teilbar, modes.contains(mode) { o["teilbar"] = true }
+        return .object(o)
     }
 
     /// Felder der Wissensbank aus einer Antwort des Dienstes; `.null`, wenn er keine schickt (alter Dienst, Schalter aus)
     public static func fields(in response: JSONValue) -> JSONValue {
         var o: [String: JSONValue] = [:]
         for k in fieldNames { if let v = response[k], !v.isNull { o[k] = v } }
-        return o["wissensbank_key"] == nil && o["source"]?.string != "wissensbank" ? .null : .object(o)
+        let known = o["wissensbank_key"] != nil || ["wissensbank", "gemerkt"].contains(o["source"]?.string ?? "")
+            || o["wissensbank_kontext"]?.bool == true
+        return known ? .object(o) : .null
     }
 
     /// Antwort kommt aus der Wissensbank
     public static func isFromWissensbank(_ info: JSONValue?) -> Bool { info?["source"]?.string == "wissensbank" }
+
+    /// Gemerkte KI-Antwort: die erste KI-Antwort zu genau dieser Stelle, vom Dienst an den Naechsten weitergegeben
+    public static func isRemembered(_ info: JSONValue?) -> Bool { info?["source"]?.string == "gemerkt" }
+
+    /// KI-Antwort, der der Dienst passende Auszuege aus der Wissensbank mitgegeben hat
+    public static func usesContext(_ info: JSONValue?) -> Bool { info?["wissensbank_kontext"]?.bool == true }
+
+    /// Solche Antworten gehen nie in den geteilten Erklaerungsspeicher: Sie enthalten Wissen aus der Bibliothek bzw.
+    /// kommen schon aus einem Speicher des Dienstes (sonst landete das bei Konten ohne Wissensbank)
+    public static func staysOutOfSharedStore(_ info: JSONValue?) -> Bool {
+        isFromWissensbank(info) || isRemembered(info) || usesContext(info)
+    }
 
     /// Zeile unter dem Abzeichen: "geprueft" bzw. die Hinweise der Bibliothek ("KI-Loesung, ungeprueft" ...)
     public static func detail(_ info: JSONValue?) -> String? {
