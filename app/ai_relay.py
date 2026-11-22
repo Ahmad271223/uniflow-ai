@@ -122,14 +122,21 @@ async def relay(request: Request, body: dict = Body(...)):
             # Wissensbank (20.11.2026, app/wissensbank.py): passt der Wortlaut zu einer Stelle, bekommt das Konto beim
             # ersten Mal die Antwort daraus (1 Credit), bei einer Wiederholung die KI und die Ja/Nein-Frage
             wb = await ai_async.db(_wissensbank_plan, user, name, body)
+            # Kein lieferbarer Treffer (21.11.2026, app/wissensbank_ki.py, Schalter Standard aus): eine gemerkte KI-Antwort
+            # zur selben Stelle, sonst die KI - auf Wunsch mit Auszuegen aus der Wissensbank am Prompt
+            ki = await ai_async.db(_wissensbank_ki_plan, user, name, body) if wb is None else None
             if task.quota:
                 await ai_async.db(entitlements_consume, request, task.quota, rid)
             try:
                 if wb is not None and wb.deliver:
                     from . import wissensbank
                     c = await ai_async.db(wissensbank.deliver, user, wb, rid)
+                elif ki is not None and ki.gemerkt is not None:
+                    from . import wissensbank_ki
+                    c = await ai_async.db(wissensbank_ki.deliver, user, ki, rid)
                 else:
-                    c = await _complete_async(user, task, name, prompt, rid, body, image)
+                    full = prompt + ki.kontext.block if ki is not None and ki.kontext is not None else prompt
+                    c = await _complete_async(user, task, name, full, rid, body, image)
             except HTTPException:
                 if task.quota:
                     await ai_async.db(entitlements_refund, request, task.quota, rid)
@@ -144,6 +151,8 @@ async def relay(request: Request, body: dict = Body(...)):
                 raise
             if name.startswith("tutor:"):
                 extra = await ai_async.db(_wissensbank_fields, user, wb, c)
+                if ki is not None:
+                    extra = {**extra, **await ai_async.db(_wissensbank_ki_fields, user, ki, c)}
         return await ai_async.db(_relay_answer, user, name, c, extra)
 
 
@@ -267,6 +276,23 @@ def _wissensbank_fields(user: dict, wb, c) -> dict:
         return {}
 
 
+def _wissensbank_ki_plan(user: dict, name: str, body: dict):
+    """Gemerkte Antwort bzw. Auszuege fuer die KI; ein Fehler darin laesst die KI wie bisher antworten."""
+    try:
+        from . import wissensbank_ki
+        return wissensbank_ki.plan(user, name, body)
+    except Exception:  # noqa: BLE001 - KI-Module protokollieren nichts (P80-F3/F4)
+        return None
+
+
+def _wissensbank_ki_fields(user: dict, ki, c) -> dict:
+    try:
+        from . import wissensbank_ki
+        return wissensbank_ki.after(user, ki, c)
+    except Exception:  # noqa: BLE001
+        return {}
+
+
 def _wissensbank_replay(user: dict, rid: str) -> dict:
     try:
         from . import wissensbank
@@ -330,7 +356,8 @@ def _relay_prepare(request: Request, body: dict) -> dict:
 
 
 def _relay_answer(user: dict, name: str, c, extra: dict | None = None) -> dict:
-    """`extra`: Felder der Wissensbank (`source`, `wissensbank_key`, `wissensbank`, `feedback_token`), nur bei tutor:*"""
+    """`extra`: Felder der Wissensbank (`source`, `wissensbank_key`, `wissensbank`, `feedback_token`; mit
+    app/wissensbank_ki.py dazu `wissensbank_kontext`, `gemerkt`), nur bei tutor:*"""
     from . import ai_backend
     state = ai_backend.credits_balance(user["id"])
     credits = {**state, "charged": int(getattr(c, "credits_charged", 0) or 0), "replay": bool(getattr(c, "replay", False))} if state else None

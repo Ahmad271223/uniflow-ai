@@ -13,6 +13,11 @@ Aufruf im Container (deploy/, docs/release/BETRIEB.md):
   docker compose exec app python -m app.wissensbank_pruefen --waehlen 'explain:Fach/G0001/01#Q1-Seite-3' --antwort 12
         (--antwort bibliothek | <Kandidat-ID> | auto: was diese Stelle ausliefert; auto = Regel nach Stimmen)
   docker compose exec app python -m app.wissensbank_pruefen --bibliothek            Stand des Ordners (Einheiten, Abschnitte)
+Gemerkte KI-Antworten (app/wissensbank_ki.py, Schalter LERNAPP_WISSENSBANK_MERKEN=freigabe|sofort):
+  docker compose exec app python -m app.wissensbank_pruefen --gemerkt               offene (ungeprueft); --status alle
+  docker compose exec app python -m app.wissensbank_pruefen --gemerkt-zeigen 7      Stelle, Ausschnitt und Antwort
+  docker compose exec app python -m app.wissensbank_pruefen --gemerkt-freigeben 7   (bei "freigabe": erst dann an andere)
+  docker compose exec app python -m app.wissensbank_pruefen --gemerkt-ablehnen 7    (wird nie mehr ausgeliefert)
 Rueckgabe 0 = erledigt, 1 = nicht gefunden, 2 = falsche Argumente.
 """
 from __future__ import annotations
@@ -33,6 +38,10 @@ def parser() -> argparse.ArgumentParser:
     g.add_argument("--ablehnen", type=int, metavar="ID", help="Kandidaten ablehnen")
     g.add_argument("--waehlen", metavar="SCHLUESSEL", help="Antwort einer Stelle festlegen (mit --antwort)")
     g.add_argument("--bibliothek", action="store_true", help="Stand der Bibliothek im Ordner")
+    g.add_argument("--gemerkt", action="store_true", help="gemerkte KI-Antworten auflisten")
+    g.add_argument("--gemerkt-zeigen", type=int, metavar="ID", help="eine gemerkte Antwort ganz zeigen")
+    g.add_argument("--gemerkt-freigeben", type=int, metavar="ID", help="gemerkte Antwort freigeben (geprueft)")
+    g.add_argument("--gemerkt-ablehnen", type=int, metavar="ID", help="gemerkte Antwort ablehnen")
     p.add_argument("--status", default="ungeprueft", choices=("ungeprueft", "geprueft", "abgelehnt", "alle"))
     p.add_argument("--antwort", metavar="bibliothek|ID|auto")
     return p
@@ -61,7 +70,8 @@ def _library_text(key: str) -> str:
     return wissensbank.answer_text(unit, secs)
 
 
-def main(argv: list[str] | None = None, out=sys.stdout) -> int:
+def main(argv: list[str] | None = None, out=None) -> int:
+    out = out or sys.stdout           # erst beim Aufruf nachsehen (ein Vorgabewert bliebe am Stand des ersten Imports haengen)
     try:
         args = parser().parse_args(argv)
     except SystemExit as e:
@@ -81,6 +91,8 @@ def main(argv: list[str] | None = None, out=sys.stdout) -> int:
         print(f"Stand {lib.stand}: {len(lib.by_fach)} Fächer, {len(units)} Einheiten, {secs} Abschnitte, davon {explicit} mit "
               f"Folien-/Aufgabentext. Schalter LERNAPP_WISSENSBANK: {'an' if wissensbank.switched_on() else 'aus'}.", file=out)
         return 0
+    if args.gemerkt or args.gemerkt_zeigen is not None or args.gemerkt_freigeben is not None or args.gemerkt_ablehnen is not None:
+        return _gemerkt(args, now, out)
     conn = wissensbank.connect()
     try:
         if args.liste:
@@ -129,6 +141,43 @@ def main(argv: list[str] | None = None, out=sys.stdout) -> int:
     finally:
         conn.close()
     return 2
+
+
+def _gemerkt(args, now: str, out) -> int:
+    """Gemerkte KI-Antworten: Liste, Anzeige, Freigabe, Ablehnung."""
+    from . import wissensbank_ki
+    conn = wissensbank_ki.connect()
+    try:
+        if args.gemerkt:
+            where, params = ("", ()) if args.status == "alle" else ("WHERE status=?", (args.status,))
+            rows = conn.execute(f"SELECT id, titel, kurs, mode, seite, status, votes_fuer, votes_gegen, geliefert, created_at, "
+                                f"substr(answer, 1, 80) FROM wissensbank_gemerkt {where} ORDER BY id", params).fetchall()
+            if not rows:
+                print("Keine gemerkten Antworten.", file=out)
+            for r in rows:
+                print(f"#{r[0]}  {wissensbank.STATUS_TEXT.get(r[5], r[5]):<10} dafür: {r[6]} dagegen: {r[7]} geliefert: {r[8]}  {r[9][:16]}\n"
+                      f"     {r[1]} · Seite {r[4] if r[4] is not None else '-'} · {r[3]} · {r[2] or '-'}\n     {' '.join(str(r[10]).split())}…", file=out)
+            print(f"Betriebsart LERNAPP_WISSENSBANK_MERKEN: {wissensbank_ki.merken_mode()}.", file=out)
+            return 0
+        gid = next(v for v in (args.gemerkt_zeigen, args.gemerkt_freigeben, args.gemerkt_ablehnen) if v is not None)
+        r = conn.execute("SELECT id, titel, kurs, mode, seite, text, answer, model, kontext, status, votes_fuer, votes_gegen, geliefert, "
+                         "created_at FROM wissensbank_gemerkt WHERE id=?", (gid,)).fetchone()
+        if not r:
+            print(f"Gemerkte Antwort #{gid} gibt es nicht.", file=out)
+            return 1
+        if args.gemerkt_zeigen is not None:
+            print(f"Gemerkte Antwort #{r[0]} ({wissensbank.STATUS_TEXT.get(r[9], r[9])}, dafür {r[10]}, dagegen {r[11]}, geliefert {r[12]}, "
+                  f"Modell {r[7] or '-'}{', mit Auszügen aus der Wissensbank' if r[8] else ''}, {r[13]})\n"
+                  f"Stelle: {r[1]} · Seite {r[4] if r[4] is not None else '-'} · {r[3]} · {r[2] or '-'}\n\n"
+                  f"--- Ausschnitt (normalisiert) ---\n{r[5]}\n\n--- KI-Antwort ---\n{r[6]}", file=out)
+            return 0
+        status = "geprueft" if args.gemerkt_freigeben is not None else "abgelehnt"
+        conn.execute("UPDATE wissensbank_gemerkt SET status=?, reviewed_at=? WHERE id=?", (status, now, gid))
+        conn.commit()
+        print(f"Gemerkte Antwort #{gid}: {wissensbank.STATUS_TEXT[status]}.", file=out)
+        return 0
+    finally:
+        conn.close()
 
 
 if __name__ == "__main__":
