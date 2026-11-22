@@ -1,4 +1,4 @@
-# StudiNow-Wissensbank – Stand 21.11.2026 abends (Zweig `server/wissensbank`, enthält `release/1.0.7` lokal bis `831bd22a`)
+# StudiNow-Wissensbank – Stand 22.11.2026 (Zweig `server/wissensbank-ki`, enthält `release/1.0.7` lokal bis `cdda3e89`)
 
 ## Fertig
 
@@ -123,6 +123,84 @@ haben 6 850 keinen Folientext. Größte Lücken bei den Aufgaben: Grundlagen dig
 ET Netzwerke 484 von 1 220, TM II 387 von 502, TM I 339 von 440. Ohne Aufgabentext trifft eine Aufgabe nur über
 Dateititel + Nummer + Zahlen; Aufgaben ohne Zahlen im Text oder mit Zahlen, die die Texterkennung nicht liest, treffen
 dann bewusst nicht.
+
+## Vorab-Frage, KI mit Auszügen, Antworten merken (21./22.11.2026, Zweig `server/wissensbank-ki`)
+
+Rückmeldung des Inhabers nach dem Abgleich-Update: „meistens immer noch KI-Antwort“ und „wenn mehrere die gleiche Frage
+zur gleichen Aufgabe haben, speichert man beim ersten die Antwort und gibt anderen dieselbe Lösung“.
+
+**C. Vorab-Frage `POST /api/ai/wissensbank`** (`app/ai_relay.py`; gemischt und live seit 21.11., App-Seite in
+`release/1.0.7`). Befund am iPad: Bei „ganze Seite erklären“ sieht die App zuerst in ihrem Erklärungsspeicher nach und
+ruft `/api/ai/relay` nicht mehr; die Wissensbank wurde dort nie gefragt. Rumpf `{mode: "explain"|"steps", request_id,
+wissensbank: {datei, kurs, seite, text, ausschnitt?}, fresh?}`. Treffer: Antwort wie eine Wissensbank-Lieferung über
+`/api/ai/relay` plus `treffer: true` (1 Credit, Kontingent und Rate-Limit wie dort). Kein Treffer: Status 200,
+`{treffer: false, grund, task}` ohne Kosten, ohne Verbrauch, ohne KI; `grund`: `kein_treffer`, `schon_geliefert`,
+`nicht_berechtigt`, `keine_angaben`, `kontingent`, `credits`, `rate`. Im Relay hatte die Wissensbank schon Vorrang vor dem
+Zwischenspeicher (jetzt durch einen Test belegt).
+
+**A. KI mit Auszügen aus der Wissensbank** (`app/wissensbank_ki.py`, Schalter `LERNAPP_WISSENSBANK_KONTEXT`, Standard
+aus). Hat der Abgleich keinen lieferbaren Treffer, sucht `suche` die bestpassenden Abschnitte: Einheiten zum
+Dateititel, sonst zum Kurs; Rang über die gemeinsamen Begriffe mit dem ganzen Abschnitt, Seiten- bzw. Aufgabennummer
+als Hinweis. Höchstens 2 Stellen und 6 000 Zeichen gehen als abgegrenzter Block hinter den Prompt (ohne Abgleich-Notizen,
+ohne interne Kennungen), mit der Anweisung: nur verwenden, wenn es wirklich dieselbe Seite bzw. Aufgabe ist (gleiche
+Zahlen und Angaben), sonst ignorieren; die Auszüge nicht erwähnen; nie eine Musterlösung behaupten. Gilt für
+`tutor:explain`, `tutor:steps` und `tutor:ask`. Abrechnung wie jede KI-Antwort; Antwortfeld `wissensbank_kontext: true`
+(die heutige App zeigt dafür nichts). Fest: Aufgaben gehen nur mit, wenn die Zahlen der Anfrage im Abschnitt am Stück
+stehen; zu einer Aufgabe gehen keine Folien mit; nur über den Kurs (Dateititel unbekannt) gilt die Schwelle 0,65 statt 0,5.
+
+Messung der Suche (9 644 Anfragen aus den echten Kursdateien, Text wie in der App, **keine KI-Aufrufe**; „richtig“ =
+dieselbe Seite/Aufgabe nach der Quelldatei bzw. dem Text der Bibliothek):
+
+| Anfragen ohne genauen Treffer | Zahl | Auszug mitgegeben | darunter die richtige Stelle | nur andere Stellen |
+| --- | --- | --- | --- | --- |
+| Folie: Ausschnitt (Vision) | 136 | 78 | 61 (45 %) | 17 |
+| Übungsblatt: Aufgabe eingekreist (Vision) | 178 | 14 | 9 (5 %) | 5 |
+| Klausur: Aufgabe eingekreist (Vision) | 539 | 11 | 6 (1 %) | 5 |
+| Lösungsdatei: Aufgabe eingekreist (Vision) | 226 | 5 | 0 | 5 |
+| Aufgaben, deren Abschnitt keinen Aufgabentext hat | 316 | 6 | 1 | 5 |
+| Gegenprobe: Aufgabe mit fremdem Dateinamen | 2 421 | 51 | 12 | 39 (1,6 %) |
+| Gegenprobe: Aufgabe, Dateititel unbekannt | 1 452 | 7 | 1 | 6 (0,4 %) |
+| Gegenprobe: Folien-Ausschnitt mit fremdem Dateinamen | 1 721 | 284 | 207 | 77 (4,5 %) |
+| Gegenprobe: Folien-Ausschnitt, Dateititel unbekannt | 1 015 | 13 | 8 | 5 (0,5 %) |
+
+Bei Folien steigt der Anteil „genauer Treffer oder richtige Stelle als Auszug“ damit von 112 auf 173 von 248 (70 %).
+Von den „nur anderen“ Folien-Stellen waren in einer Stichprobe (6) drei doch die richtige (andere Seitenzählung), drei
+eine Nachbarfolie zum selben Thema. Bei Aufgaben bringt A fast nichts, solange die Bibliothek keinen Aufgabentext hat;
+die lockerere Regel „Dateititel + Aufgabennummer ohne Zahlen“ hätte 30 statt 9 von 178 richtige Stellen gebracht, aber
+in 8,6 % der Gegenproben mit fremdem Dateinamen eine andere Aufgabe mitgegeben (verworfen). Kosten: im Mittel rund
+3 700 Zeichen mehr je Anfrage mit Auszug (Median 3 400, höchstens 6 700; etwa 1 000, höchstens knapp 2 000 Tokens
+Eingabe mehr), davon rund 800 Zeichen die feste Anweisung.
+**Nicht gemessen:** ob die KI einen unpassenden Auszug wirklich ignoriert; das geht nur mit echten (bezahlten) Anfragen.
+
+**B. Antworten merken** (`app/wissensbank_ki.py`, Schalter `LERNAPP_WISSENSBANK_MERKEN` = `aus` (Standard) | `freigabe` |
+`sofort`). Die erste KI-Antwort zu einer Stelle wird ohne Konto und ohne Frage gespeichert (`wissensbank_gemerkt`:
+Dateititel, Kurs, Modus, Seite, Aufgabenbezeichnungen, normalisierter Text des Ausschnitts, Antwort, Modell). Ein
+anderes Konto bekommt sie statt einer neuen KI-Antwort (`source: "gemerkt"`, 1 Credit, `tutor:gemerkt`, kein
+KI-Aufruf). Entscheidungen des Inhabers 22.11.2026: eingeschaltet wird mit `sofort`; 1 Credit für alle, die danach
+kommen (der Erste zahlt seine normale KI-Antwort); übergeben wird **nur bei derselben Stelle**: gleicher Dateititel UND
+gleicher Kurs UND gleiche Seite UND gleicher Modus UND gleiche Aufgabenbezeichnungen UND praktisch gleicher Text
+(beidseitig ≥ 0,8 der Wortfolgen, alle Zahlen gleich). Nie über Datei- oder Kursgrenzen; ohne Dateititel oder Kurs wird
+nichts gemerkt. Voraussetzung ist das Feld `wissensbank.teilbar: true` der App (nichts Persönliches in der Anfrage);
+fehlt es, wird weder gemerkt noch ausgeliefert, also auch mit der heutigen App nicht. Nur `explain` und `steps`, nie
+getippte Fragen, nie zweite Meinung. Dasselbe Konto noch einmal: frische KI-Antwort mit „Gefällt dir diese Antwort
+besser?“; „Ja“ ist eine Stimme gegen die gemerkte Antwort, „Nein“ eine dafür; ab 2 Stimmen dagegen (und mehr als dafür)
+wird sie nicht mehr geliefert und die nächste KI-Antwort tritt an ihre Stelle. Prüf-Werkzeug:
+`python -m app.wissensbank_pruefen --gemerkt`, `--gemerkt-zeigen ID`, `--gemerkt-freigeben ID`, `--gemerkt-ablehnen ID`.
+Eine Stelle der Bibliothek hat immer Vorrang und wird nicht gemerkt.
+Gemessen an 1 651 echten Ausschnitten (nur die Regel „praktisch gleich“): zwei verschiedene Seiten derselben Datei gelten
+in 1 von 3 003 Paaren als gleich, zufällige Paare aus allen Dateien in 22 von 200 000 (gleiche Folien in zwei Fassungen;
+Dateititel, Kurs und Seite schließen sie zusätzlich aus). Derselbe Ausschnitt ohne seine letzte Zeile gilt nur in 39 %
+der Fälle noch als gleich: Die Regel ist bewusst streng, zwei Leute müssen fast genau dasselbe einkreisen.
+
+**Tests** (22.11.2026): `tests/test_wissensbank_ki.py` 21 grün (C, A, B; je Regel Treffer und Gegenprobe; beide Schalter
+aus = Prompt und Antwortfelder wie bisher); mit `test_wissensbank.py`, `test_ai_relay.py`, `test_audit_p58_87_server.py`
+147 grün; schneller Python-Lauf siehe Bericht.
+
+**Was die App dafür braucht** (nicht gebaut): `wissensbank`-Angaben auch bei `tutor:ask` schicken (für A); Feld
+`wissensbank.teilbar: true` setzen, wenn im Ausschnitt/auf der Seite keine eigenen Notizen liegen, kein Notiztext, kein
+Gesprächsverlauf und keine getippte Frage mitgeht (für B); Antworten mit `wissensbank_kontext` oder `source: "gemerkt"`
+nicht in den geteilten Erklärungsspeicher legen; Anzeige für beide (Vorschlag: „Mit Wissen aus der StudiNow-Wissensbank“
+bzw. „Gemerkte KI-Antwort“).
 
 ## Entscheidungen des Inhabers 21.11.2026
 
