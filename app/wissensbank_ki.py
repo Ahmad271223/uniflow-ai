@@ -15,7 +15,9 @@ B. Antworten merken (`LERNAPP_WISSENSBANK_MERKEN=freigabe|sofort`)
    Die erste KI-Antwort zu einer Stelle wird ohne Konto und ohne Frage gespeichert (Tabelle `wissensbank_gemerkt`:
    Dateititel, Kurs, Modus, Seite, normalisierter Text des Ausschnitts, Antwort). Ein anderes Konto bekommt sie, wenn
    sein Ausschnitt praktisch derselbe ist (`gleich`: beidseitig MERKEN_GLEICH der Wortfolgen, dieselben Zahlen) - sofort
-   oder erst nach der Freigabe durch den Inhaber (`python -m app.wissensbank_pruefen --gemerkt`). Nur wenn die App mit
+   (Entscheidung des Inhabers 22.11.2026) oder erst nach der Freigabe (`python -m app.wissensbank_pruefen --gemerkt`).
+   Uebergeben wird nur bei derselben Stelle: gleicher Kurs, gleiche Datei, gleiche Seite, gleiche Aufgabenbezeichnung,
+   praktisch gleicher Text - nie ueber Datei- oder Kursgrenzen. Nur wenn die App mit
    `wissensbank.teilbar: true` zusichert, dass in der Anfrage nichts Persoenliches steckt (keine eigenen Notizen im
    Ausschnitt, kein Notiztext, kein Gespraechsverlauf, keine getippte Frage); fehlt das Feld, wird nichts gemerkt und
    nichts aus dem Gemerkten geliefert. Fragt dasselbe Konto dieselbe Stelle noch einmal, antwortet die KI frisch und
@@ -58,8 +60,8 @@ KONTEXT_FUSS = "=== ENDE DER AUSZÜGE ===\n"
 
 # ------------------------------------------------------------------ B. Merken
 MERKEN_MODES = ("explain", "steps")
-# Eine gemerkte Antwort kostet so viele Credits (Vorschlag: 1 wie eine Antwort aus der Wissensbank; der geteilte
-# Speicher fuer ganze Seiten kostet 0). Entscheidung des Inhabers vor dem Einschalten.
+# Eine gemerkte Antwort kostet den, der sie bekommt, 1 Credit wie eine Antwort aus der Wissensbank; der Erste zahlt seine
+# normale KI-Antwort (Entscheidung des Inhabers 22.11.2026: "das kostet die, die danach kommen, dann 1 Credit").
 MERKEN_CREDITS = 1
 MERKEN_GLEICH = 0.8                      # beidseitiger Anteil gemeinsamer Wortfolgen fuer "derselbe Ausschnitt"
 MERKEN_ABWAHL = 2                        # so viele Stimmen dagegen (und mehr als dafuer): nicht mehr ausliefern
@@ -77,6 +79,7 @@ CREATE TABLE IF NOT EXISTS wissensbank_gemerkt (
     mode TEXT NOT NULL,                    -- explain | steps
     seite INTEGER,
     text TEXT NOT NULL,
+    labels TEXT NOT NULL DEFAULT '',       -- Aufgabenbezeichnungen im Ausschnitt ("1.2"), sortiert, mit Komma
     answer TEXT NOT NULL,
     model TEXT,
     kontext INTEGER NOT NULL DEFAULT 0,    -- 1: die Antwort entstand mit Auszuegen aus der Wissensbank
@@ -135,10 +138,12 @@ class Fund:
 def suche(lib: wb.Library, *, datei: str, kurs: str = "", seite: int | None = None, text: str = "",
           stellen: int = KONTEXT_STELLEN) -> list[Fund]:
     """Bestpassende Abschnitte fuer den Kontext, beste zuerst. Lockerer als `wissensbank.match`: Es zaehlen die
-    Begriffe (ohne Wortfolge) gegen den ganzen Abschnitt. Fest bleibt:
-    - Aufgaben (und Seiten, die Aufgaben nennen): Hat die Anfrage lesbare Zahlen, muessen sie im Abschnitt am Stueck
-      stehen - sonst ist es eine andere Fassung (anderes Semester) und der Abschnitt geht nicht mit. Ohne lesbare Zahlen
-      geht eine Aufgabe nur mit, wenn Dateititel UND Aufgabennummer passen.
+    Begriffe (ohne Wortfolge) gegen den ganzen Abschnitt. Fest bleibt (gemessen am 21./22.11.2026 an 9 644 Anfragen):
+    - Aufgaben (und Seiten, die Aufgaben nennen) gehen nur mit, wenn die Zahlen der Anfrage im Abschnitt am Stueck
+      stehen (`number_block`). Ohne lesbare Zahlen geht keine Aufgabe mit: "Dateititel + Aufgabennummer" allein gab in
+      8,6 % der Gegenproben mit fremdem Dateinamen eine andere Aufgabe mit, mit bestaetigten Zahlen sind es 0,5 %.
+    - Ist die Anfrage selbst eine Aufgabe (Ueberschrift "Aufgabe 3 ..." im Text), gehen keine Folien mit: Die KI soll
+      einen Auszug nur verwenden, wenn er dieselbe Aufgabe ist - eine Folie zum Thema waere nur Kosten.
     - Ist nur der Kurs bekannt (Dateititel unbekannt), gilt die hoehere Schwelle KONTEXT_ANTEIL_KURS."""
     toks = wb.tokens(text[:wb.TEXT_MAX])
     words, _big, stream = wb.terms(toks)
@@ -146,7 +151,9 @@ def suche(lib: wb.Library, *, datei: str, kurs: str = "", seite: int | None = No
         return []
     qh = set(wb._hashes(words))
     qbits = sum(wb.number_bits(t) for t in stream)
-    qlabels = wb.labels_in(wb.normalize(text[:wb.TEXT_MAX]), toks)
+    norm = wb.normalize(text[:wb.TEXT_MAX])
+    qlabels = wb.labels_in(norm, toks)
+    aufgabe = bool(wb._TASK_WORD.search(norm))
     title = wb.norm_title(datei)
     by_title = sorted(lib.title_index().get(title, set())) if title else []
     rounds = [(by_title, True)]
@@ -172,13 +179,14 @@ def suche(lib: wb.Library, *, datei: str, kurs: str = "", seite: int | None = No
                                       or (sec.kind == "aufgabe" and sec.label is not None and sec.label in qlabels))
                 zahlen = False
                 if cand.kind == "aufgabe" or cand.tasks:
-                    if qbits >= wb.NACHWEIS_ZAHLEN_BITS:
-                        block, total = wb.number_block(stream, cand.numseq)
-                        zahlen = block >= wb.NACHWEIS_ZAHLEN_BITS and block >= wb.NACHWEIS_ZAHLEN * total
-                        if not zahlen:
-                            continue
-                    elif not hinweis:
+                    if qbits < wb.NACHWEIS_ZAHLEN_BITS:
                         continue
+                    block, total = wb.number_block(stream, cand.numseq)
+                    zahlen = block >= wb.NACHWEIS_ZAHLEN_BITS and block >= wb.NACHWEIS_ZAHLEN * total
+                    if not zahlen:
+                        continue
+                elif aufgabe:
+                    continue
                 score = share + (0.2 if hinweis else 0.0) + (0.2 if zahlen else 0.0)
                 old = found.get(id(cand))
                 if old is None or score > old.score:
@@ -254,12 +262,18 @@ def lieferbar(row, mode: str) -> bool:
     return mode == "sofort" or (mode == "freigabe" and row["status"] == "geprueft")
 
 
+def _labels(text: str, toks: list[str]) -> str:
+    return ",".join(sorted(wb.labels_in(wb.normalize(text), toks)))
+
+
 def finden(conn: sqlite3.Connection, stelle: dict, toks: list[str]) -> list[dict]:
-    """Gemerkte Antworten zu dieser Stelle (gleicher Dateititel, Kurs, Modus, Seite) mit praktisch demselben Text,
-    neueste zuerst."""
+    """Gemerkte Antworten zu genau dieser Stelle, neueste zuerst. Entscheidung des Inhabers 22.11.2026: "Nur wenn das
+    gleiche Fach, Uebungsblatt und gleiche Aufgabe ist, ansonsten nicht uebergeben." Also: gleicher Dateititel UND
+    gleicher Kurs UND gleiche Seite UND gleicher Modus UND dieselben Aufgabenbezeichnungen im Ausschnitt UND praktisch
+    derselbe Text (`gleich`). Nie ueber Datei- oder Kursgrenzen, auch wenn der Text gleich ist."""
     cur = conn.execute("SELECT id, text, answer, model, kontext, status, votes_fuer, votes_gegen FROM wissensbank_gemerkt "
-                       "WHERE titel=? AND kurs=? AND mode=? AND seite IS ? ORDER BY id DESC LIMIT 200",
-                       (stelle["titel"], stelle["kurs"], stelle["mode"], stelle["seite"]))
+                       "WHERE titel=? AND kurs=? AND mode=? AND seite IS ? AND labels=? ORDER BY id DESC LIMIT 200",
+                       (stelle["titel"], stelle["kurs"], stelle["mode"], stelle["seite"], stelle["labels"]))
     cols = [d[0] for d in cur.description]
     return [r for r in (dict(zip(cols, row)) for row in cur.fetchall()) if gleich(toks, r["text"].split(" "))]
 
@@ -292,10 +306,12 @@ def plan(user: dict, task: str, body: dict) -> KiPlan | None:
         seite = None
     out = KiPlan()
     # B. zuerst: eine gemerkte Antwort erspart die KI
-    if mm != "aus" and mode in MERKEN_MODES and wbd.get("teilbar") is True and wb.norm_title(datei):
+    # nur mit Dateititel UND Kurs (ohne beides ist "dieselbe Stelle" nicht belegt) und nur, wenn die App zusichert,
+    # dass nichts Persoenliches in der Anfrage steckt
+    if mm != "aus" and mode in MERKEN_MODES and wbd.get("teilbar") is True and wb.norm_title(datei) and _kurs(kurs):
         toks = wb.tokens(text)
         if len(wb.shingles(toks)) >= wb.MIN_GEMEINSAM and len(wb.terms(toks)[0]) >= wb.MIN_BEGRIFFE:
-            stelle = {"titel": wb.norm_title(datei), "kurs": _kurs(kurs), "mode": mode, "seite": seite}
+            stelle = {"titel": wb.norm_title(datei), "kurs": _kurs(kurs), "mode": mode, "seite": seite, "labels": _labels(text, toks)}
             conn = connect()
             try:
                 rows = finden(conn, stelle, toks)
@@ -372,10 +388,10 @@ def after(user: dict, p: KiPlan, c, now: datetime | None = None) -> dict:
         try:
             m = p.merken
             model = getattr(c, "source_model", "") or getattr(c, "model", "") or None
-            conn.execute("INSERT INTO wissensbank_gemerkt(titel, kurs, mode, seite, text, answer, model, kontext, created_at) "
-                         "VALUES (?,?,?,?,?,?,?,?,?)",
-                         (m["titel"], m["kurs"], m["mode"], m["seite"], m["text"], text, model, 1 if p.kontext is not None else 0,
-                          t.isoformat()))
+            conn.execute("INSERT INTO wissensbank_gemerkt(titel, kurs, mode, seite, text, labels, answer, model, kontext, created_at) "
+                         "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                         (m["titel"], m["kurs"], m["mode"], m["seite"], m["text"], m["labels"], text, model,
+                          1 if p.kontext is not None else 0, t.isoformat()))
             conn.commit()
         finally:
             conn.close()

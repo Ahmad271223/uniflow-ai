@@ -184,8 +184,8 @@ def ki(wb, monkeypatch):
 A4_OHNE_ZAHLEN = ("Aufgabe 4 (6 Punkte)\nEin Dreigelenkbogen hat die Punkte A, B und C (Angaben in Metern).\nIm Punkt C greift die "
                   "Last F an. Bestimmen Sie den Hebelarm der Last um den Punkt A\nund mit dem Momentengleichgewicht die Auflagerkraft im Punkt B.")
 A4_NEUE_ZAHLEN = A4.replace("(4, 0, 7)", "(1, 0, 3)").replace("(9, 3, 8)", "(5, 2, 9)").replace("(6, 5, 2)", "(7, 4, 1)").replace("18 kN", "30 kN")
-A1_FREI = ("Aufgabe 1\nEinfeldträger mit Einzelkraft in der Mitte: Lagerreaktionen am Festlager und Loslager und das größte "
-           "Biegemoment bestimmen.")
+# Aufgabe 4 unter einer anderen Nummer (verschobenes Blatt): kein genauer Treffer, aber die Zahlen belegen die Stelle
+A4_NR9 = A4.replace("Aufgabe 4", "Aufgabe 9")
 OHNE_FELDER = {"answer", "model", "shared", "replay", "credits", "task", "source"}
 
 
@@ -199,24 +199,23 @@ def test_kontext_switch_off_changes_nothing(ki):
     assert [r[0] for r in ledger(u["id"])] == ["tutor:steps"]
 
 
-def test_kontext_gives_the_ai_the_best_sections_as_a_marked_block(ki, monkeypatch):
-    from app import wissensbank_ki
+def test_kontext_gives_the_ai_the_matching_section_as_a_marked_block(ki, monkeypatch):
+    from app import wissensbank, wissensbank_ki
     monkeypatch.setenv("LERNAPP_WISSENSBANK_KONTEXT", "1")
     app, spy = ki
     u, h = user(app, "kontext1@beispiel.de", plan="pro_ai")
-    st, d = ask(app, h, mode="steps", text=A4_OHNE_ZAHLEN, datei=BLATT, seite=2)
+    st, d = ask(app, h, mode="steps", text=A4_NR9, datei=BLATT, seite=2)
     assert st == 200 and d["source"] == "ki" and d["wissensbank_kontext"] is True and d["answer"] == "KI-ANTWORT-1"
     assert set(d) == OHNE_FELDER | {"wissensbank_kontext"}, "kein Abzeichen, kein Schluessel: fuer die heutige App eine KI-Antwort"
     prompt = spy.prompts[0]
-    assert prompt.startswith("SEITENTEXT:\n" + A4_OHNE_ZAHLEN + wissensbank_ki.KONTEXT_KOPF) and prompt.endswith(wissensbank_ki.KONTEXT_FUSS)
+    assert prompt.startswith("SEITENTEXT:\n" + A4_NR9 + wissensbank_ki.KONTEXT_KOPF) and prompt.endswith(wissensbank_ki.KONTEXT_FUSS)
     block = prompt.split(wissensbank_ki.KONTEXT_KOPF, 1)[1]
-    # ohne lesbare Zahlen kommen beide Semester mit; die KI soll nur nehmen, was genau passt
-    assert "LOESUNG-4:" in block and "LOESUNG-4-VORJAHR" in block and block.count("--- Auszug") == 2
+    # die Zahlen der Anfrage waehlen die Stelle: nur dieses Semester, nicht das Vorjahr mit anderen Zahlen
+    assert "LOESUNG-4:" in block and "LOESUNG-4-VORJAHR" not in block and block.count("--- Auszug") == 1
     assert "nur, wenn er wirklich dieselbe Seite bzw. dieselbe Aufgabe" in prompt and "Musterlösung" in wissensbank_ki.KONTEXT_KOPF
     assert "[Q1]" not in block and "G000" not in block
     # abgerechnet wie jede KI-Antwort, nichts als "geliefert" vermerkt
     assert ledger(u["id"]) == [("tutor:steps", 9, 56000, "fake")]
-    from app import wissensbank
     conn = wissensbank.connect()
     try:
         assert conn.execute("SELECT COUNT(*) FROM wissensbank_delivered").fetchone()[0] == 0
@@ -224,16 +223,14 @@ def test_kontext_gives_the_ai_the_best_sections_as_a_marked_block(ki, monkeypatc
         conn.close()
 
 
-def test_kontext_never_carries_the_abgleich_notes_or_internal_marks(ki, monkeypatch):
-    monkeypatch.setenv("LERNAPP_WISSENSBANK_KONTEXT", "1")
-    app, spy = ki
-    _u, h = user(app, "kontext2@beispiel.de", plan="pro_ai")
-    st, d = ask(app, h, mode="explain", text=A1_FREI, datei=BLATT, seite=1)
-    assert d["source"] == "ki" and d["wissensbank_kontext"] is True
-    block = spy.prompts[0].split("=== AUSZÜGE", 1)[1]
-    assert "LOESUNG-1A" in block and "ERKLAERUNG-1A" in block
+def test_kontext_never_carries_the_abgleich_notes_or_internal_marks(lib_ki):
+    from app import wissensbank_ki
+    unit = lib_ki.unit(STATIK, "G0002")
+    sec = next(x for x in unit.sections if x.sid == "02#Q1-Aufgabe-1-a")
+    text = wissensbank_ki._auszug(unit, sec, 4000)
+    assert "LOESUNG-1A" in text and "ERKLAERUNG-1A" in text
     for gone in ("ABGLEICH", "Abgleich", "[Q1]", "G0002"):
-        assert gone not in block, gone
+        assert gone not in text, gone
 
 
 def test_kontext_other_numbers_other_title_or_other_account_get_nothing(ki, monkeypatch):
@@ -243,19 +240,26 @@ def test_kontext_other_numbers_other_title_or_other_account_get_nothing(ki, monk
     # dieselbe Aufgabe mit anderen Zahlen (neues Semester): kein Auszug - die Loesung waere falsch
     st, d = ask(app, h, mode="steps", text=A4_NEUE_ZAHLEN, datei=BLATT, seite=2)
     assert "wissensbank_kontext" not in d and spy.prompts[-1] == "SEITENTEXT:\n" + A4_NEUE_ZAHLEN
-    # Aufgabe ohne lesbare Zahlen und ohne bekannten Dateititel: nichts
-    st, d = ask(app, h, mode="steps", text=A4_OHNE_ZAHLEN, datei="Blatt_neu.pdf", seite=2)
+    # Aufgabe ohne lesbare Zahlen (Texterkennung): nichts, auch wenn Dateititel und Aufgabennummer passen - dieselbe
+    # Aufgabe eines anderen Semesters haette denselben Wortlaut
+    st, d = ask(app, h, mode="steps", text=A4_OHNE_ZAHLEN, datei=BLATT, seite=2)
+    assert "wissensbank_kontext" not in d and "AUSZÜGE" not in spy.prompts[-1]
+    # zu einer Aufgabe gehen keine Folien mit (die Begriffe der Lagerarten-Folie, aber mit Aufgaben-Ueberschrift)
+    st, d = ask(app, h, text="Aufgabe 2 (3 Punkte)\n" + S5, seite=9)
     assert "wissensbank_kontext" not in d and "AUSZÜGE" not in spy.prompts[-1]
     # ganz anderer Text
     st, d = ask(app, h, text=ANDERER_TEXT)
     assert "wissensbank_kontext" not in d and "AUSZÜGE" not in spy.prompts[-1]
     # zweite Meinung: wie bisher ohne Wissensbank
-    st, d = ask(app, h, mode="steps", text=A4_OHNE_ZAHLEN, datei=BLATT, seite=2, second_opinion=True)
+    st, d = ask(app, h, mode="steps", text=A4_NR9, datei=BLATT, seite=2, second_opinion=True)
     assert "wissensbank_kontext" not in d and "AUSZÜGE" not in spy.prompts[-1]
     # Konto ohne Wissensbank
     _u, h_hi = user(app, "kontext-hi@beispiel.de", plan="pro_ai", uni="hildesheim")
-    st, d = ask(app, h_hi, mode="steps", text=A4_OHNE_ZAHLEN, datei=BLATT, seite=2)
+    st, d = ask(app, h_hi, mode="steps", text=A4_NR9, datei=BLATT, seite=2)
     assert set(d) == OHNE_FELDER and "AUSZÜGE" not in spy.prompts[-1]
+    # Gegenprobe: mit Wissensbank bekommt dieselbe Anfrage den Auszug
+    st, d = ask(app, h, mode="steps", text=A4_NR9, datei=BLATT, seite=2)
+    assert d["wissensbank_kontext"] is True and "LOESUNG-4:" in spy.prompts[-1]
 
 
 def test_kontext_for_slides_and_typed_questions_and_exact_hits_stay_exact(ki, monkeypatch):
@@ -278,19 +282,29 @@ def test_kontext_for_slides_and_typed_questions_and_exact_hits_stay_exact(ki, mo
     assert d["source"] == "wissensbank" and d["wissensbank_key"] == K_4 and spy.calls == calls
 
 
-def test_kontext_block_is_bounded(lib_ki):
+def test_kontext_search_and_block_are_bounded(lib_ki):
+    from test_wissensbank import A4_VORJAHR
     from app import wissensbank_ki
-    funde = wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_OHNE_ZAHLEN, stellen=5)
-    assert [f.key for f in funde] == [f"{STATIK}/G0002/02#Q1-Aufgabe-4", f"{STATIK}/G0003/02#Q1-Aufgabe-4"]
-    assert all(f.hinweis and not f.zahlen for f in funde)
-    k = wissensbank_ki.kontext_block(funde)
-    assert len(k.block) <= len(wissensbank_ki.KONTEXT_KOPF) + wissensbank_ki.KONTEXT_ZEICHEN + 200 and len(k.keys) == 2
-    # mit lesbaren Zahlen nur die Stelle mit diesen Zahlen
-    funde = wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4)
+    funde = wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_NR9, stellen=5)
     assert [f.key for f in funde] == [f"{STATIK}/G0002/02#Q1-Aufgabe-4"] and funde[0].zahlen
+    funde_vj = wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_VORJAHR.replace("Aufgabe 4", "Aufgabe 9"))
+    assert [f.key for f in funde_vj] == [f"{STATIK}/G0003/02#Q1-Aufgabe-4"], "gleicher Dateiname: die Zahlen waehlen das Semester"
+    assert wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_OHNE_ZAHLEN) == [], "ohne Zahlen keine Aufgabe"
+    assert wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_NEUE_ZAHLEN) == [], "andere Zahlen: andere Fassung"
     assert wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text="Aufgabe 4\n1 0 1 1 0 1 0 0 1") == []
+    # Folie: ueber den Dateititel schon mit der Haelfte der Begriffe, ueber den Kurs erst mit 0,65
+    assert [f.key for f in wissensbank_ki.suche(lib_ki, datei=FOLIEN, seite=9, text=S5)] == [f"{STATIK}/G0001/01#Q1-Seite-5"]
+    assert [f.key for f in wissensbank_ki.suche(lib_ki, datei="x.pdf", kurs=KURS_STATIK, seite=9, text=S5)] == [f"{STATIK}/G0001/01#Q1-Seite-5"]
+    halb = S5 + "\nWerkstoffe: Beton, Stahl, Holz\nKennwerte der Baustoffe"
+    assert len(wissensbank_ki.suche(lib_ki, datei=FOLIEN, seite=9, text=halb)) == 1
+    assert wissensbank_ki.suche(lib_ki, datei="x.pdf", kurs=KURS_STATIK, seite=9, text=halb) == []
+    assert wissensbank_ki.suche(lib_ki, datei="x.pdf", kurs="Einführung in die Chemie", seite=9, text=S5) == []
+    k = wissensbank_ki.kontext_block(funde)
+    assert len(k.block) <= len(wissensbank_ki.KONTEXT_KOPF) + wissensbank_ki.KONTEXT_ZEICHEN + 200 and len(k.keys) == 1
     assert wissensbank_ki.kontext_block([]) is None
     assert wissensbank_ki._auszug(funde[0].unit, funde[0].sec, 60).endswith("[…gekürzt]")
+    assert (wissensbank_ki.KONTEXT_STELLEN, wissensbank_ki.KONTEXT_ZEICHEN, wissensbank_ki.KONTEXT_ANTEIL,
+            wissensbank_ki.KONTEXT_ANTEIL_KURS, wissensbank_ki.KONTEXT_BEGRIFFE) == (2, 6000, 0.5, 0.65, 6)
 
 
 @pytest.fixture
@@ -347,7 +361,7 @@ def test_first_ai_answer_is_remembered_and_given_to_the_next_account(ki, monkeyp
     rows = gemerkt_rows()
     assert len(rows) == 1 and rows[0]["answer"] == "KI-ANTWORT-1" and rows[0]["status"] == "ungeprueft" and rows[0]["seite"] == 12
     # ohne Konto und ohne Frage: keine Spalte nennt das Konto, der Prompt wird nicht gespeichert
-    assert set(rows[0]) == {"id", "titel", "kurs", "mode", "seite", "text", "answer", "model", "kontext", "status", "votes_fuer",
+    assert set(rows[0]) == {"id", "titel", "kurs", "mode", "seite", "text", "labels", "answer", "model", "kontext", "status", "votes_fuer",
                             "votes_gegen", "geliefert", "created_at", "reviewed_at"}
     assert u1["id"] not in json.dumps(rows[0]) and "merken1" not in json.dumps(rows[0]) and "AUSSCHNITT:" not in rows[0]["text"]
     # ein anderes Konto mit praktisch demselben Ausschnitt bekommt dieselbe Antwort, ohne KI
@@ -428,17 +442,26 @@ def test_only_practically_the_same_part_gets_the_remembered_answer(ki, monkeypat
     andere = [dict(text=AUSSCHNITT.replace("7 Stäben", "9 Stäben")),                 # andere Zahl
               dict(text=AUSSCHNITT.split("Mit dem Knotenpunktverfahren")[0]),        # nur die Haelfte
               dict(text=AUSSCHNITT + " " + ANDERER_TEXT),                            # viel mehr drumherum
-              dict(seite=13), dict(datei="Fachwerke - Folien 08.pdf"), dict(kurs="Einführung in die Chemie"), dict(mode="steps")]
+              # Entscheidung des Inhabers 22.11.2026: nie ueber Seiten-, Datei- oder Kursgrenzen, auch bei gleichem Text
+              dict(seite=13), dict(datei="Fachwerke - Folien 08.pdf"), dict(kurs="Einführung in die Chemie"), dict(mode="steps"),
+              dict(text="Aufgabe 3\n" + AUSSCHNITT)]                                # Aufgabenbezeichnung im Ausschnitt
     for kw in andere:
         st, d = frage(app, h2, **kw)
         assert d["source"] == "ki", kw
     assert len(gemerkt_rows()) == 1 + len(andere), "jede davon ist eine eigene Stelle und wird selbst gemerkt"
+    # gleicher Text unter einer anderen Aufgabennummer ist eine andere Stelle; dieselbe Nummer trifft
+    _u, h4 = user(app, "gleich4@beispiel.de", plan="pro_ai")
+    assert frage(app, h4, text="Aufgabe 4\n" + AUSSCHNITT)[1]["source"] == "ki"
+    assert frage(app, h4, text="Aufgabe 3\n" + AUSSCHNITT_2)[1]["source"] == "gemerkt"
+    # ohne Kurs oder ohne Dateititel ist "dieselbe Stelle" nicht belegt: nicht merken, nicht ausliefern
+    n = len(gemerkt_rows())
+    assert frage(app, h4, kurs="")[1]["source"] == "ki" and frage(app, h4, datei="")[1]["source"] == "ki" and len(gemerkt_rows()) == n
     assert frage(app, h2)[1]["source"] == "gemerkt"
     # "Neu erklaeren lassen": frische Antwort, die gemerkte bleibt
     _u, h3 = user(app, "gleich3@beispiel.de", plan="pro_ai")
     calls = spy.calls
     st, d = frage(app, h3, fresh=True)
-    assert d["source"] == "ki" and spy.calls == calls + 1 and len(gemerkt_rows()) == 1 + len(andere)
+    assert d["source"] == "ki" and spy.calls == calls + 1 and len(gemerkt_rows()) == n
 
 
 def test_gleich_rule():
@@ -494,13 +517,13 @@ def test_merken_only_for_accounts_with_the_wissensbank_and_never_before_the_libr
     st, d = frage(app, h, text=S2, datei=FOLIEN, kurs="", seite=2)
     assert d["source"] == "wissensbank" and d["wissensbank_key"] == K_S2 and gemerkt_rows() == []
     # eine KI-Antwort mit Auszuegen aus der Wissensbank wird gemerkt und so gekennzeichnet
-    st, d = frage(app, h, mode="steps", text=A4_OHNE_ZAHLEN, datei=BLATT, kurs="", seite=2)
+    st, d = frage(app, h, mode="steps", text=A4_NR9, datei=BLATT, seite=2)
     assert d["source"] == "ki" and d["wissensbank_kontext"] is True
     rows = gemerkt_rows()
-    assert len(rows) == 1 and rows[0]["kontext"] == 1 and rows[0]["mode"] == "steps"
+    assert len(rows) == 1 and rows[0]["kontext"] == 1 and rows[0]["mode"] == "steps" and rows[0]["labels"] == "9"
     _u, h2 = user(app, "merken-luh2@beispiel.de", plan="pro_ai")
     calls = spy.calls
-    st, d = frage(app, h2, mode="steps", text=A4_OHNE_ZAHLEN, datei=BLATT, kurs="", seite=2)
+    st, d = frage(app, h2, mode="steps", text=A4_NR9, datei=BLATT, seite=2)
     assert d["source"] == "gemerkt" and "wissensbank_kontext" not in d and spy.calls == calls
     # Konto loeschen: die "geliefert"-Zeilen des Kontos gehen, die gemerkte Antwort (ohne Konto) bleibt
     from app import accounts, wissensbank
