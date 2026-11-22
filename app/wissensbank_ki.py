@@ -32,6 +32,7 @@ import os
 import re
 import sqlite3
 import unicodedata
+from array import array
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -45,6 +46,8 @@ KONTEXT_ZEICHEN = 6000                   # hoechstens so viele Zeichen Auszug je
 KONTEXT_ZEICHEN_STELLE = 4000            # und je Abschnitt
 KONTEXT_ANTEIL = 0.5                     # Anteil der Begriffe der Anfrage, die im Abschnitt stehen (Dateititel bekannt)
 KONTEXT_ANTEIL_KURS = 0.65               # ... wenn nur der Kurs passt
+KONTEXT_BEGRIFFE_KURZ = 2                # Aufgabe ueber Bezeichnung und Seite: so viele Woerter muessen passen
+KONTEXT_ZIFFERN_BITS = 9.0               # ebenda: ab drei Ziffern (ohne 0/1) muss ihre Folge im Abschnitt stehen
 KONTEXT_BEGRIFFE = 6                     # mindestens so viele gemeinsame Begriffe
 
 KONTEXT_KOPF = (
@@ -139,28 +142,33 @@ def suche(lib: wb.Library, *, datei: str, kurs: str = "", seite: int | None = No
           stellen: int = KONTEXT_STELLEN) -> list[Fund]:
     """Bestpassende Abschnitte fuer den Kontext, beste zuerst. Lockerer als `wissensbank.match`: Es zaehlen die
     Begriffe (ohne Wortfolge) gegen den ganzen Abschnitt. Fest bleibt (gemessen am 21./22.11.2026 an 9 644 Anfragen):
-    - Aufgaben (und Seiten, die Aufgaben nennen) gehen nur mit, wenn die Zahlen der Anfrage im Abschnitt am Stueck
-      stehen (`number_block`). Ohne lesbare Zahlen geht keine Aufgabe mit: "Dateititel + Aufgabennummer" allein gab in
-      8,6 % der Gegenproben mit fremdem Dateinamen eine andere Aufgabe mit, mit bestaetigten Zahlen sind es 0,5 %.
+    - Aufgaben (und Seiten, die Aufgaben nennen) gehen mit, wenn die Zahlen der Anfrage im Abschnitt am Stueck stehen
+      (`number_block`). "Dateititel + Aufgabennummer" allein gab in 8,6 % der Gegenproben mit fremdem Dateinamen eine
+      andere Aufgabe mit, mit bestaetigten Zahlen sind es 0,5 %.
+    - Ohne lesbare Zahlen (Kopf und Formelzeile, erkannter Text ohne die Formeln) geht eine Aufgabe nur ueber ihre
+      Bezeichnung UND die Seite mit (`_ueber_bezeichnung`, 22.11.2026).
     - Ist die Anfrage selbst eine Aufgabe (Ueberschrift "Aufgabe 3 ..." im Text), gehen keine Folien mit: Die KI soll
       einen Auszug nur verwenden, wenn er dieselbe Aufgabe ist - eine Folie zum Thema waere nur Kosten.
     - Ist nur der Kurs bekannt (Dateititel unbekannt), gilt die hoehere Schwelle KONTEXT_ANTEIL_KURS."""
     toks = wb.tokens(text[:wb.TEXT_MAX])
     words, _big, stream = wb.terms(toks)
-    if len(words) < KONTEXT_BEGRIFFE:
+    norm = wb.normalize(text[:wb.TEXT_MAX])
+    title = wb.norm_title(datei)
+    by_title = sorted(lib.title_index().get(title, set())) if title else []
+    heads = _koepfe(norm, len(words)) if by_title and seite else {}
+    kurz = len(words) < KONTEXT_BEGRIFFE
+    if kurz and not heads:
         return []
     qh = set(wb._hashes(words))
     qbits = sum(wb.number_bits(t) for t in stream)
-    norm = wb.normalize(text[:wb.TEXT_MAX])
     qlabels = wb.labels_in(norm, toks)
     aufgabe = bool(wb._TASK_WORD.search(norm))
-    title = wb.norm_title(datei)
-    by_title = sorted(lib.title_index().get(title, set())) if title else []
     rounds = [(by_title, True)]
     if kurs:
         seen = set(by_title)
         rounds.append(([(f, u) for f in lib.fach_for_course(kurs) for u in lib.by_fach[f] if (f, u) not in seen], False))
     found: dict[int, Fund] = {}
+    benannt: dict[str, dict[int, tuple]] = {}        # Weg ueber die Bezeichnung: je Aufgabennummer die Abschnitte
     for units, titled in rounds:
         need = KONTEXT_ANTEIL if titled else KONTEXT_ANTEIL_KURS
         for fach, uid in units:
@@ -173,7 +181,14 @@ def suche(lib: wb.Library, *, datei: str, kurs: str = "", seite: int | None = No
                     continue
                 at, cand = wb._resolve(lib, unit, sec) if sec.link and not sec.explicit else (unit, sec)
                 share, common = wb._share(qh, cand.words)
-                if common < KONTEXT_BEGRIFFE or share < need:
+                if titled and cand.kind == "aufgabe" and cand.label in heads:
+                    ziffern, anteil = _ueber_bezeichnung(sec, cand, heads[cand.label], seite)
+                    if ziffern is not False:
+                        # Rang: Ziffernfolge bestaetigt, Anteil der Woerter, dann der Abschnitt mit Inhalt, dann der neueste
+                        rang = (bool(ziffern), round(anteil, 2), cand.explicit, cand.body_len.bit_length(), at.semester)
+                        fund = Fund(at, cand, anteil + 0.4, anteil, True, bool(ziffern))
+                        benannt.setdefault(cand.label, {})[id(cand)] = (rang, fund)
+                if kurz or common < KONTEXT_BEGRIFFE or share < need:
                     continue
                 hinweis = titled and ((sec.kind == "seite" and bool(seite) and sec.page == seite)
                                       or (sec.kind == "aufgabe" and sec.label is not None and sec.label in qlabels))
@@ -191,9 +206,80 @@ def suche(lib: wb.Library, *, datei: str, kurs: str = "", seite: int | None = No
                 old = found.get(id(cand))
                 if old is None or score > old.score:
                     found[id(cand)] = Fund(at, cand, score, share, hinweis, zahlen)
+        for kandidaten in benannt.values():
+            rang, fund = max(kandidaten.values(), key=lambda x: x[0])
+            if any(f.unit.semester != fund.unit.semester and r[0] == rang[0] and _andere_fassung(fund.sec, f.sec)
+                   for r, f in kandidaten.values()):
+                continue                             # zwei Semester, andere Zahlen, nichts entscheidet
+            old = found.get(id(fund.sec))
+            if old is None or fund.score > old.score:
+                found[id(fund.sec)] = fund
         if found:
             break                                    # Treffer ueber den Dateititel: der Kurs wird nicht mehr durchsucht
-    return sorted(found.values(), key=lambda f: (-f.score, f.unit.uid, f.sec.sid))[:max(0, stellen)]
+    beste = sorted(found.values(), key=lambda f: (-round(f.score, 2), wb._neu(f.unit), f.unit.uid, f.sec.sid))
+    return beste[:max(0, stellen)]
+
+
+def _andere_fassung(a: wb.Section, b: wb.Section) -> bool:
+    """Zwei Abschnitte mit derselben Bezeichnung, deren Zahlen (ohne die genannten Seiten) ueberwiegend verschieden sind:
+    dieselbe Aufgabe mit anderen Zahlen (anderes Semester). Zwei Fassungen derselben Aufgabe teilen ihre Zahlen."""
+    seiten = {str(p) for p in a.pages | b.pages}
+    na, nb = a.bignums - seiten, b.bignums - seiten
+    return bool(na - nb) and bool(nb - na) and 2 * len(na & nb) < len(na | nb)
+
+
+def _koepfe(norm: str, begriffe: int) -> dict[str, tuple]:
+    """Aufgaben im angefragten Text: Bezeichnung aus der Ueberschrift -> (Begriffe, groessere Zahlen, Zahlenfolge) des
+    Texts bis zur naechsten Ueberschrift. Eine Ueberschrift ohne eigenen Text oder mit einem kleinen Rest (der
+    eingekreiste Bereich reicht bis in die naechste Aufgabe; unter einem Drittel der `begriffe` des ganzen Ausschnitts)
+    zaehlt nicht: Gefragt ist die Aufgabe davor."""
+    out: dict[str, tuple] = {}
+    heads = list(wb._TASK_HEAD.finditer(norm))
+    for i, m in enumerate(heads[:2 * wb.MAX_ABSCHNITTE]):
+        label = wb.task_label(m.group(1))
+        seg = norm[m.start():heads[i + 1].start() if i + 1 < len(heads) else len(norm)]
+        words, big, stream = wb.terms(wb.tokens(seg), skip=label)
+        if label and label not in out and len(words) >= KONTEXT_BEGRIFFE_KURZ and 3 * len(words) >= begriffe:
+            out[label] = (set(wb._hashes(words)), big, stream)
+    return out
+
+
+def _ueber_bezeichnung(sec: wb.Section, cand: wb.Section, kopf: tuple, seite: int | None) -> tuple[bool | None, float]:
+    """Ausschnitt einer Aufgabe ohne belastbare Zahlen: Kopf und eine Formelzeile ("Aufgabe 2.3.1 ... a) ...: z = ..."),
+    wenige Woerter, oder ein Aufgabentext, dessen Formeln die Texterkennung nicht liest. Der Abschnitt geht als Auszug
+    mit, wenn (bei passendem Dateititel)
+    - die Ueberschrift im Ausschnitt dieselbe Aufgabenbezeichnung nennt wie der Abschnitt (prueft der Aufrufer),
+    - die mitgeschickte Seite im Abschnitt als Seite/Folie genannt ist (oder die Seite der Bibliothek dorthin verweist),
+    - von den Woertern unter dieser Ueberschrift mindestens KONTEXT_BEGRIFFE_KURZ und die Haelfte im Abschnitt stehen,
+    - und die Zahlen nicht widersprechen: jede groessere Zahl steht im Abschnitt, die Ziffernfolge der Formel ebenfalls
+      (`_ziffernfolge`); steht dieselbe Bezeichnung in zwei Semestern mit verschiedenen Zahlen und entscheidet die
+      Anfrage nicht, geht nichts mit (`suche`).
+    Nur als Auszug an die KI, nie als Lieferung: Die Formel selbst laesst sich am erkannten Text nicht nachpruefen (die
+    Texterkennung liest ∧ als "^", "1", "A" oder gar nicht, Ueberstriche fehlen), dieselbe Aufgabe mit geaenderter
+    Formel in einem anderen Semester saehe gleich aus. Die KI sieht das Bild und entscheidet, ob der Auszug passt.
+    -> (False, 0) passt nicht | (True, Anteil) Ziffernfolge bestaetigt | (None, Anteil) keine Ziffern zum Pruefen"""
+    qh, big, stream = kopf
+    if not seite or not (seite in cand.pages or (sec is not cand and sec.kind == "seite" and sec.page == seite)):
+        return False, 0.0
+    share, common = wb._share(qh, cand.words)
+    if common < KONTEXT_BEGRIFFE_KURZ or share < KONTEXT_ANTEIL or big - cand.bignums:
+        return False, 0.0
+    return _ziffernfolge(stream, cand), share
+
+
+_NULL_EINS = frozenset(hash(t) & 0xFFFFFFFF for t in ("0", "1"))
+
+
+def _ziffernfolge(stream: list[str], cand: wb.Section) -> bool | None:
+    """Zahlen- bzw. Indexfolge einer Formelzeile ("z = a1 ^ (a2 V a3 V (a4 ^ a5))" -> 2 3 4 5) gegen die Zahlen
+    des Abschnitts, ohne 0 und 1: Die Texterkennung liest ∧ oft als "1", und 0/1 stehen ueberall. True: die Folge steht
+    dort am Stueck (NACHWEIS_ZAHLEN ihres Gewichts); False: sie steht dort nicht (andere Zahlen, andere Aufgabe); None:
+    zu wenige Ziffern zum Pruefen (unter drei)."""
+    stark = [t for t in stream if t not in ("0", "1")]
+    if sum(wb.number_bits(t) for t in stark) < KONTEXT_ZIFFERN_BITS:
+        return None
+    block, total = wb.number_block(stark, array("I", [h for h in cand.numseq if h not in _NULL_EINS]))
+    return block >= wb.NACHWEIS_ZAHLEN * total
 
 
 _KENNUNG = re.compile(r"\[Q\d+\]\s?|\bG\d{4}\b\s?|`[^`\n]*\.(?:md|py|pdf)`")

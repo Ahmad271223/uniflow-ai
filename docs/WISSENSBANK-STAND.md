@@ -1,4 +1,4 @@
-# StudiNow-Wissensbank – Stand 22.11.2026 (Zweig `server/wissensbank-ki`, enthält `release/1.0.7` lokal bis `cdda3e89`)
+# StudiNow-Wissensbank – Stand 22.11.2026 (Zweig `server/wissensbank-ki`, enthält `release/1.0.7` lokal bis `70a006c9`)
 
 ## Fertig
 
@@ -146,7 +146,8 @@ ohne interne Kennungen), mit der Anweisung: nur verwenden, wenn es wirklich dies
 Zahlen und Angaben), sonst ignorieren; die Auszüge nicht erwähnen; nie eine Musterlösung behaupten. Gilt für
 `tutor:explain`, `tutor:steps` und `tutor:ask`. Abrechnung wie jede KI-Antwort; Antwortfeld `wissensbank_kontext: true`
 (die heutige App zeigt dafür nichts). Fest: Aufgaben gehen nur mit, wenn die Zahlen der Anfrage im Abschnitt am Stück
-stehen; zu einer Aufgabe gehen keine Folien mit; nur über den Kurs (Dateititel unbekannt) gilt die Schwelle 0,65 statt 0,5.
+stehen – oder, ohne lesbare Zahlen, über Aufgabenbezeichnung und Seite (seit 22.11. abends, nächster Abschnitt); zu
+einer Aufgabe gehen keine Folien mit; nur über den Kurs (Dateititel unbekannt) gilt die Schwelle 0,65 statt 0,5.
 
 Messung der Suche (9 644 Anfragen aus den echten Kursdateien, Text wie in der App, **keine KI-Aufrufe**; „richtig“ =
 dieselbe Seite/Aufgabe nach der Quelldatei bzw. dem Text der Bibliothek):
@@ -202,6 +203,126 @@ Gesprächsverlauf und keine getippte Frage mitgeht (für B); Antworten mit `wiss
 nicht in den geteilten Erklärungsspeicher legen; Anzeige für beide (Vorschlag: „Mit Wissen aus der StudiNow-Wissensbank“
 bzw. „Gemerkte KI-Antwort“).
 
+## Formeln, Verweise, kurze Aufgaben-Ausschnitte (22.11.2026 abends, Fehlfall des Inhabers)
+
+**Der Fall.** Auf den Übungsfolien eines Kurses war der Kopf einer Formel-Aufgabe eingekreist: Überschrift mit
+Aufgabennummer, eine Zeile „a) …“, eine Formelzeile mit ∨ und ∧. Die Bibliothek hat die Lösung (in der Einheit eines
+früheren Semesters vollständig, im laufenden Semester als Verweis darauf), geliefert wurde eine normale KI-Antwort.
+Gegen die echte Bibliothek nachgestellt; die Ursachen im Einzelnen:
+
+1. **Zu wenig Wörter.** Der Ausschnitt hat drei Begriffe. Der Abgleich verlangt fünf (`MIN_BEGRIFFE`), der Weg über
+   Dateititel und Nummer sechs und Zahlen, die Suche für die Auszüge (A) brach unter sechs ab.
+2. **Logische Zeichen.** ∨, ∧ und ¬ wurden beim Zerlegen verworfen; die Texterkennung liefert dafür „V“, „^“, „1“, „A“
+   oder nichts. Wortfolgen und Zahlenfolge der Formel passten deshalb nicht zusammen. Tiefgestellte Ziffern waren
+   **nicht** das Problem (NFKC macht aus x₁ schon „x 1“).
+3. **Verweise.** Der Markdown-Verweis „[G00xx, Abschnitt „Titel“](…)“ wurde nicht erkannt; „identisch mit G00xx Seite N“
+   lief ins Leere, wenn die Zieleinheit die Stelle nur als Aufgaben-Abschnitt hat (keine Seiten-Abschnitte).
+4. **Ungenutzte Hinweise.** Dieselbe Aufgabenbezeichnung in Ausschnitt und Abschnittskopf, und der Abschnitt nennt die
+   Folien, auf denen die Aufgabe steht (in der Art „**a) (Folien 15 und 16), …**“), darunter die mitgeschickte Seite.
+
+**Geändert** (`app/wissensbank.py`, `app/wissensbank_ki.py`; App unverändert, keine neuen Schalter):
+
+- **Formeln** (`normalize`): ∨ → „v“, ∧ → „^“ (so, wie die Texterkennung sie liefert, wenn sie sie liest), ¬ fällt weg
+  (Überstriche gehen in der Erkennung verloren), ⊕ ist ein Zeichen. Nebenwirkung, gewollt: Zwei Formeln, die sich nur
+  in ∨/∧ unterscheiden, gelten im Abgleich jetzt als verschieden (vorher gleich).
+- **Verweise** (`_link_target`, `_resolve`): Markdown-Verweis auf einen Abschnitt (Ziel über den Titel, sonst die
+  Aufgabenbezeichnung); „identisch mit G00xx Seite N“ führt, wenn es die Seite dort nicht gibt, zu der Aufgabe, die
+  diese Seite/Folie nennt (`Section.pages`: Seiten aus Überschrift, Zwischenüberschriften und fetten Marken) – nur wenn
+  das Ziel eindeutig ist. Geliefert bzw. mitgegeben wird der Zielabschnitt, einmal, egal wie viele Verweise hinführen.
+- **Welche Einheit gewinnt**: Verweise zeigen auf den Abschnitt mit Inhalt, der gewinnt damit von selbst. Bei gleichem
+  Ergebnis entscheidet das neuere Semester (`Unit.semester` aus dem Pfad „…/WiSe_2026_27/…“); dieselbe Seite in zwei
+  Semestern mit gleichem Inhalt gilt im Weg über Titel und Seite nicht mehr als Rivale, sondern die neueste wird geliefert.
+- **Aufgaben-Ausschnitt ohne lesbare Zahlen – nur als Auszug an die KI (A), nie als Lieferung** (`_ueber_bezeichnung`):
+  Dateititel passt UND die Überschrift im Ausschnitt nennt dieselbe Aufgabenbezeichnung wie der Abschnitt UND die
+  mitgeschickte Seite ist im Abschnitt als Seite/Folie genannt (oder die Seite der Bibliothek verweist dorthin) UND von
+  den Wörtern unter dieser Überschrift stehen mindestens zwei und die Hälfte im Abschnitt UND die Zahlen widersprechen
+  nicht (jede größere Zahl steht im Abschnitt; ab drei Ziffern muss ihre Folge ohne 0 und 1 dort am Stück stehen, das
+  trägt auch die Indizes einer Formelzeile). Steht dieselbe Bezeichnung in zwei Semestern mit verschiedenen Zahlen und
+  entscheidet die Anfrage nicht, geht nichts mit. Eine Überschrift am Ende des Ausschnitts (der Kreis reicht in die
+  nächste Aufgabe) zählt nur mit eigenem Text von mindestens einem Drittel des Ausschnitts.
+- **Warum nicht als genaue Lieferung:** Am erkannten Text lässt sich eine Formel nicht nachprüfen. Gemessen an 24
+  eingekreisten Formelzeilen mit ∨/∧: keine einzige kam vollständig richtig an; ∨ stand in 28 von 78 Fällen als eigenes
+  „V“ da (sonst klebt es am Nachbarn: „a Vb“), ∧ in 4 von 18 als „^“. Dieselbe Aufgabe mit geänderter Formel im
+  nächsten Semester sähe im erkannten Text gleich aus. Die KI bekommt das Bild und den Auszug und entscheidet.
+- **Beim Messen gefunden und geschlossen** (Abgleich, genaue Lieferung): Über den Kurs (Dateititel unbekannt) konnte der
+  eingekreiste Kopf einer Aufgabe ohne ihre Zahlen die Seite eines Blatts aus einem früheren Jahr treffen (gleicher
+  Satz, andere Zahlen in Teil a). Seiten, die Aufgaben nennen, treffen über den Kurs jetzt wie Aufgaben nur noch mit
+  Zahlen, die dann genau stimmen müssen. Im echten Lauf nicht aufgetreten (nur in der Gegenprobe mit vertauschter
+  Nummer), aber möglich.
+
+**Der Fall des Inhabers jetzt** (nachgestellt gegen die echte Bibliothek, Text in vier Lesarten der Texterkennung):
+kein genauer Treffer (gewollt), **ein Auszug an die KI: der vollständige Abschnitt der Aufgabe** (2 404 Zeichen, ohne
+interne Kennungen). Mit anderer Seite, anderer Aufgabennummer, anderen Indizes oder ohne die Überschrift: nichts.
+Nicht geprüft: die Antwort der KI selbst (keine bezahlten Aufrufe) und der Weg am iPad.
+
+**Messung** (wie oben, Text aus den echten Kursdateien, keine KI-Aufrufe; „vorher“ = Stand vor dieser Änderung).
+
+Neuer Lauf „kurzer Ausschnitt“: Überschrift der Aufgabe plus eine oder zwei Zeilen bzw. eine Formelzeile, mit Vision
+gelesen, 2 172 Anfragen aus Dateien mit bekanntem Titel:
+
+| Kurzer Ausschnitt | Anfragen | genau vorher → jetzt | richtiger Auszug vorher → jetzt | Auszug nur einer anderen Stelle |
+| --- | --- | --- | --- | --- |
+| Übungsblatt/Übungsfolien | 486 | 26 → 19 | 5 → 147 (30 %) | 0 |
+| Klausur | 1 188 | 5 → 5 | 2 → 91 (8 %) | 0 |
+| Lösungsdatei | 498 | 0 → 0 | 0 → 28 (6 %) | 0 |
+| darunter Kopf + Formelzeile | 172 | 3 → 3 | 0 → 12 (7 %) | 0 |
+
+Drei Auszüge konnte das Prüfskript nicht bestätigen; von Hand: alle drei die richtige Aufgabe. Die Grenze ist die
+Bibliothek: Nur bei 1 211 der 2 172 Anfragen nennt der Abschnitt überhaupt die Seite. Die 7 genauen Treffer weniger sind
+Folien eines anderen Semesters, die über den Kurs getroffen wurden (inhaltlich richtig, durch die neue Sperre weg).
+
+Ganze eingekreiste Aufgaben (Lauf wie am 22.11. morgens), Anfragen ohne genauen Treffer:
+
+| Auszug mit der richtigen Stelle | vorher | jetzt |
+| --- | --- | --- |
+| Übungsblatt: Aufgabe eingekreist (Vision) | 9 von 178 (5 %) | 38 von 180 (21 %) |
+| Klausur: Aufgabe eingekreist (Vision) | 6 von 539 (1 %) | 11 von 539 (2 %) |
+| Lösungsdatei: Aufgabe eingekreist (Vision) | 0 von 226 | 7 von 226 (3 %) |
+| Übungsblatt: Aufgabe markiert (PDFKit) | 16 von 170 (9 %) | 45 von 172 (26 %) |
+| Ausschnitt-Block auf Folien und Blättern (Vision) | 82 von 841 | 85 von 842 |
+
+Bei den Ausschnitt-Blöcken meldet das Prüfskript 51 statt 37 Auszüge „nur einer anderen Stelle“. Die neuen sind Auszüge
+über die Aufgabenbezeichnung (die Überschrift einer Aufgabe steht im Block, das Skript vergleicht aber mit der ganzen
+Seite). Alle 19 solchen Auszüge einzeln geprüft: 14 über die Wörter unter der Überschrift bestätigt, 5 von Hand – alle
+die richtige Aufgabe.
+
+Gegenproben für die Auszüge:
+
+| Gegenprobe | Anfragen | Auszug nur einer anderen Stelle vorher → jetzt |
+| --- | --- | --- |
+| Ganze Aufgabe mit fremdem Dateinamen | 2 421 | 39 → 42 (1,7 %) |
+| Ganze Aufgabe, Dateititel unbekannt | 1 452 | 6 → 6 (0,4 %) |
+| Kurzer Ausschnitt mit fremdem Dateinamen | 2 890 | 6 → 20 (0,7 %) |
+| Kurzer Ausschnitt mit der Nummer einer anderen Aufgabe | 1 168 | 4 → 5 (0,4 %) |
+| Kurzer Ausschnitt, Seite um 7 verschoben | 2 172 | 2 → 6 (0,3 %) |
+| Folien-Ausschnitt mit fremdem Dateinamen | 1 721 | 77 → 78 (4,5 %) |
+
+Von Hand angesehen (jeder gemeldete Fall des kurzen Ausschnitts, 25 verschiedene): Bei fremdem Dateinamen sind 5 von 17
+doch die richtige Aufgabe (Mitschrift bzw. Lösungsdatei zur selben Aufgabe, dieselbe Aufgabe in zwei Klausuren), 12 sind
+die Aufgabe mit derselben Nummer auf derselben Seite aus einer anderen Klausur derselben Reihe (anderes Jahr, anderer
+Termin; gleiche Fachwörter, Formeln nicht lesbar) – das ist die Restgefahr dieses Wegs, sie setzt voraus, dass ein
+fremder Inhalt unter dem Dateinamen einer Einheit läuft. Vertauschte
+Nummer: 5 andere Aufgaben (so konstruiert). Verschobene Seite: 2 Fälle Teilaufgabe d statt der Aufgabenstellung derselben
+Aufgabe, 1 richtige Aufgabe. Zwei echte Fehlgriffe in eigenen Dateien traten in einem Zwischenstand auf (Auszug der
+Folgeaufgabe, weil deren Überschrift am Ende des Ausschnitts stand) und sind durch die Regel „Überschrift nur mit
+eigenem Text“ weg.
+
+**Abgleich (genaue Lieferung), alle Läufe neu** (38 665 Anfragen wie am 21.11.): 2 299 statt 2 314 Treffer. Verloren
+18 Anfragen: eine Folie, deren PDF-Text die Zeichen ∧/∨ gar nicht enthält (8), Seiten mit Aufgaben, die nur über den
+Kurs getroffen wurden (9, neue Sperre; alle waren inhaltlich richtig), eine Formelzeile eines Blatts (1). Gewonnen 3:
+eine Formel-Aufgabe einer Kurzklausur (2 Anfragen, von Hand: richtig) und eine Skriptseite. **Kein neuer Treffer mit
+Urteil „falsch“**; in den Gegenproben (fremder Dateiname 289 Treffer, unbekannter Titel 54, vertauschte Nummer 136)
+kein neuer gemeldeter Fall gegenüber dem freigegebenen Stand. Kurzer Ausschnitt: 24 genaue Treffer in eigenen Dateien, alle richtig; in den Gegenproben 9, die
+4 nicht automatisch bestätigten von Hand richtig (Mitschrift bzw. Lösungshinweise zur selben Aufgabe).
+
+**Gemerkte Antworten (B):** unverändert. Ausschnitte mit echten ∨/∧-Zeichen (markierter Text), die vor diesem Stand
+gemerkt wurden, werden nicht wiedergefunden (anderer normalisierter Text); die Folge ist eine neue KI-Antwort.
+
+**Tests** (erfundenes Fixture: Formel-Aufgabe mit eigener Formel in der Einheit des Vorjahres, laufendes Semester nur
+mit Verweisen, eine Blattseite des Vorjahres): `tests/test_wissensbank.py` 91, `tests/test_wissensbank_ki.py` 23; die
+neuen Tests waren vor der Änderung rot. Mit `test_ai_relay.py` und `test_audit_p58_87_server.py` 154 grün; schneller
+Python-Lauf 4045 grün, 0 rot, 2 übersprungen, 10 abgewählt, 2 erwartet rot (7:27 min).
+
 ## Entscheidungen des Inhabers 21.11.2026
 
 - **Urheberrecht**: vom Inhaber geprüft (seine Aussage).
@@ -244,5 +365,7 @@ bzw. „Gemerkte KI-Antwort“).
    bei gleichem Dateinamen im nächsten Semester, wenn eine Aufgabe keine Zahlen hat.
 7. **Bibliothek** (Rückmeldung an den Mac, Textvorschlag im Bericht vom 21.11.): Aufgabentext wörtlich und markiert
    aufnehmen, Verweise auf andere Abschnitte ausschreiben. Das hebt die Trefferquote bei Aufgaben; im Code lässt sie sich
-   ohne Risiko nicht weiter heben.
+   ohne Risiko nicht weiter heben. Dazu seit 22.11.: in jedem Aufgaben-Abschnitt die Seiten bzw. Folien nennen, auf
+   denen die Aufgabe steht (in der Überschrift oder als fette Marke, „**Aufgabe (Folie 14).**“) – nur dann kann ein
+   kurzer Ausschnitt mit Formel als Auszug an die KI gehen (heute bei gut der Hälfte der Aufgaben der Fall).
 8. Am iPad prüfen (nach dem Dienst-Update): eingekreister Absatz einer Folie des laufenden Semesters.

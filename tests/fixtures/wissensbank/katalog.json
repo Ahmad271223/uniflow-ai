@@ -1,6 +1,6 @@
 {
  "version": 1,
- "stand": "2026-11-21",
+ "stand": "2026-11-22",
  "hinweis": "ERFUNDENES Testbeispiel fuer tests/test_wissensbank.py - kein echtes Lehrmaterial",
  "faecher": [
   {
@@ -45,6 +45,24 @@
      "dateien": [
       "01-erklaert.md",
       "README.md"
+     ]
+    },
+    {
+     "id": "G0002",
+     "pfad": "Bibliothek/Beispiel-Algorithmen/Einheiten/WiSe_2025_26/Uebung/G0002",
+     "titel": "G0002: Logik-Übung 2 des Vorjahres (Formel-Aufgabe, vollständig)",
+     "dateien": [
+      "01-erklaert.md",
+      "02-geloest.md"
+     ]
+    },
+    {
+     "id": "G0003",
+     "pfad": "Bibliothek/Beispiel-Algorithmen/Einheiten/WiSe_2026_27/Uebung/G0003",
+     "titel": "G0003: Logik-Übung 2 des laufenden Semesters (nur Verweise auf G0002)",
+     "dateien": [
+      "01-erklaert.md",
+      "02-geloest.md"
      ]
     }
    ]
