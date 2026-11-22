@@ -137,4 +137,8 @@ stehen noch aus.**
   Sonntag, der Stundenplan zeigt die Woche 16.–22.11. – der Hinweis liegt damit in der nächsten Woche (Einschätzung,
   am Montag gegenprüfen). **Vor Build 46 den kompletten App-Lauf und den iPhone-Lauf auf dem Endstand wiederholen**
   (seit `7c1e81a4` kam `2d02c085` dazu).
+- 22.11.2026 15:25, Server nur lesend geprüft (Okay „Ja, nur lesen“): gesund, 273 GB frei, App 843 MB von 8 GB,
+  KI-Budgets 600 € zahlend / 200 € Probe, Verbrauch November zusammen 0,57 €, 22 Konten. 25 Speicherabbrüche, alle in
+  der Lasttest-Nacht 09.11.; seitdem keine. Einzelheiten im Nachtrag von `~/Studora-Builds/kapazitaet-logs/BERICHT-SERVER.md`
+  (Berichte zu Kosten und Lastmessung daneben). Offen beim Inhaber: Höhe des Probe-Budgets für den Ansturm.
 
