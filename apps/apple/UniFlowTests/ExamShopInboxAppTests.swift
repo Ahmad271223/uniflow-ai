@@ -59,6 +59,18 @@ final class ExamShopInboxAppTests: XCTestCase {
         XCTAssertEqual(calls(), 0)
     }
 
+    func testPlanLoadedLaterStillAsksRightAway() async {
+        // am iPad 22.11.2026: beim Start noch „free“, Sekunden spaeter Pro AI – das zweite Nachfragen darf nicht warten
+        let (box, calls) = inbox([])
+        var proAI = false
+        box.allowed = { proAI }
+        _ = await box.refresh()
+        XCTAssertEqual(calls(), 0)
+        proAI = true
+        _ = await box.refresh()
+        XCTAssertEqual(calls(), 1, "der ausgefallene Versuch zaehlt nicht fuer die Minute Abstand")
+    }
+
     func testKeepsLookingWhileTheServiceIsStillCreating() async {
         // 1. Abfrage: Dienst erstellt noch; 2.: kein Netz; 3.: fertig und abgelegt
         let done = Outcome(added: [Added(variant: 1, module: "Analysis")], pending: 0)

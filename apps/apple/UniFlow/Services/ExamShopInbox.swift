@@ -76,13 +76,19 @@ final class ExamShopInbox {
         let api = self.api, override = collectOverride
         let task = Task { () -> Outcome? in
             if let override { return await override() }
-            guard let api, let v = try? await api.value("/api/exam-generator/collect", method: "POST", body: .object([:])) else { return nil }
-            return Outcome(v)
+            guard let api else { return nil }
+            do {
+                return Outcome(try await api.value("/api/exam-generator/collect", method: "POST", body: .object([:])))
+            } catch {
+                StiftSpur.log("Probeklausuren abholen: Fehler \(error.localizedDescription)")
+                return nil
+            }
         }
         running = task
         let out = await task.value
         if running == task { running = nil }
         if let out {
+            StiftSpur.log("Probeklausuren abholen: neu \(out.added.count) Dateien, beim Dienst in Arbeit \(out.pending)")
             if let text = Self.notice(out.added) {
                 toast?.show(text, seconds: 6)
                 router?.reload()
@@ -122,17 +128,21 @@ final class ExamShopInbox {
     }
 }
 
-/// Haengt das Abholen an den Rahmen (MainView): beim Erscheinen, bei anderer Datenquelle und im Vordergrund
+/// Haengt das Abholen an den Rahmen (MainView): beim Erscheinen, bei anderer Datenquelle, im Vordergrund und sobald
+/// der Tarif bekannt ist (am iPad des Inhabers 22.11.2026 gesehen: beim Erscheinen stand der Tarif noch auf „free“,
+/// das erste Abholen fiel aus und wartete bis zum naechsten Wechsel in den Vordergrund)
 struct ExamShopInboxHost: ViewModifier {
     @EnvironmentObject private var router: UFRouter
     @EnvironmentObject private var session: Session
     @EnvironmentObject private var toast: UFToastCenter
     @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var ent = Entitlements.shared
 
     func body(content: Content) -> some View {
         content
             .onAppear { ExamShopInbox.shared.attach(router: router, toast: toast, api: session.api) }
             .onChange(of: session.api?.base) { _, _ in ExamShopInbox.shared.attach(router: router, toast: toast, api: session.api) }
             .onChange(of: scenePhase) { _, phase in if phase == .active { ExamShopInbox.shared.refreshSoon() } }
+            .onChange(of: ent.plan) { _, _ in ExamShopInbox.shared.refreshSoon() }
     }
 }
