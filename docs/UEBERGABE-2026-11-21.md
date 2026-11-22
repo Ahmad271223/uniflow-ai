@@ -110,4 +110,11 @@ stehen noch aus.**
   ergänzen und vom Inhaber freigeben lassen (Textvorschläge in `docs/WISSENSBANK-STAND.md`), Website-Upload durch ihn;
   volle Testläufe (App iPad/iPhone, Swift-Kern), Unterlagen für Build 46; `StiftSpur` auf dem iPad wieder ausschalten;
   Frage GitHub-Push ist weiter offen.
+- 22.11.2026 nachmittags: Rechtstexte zur Wissensbank vom Inhaber freigegeben (Datenschutz 8e, Nutzungsbedingungen 5a,
+  Stand 22.11.2026, `1827a391`) und von ihm auf die Website hochgeladen – auf studinow.app geprüft (beide Seiten Stand
+  22.11.2026, Abschnitt 8e vorhanden). Damit sind auch die übrigen 1.0.7-Texte (Mensa, Klausur-Generator, Prüfungen im
+  Geräteabgleich) online. `release/1.0.7` liegt seit 22.11. auf GitHub (Okay des Inhabers), weitere Commits werden
+  dorthin nachgezogen. Hinweis „ungesendete Seite(n) wiederhergestellt“ blendet sich nach dem Senden aus (`70235f08`).
+  Offen aus dem Lesen der Texte: In Datenschutz 8c fehlt, dass bei „Bereich an KI“ das Bild des Ausschnitts an die KI
+  geht (Vorschlag dem Inhaber angeboten, keine Antwort bisher).
 
