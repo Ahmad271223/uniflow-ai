@@ -122,3 +122,20 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
     gemacht (geht nur mit einer App ab diesem Stand, Test des Inhabers per Kabel). Wirkung für die App im Store (1.0.6): keine.
     **Vor dem nächsten Deploy aus `release/1.0.7` den Zweig `app/erklaerung-shop` einmischen**, sonst fallen die Routen
     weg. Zurück: Zeile aus `.env` nehmen und `docker compose up -d`; ganz zurück: Schritt 2 mit `32356351`.
+
+15. Neuntes Update 22.11.2026 23:23 auf `a555406a` (Zweig `app/formelblatt` = `release/1.0.7` @ `16ef0214` +
+    `app/probeklausuren-auf-karte` + Formelblätter `75d51549` + Merge von `app/erklaerung-shop` @ `3aed9c57`; Freigabe des
+    Inhabers „Ja, ausrollen“ auf die Frage, ob Dienst-Update, Formelblatt-Upload und iPad-Installation gemacht werden
+    dürfen). Neu: Formelblätter – `app/formelblatt.py`, `app/formelblatt_api.py` (`POST /api/formelblatt/offer`,
+    `/{id}/buy`, `GET /{id}/pdf`; nur Pro AI, Festpreis aus dem Katalog), Tabelle `formelblatt_purchases` in `accounts.db`
+    (Export, Löschen). Vorher auf dem Server das achte Update (`648489bb`, Erklärungen) einer anderen Sitzung; per
+    Prüfsumme alle `app/*.py` gleich `648489bb`/`3aed9c57`, deshalb eingemischt (die Erklärungen bleiben). Davor auf dem
+    gemischten Stand: Python voll 4059 bestanden, Swift-Kern 1785 bestanden. Backup `uniflow-2026-11-22_2323.tar.gz`
+    (260 MB). Danach: `uniflow-app` und `uniflow-jobs` healthy, `dienst-check.sh`: alle Prüfungen bestanden; Routen der
+    Formelblätter und der Erklärungen im Router; von außen ohne Anmeldung 401.
+    Formelblatt: `tools/formelblatt-hochladen.sh` → `/data/formelblatt` (`katalog.json` + `luh-gds-kurzklausur.pdf`, ein
+    Eintrag: LUH „Grundlagen digitaler Systeme“, 3 Credits, 2 Seiten, Fassung 2026-11-22; Quelle auf dem Mac
+    `~/Studora-Builds/formelblaetter/`, nicht im Repo). Im Container: Angebot für das Konto des Inhabers vorhanden, noch
+    nicht gekauft, PDF lesbar. Ein Kauf mit Anmeldung ist nicht gemacht (Test des Inhabers per Kabel). Wirkung für die App
+    im Store (1.0.6): keine. **Vor dem nächsten Deploy aus `release/1.0.7` den Zweig `app/formelblatt` einmischen.**
+    Zurück: Schritt 2 mit `648489bb`; nur das Angebot weg: `/data/formelblatt/katalog.json` entfernen.
