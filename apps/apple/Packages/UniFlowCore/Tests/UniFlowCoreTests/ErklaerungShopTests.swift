@@ -27,6 +27,7 @@ final class ErklaerungShopTests: XCTestCase {
         var owned: Set<String> = []
         var enabled = true
         var creditsLeft = 100
+        var price = 15
 
         func body(_ r: AIHTTPRequest) -> JSONValue { (try? JSONValue.parse(r.body ?? Data())) ?? .null }
 
@@ -42,7 +43,7 @@ final class ErklaerungShopTests: XCTestCase {
             if r.url.hasSuffix("/api/erklaerungen/offer") {
                 let shas = (body(r)["sha256"]?.array ?? []).compactMap(\.string)
                 let items = enabled ? shas.filter { index[$0] != nil }.map(item) : []
-                return .init(status: 200, body: JSONValue.object(["enabled": .bool(enabled), "price": 15, "items": .array(items)]).serialized())
+                return .init(status: 200, body: JSONValue.object(["enabled": .bool(enabled), "price": .number(Double(price)), "items": .array(items)]).serialized())
             }
             if r.url.hasSuffix("/api/erklaerungen/buy") {
                 let sha = body(r)["sha256"]?.string ?? ""
@@ -288,6 +289,23 @@ final class ErklaerungShopTests: XCTestCase {
         XCTAssertEqual(d["detail"]?["code"]?.string, "erklaerung_needs_service")
         _ = await post(b, "/api/erklaerungen/collect", status: 403)
         _ = await post(b, "/api/files/f-vl3/erklaerung/buy", status: 403)
+    }
+
+    /// 22.11.2026 am iPad: Preis am Dienst von 15 auf 2 gesenkt, danach eine Datei gekauft – die Liste zeigte wieder 15,
+    /// weil der Kauf den Merker als neueste Antwort mit dem alten Preis eintrug
+    func testBuyDoesNotBringBackAnOldPrice() async throws {
+        let service = FakeService()
+        service.index = [Self.shaVL: ("Erklärung VL 3", "Erklärung Seite für Seite")]
+        let clock = Clock()
+        let b = try await backend(service, clock: clock)
+        let first = await post(b, "/api/erklaerungen/offer", ["file_ids": ["f-vl3"]])
+        XCTAssertEqual(first["price"]?.int, 15)
+        clock.advance(601)
+        service.price = 2
+        _ = await post(b, "/api/files/f-vl3/erklaerung/buy")
+        let after = await post(b, "/api/erklaerungen/offer", ["file_ids": ["f-vl3"]])
+        XCTAssertEqual(after["price"]?.int, 2, "der Preis kommt aus der neuesten Antwort des Dienstes")
+        XCTAssertEqual(after["items"]?.array?.first?["owned"]?.bool, true)
     }
 
     func testTitleOfTheStoredFile() {

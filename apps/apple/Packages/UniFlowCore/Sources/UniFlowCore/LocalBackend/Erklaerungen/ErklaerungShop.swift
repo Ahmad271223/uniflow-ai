@@ -162,10 +162,12 @@ enum ErklaerungShop {
         guard var o = item.object else { return }
         o["owned"] = true
         o.removeValue(forKey: "charged")
-        let old = try c.queryOne("SELECT enabled, price FROM erklaerung_offer_cache WHERE sha256=?", [.text(sha)])
+        // Zeitpunkt der letzten Antwort des Dienstes behalten: Preis und Schalter gelten aus der NEUESTEN Antwort; ein Kauf
+        // ist keine neue Antwort (22.11.2026 am iPad: nach dem Kauf zeigte die Liste wieder 15 statt 2 Credits)
+        let old = try c.queryOne("SELECT enabled, price, checked_at FROM erklaerung_offer_cache WHERE sha256=?", [.text(sha)])
         try c.execute("INSERT OR REPLACE INTO erklaerung_offer_cache(sha256, item, enabled, price, checked_at) VALUES (?,?,?,?,?)",
                       [.text(sha), .text(JSONValue.object(o).jsonString(sortedKeys: true)), .integer(Int64(old?["enabled"]?.int ?? 1)),
-                       .integer(Int64(old?["price"]?.int ?? 15)), .integer(now)])
+                       .integer(Int64(old?["price"]?.int ?? 15)), .integer(old?["checked_at"]?.int64 ?? now)])
     }
 
     // MARK: Ablage
