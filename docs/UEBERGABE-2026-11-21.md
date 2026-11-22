@@ -143,3 +143,12 @@ stehen noch aus.**
   (Berichte zu Kosten und Lastmessung daneben). Offen beim Inhaber: Höhe des Probe-Budgets für den Ansturm.
 
 - 22.11.2026: Inhaber entscheidet „Bei 200 € lassen“ (Probe-Budget `LERNAPP_AI_TRIAL_BUDGET_EUR` bleibt 200).
+- 22.11.2026 spät: mit Okay des Inhabers („Ja, alle übernehmen“) `app/probeklausuren-auf-karte`, `app/erklaerung-shop`
+  und `app/formelblatt` in `release/1.0.7` übernommen (Vorspulen, jetzt `3a007be1`; der Dienst läuft auf `a555406a`,
+  neuntes Update der Probeklausur-Sitzung). Geprüft: keine PDFs/Bibliotheksinhalte im Repo. Tests auf `a555406a`:
+  Python schnell 4055 bestanden, Swift-Kern 1785 bestanden; App: Erklaerung-, Formelblatt-, ExamGenerator-,
+  ExamShopInbox-, SolutionSideViewer- und CommunityPaperBilder-Tests grün. `ExamGeneratorUITests` waren im Simulator
+  „fix-tinte“ rot („Not Found“: der Test öffnet fest `#/modules/1`, dort hat die Demo inzwischen die Module ab 2), in
+  einem frischen Klon des Simulators „iPad“ beide grün – Testzustand, keine App-Frage. Kompletter App-Lauf und
+  iPhone-Lauf auf dem Endstand stehen vor Build 46 noch aus.
+
