@@ -60,4 +60,12 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
    Anlass: Am iPad kam auch mit Angaben der App („Anhang area, 299 Zeichen“) nie ein Treffer. Vorher: Python voll 4025
    bestanden, 0 Fehler; Backup `uniflow-2026-11-21_2049.tar.gz`. Danach: Container healthy, `dienst-check.sh`: alle
    Prüfungen bestanden, Wissensbank aktiv mit dem neuen Abgleich. Zurück: Schritt 2 mit `bffe510f`.
+10. Viertes Update 22.11.2026 10:55 auf `cdda3e89` (Freigabe des Inhabers „Ja, ausrollen“): einzige Dienst-Änderung
+    gegenüber `89cf11db` ist `app/ai_relay.py` – Vorab-Frage `POST /api/ai/wissensbank` (Treffer wie eine
+    Wissensbank-Lieferung, 1 Credit; ohne Treffer keine Kosten). Anlass: „Seite erklären“ kam am iPad immer aus dem
+    Erklärungsspeicher der App und erreichte die Wissensbank nie; die App (ab `203cd8fc`) fragt jetzt zuerst nach.
+    Vorher: Python voll 4032 bestanden, 0 Fehler; Backup `uniflow-2026-11-22_1054.tar.gz`. Danach: Container healthy,
+    `dienst-check.sh`: alle Prüfungen bestanden, Wissensbank aktiv; die Route steht im Router von `ai_relay` neben
+    `/api/ai/relay` (im Container nachgesehen; ein Aufruf mit Anmeldung wurde nicht gemacht – Bestätigung durch den Test
+    des Inhabers am iPad). Zurück: Schritt 2 mit `89cf11db`.
 
