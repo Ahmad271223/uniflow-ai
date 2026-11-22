@@ -35,7 +35,7 @@ def test_all_release_files_exist_and_are_marked_as_drafts():
             # 14.11.2026: vom Inhaber fertig gegeben, ohne Entwurfsvermerk (tests/test_rechtstexte.py); Nutzungsbedingungen
             # 18.11.2026 (Erinnerungen ab Pro AI), Datenschutz 18.11.2026 (YouTube neben dem Dokument, 1.0.6)
             new = ("NUTZUNGSBEDINGUNGEN.md", "DATENSCHUTZ.md")
-            assert ("Stand 20.11.2026" if f in new else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
+            assert ("Stand 22.11.2026" if f in new else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
             continue
         assert re.search(r"Entw(urf|ürfe)", text) and "26.10.2026" in text, f
 

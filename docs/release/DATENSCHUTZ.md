@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Stand 20.11.2026.**
+**Stand 22.11.2026.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -463,6 +463,36 @@ KI-Auftragsverarbeiter weiter (Abschnitt 8c) und löscht die Seitentexte spätes
 bleiben die erzeugten Probeklausuren und eine Themenübersicht, ohne Bezug zu deinem Konto; wer dieselben Unterlagen
 hat, kann dieselben Probeklausuren kaufen. Zu deinem Konto speichern wir nur, welche Probeklausuren du gekauft hast
 (für den Zugriff und eine Erstattung). Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
+
+## 8e. StudiNow-Wissensbank (Tarif Pro AI, Leibniz Universität Hannover)
+
+Fragst du die KI-Hilfe zu einer Seite, zu markiertem Text oder zu einem eingekreisten Bereich, schickt die App
+zusätzlich den Dateinamen, wie er in Stud.IP heißt, den Kursnamen, die Seitenzahl und den Text der Seite bzw. den im
+Ausschnitt erkannten Text an den StudiNow-Dienst. Diese Angaben stehen ohnehin schon in der Anfrage an die KI. Der
+Dienst vergleicht den Text mit der StudiNow-Wissensbank, einer von uns erstellten Sammlung von Erklärungen und
+Lösungen.
+
+- **Antwort aus der Wissensbank:** Passt die Stelle genau, bekommst du die Antwort aus der Wissensbank statt einer
+  neuen KI-Antwort; sie ist mit „Aus der StudiNow-Wissensbank“ gekennzeichnet.
+- **KI-Antwort mit Wissen aus der Wissensbank:** Passt keine Stelle genau, kann der Dienst der KI passende Auszüge aus
+  der Wissensbank mitgeben. Die Antwort bleibt eine KI-Antwort (Abschnitt 8c) und ist mit „Mit Wissen aus der
+  StudiNow-Wissensbank“ gekennzeichnet.
+- **Gemerkte KI-Antworten:** Enthält deine Anfrage nichts Persönliches (keine eigene Frage, keine eigene Lösung, keine
+  eigenen Notizen, auch nicht im eingekreisten Bereich), speichern wir die KI-Antwort zusammen mit dem Dateinamen, dem
+  Kursnamen, der Seitenzahl und dem Text des Ausschnitts aus dem Kursmaterial – ohne Bezug zu deinem Konto. Dein
+  bisheriges Gespräch mit der KI-Hilfe geht in solche Anfragen nicht ein. Fragt ein anderer Nutzer desselben Kurses zu
+  genau derselben Stelle derselben Datei, bekommt er diese Antwort statt einer neuen KI-Antwort; sie ist als „Gemerkte
+  KI-Antwort“ gekennzeichnet.
+- **Was wir zu deinem Konto speichern:** welche Stellen der Wissensbank und welche gemerkten Antworten du schon
+  bekommen hast (Stelle und Zeitpunkt), damit du beim nächsten Mal eine neue KI-Antwort bekommst. Danach fragt die
+  App: „Gefällt dir diese Antwort besser?“ Deine Antwort („Ja“ oder „Nein“) zählt als Stimme für oder gegen die
+  bisherige Antwort; bei „Ja“ kann die neue KI-Antwort als Vorschlag für die Wissensbank gespeichert werden – ohne
+  Bezug zu deinem Konto und ohne deine Frage. Bis du antwortest, höchstens 7 Tage, liegt die KI-Antwort mit deinem
+  Konto verknüpft beim Dienst; danach wird diese Verknüpfung gelöscht. Die Liste der bekommenen Stellen wird mit
+  deinem Konto gelöscht und ist im Datenexport enthalten. Gemerkte Antworten ohne Kontobezug bleiben gespeichert, bis
+  sie abgewählt oder von uns entfernt werden.
+- **Rechtsgrundlage:** Art. 6 Abs. 1 lit. b DSGVO (Erklärungen und Lösungen der KI-Hilfe); für gemerkte Antworten und
+  Vorschläge Art. 6 Abs. 1 lit. f DSGVO (gleiche Antworten nicht mehrfach erzeugen, Verbesserung der Wissensbank).
 
 ## 9. Käufe und Abos
 

@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Stand 20.11.2026.**
+**Stand 22.11.2026.**
 
 ## 1. Geltung und Vertragspartner
 
@@ -116,6 +116,12 @@ Plus die letzten 10 Tests, in Pro AI alle; ältere Tests bleiben gespeichert und
 - **Probeklausuren:** Eine Probeklausur aus dem Klausur-Generator kostet 15 Credits. Kann sie nicht erstellt werden,
   wird nichts abgebucht. Probeklausuren sind eine Lernhilfe, von einer KI erstellt und geprüft, aber nicht fehlerfrei;
   sie sagen nichts darüber, was in deiner echten Klausur drankommt.
+- **Antworten aus der StudiNow-Wissensbank und gemerkte KI-Antworten** (Pro AI, Leibniz Universität Hannover): Eine
+  Antwort aus der Wissensbank und eine gemerkte KI-Antwort kosten je 1 Credit. Eine KI-Antwort mit Wissen aus der
+  Wissensbank wird wie jede KI-Antwort berechnet. Fragst du dieselbe Stelle noch einmal, bekommst du eine neue
+  KI-Antwort, die wie üblich berechnet wird. Auch Antworten aus der Wissensbank und gemerkte KI-Antworten können
+  Fehler enthalten; Lösungen mit dem Hinweis „KI-Lösung, ungeprüft“ sind nicht mit einer offiziellen Musterlösung
+  verglichen.
 
 Wochentests über dein eigenes ChatGPT laufen auf deinem Gerät und kosten keine Credits.
 
