@@ -442,6 +442,93 @@ def test_other_date_means_other_version():
     assert wissensbank.dates_of(wissensbank.normalize("Version vom 2026-10-13, Blatt vom 4. 11. 2024")) == {"2026-10-13", "4.11.2024"}
 
 
+# ================================================================== Formeln und Verweise (Fehlfall des Inhabers 22.11.2026)
+# Eingekreist war der Kopf einer Formel-Aufgabe (Ueberschrift mit Nummer, "a) ...", Formelzeile): drei Woerter und eine Formel.
+# Die Bibliothek hatte die Loesung im Vorjahr vollstaendig, im laufenden Semester nur als Verweis darauf. Nachgebaut mit
+# einer erfundenen Formel (Beispiel-Algorithmen G0002 = Vorjahr, G0003 = laufendes Semester mit Verweisen).
+
+K_F231 = f"explain:{ALGO}/G0002/02#Q1-Aufgabe-2-3-1"
+UEBUNG_NEU = "logik-uebung2-ws26.pdf"
+# Folie 14 des laufenden Semesters, wie die Textebene sie liefert
+F231 = ("Aufgabe 2.3.1 Schaltfunktionen\nGegeben z = a1 ∧ (a2 ∨ a3 ∨ (a4 ∧ a5)).\na) Lösen Sie die Klammern des Ausdrucks auf.\n"
+        "b) Geben Sie eine Struktur an, die nur aus NOR-Gattern besteht.")
+
+
+def test_logic_signs_and_small_digits_are_tokens():
+    """Tief- und hochgestellte Ziffern werden Ziffern; ∨ und ∧ bleiben erhalten, in der Form der Texterkennung ("V"
+    bzw. "^"). Gemessen an 24 eingekreisten Formelzeilen: ∨ -> "V", ∧ -> "^", "1", "A" oder nichts, Ueberstriche gehen
+    verloren (deshalb faellt ¬ weg)."""
+    from app import wissensbank
+    assert wissensbank.tokens("z = a₁ ∧ (a₂ ∨ ¬a₃)") == ["z", "=", "a", "1", "^", "a", "2", "v", "a", "3"]
+    assert wissensbank.tokens("z = a1 ^ (a2 V a3)") == ["z", "=", "a", "1", "^", "a", "2", "v", "a", "3"]
+    assert wissensbank.tokens("x² + y³ ⊕ c") == ["x", "2", "+", "y", "3", "⊕", "c"]
+
+
+def test_references_to_another_unit_are_resolved_to_the_section_with_the_content(lib):
+    from app import wissensbank
+    neu, alt = lib.unit(ALGO, "G0003"), lib.unit(ALGO, "G0002")
+    ziel = next(s for s in alt.sections if s.sid == "02#Q1-Aufgabe-2-3-1")
+    assert ziel.pages == {14, 15, 16, 17}, "Folien, die der Abschnitt in seinen Marken nennt"
+    # Markdown-Link auf einen Abschnitt einer anderen Einheit
+    verweis = next(s for s in neu.sections if s.sid == "02#Q1-Aufgabe-2-3-1")
+    assert verweis.link == ("G0002", None, None, "Aufgabe 2.3.1: Ausdruck umformen und Gatterstruktur")
+    assert wissensbank._resolve(lib, neu, verweis) == (alt, ziel)
+    # "identisch mit G0002 Seite 15", die Zieleinheit hat die Stelle nur als Aufgabe (die Folie 15 nennt)
+    seite = next(s for s in neu.sections if s.sid == "01#Q1-Seite-15")
+    assert seite.link == ("G0002", None, 15, None) and wissensbank._resolve(lib, neu, seite) == (alt, ziel)
+    # geliefert wird der Zielabschnitt: die ganze Folie 14 des laufenden Semesters trifft die Loesung des Vorjahres
+    assert key(lib, mode="explain", datei=UEBUNG_NEU, seite=14, text=F231) == K_F231
+    assert key(lib, mode="explain", datei=UEBUNG_NEU, seite=14, text=F231.replace("a4 ∧ a5", "a4 ∨ a5")) is None, "andere Formel"
+    assert wissensbank.semester_key("Einheiten/WiSe_2026_27/x") > wissensbank.semester_key("Einheiten/SoSe_2026/x") \
+        > wissensbank.semester_key("Einheiten/WiSe_2025_26/x") > wissensbank.semester_key("Einheiten/direkt/x")
+    assert neu.semester > alt.semester
+
+
+def test_same_content_in_two_semesters_the_newest_unit_wins(tmp_path):
+    """Dieselben Folien stehen in zwei Semestern (gleicher Dateititel, gleicher Inhalt, kein Verweis): Geliefert wird die
+    Einheit des neueren Semesters - ueber den Wortlaut und ueber Dateititel + Seite (dort galt die zweite Einheit vorher
+    als Rivale, und es gab gar keinen Treffer)."""
+    import shutil
+    from app import wissensbank
+    root = tmp_path / "wb"
+    shutil.copytree(FIXTURE, root)
+    kat = json.loads((root / "katalog.json").read_text(encoding="utf-8"))
+    fach = next(f for f in kat["faecher"] if f["ordner"] == STATIK)
+    neu = next(e for e in fach["einheiten"] if e["id"] == "G0001")
+    pfad = neu["pfad"].replace("WiSe_2026_27", "WiSe_2024_25").replace("G0001", "G0000")
+    shutil.copytree(root / neu["pfad"], root / pfad)
+    fach["einheiten"].insert(0, {**neu, "id": "G0000", "pfad": pfad})          # die aeltere Einheit steht im Katalog vorn
+    (root / "katalog.json").write_text(json.dumps(kat, ensure_ascii=False), encoding="utf-8")
+    doppelt = wissensbank.Library(root)
+    assert doppelt.unit(STATIK, "G0000").semester < doppelt.unit(STATIK, "G0001").semester
+    assert key(doppelt, mode="explain", datei=FOLIEN, seite=2, text=S2) == K_S2
+    assert key(doppelt, mode="explain", datei=FOLIEN, seite=5, text=S5) == f"explain:{STATIK}/G0001/01#Q1-Seite-5"
+
+
+def test_short_formula_part_never_hits_exactly(lib):
+    """Der eingekreiste Kopf einer Formel-Aufgabe (drei Woerter, eine Formel) belegt die Stelle nicht sicher genug fuer
+    eine Lieferung: Die Texterkennung liest die Zeichen der Formel nicht verlaesslich, und dieselbe Aufgabe mit einer
+    anderen Formel (naechstes Semester) saehe gleich aus. Er geht als Auszug an die KI (tests/test_wissensbank_ki.py)."""
+    teil = "Aufgabe 2.3.1 Schaltfunktionen\na) Regel 3: Ausmultiplizieren\nz = a1 A (a2 V a3 V (a4 1 a5))"
+    assert key(lib, mode="explain", datei=UEBUNG_NEU, seite=15, text=teil, ausschnitt=True) is None
+    assert key(lib, mode="steps", datei="logik-uebung2.pdf", seite=15, text=teil, ausschnitt=True) is None
+
+
+def test_course_round_never_hits_a_page_with_tasks_without_numbers(lib):
+    """Dateititel unbekannt (nur der Kurs passt), eingekreist ist der Kopf einer Aufgabe ohne ihre Zahlen: Die Seite
+    eines aelteren Blatts mit demselben Satz und anderen Zahlen darf nicht geliefert werden (gemessen am 22.11.2026:
+    Blatt eines frueheren Jahres, gleiche Aufgabe, andere Menge in Teil a). Wie bei Aufgaben-Abschnitten: ueber den Kurs
+    nur mit Zahlen, die dann genau stimmen muessen."""
+    kopf = ("Aufgabe 2.1.2. Entscheiden Sie jeweils, ob die folgenden Listen aufsteigend oder absteigend geordnet sind.\n"
+            "Geben Sie gegebenenfalls das kleinste und das größte Element der Liste an und begründen Sie kurz Ihre Entscheidung:")
+    K_S3 = f"explain:{ALGO}/G0002/01#Q1-Seite-3"
+    kurs = dict(mode="explain", datei="blatt-neu.pdf", kurs="Beispiel-Algorithmen", seite=1, ausschnitt=True)
+    assert key(lib, **kurs, text=kopf) is None, "ohne Zahlen: koennte das Blatt eines anderen Jahres sein"
+    assert key(lib, **kurs, text=kopf + "\n(a) L = (3, 18, 44, 97, 120); (b) L = (61, 40, 12, 5).") == K_S3, "mit denselben Zahlen"
+    assert key(lib, **kurs, text=kopf + "\n(a) L = (4, 19, 45, 98, 121); (b) L = (61, 40, 12, 5).") is None, "andere Zahlen"
+    assert key(lib, mode="explain", datei="logik-uebung2.pdf", seite=3, text=kopf, ausschnitt=True) == K_S3, "mit dem Dateititel"
+
+
 # ================================================================== Ablauf im Dienst
 
 @pytest.fixture
@@ -703,10 +790,10 @@ def test_account_deletion_removes_delivered_log_and_open_questions():
 def test_fixture_is_invented_and_small():
     """Schutz vor echten Inhalten im oeffentlichen Repository: nur das kleine, erfundene Beispiel."""
     files = [p for p in FIXTURE.rglob("*") if p.is_file()]
-    assert len(files) <= 10 and sum(p.stat().st_size for p in files) < 20_000
+    assert len(files) <= 14 and sum(p.stat().st_size for p in files) < 30_000
     kat = json.loads((FIXTURE / "katalog.json").read_text(encoding="utf-8"))
     assert "ERFUNDENES" in kat["hinweis"] and len(kat["faecher"]) == 2
-    assert sum(len(f["einheiten"]) for f in kat["faecher"]) == 4
+    assert sum(len(f["einheiten"]) for f in kat["faecher"]) == 6
 
 
 def test_open_questions_expire_after_seven_days(wb):

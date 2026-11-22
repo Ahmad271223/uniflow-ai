@@ -289,7 +289,8 @@ def test_kontext_search_and_block_are_bounded(lib_ki):
     assert [f.key for f in funde] == [f"{STATIK}/G0002/02#Q1-Aufgabe-4"] and funde[0].zahlen
     funde_vj = wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_VORJAHR.replace("Aufgabe 4", "Aufgabe 9"))
     assert [f.key for f in funde_vj] == [f"{STATIK}/G0003/02#Q1-Aufgabe-4"], "gleicher Dateiname: die Zahlen waehlen das Semester"
-    assert wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_OHNE_ZAHLEN) == [], "ohne Zahlen keine Aufgabe"
+    assert wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_OHNE_ZAHLEN) == [], \
+        "ohne Zahlen: Aufgabe 4 steht in zwei Semestern mit verschiedenen Zahlen, nichts entscheidet"
     assert wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=A4_NEUE_ZAHLEN) == [], "andere Zahlen: andere Fassung"
     assert wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text="Aufgabe 4\n1 0 1 1 0 1 0 0 1") == []
     # Folie: ueber den Dateititel schon mit der Haelfte der Begriffe, ueber den Kurs erst mit 0,65
@@ -305,6 +306,57 @@ def test_kontext_search_and_block_are_bounded(lib_ki):
     assert wissensbank_ki._auszug(funde[0].unit, funde[0].sec, 60).endswith("[…gekürzt]")
     assert (wissensbank_ki.KONTEXT_STELLEN, wissensbank_ki.KONTEXT_ZEICHEN, wissensbank_ki.KONTEXT_ANTEIL,
             wissensbank_ki.KONTEXT_ANTEIL_KURS, wissensbank_ki.KONTEXT_BEGRIFFE) == (2, 6000, 0.5, 0.65, 6)
+
+
+# Fehlfall des Inhabers 22.11.2026, nachgebaut mit einer erfundenen Formel: eingekreister Kopf einer Formel-Aufgabe, so
+# wie die Texterkennung ihn liefert ("V" fuer ∨, "A" oder "1" fuer ∧)
+FORMEL_TEIL = "Aufgabe 2.3.1 Schaltfunktionen\na) Regel 3: Ausmultiplizieren\nz = a1 A (a2 V a3 V (a4 1 a5))"
+UEBUNG_NEU, UEBUNG_ALT = "logik-uebung2-ws26.pdf", "logik-uebung2.pdf"
+F231_STELLE = "Beispiel-Algorithmen/G0002/02#Q1-Aufgabe-2-3-1"
+
+
+def test_short_formula_task_goes_to_the_ai_as_an_excerpt(lib_ki):
+    """Dateititel + dieselbe Aufgabenbezeichnung in der Ueberschrift + die mitgeschickte Seite steht im Abschnitt + die
+    wenigen Woerter passen: Der Abschnitt geht als Auszug mit, auch ohne lesbare Zahlen. Das laufende Semester hat nur
+    Verweise; mitgegeben wird der Abschnitt mit dem Inhalt (einmal, nicht je Verweis)."""
+    from app import wissensbank_ki
+    funde = wissensbank_ki.suche(lib_ki, datei=UEBUNG_NEU, kurs="Beispiel-Algorithmen", seite=15, text=FORMEL_TEIL)
+    assert [f.key for f in funde] == [F231_STELLE] and funde[0].hinweis
+    assert [f.key for f in wissensbank_ki.suche(lib_ki, datei=UEBUNG_ALT, seite=16, text=FORMEL_TEIL)] == [F231_STELLE]
+    assert "FORMEL-LOESUNG-A" in wissensbank_ki.kontext_block(funde).block
+    # auch ein laengerer Ausschnitt ohne lesbare Zahlen (die Texterkennung hat die Formel ausgelassen)
+    lang = ("Aufgabe 2.3.1 Schaltfunktionen\nGegeben ist der Ausdruck z. a) Lösen Sie die Klammern des Ausdrucks auf.\n"
+            "b) Geben Sie eine Struktur an, die nur aus NOR-Gattern besteht.")
+    assert [f.key for f in wissensbank_ki.suche(lib_ki, datei=UEBUNG_NEU, seite=14, text=lang)] == [F231_STELLE]
+    assert wissensbank_ki.suche(lib_ki, datei=UEBUNG_NEU, seite=3, text=lang) == [], "ohne Zahlen nur mit der Seite"
+    # lesbare Zahlen duerfen nicht widersprechen: andere Indizes, eine Zahl, die der Abschnitt nicht hat
+    assert wissensbank_ki.suche(lib_ki, datei=UEBUNG_NEU, seite=15, text=FORMEL_TEIL.replace("a2 V a3 V (a4 1 a5)", "a7 V a9 V (a8 1 a6)")) == []
+    assert wissensbank_ki.suche(lib_ki, datei=UEBUNG_NEU, seite=15, text=FORMEL_TEIL + " für n = 64") == []
+    # der eingekreiste Bereich reicht bis in die Ueberschrift der naechsten Aufgabe: Die Woerter gehoeren zur Aufgabe
+    # davor (gemessen am 22.11.2026: Auszug der Folgeaufgabe, weil deren Ueberschrift am Ende des Ausschnitts stand)
+    from test_wissensbank import KURZ, STATIK
+    bis_in_die_naechste = "Aufgabe 6\n" + KURZ + "\nAufgabe 7"
+    assert [f.key for f in wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=bis_in_die_naechste)] == [f"{STATIK}/G0002/02#Q1-Aufgabe-6"]
+    # ... auch mit dem Anfang ihrer ersten Zeile: Ein kleiner Rest am Ende des Ausschnitts ist nicht die gefragte Aufgabe
+    mit_rest = bis_in_die_naechste + "\nSkizzieren Sie den Verlauf"
+    assert [f.key for f in wissensbank_ki.suche(lib_ki, datei=BLATT, seite=2, text=mit_rest)] == [f"{STATIK}/G0002/02#Q1-Aufgabe-6"]
+    for anders, kw in (("andere Seite, die der Abschnitt nicht nennt", dict(seite=3)),
+                       ("andere Aufgabennummer", dict(text=FORMEL_TEIL.replace("2.3.1", "2.3.2"))),
+                       ("anderer Dateititel", dict(datei="logik-uebung3.pdf")),
+                       ("andere Woerter unter derselben Nummer", dict(text="Aufgabe 2.3.1 Sortierverfahren\na) Laufzeit von Quicksort\nT = n1 + n2")),
+                       ("ohne Ueberschrift", dict(text=FORMEL_TEIL.split("\n", 1)[1]))):
+        args = {**dict(datei=UEBUNG_NEU, seite=15, text=FORMEL_TEIL), **kw}
+        assert wissensbank_ki.suche(lib_ki, **args) == [], anders
+
+
+def test_short_formula_task_in_the_relay(ki, monkeypatch):
+    monkeypatch.setenv("LERNAPP_WISSENSBANK_KONTEXT", "1")
+    app, spy = ki
+    u, h = user(app, "formel@beispiel.de", plan="pro_ai")
+    st, d = ask(app, h, text=FORMEL_TEIL, datei=UEBUNG_NEU, seite=15, image="/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wAALCAABAAEBAREA/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/2gAIAQEAAD8AN//Z")
+    assert st == 200 and d["source"] == "ki" and d["wissensbank_kontext"] is True, d
+    assert "FORMEL-LOESUNG-A" in spy.prompts[-1] and spy.prompts[-1].count("--- Auszug") == 1
+    assert [r[0] for r in ledger(u["id"])] == ["tutor:explain"], "keine Lieferung aus der Wissensbank, normale KI-Antwort"
 
 
 @pytest.fixture

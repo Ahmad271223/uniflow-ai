@@ -110,7 +110,7 @@ def announce(user: dict | None) -> bool:
 # ================================================================== Text: Normalisieren, Woerter, Shingles
 
 _HYPHEN = re.compile(r"(\w)[-­‐‑]\s*\n\s*(\w)")
-_TOKEN = re.compile(r"\d+(?:\.\d+)*|[^\W\d_]+|[=+<>≤≥≠≈∫∑∏√∞∂∇→←↔⇒⇔∈∉⊂⊆∪∩∀∃×·÷^%]")
+_TOKEN = re.compile(r"\d+(?:\.\d+)*|[^\W\d_]+|[=+<>≤≥≠≈∫∑∏√∞∂∇→←↔⇒⇔∈∉⊂⊆∪∩∀∃×·÷^%⊕]")
 _DECIMAL = re.compile(r"(?<=\d),(?=\d)")
 
 
@@ -120,6 +120,11 @@ _DECIMAL = re.compile(r"(?<=\d),(?=\d)")
 _TREMA_BEFORE = re.compile("[ \t]?\u0308[ \t]*\n?[ \t]*([aouAOU])")
 _TREMA_AFTER = re.compile("([aouAOU])[ \t]\u0308")
 _PRIVATE = re.compile("[\ue000-\uf8ff]")       # Teile grosser Klammern aus Formelschriften (Privatbereich)
+# Logische Zeichen in der Form, in der die Texterkennung sie liefert, wenn sie sie liest (gemessen am 22.11.2026 an 24
+# eingekreisten Formelzeilen mit ∨/∧): ∨ wird "V" (als eigenes Zeichen in 28 von 78 Faellen, sonst klebt es am Nachbarn:
+# "a Vb"), ∧ wird "^" (4 von 18; sonst "1", "A" oder nichts), Ueberstriche und ¬ gehen verloren. Keine der 24 Zeilen kam
+# vollstaendig richtig an - der erkannte Text einer Formel belegt deshalb nie allein eine Stelle.
+_LOGIK = str.maketrans({"∨": " v ", "⋁": " v ", "∧": " ^ ", "⋀": " ^ ", "¬": " "})
 
 
 def _umlaut(m: re.Match) -> str:
@@ -129,9 +134,9 @@ def _umlaut(m: re.Match) -> str:
 def normalize(text: str) -> str:
     """NFKC (x₁ -> x1, ² -> 2, Ligaturen fi/fl, Formelbuchstaben), getrennte Umlaute zusammensetzen, Silbentrennung am
     Zeilenende zusammenziehen, Kleinschreibung (ß -> ss), Dezimalkomma -> Punkt, Markdown-Zeichen weg. Ziffern und
-    Formelzeichen bleiben."""
+    Formelzeichen bleiben; ∨ und ∧ in der Form der Texterkennung ("v", "^")."""
     t = unicodedata.normalize("NFKC", str(text or ""))
-    t = _PRIVATE.sub(" ", t)
+    t = _PRIVATE.sub(" ", t).translate(_LOGIK)
     if "\u0308" in t:
         t = _TREMA_AFTER.sub(_umlaut, _TREMA_BEFORE.sub(_umlaut, t))
     t = t.replace("­", "")
@@ -384,6 +389,33 @@ _REF_LABEL = re.compile(r"^\s*(?:\*{1,2}(Folientext|Folieninhalt|Aufgabentext|Au
                         r"|(?:Aufgabentext|Aufgabenstellung|Folientext)[ \t]*:)\s*", re.I)
 _LINK = re.compile(r"(?:identisch mit|entspricht|Erklärung (?:in|dort:?))\s+(?:komplett\s+)?(G\d{4})\b[^\n→]{0,40}?"
                    r"(?:\[?(Q\d+)\]?\s*)?(?:Seite|S\.|Folie)\s*(\d+)", re.I)
+# Verweis als Markdown-Link auf einen Abschnitt einer anderen Einheit: [G0002, Abschnitt „Aufgabe 4: ...“](../G0002/02-...md)
+_MDLINK = re.compile(r"\[(G\d{4}),\s*Abschnitt\s*[„\"“»](.{3,200}?)[“”\"«]\]\(")
+_PAGES = re.compile(r"\b(?:Seiten?|Folien?|S\.)\s*(\d+(?:\s*(?:,|und|bis|-|–|/)\s*\d+(?!\s*(?:Punkt|Pkt|P\b|%)))*)")
+_PAGE_SPOTS = re.compile(r"^#{3,6} .*$|\*\*[^*\n]{0,200}\*\*", re.M)
+_SEMESTER = re.compile(r"\b(WiSe|SoSe)[_ ]?(\d{4})")
+
+
+def pages_named(head: str, body: str) -> frozenset:
+    """Seiten bzw. Folien, die ein Abschnitt in seiner Ueberschrift, seinen Zwischenueberschriften und fetten Marken
+    nennt: "**Aufgabe (Folie 14).**", "**a) (Folien 15 und 16), ...**", "Seiten 3 bis 5"."""
+    out: set[int] = set()
+    for spot in [head] + _PAGE_SPOTS.findall(body):
+        for m in _PAGES.finditer(spot):
+            parts = re.split(r"\s*(,|und|bis|-|–|/)\s*", m.group(1))
+            prev = int(parts[0])
+            out.add(prev)
+            for con, num in zip(parts[1::2], parts[2::2]):
+                n = int(num)
+                out.update(range(prev, n + 1) if con in ("bis", "-", "–") and 0 < n - prev <= 40 else (n,))
+                prev = n
+    return frozenset(out)
+
+
+def semester_key(pfad: str) -> tuple[int, int]:
+    """Ordnung der Semester aus dem Pfad der Einheit ("…/WiSe_2026_27/…" > "…/SoSe_2026/…"); ohne Angabe (0, 0)."""
+    m = _SEMESTER.search(str(pfad or ""))
+    return (int(m.group(2)), 1 if m.group(1) == "WiSe" else 0) if m else (0, 0)
 
 
 @dataclass
@@ -399,7 +431,7 @@ class Section:
     sh: array
     nums: frozenset
     numsh: dict                  # Shingles mit Zahl und Anzahl (nur mit ausdruecklichem Text)
-    link: tuple | None           # (Einheit, Q, Seite) bei "identisch mit G00xx Seite N"
+    link: tuple | None           # (Einheit, Q, Seite, Abschnittstitel): "identisch mit G00xx Seite N" bzw. Markdown-Link
     body_len: int
     label: str | None = None     # Aufgabennummer ("1.2"), nur bei Aufgaben
     words: array = field(default_factory=lambda: array("I"))   # Begriffe des ganzen Abschnitts (`terms`, gehasht)
@@ -407,6 +439,7 @@ class Section:
     numseq: array = field(default_factory=lambda: array("I"))   # Zahlen des ganzen Abschnitts in ihrer Reihenfolge (gehasht)
     tasks: bool = False          # der Abschnitt nennt Aufgaben ("Aufgabe 2 ..."): Blatt, Klausur, Mitschrift einer Uebung
     dates: frozenset = frozenset()                              # Datumsangaben des ganzen Abschnitts (`dates_of`)
+    pages: frozenset = frozenset()                              # Seiten/Folien, die der Abschnitt nennt (`pages_named`)
 
 
 @dataclass
@@ -418,6 +451,7 @@ class Unit:
     sources: list[Source]
     sections: list[Section] = field(default_factory=list)
     fm: dict = field(default_factory=dict)          # Kopfdaten je Datei (nur fuer Hinweise)
+    semester: tuple = (0, 0)                        # `semester_key` des Pfads: bei gleichem Inhalt gewinnt die neueste
 
 
 def _heading(h: str) -> tuple[str, str | None, int | None, str] | None:
@@ -458,7 +492,8 @@ def _sections(text: str) -> list[tuple[str, str]]:
 
 def parse_unit(fach: str, entry: dict, root: Path) -> Unit:
     path = root / str(entry.get("pfad") or "")
-    unit = Unit(fach, str(entry.get("id") or ""), path, str(entry.get("titel") or ""), [])
+    unit = Unit(fach, str(entry.get("id") or ""), path, str(entry.get("titel") or ""), [],
+                semester=semester_key(str(entry.get("pfad") or "")))
     files = [d for d in entry.get("dateien") or [] if str(d).endswith(".md") and str(d) != "README.md"
              and re.match(r"0[12]-", str(d))]
     seen: set[str] = set()
@@ -483,6 +518,12 @@ def parse_unit(fach: str, entry: dict, root: Path) -> Unit:
             explicit = len(tokens(ref)) >= 12
             toks = tokens(ref if explicit else b)
             lm = _LINK.search(b) if len(b) < 1500 else None
+            mm = _MDLINK.search(b) if len(b) < 1500 else None
+            link = None
+            if lm:
+                link = (lm.group(1), lm.group(2), int(lm.group(3)), mm.group(2) if mm and mm.group(1) == lm.group(1) else None)
+            elif mm:
+                link = (mm.group(1), None, None, mm.group(2))
             sid = f"{d[:2]}#{q or 'Q'}-{re.sub(r'[^0-9A-Za-zÄÖÜäöüß]+', '-', label).strip('-')}"
             n, base = 2, sid
             while sid in seen:
@@ -495,9 +536,10 @@ def parse_unit(fach: str, entry: dict, root: Path) -> Unit:
             tasky = kind == "aufgabe" or bool(_TASK_WORD.search(whole_norm))
             unit.sections.append(Section(sid, d, i, h, kind, q, page, explicit, shingles(toks), numbers(toks),
                                          number_shingles(toks) if explicit else {},
-                                         (lm.group(1), lm.group(2), int(lm.group(3))) if lm else None, len(b),
+                                         link, len(b),
                                          task_label(lab.group(1)) if lab else None, _hashes(words), frozenset(bignums),
-                                         array("I", [hash(t) & 0xFFFFFFFF for t in stream]), tasky, dates_of(whole_norm)))
+                                         array("I", [hash(t) & 0xFFFFFFFF for t in stream]), tasky, dates_of(whole_norm),
+                                         pages_named(h, b)))
     # Quellen: Kopf der Dateien, sonst README (Tabelle "Quelle Q1 | titel ...")
     if not srcs:
         try:
@@ -672,20 +714,64 @@ def score(q: array, qset: set, qnums: frozenset, sec: Section, *, strict: float 
     return ov, jac
 
 
+def _head_label(text: str) -> str | None:
+    m = re.search(r"\baufgabe[ \t]*([a-z]?[ \t]?\d+(?:[ \t]?[.\-][ \t]?\d+)*)", normalize(text))
+    return task_label(m.group(1)) if m else None
+
+
+def _link_target(target: Unit, sec: Section) -> Section | None:
+    """Die Stelle der Zieleinheit, auf die `sec` verweist: die Seite mit dieser Nummer; der Abschnitt mit dem genannten
+    Titel; sonst die Aufgabe, die diese Seite/Folie nennt bzw. die Aufgabe mit der genannten Bezeichnung - nur wenn es
+    genau eine ist."""
+    _uid, q, page, title = sec.link
+    if page is not None:
+        for s in target.sections:
+            if s.kind == "seite" and s.page == page and (q is None or s.q in (q, None)) and s.datei[:2] == sec.datei[:2]:
+                return s
+    label = None
+    if title:
+        want = tokens(title)
+        same = [s for s in target.sections if tokens(re.sub(r"^\s*\[Q\d+\]\s*", "", s.title)) == want]
+        if len(same) == 1:
+            return same[0]
+        label = _head_label(title)
+    tasks = [s for s in target.sections if s.kind == "aufgabe" and (q is None or s.q in (q, None))]
+    if page is not None:
+        named = [s for s in tasks if page in s.pages]
+        if len(named) == 1:
+            return named[0]
+        label = label or _head_label(sec.title)
+        tasks = named or tasks
+    if label:
+        same = [s for s in tasks if s.label == label]
+        if len(same) == 1:
+            return same[0]
+    return None
+
+
 def _resolve(lib: Library, unit: Unit, sec: Section, depth: int = 0) -> tuple[Unit, Section]:
-    """"identisch mit G00xx Seite N -> Erklaerung dort": die Stelle, auf die verwiesen wird (gleiches Fach)."""
+    """"identisch mit G00xx Seite N -> Erklaerung dort" und "[G00xx, Abschnitt „Titel“](…)": die Stelle, auf die
+    verwiesen wird (gleiches Fach). Geliefert wird der Zielabschnitt; ohne eindeutiges Ziel bleibt es beim Abschnitt."""
     if not sec.link or depth >= 3:
         return unit, sec
-    uid, q, page = sec.link
-    target = lib.unit(unit.fach, uid)
+    target = lib.unit(unit.fach, sec.link[0])
     if target is None:
         return unit, sec
-    for s in target.sections:
-        if s.kind == "seite" and s.page == page and (q is None or s.q in (q, None)) and s.datei[:2] == sec.datei[:2]:
-            if s is sec:
-                return unit, sec
-            return _resolve(lib, target, s, depth + 1)
-    return unit, sec
+    s = _link_target(target, sec)
+    if s is None or s is sec:
+        return unit, sec
+    return _resolve(lib, target, s, depth + 1)
+
+
+def _neu(unit: Unit) -> tuple[int, int]:
+    """Sortierschluessel: neueres Semester zuerst (bei sonst gleichem Ergebnis)."""
+    return -unit.semester[0], -unit.semester[1]
+
+
+def _same_content(a: Section, b: Section) -> bool:
+    """Zwei Abschnitte mit (fast) denselben Begriffen und denselben Zahlen: dieselbe Seite in zwei Semestern."""
+    sa, sb = set(a.words), set(b.words)
+    return bool(sa) and a.bignums == b.bignums and len(sa & sb) >= 0.8 * len(sa | sb)
 
 
 def key_of(mode: str, unit: Unit, secs: list[Section]) -> str:
@@ -743,9 +829,11 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
                     # ein kurzer Satz ("Bestimmen Sie die Impulsantwort. Ist das System kausal?") steht in vielen Aufgaben
                     # mit verschiedenen Loesungen: nur, wenn der angefragte Text die Nummer dieser Aufgabe nennt
                     r = None
-                if r and cand.kind == "aufgabe" and not titled and qbits < NACHWEIS_ZAHLEN_BITS:
+                if r and (cand.kind == "aufgabe" or cand.tasks) and not titled and qbits < NACHWEIS_ZAHLEN_BITS:
                     # Dateititel unbekannt (nur der Kurs passt): eine Aufgabe ohne Zahlen im Text ("... fuer das gegebene
-                    # Gatter ...") kann jedes Jahr eine andere sein - nur mit Zahlen, die dann genau stimmen muessen
+                    # Gatter ...") kann jedes Jahr eine andere sein - nur mit Zahlen, die dann genau stimmen muessen.
+                    # Das gilt auch fuer Seiten, die Aufgaben nennen (Blatt, Mitschrift einer Uebung): Der eingekreiste
+                    # Kopf einer Aufgabe steht woertlich auch auf dem Blatt eines anderen Jahres mit anderen Zahlen.
                     r = None
                 if r and ausschnitt and cand.kind == "seite" and _overlap(q, qset, cand.sh) < AUSSCHNITT_GEMEINSAM:
                     # zwei Zeilen Kopf oder Titel belegen keine Folie (gemessen: Kopf einer Folie traf die fast gleich
@@ -770,7 +858,7 @@ def match(lib: Library, *, mode: str, datei: str, kurs: str = "", seite: int | N
             continue
         # Folie/Seite vor Aufgabe beim Erklaeren; dann Jaccard (Animationsstufen), dann Naehe der Seitennummer
         pref = {k: i for i, k in enumerate(kinds)}
-        found.sort(key=lambda f: (pref[f[4].kind], -round(f[1], 3), f[2]))
+        found.sort(key=lambda f: (pref[f[4].kind], -round(f[1], 3), f[2], _neu(f[3])))
         best = found[0]
         unit, sec = best[3], best[4]
         secs = [sec]
@@ -849,9 +937,10 @@ def _anchored_page(pool: list, seite: int | None, text: str):
             other = max(other, share)
     if not here:
         return None
-    here.sort(key=lambda x: -x[0])
+    here.sort(key=lambda x: (-round(x[0], 2), _neu(x[2])))
     share, common, at, cand = here[0]
-    rivals = [x[0] for x in here[1:] if x[3] is not cand]      # dieselbe Seitennummer in einer anderen Einheit (Semester)
+    # dieselbe Seitennummer in einer anderen Einheit (Semester): bei gleichem Inhalt gilt die neueste, sonst ist sie Rivale
+    rivals = [x[0] for x in here[1:] if x[3] is not cand and not _same_content(x[3], cand)]
     other = max([other] + rivals)
     if qn - cand.bignums or not _accept(share, common, other):
         return None
@@ -906,7 +995,7 @@ def _anchored_tasks(pool: list, text: str):
         scored = [x for x in scored if x[2]]
         if not scored:
             continue
-        scored.sort(key=lambda x: -x[0])
+        scored.sort(key=lambda x: (-round(x[0], 2), _neu(x[3][0][0])))
         share, common, _ok, members = scored[0]
         if _accept(share, common, other):
             chosen.append((share, members[0][0], [c for at, c in members if at is members[0][0]]))
