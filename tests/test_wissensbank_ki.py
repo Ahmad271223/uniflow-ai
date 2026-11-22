@@ -393,6 +393,7 @@ def test_same_account_again_gets_a_fresh_answer_and_votes_can_replace_the_rememb
         assert frage(app, h)[1]["source"] == "gemerkt"
         st, d = frage(app, h)                                  # dasselbe Konto noch einmal: frische KI-Antwort und die Frage
         assert d["source"] == "ki" and d["answer"] == f"KI-ANTWORT-{i}" and d["feedback_question"] == "Gefällt dir diese Antwort besser?"
+        assert d["wissensbank_key"] == "gemerkt:1" and set(d) == OHNE_FELDER | {"wissensbank_key", "feedback_token", "feedback_question"}
         tokens.append((h, d["feedback_token"]))
     assert len(gemerkt_rows()) == 1, "es gilt noch die erste gemerkte Antwort"
     assert feedback(app, *tokens[0], True)[1] == {"ok": True, "stored": False}

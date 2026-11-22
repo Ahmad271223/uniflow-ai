@@ -194,7 +194,7 @@ der Fälle noch als gleich: Die Regel ist bewusst streng, zwei Leute müssen fas
 
 **Tests** (22.11.2026): `tests/test_wissensbank_ki.py` 21 grün (C, A, B; je Regel Treffer und Gegenprobe; beide Schalter
 aus = Prompt und Antwortfelder wie bisher); mit `test_wissensbank.py`, `test_ai_relay.py`, `test_audit_p58_87_server.py`
-147 grün; schneller Python-Lauf siehe Bericht.
+147 grün; schneller Python-Lauf 4036 grün, 0 rot, 4 übersprungen, 10 abgewählt, 2 erwartet rot (5:45 min).
 
 **Was die App dafür braucht** (nicht gebaut): `wissensbank`-Angaben auch bei `tutor:ask` schicken (für A); Feld
 `wissensbank.teilbar: true` setzen, wenn im Ausschnitt/auf der Seite keine eigenen Notizen liegen, kein Notiztext, kein

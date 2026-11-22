@@ -398,6 +398,8 @@ def after(user: dict, p: KiPlan, c, now: datetime | None = None) -> dict:
     if p.frage_zu is not None:
         token = wb.offer_feedback(user, wb.Plan(f"{KEY}{p.frage_zu}", False), c, now)
         if token:
+            # wie nach einer Stelle der Bibliothek: Schluessel + Kennung (die App zeigt die Frage nur mit beidem)
+            out["wissensbank_key"] = f"{KEY}{p.frage_zu}"
             out["feedback_token"] = token
             out["feedback_question"] = "Gefällt dir diese Antwort besser?"
     return out
