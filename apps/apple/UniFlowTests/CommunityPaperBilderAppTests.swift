@@ -110,8 +110,8 @@ final class CommunityPaperBilderAppTests: XCTestCase {
         let env = try hostWithEnvironment(NavigationStack { DocumentView(file: main, api: api) }, api: api, size: CGSize(width: 1180, height: 820))
         env.pump(1.0)
         Entitlements.shared.setPlanForTesting(.plus)
-        // Fussleiste: "1 Lösung(en) eingeblendet · daneben ansehen"
-        XCTAssertTrue(env.wait(timeout: 20) { self.tap(containing: "daneben ansehen", in: env.window) }, "Lösung daneben öffnen")
+        // Fussleiste: "Lösung neben deinem Dokument öffnen" (22.11.2026: nur noch daneben, keine Ebene ueber der Seite)
+        XCTAssertTrue(env.wait(timeout: 20) { self.tap(containing: "neben deinem Dokument öffnen", in: env.window) }, "Lösung daneben öffnen")
         XCTAssertTrue(env.wait(timeout: 15) { self.shows("nur ansehen", in: env.window) }, "Spalte daneben")
         env.pump(2.5)
         shot(env.window, "1-loesung-daneben")

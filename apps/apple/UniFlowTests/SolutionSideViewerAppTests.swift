@@ -260,18 +260,55 @@ final class SolutionSideViewerAppTests: XCTestCase {
         print("Textmarker 15 pt, Azimut 0: Absender \(markerAuthor) pt, Empfaenger \(markerSide) pt")
     }
 
-    /// Ursache der Meldung: die alte Spalte (Bild aus `SolutionPreview`, Vektor-Routine des PDF-Exports) zeichnete den
-    /// 8-pt-Stift anders breit als PencilKit beim Absender
-    func testOldPreviewImageDifferedFromTheAuthorsCanvas() async throws {
+    /// Vorschau-Bild (`SolutionPreview`: Leser und Kommentare der Community, Kacheln): bis 22.11.2026 zeichnete die
+    /// Vektor-Routine des PDF-Exports die Handschrift in der gespeicherten Breite, der 3-pt-Stift war darum fetter als
+    /// bei PencilKit (Meldung des Inhabers: "Schrift sieht fett aus, in echt ist die nicht so"). Jetzt zeichnet
+    /// PencilKit sie wie auf der Canvas des Absenders.
+    func testPreviewImageDrawsInkLikeTheAuthorsCanvas() async throws {
         let sample = try sample()
         let want = try await authorBoxes(sample)
         let page = SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 595, height: 842, rotation: 0, objects: sample.objects)
-        let old = SolutionPreview.image(page, images: [:], width: 595, scale: 2)
-        let got = boxes(old, pageRect: CGRect(origin: .zero, size: Self.pageSize))
-        Self.keep(old, "spalte-alt")
-        let wantHeight = try XCTUnwrap(want[1]).height, oldHeight = try XCTUnwrap(got[1]).height
-        print("8-pt-Stift: Absender \(wantHeight) pt, alte Spalte \(oldHeight) pt")
-        XCTAssertGreaterThan(abs(oldHeight - wantHeight), 1.5, "alt: 8-pt-Stift \(oldHeight) pt hoch, beim Absender \(wantHeight) pt")
+        let image = SolutionPreview.image(page, images: [:], width: 595, scale: 2)
+        let got = boxes(image, pageRect: CGRect(origin: .zero, size: Self.pageSize))
+        Self.keep(image, "vorschau-neu")
+        for (i, name) in ["Stift 3 pt", "Stift 8 pt", "Füller 6 pt"].enumerated() {
+            let w = try XCTUnwrap(want[i]).height, g = try XCTUnwrap(got[i]).height
+            print("\(name): Absender \(w) pt, Vorschau \(g) pt")
+        }
+        assertSame(got, want, tolerance: 1.5, "Vorschau")
+        // dieselbe Seite im Dunkelmodus: Tinte bleibt wie sie ist (nicht umgekehrt), Bild gleich
+        var dark: UIImage?
+        UITraitCollection(userInterfaceStyle: .dark).performAsCurrent { dark = SolutionPreview.image(page, images: [:], width: 595, scale: 2) }
+        assertSame(boxes(try XCTUnwrap(dark), pageRect: CGRect(origin: .zero, size: Self.pageSize)), got, tolerance: 0.5, "Vorschau dunkel")
+    }
+
+    // MARK: Nur noch daneben (22.11.2026)
+
+    /// Inhaber 22.11.2026: "nur noch daneben anzeigen ... ohne Ebene mehr erstmal jetzt", der Satz "Lösung neben deinem
+    /// Dokument öffnen" soll zu lesen sein, und schon vor dem Laden steht da, was passiert
+    func testSolutionsOpenOnlyBesideTheDocument() {
+        XCTAssertFalse(SolutionOverlay.enabled, "keine Einblendung ueber der eigenen Seite")
+        XCTAssertEqual(SolutionOverlay.openBeside, "Lösung neben deinem Dokument öffnen")
+        let text = CommunitySolutionsSheet.explain(overlay: false, beside: true)
+        XCTAssertTrue(text.contains("neben deinem Dokument"), text)
+        XCTAssertTrue(text.contains("nur ansehen"), text)
+        XCTAssertTrue(text.contains("in deinem eigenen Dokument"), text)
+        XCTAssertFalse(text.contains("Ebene"), text)
+        XCTAssertEqual(DocumentView.besideChip(1), "Lösung neben deinem Dokument öffnen")
+        XCTAssertEqual(DocumentView.besideChip(3), "3 Lösungen · neben deinem Dokument öffnen")
+
+        // Haken im Menue "Ebenen": die Loesung, die gerade daneben offen ist
+        let one = layer([SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 595, height: 842, rotation: 0, objects: [])])
+        XCTAssertEqual(DocumentView.layerSymbol(one, beside: one.id), "checkmark.circle.fill")
+        XCTAssertEqual(DocumentView.layerSymbol(one, beside: nil), "circle")
+
+        // Bitte aus dem Leser der Community: wartet je Datei, wird genau einmal abgeholt
+        let launch = SolutionBesideLaunch.shared
+        launch.request(solutionID: "abc", fileID: "datei-1")
+        XCTAssertEqual(launch.pending["datei-1"], "abc")
+        XCTAssertNil(launch.take(fileID: "andere"))
+        XCTAssertEqual(launch.take(fileID: "datei-1"), "abc")
+        XCTAssertNil(launch.take(fileID: "datei-1"))
     }
 
     // MARK: Zoom

@@ -659,7 +659,7 @@ struct SolutionPreviewSheet: View {
             UFContent(maxWidth: 860, insets: EdgeInsets(top: 16, leading: 20, bottom: 32, trailing: 20)) {
                 VStack(alignment: .leading, spacing: 16) {
                     UFCard {
-                        Text("Nur die Notizen dieser Lösung, ohne Original. Im Dokument erscheinen sie über deiner eigenen PDF und lassen sich nicht bearbeiten.")
+                        Text("Nur die Notizen dieser Lösung, ohne Original. Im Dokument öffnest du sie neben deinem Dokument, auf deiner eigenen PDF; sie lassen sich nicht bearbeiten.")
                             .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                         if layer.blankPageCount > 0 {
                             Text("\(layer.blankPageCount) eigene Seite(n) der Lösung gibt es in deiner PDF nicht – sie sind nur hier zu sehen.")

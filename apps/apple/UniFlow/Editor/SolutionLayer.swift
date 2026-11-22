@@ -1,3 +1,4 @@
+import Combine
 import ImageIO
 import PDFKit
 import PencilKit
@@ -108,9 +109,49 @@ enum SolutionPreview {
             }
             ctx.cgContext.scaleBy(x: s, y: s)
             if page.kind == .blank { PageRenderer.drawTemplate(page.template, size: size, in: ctx.cgContext) }
-            PageRenderer.drawObjects(page.objects, images: images, in: ctx.cgContext)
+            // Text, Bilder und Formen mit der gemeinsamen Zeichenroutine; die Handschrift zeichnet PencilKit wie auf der
+            // Canvas des Absenders und in der Spalte daneben. Bis 22.11.2026 kam sie aus der Vektor-Routine des
+            // PDF-Exports in der gespeicherten Breite: ein 3-pt-Stift ist bei PencilKit rund 2 pt breit, die Schrift
+            // sah in der Vorschau (Kommentare der Community) darum fetter aus als im Dokument (Meldung des Inhabers).
+            PageRenderer.drawObjects(page.objects.filter { $0["type"]?.string != "stroke" }, images: images, in: ctx.cgContext)
+            let ink = Self.ink(page.objects)
+            if !ink.strokes.isEmpty {
+                let area = CGRect(x: 0, y: 0, width: size.width, height: min(size.height, out.height / s))
+                var picture: UIImage?
+                // helle Darstellung wie die Canvas (im Dunkelmodus kehrt PencilKit die Tinte sonst um)
+                UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
+                    picture = ink.image(from: area, scale: min(inkScaleMax, max(1, s * scale)))
+                }
+                picture?.draw(in: area)
+            }
         }
     }
+
+    /// Bildpunkte je Seitenpunkt fuer die Handschrift der Vorschau (hoechstens; eine A4-Seite sind dann 2380 x 3368)
+    static let inkScaleMax: CGFloat = 4
+
+    /// Striche einer Seite als PencilKit-Zeichnung (gleiche Umwandlung wie im Editor); Erstellzeiten nur zur
+    /// Unterscheidung
+    static func ink(_ objects: [JSONValue]) -> PKDrawing {
+        let start = Date(timeIntervalSince1970: 0)
+        let strokes = objects.filter { $0["type"]?.string == "stroke" }.enumerated().compactMap { i, o in
+            StrokeConverter.stroke(from: o, created: start.addingTimeInterval(TimeInterval(i)))
+        }
+        return PKDrawing(strokes: strokes)
+    }
+}
+
+/// Fremde Loesung als Ebene UEBER der eigenen Seite einblenden. Inhaber 22.11.2026: "nur noch daneben anzeigen ...
+/// ohne Ebene mehr erstmal jetzt" - eine Loesung oeffnet sich nur noch neben dem eigenen Dokument (nur ansehen, die
+/// eigene PDF-Seite bzw. das Blatt darunter, 1 zu 1 wie beim Absender). Der Code der Einblendung bleibt (der
+/// Korrektur-Modus zeigt die korrigierte Loesung weiter unter den eigenen Strichen); der Schalter ist fuer Tests und
+/// fuer den Fall, dass die Einblendung zurueckkommen soll.
+enum SolutionOverlay {
+    static var enabled = false
+    /// Satz an Knopf und Menuepunkt (Wunsch des Inhabers: genau so lesbar)
+    static let openBeside = "Lösung neben deinem Dokument öffnen"
+    /// Erklaerung vor dem Laden: was passiert, und dass nur im eigenen Dokument geschrieben wird
+    static let besideExplain = "Die Lösung öffnet sich neben deinem Dokument – genau so, wie sie geschrieben wurde, auf dem Blatt bzw. auf deiner PDF. Sie lässt sich nur ansehen; in deinem eigenen Dokument daneben schreibst du normal weiter."
 }
 
 /// Eine fremde Loesungsseite in der eigenen Schicht des Seiten-Overlays (ueber der PDF, unter den eigenen Notizen).
@@ -211,14 +252,22 @@ final class ForeignLayerView: UIView {
     }
 
     /// Striche der Seite wie auf der Canvas des Absenders; Erstellzeiten nur zur Unterscheidung
-    static func drawing(_ objects: [JSONValue]) -> PKDrawing {
-        let start = Date(timeIntervalSince1970: 0)
-        let strokes = objects.filter { $0["type"]?.string == "stroke" }.enumerated().compactMap { i, o in
-            StrokeConverter.stroke(from: o, created: start.addingTimeInterval(TimeInterval(i)))
-        }
-        return PKDrawing(strokes: strokes)
-    }
+    static func drawing(_ objects: [JSONValue]) -> PKDrawing { SolutionPreview.ink(objects) }
 
     /// Anzahl gezeichneter Striche (Tests).
     var strokeCount: Int { ink.drawing.strokes.count }
 }
+
+/// Bitte "diese Loesung neben dem Dokument oeffnen", gestellt ausserhalb des Dokuments (Leser der Community): Datei-ID
+/// -> Loesung. Das Dokument holt sie nach dem Laden ab (`DocumentView.takeBesideRequest`), wie `CorrectionLaunch`.
+@MainActor
+final class SolutionBesideLaunch: ObservableObject {
+    static let shared = SolutionBesideLaunch()
+
+    @Published private(set) var pending: [String: String] = [:]
+
+    func request(solutionID: String, fileID: String) { pending[fileID] = solutionID }
+
+    func take(fileID: String) -> String? { pending.removeValue(forKey: fileID) }
+}
+

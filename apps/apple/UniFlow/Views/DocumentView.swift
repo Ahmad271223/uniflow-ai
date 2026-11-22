@@ -345,6 +345,8 @@ struct DocumentView: View {
     @State private var correctionMessage = ""
     @State private var confirmDiscardCorrection = false
     @ObservedObject private var correctionLaunch = CorrectionLaunch.shared
+    /// Bitte "Lösung neben deinem Dokument öffnen" von ausserhalb (Leser der Community)
+    @ObservedObject private var besideLaunch = SolutionBesideLaunch.shared
     /// fremde Korrektur ansehen (nicht an mich): die korrigierte Loesung liegt dabei als Ebene darunter, eigene Notizen aus
     @State private var shownCorrectionTarget: ForeignSolutionLayer?
     /// offene Korrekturhinweise zu meiner eigenen, geteilten Loesung dieser PDF ("N Korrekturhinweise")
@@ -1041,12 +1043,16 @@ struct DocumentView: View {
             #endif
             if let sid = correcting { await startCorrection(sid) }
             await takeCorrectionRequest()
+            await takeBesideRequest()
             await loadCommunityMatches()
             await loadOwnCorrections()
             if offersLectureMarker { await markers.refresh(api: api, fileID: store.file.id) }
         }
         .onChange(of: correctionLaunch.pending[store.file.id]) { _, r in
             if r != nil, store.pdf != nil { Task { await takeCorrectionRequest() } }
+        }
+        .onChange(of: besideLaunch.pending[store.file.id]) { _, r in
+            if r != nil, store.pdf != nil { Task { await takeBesideRequest() } }
         }
         .modifier(CorrectionDialogs(correction: correction, notePlacement: $notePlacement, noteText: $noteText,
                                     openedNote: $openedNote, editingMessage: $editingCorrectionMessage, message: $correctionMessage,
@@ -1083,7 +1089,7 @@ struct DocumentView: View {
         PDFEditorView(store: store, bridge: bridge, pencilOnly: pencilOnly, layoutVersion: store.layoutVersion,
                       tools: tools.tools, ownsToolPicker: true, undoManager: tools.undo, initialPDFPage: initialPDFPage,
                       initialSpot: initialSpot,
-                      foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? foreignLayers,
+                      foreignLayers: correction.map { [$0.target] } ?? shownCorrectionTarget.map { [$0] } ?? (SolutionOverlay.enabled ? foreignLayers : []),
                       ownNotesVisible: correction == nil && shownCorrectionTarget == nil && ownNotesVisible, canEdit: canWrite,
                       correction: correction, shownCorrection: correction == nil ? shownCorrection : nil,
                       onCorrectionNote: { event in correctionNoteEvent(event) }, aiAvailable: aiEnabled || aiChatOnly,
@@ -1898,18 +1904,21 @@ struct DocumentView: View {
                     }
                     ForEach(foreignLayers) { layer in
                         Menu {
-                            Button { setVisible(layer, !layer.visible) } label: {
-                                Label(layer.visible ? "Ausblenden" : "Einblenden", systemImage: layer.visible ? "eye.slash" : "eye")
+                            // 22.11.2026 (Inhaber): nur noch daneben, nicht mehr ueber die eigene Seite legen
+                            if SolutionOverlay.enabled {
+                                Button { setVisible(layer, !layer.visible) } label: {
+                                    Label(layer.visible ? "Ausblenden" : "Einblenden", systemImage: layer.visible ? "eye.slash" : "eye")
+                                }
                             }
-                            Button { companion = nil; solutionSide = layer } label: {
-                                Label("Daneben ansehen", systemImage: "rectangle.split.2x1")
+                            Button { openBeside(layer) } label: {
+                                Label(SolutionOverlay.openBeside, systemImage: "rectangle.split.2x1")
                             }
                             Button { solutionSheet = .preview(layer.id) } label: {
                                 Label("Vorschau ohne Original", systemImage: "rectangle.on.rectangle")
                             }
                             Button(role: .destructive) { removeLayer(layer) } label: { Label("Entfernen", systemImage: "trash") }
                         } label: {
-                            Label(layer.label, systemImage: layer.visible ? "checkmark.circle.fill" : "circle")
+                            Label(layer.label, systemImage: Self.layerSymbol(layer, beside: solutionSide?.id))
                         }
                     }
                     Button { importingSolution = true } label: { Label("Lösung importieren …", systemImage: "square.and.arrow.down") }
@@ -1975,8 +1984,40 @@ struct DocumentView: View {
     private func showSolutionBeside(_ id: String) async {
         await reloadSolutionLayers()
         solutionSheet = nil
-        guard let layer = foreignLayers.first(where: { $0.id == id }) else { return }
+        guard let layer = foreignLayers.first(where: { $0.id.caseInsensitiveCompare(id) == .orderedSame }) else { return }
+        openBeside(layer)
+    }
+
+    /// "Lösung neben deinem Dokument öffnen": nur ansehen in der Spalte daneben; das eigene Dokument bleibt beschreibbar
+    private func openBeside(_ layer: ForeignSolutionLayer) {
         if entitlements.allows(.splitView) { companion = nil; solutionSide = layer } else { lockedFeature = .splitView }
+    }
+
+    /// Fussleiste: "Lösung neben deinem Dokument öffnen" bzw. "3 Lösungen · neben deinem Dokument öffnen"
+    static func besideChip(_ count: Int) -> String {
+        count == 1 ? SolutionOverlay.openBeside : "\(count) Lösungen · neben deinem Dokument öffnen"
+    }
+
+    /// Zeichen vor einer Loesung im Menue "Ebenen": Haken, wenn sie gerade daneben offen ist (mit Einblendung: wenn sie
+    /// ueber der Seite liegt)
+    static func layerSymbol(_ layer: ForeignSolutionLayer, beside: String?) -> String {
+        (SolutionOverlay.enabled ? layer.visible : layer.id == beside) ? "checkmark.circle.fill" : "circle"
+    }
+
+    /// Wartende Bitte "Lösung neben deinem Dokument öffnen" aus dem Leser der Community abholen: laden, falls sie zu
+    /// diesem Dokument noch nicht gespeichert ist, dann daneben zeigen
+    private func takeBesideRequest() async {
+        guard let sid = besideLaunch.take(fileID: store.file.id) else { return }
+        guard entitlements.allows(.communityRead) else { solutionSheet = .locked(.communityRead); return }
+        if !foreignLayers.contains(where: { $0.id.caseInsensitiveCompare(sid) == .orderedSame }) {
+            do {
+                await handleImport(try await store.importFromCommunity(sid, service: SolutionSharing.community))
+            } catch {
+                actionError = CommunityTexts.message(error)
+                return
+            }
+        }
+        await showSolutionBeside(sid)
     }
 
     /// Passende Loesungen neu laden (Lesen, auch in Free). Passt eine nicht zur PDF, erscheint sie nicht; die Meldung kommt
@@ -2118,7 +2159,10 @@ struct DocumentView: View {
     private func importSolution(_ result: Result<URL, Error>) {
         Task {
             do {
-                await handleImport(try await store.importSolution(try result.get()))
+                let imported = try await store.importSolution(try result.get())
+                await handleImport(imported)
+                // passt zu dieser PDF: gleich daneben oeffnen (frueher lag sie danach als Ebene ueber der Seite)
+                if !SolutionOverlay.enabled, case .shown(let entry) = imported { await showSolutionBeside(entry.solutionID) }
             } catch {
                 actionError = (error as? SolutionError)?.description ?? "Import fehlgeschlagen: \(error.localizedDescription)"
             }
@@ -2226,12 +2270,12 @@ struct DocumentView: View {
                 Divider().frame(height: 14)
                 Label("Meine Notizen ausgeblendet – nur ansehen", systemImage: "eye.slash").lineLimit(1)
             }
-            if foreignLayers.contains(where: \.visible) {
+            if SolutionOverlay.enabled, foreignLayers.contains(where: \.visible) {
                 Divider().frame(height: 14)
                 // antippen: die Loesung daneben ansehen (03.11.2026: tief im Ebenen-Menue nicht gefunden)
                 Button {
                     if let layer = foreignLayers.first(where: \.visible) {
-                        if entitlements.allows(.splitView) { companion = nil; solutionSide = layer } else { lockedFeature = .splitView }
+                        openBeside(layer)
                     }
                 } label: {
                     Label("\(foreignLayers.filter(\.visible).count) Lösung(en) eingeblendet · daneben ansehen", systemImage: "square.3.layers.3d").lineLimit(1)
@@ -2249,6 +2293,17 @@ struct DocumentView: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Blendet die Lösung(en) auf dieser PDF aus; im Menü „Ebenen“ wieder einblenden")
                 .accessibilityIdentifier("doc.solutionHide")
+            }
+            // 22.11.2026 (Inhaber: "nur noch daneben anzeigen"): gespeicherte Loesungen zu dieser PDF mit einem Tipp
+            // neben dem Dokument oeffnen (weitere stehen im Menue "Ebenen"); weg, solange eine daneben offen ist
+            if !SolutionOverlay.enabled, solutionSide == nil, correction == nil, let layer = foreignLayers.first {
+                Divider().frame(height: 14)
+                Button { openBeside(layer) } label: {
+                    Label(Self.besideChip(foreignLayers.count), systemImage: "rectangle.split.2x1").lineLimit(1)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint("Öffnet die Lösung zum Ansehen neben deinem Dokument")
+                .accessibilityIdentifier("doc.solutionBeside")
             }
             if let notice = store.notice ?? store.pageNotice ?? store.inkNotice {
                 Divider().frame(height: 14)

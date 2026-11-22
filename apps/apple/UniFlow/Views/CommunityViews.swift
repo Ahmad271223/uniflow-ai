@@ -78,9 +78,9 @@ enum CommunityTexts {
 
     /// Lesen einer Loesung mit eigener Kopie der PDF: die Seiten stehen auf der eigenen PDF (nur ein Verweis plus
     /// Seitennummer kam mit, die PDF selbst nie)
-    static let ownPDFNotice = "Du hast dieselbe PDF: Die Lösung steht hier auf deinen eigenen Seiten, genau wie sie geschrieben wurde. Im Dokument kannst du sie auch daneben oder als Ebene ansehen."
-    /// eigene PDF bekannt, aber hier nicht lesbar: im Dokument liegt die Loesung als Ebene darueber
-    static let ownPDFLayerNotice = "Du hast dieselbe PDF. Im Dokument liegt die Lösung als Ebene darüber."
+    static let ownPDFNotice = "Du hast dieselbe PDF: Die Lösung steht hier auf deinen eigenen Seiten, genau wie sie geschrieben wurde. Im Dokument öffnest du sie neben deinem Dokument – nur zum Ansehen; in deinem eigenen Dokument schreibst du dabei normal weiter."
+    /// eigene PDF bekannt, aber hier nicht lesbar: im Dokument oeffnet sich die Loesung daneben
+    static let ownPDFLayerNotice = "Du hast dieselbe PDF. Öffne die Lösung neben deinem Dokument – dort steht sie auf deinen eigenen Seiten, nur zum Ansehen."
     /// ohne eigene Kopie: leere Seiten statt der PDF
     static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung): Notizen auf Folien stehen darum auf weißen Seiten. Eigene Blätter erscheinen auf ihrem Papier (liniert, kariert …). Die PDF des Lehrenden wird nie mitgeschickt."
     /// Loesung nur auf eigenen Blaettern: jede Seite auf ihrem Papier, wie geschrieben
@@ -467,10 +467,13 @@ struct CommunityReaderSheet: View {
                         UFCard {
                             Text(ownPDF != nil ? CommunityTexts.ownPDFNotice : CommunityTexts.ownPDFLayerNotice).ufFont(13.12).foregroundStyle(UF.text2)
                                 .fixedSize(horizontal: false, vertical: true)
-                            UFButton("In meiner PDF ansehen", icon: "layers", kind: .primary, size: .small) {
+                            // 22.11.2026 (Inhaber): nur noch daneben, nicht mehr als Ebene ueber der eigenen Seite
+                            UFButton(SolutionOverlay.openBeside, icon: "layers", kind: .primary, size: .small) {
+                                SolutionBesideLaunch.shared.request(solutionID: solution.solutionID, fileID: localFile)
                                 close()
                                 router.go(.doc(localFile, task: nil, page: nil))
                             }
+                            .accessibilityIdentifier("community.reader.beside")
                             .padding(.top, 8)
                         }
                     } else if let content {
@@ -817,7 +820,7 @@ struct CommunitySolutionsSheet: View {
     @ViewBuilder private var content: some View {
         VStack(alignment: .leading, spacing: 16) {
             UFCard {
-                Text("Lösungen anderer zu genau dieser PDF. „Laden und anzeigen“ legt sie als eigene, nicht bearbeitbare Ebene über deine PDF – deine Notizen bleiben unverändert.")
+                Text(Self.explain(overlay: SolutionOverlay.enabled, beside: onBeside != nil))
                     .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
             }
             if let notice { CommunityNotice(text: notice, tone: .ok) }
@@ -853,7 +856,8 @@ struct CommunitySolutionsSheet: View {
     }
 
     @ViewBuilder private func row(_ s: CommunitySolutionSummary) -> some View {
-        if compact {
+        // der Knopf mit dem ganzen Satz passt nicht neben den Namen: Knoepfe darunter (wie schmal)
+        if compact || (!SolutionOverlay.enabled && onBeside != nil) {
             // schmal: Name und Zeile in voller Breite, darunter die Knoepfe (nebeneinander passten sie nicht)
             VStack(alignment: .leading, spacing: 6) {
                 UFItemRow(rowTitle(s), sub: rowSub(s), leading: { UFIcon("users", size: 18).foregroundStyle(UF.muted) }, trailing: { EmptyView() })
@@ -872,14 +876,25 @@ struct CommunitySolutionsSheet: View {
         return "\(pages) · \(who)\(service.supportsDiscussion ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")"
     }
 
+    /// Erklaerung ueber der Liste, schon vor dem Laden: was der Knopf tut (22.11.2026: nur noch daneben)
+    static func explain(overlay: Bool, beside: Bool) -> String {
+        overlay || !beside
+            ? "Lösungen anderer zu genau dieser PDF. „Laden und anzeigen“ legt sie als eigene, nicht bearbeitbare Ebene über deine PDF – deine Notizen bleiben unverändert."
+            : "Lösungen anderer zu genau dieser PDF. \(SolutionOverlay.besideExplain)"
+    }
+
     private func rowActions(_ s: CommunitySolutionSummary) -> some View {
                              HStack(spacing: 8) {
-                                 UFButton(busyID == s.solutionID ? "Wird geladen …" : "Laden und anzeigen", icon: "download", kind: .primary, size: .small) {
-                                     load(s)
+                                 if SolutionOverlay.enabled || onBeside == nil {
+                                     UFButton(busyID == s.solutionID ? "Wird geladen …" : "Laden und anzeigen", icon: "download", kind: .primary, size: .small) {
+                                         load(s)
+                                     }
+                                     .disabled(busyID != nil)
                                  }
-                                 .disabled(busyID != nil)
                                  if onBeside != nil {
-                                     UFButton("Daneben ansehen", icon: "layers", size: .small) { load(s, beside: true) }
+                                     // ohne Einblendung der einzige Weg: der ganze Satz steht am Knopf (Wunsch des Inhabers)
+                                     UFButton(SolutionOverlay.enabled ? "Daneben ansehen" : (busyID == s.solutionID ? "Wird geladen …" : SolutionOverlay.openBeside),
+                                              icon: "layers", kind: SolutionOverlay.enabled ? .normal : .primary, size: .small) { load(s, beside: true) }
                                          .disabled(busyID != nil)
                                          .accessibilityIdentifier("community.beside.\(s.solutionID)")
                                  }

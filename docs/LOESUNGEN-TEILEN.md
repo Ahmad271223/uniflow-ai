@@ -686,3 +686,28 @@ fehlen dort heute Sichtbarkeit Modul/Lerngruppe/anonym, Kurs-Schlüssel, Lerngru
   überall aus, Ablauf über zwei iPads (veröffentlichen → finden → laden → Ebene → zurückziehen → verschwindet,
   schon geladene Ebene bleibt), Zwischenspeicher-Dateien weg. `AbnahmeV1AppTests`: Seitenleiste zeigt „Community“
   nur mit Dienst, Texte der Community-Seite ohne Container.
+
+## Nachtrag 22.11.2026: Lösungen nur noch neben dem Dokument (Apple-App)
+
+Wunsch des Inhabers am iPad (22.11.2026): „nur noch daneben anzeigen … ohne Ebene mehr erstmal jetzt“, der Satz „Lösung
+neben deinem Dokument öffnen“ soll zu lesen sein, und schon vor dem Laden soll klar dastehen, was passiert. Die Lösung
+ist nur zum Ansehen; im eigenen Dokument daneben wird normal weitergeschrieben.
+
+- Schalter `SolutionOverlay.enabled` (`apps/apple/UniFlow/Editor/SolutionLayer.swift`), Vorgabe **aus**: Das Dokument gibt
+  dem Editor keine fremden Ebenen mehr (Ausnahme: Korrektur-Modus und „Korrektur ansehen“, dort liegt die korrigierte
+  Lösung weiter unter den Strichen). Der Code der Einblendung bleibt; `visible` in der Bibliothek wird nicht mehr gelesen.
+- „Lösungen aus der Community“ im Dokument: ein Knopf **„Lösung neben deinem Dokument öffnen“** (lädt und öffnet die Spalte
+  daneben), darüber die Erklärung `SolutionOverlay.besideExplain`. „Laden und anzeigen“ (Ebene) gibt es nicht mehr.
+- Menü „Ebenen“ → „Lösungen anderer“: je Lösung „Lösung neben deinem Dokument öffnen“, „Vorschau ohne Original“,
+  „Entfernen“; der Haken zeigt die Lösung, die gerade daneben offen ist. Kein „Einblenden/Ausblenden“ mehr.
+- Fußleiste des Dokuments: Gibt es gespeicherte Lösungen zu dieser PDF und ist keine daneben offen, steht dort „Lösung
+  neben deinem Dokument öffnen“ (bei mehreren „3 Lösungen · neben deinem Dokument öffnen“; öffnet die erste).
+- Leser der Community („Kommentare“, Kanal): der Knopf „Lösung neben deinem Dokument öffnen“ öffnet das eigene Dokument
+  und daneben die Lösung (`SolutionBesideLaunch`, wird vom Dokument nach dem Laden abgeholt; lädt die Lösung, falls sie
+  noch nicht gespeichert ist).
+- Eine importierte Datei, die zur offenen PDF passt, öffnet sich gleich daneben.
+- Vorschau-Bilder (`SolutionPreview.image`: Leser, Kommentare, Kacheln): Die Handschrift zeichnet jetzt PencilKit wie im
+  Editor. Vorher kam sie aus der Vektor-Routine des PDF-Exports in der gespeicherten Breite und sah fetter aus als im
+  Dokument (Meldung des Inhabers mit Bildschirmfoto). Der PDF-Export selbst ist unverändert.
+- Web und Windows (Abschnitt 6b) sind unverändert: dort gibt es weiter die projizierte Ebene.
+
