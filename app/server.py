@@ -76,6 +76,8 @@ from . import exam_shop_api  # noqa: E402 - Klausur-Generator: einmal erzeugen, 
 app.include_router(exam_shop_api.router)
 from . import formelblatt_api  # noqa: E402 - Formelblaetter je Modul, einmal kaufen (22.11.2026)
 app.include_router(formelblatt_api.router)
+from . import erklaerung_shop_api  # noqa: E402 - StudiNow-Erklärungen: PDFs je Kursdatei kaufen (22.11.2026)
+app.include_router(erklaerung_shop_api.router)
 from . import older_semesters_api  # noqa: E402 - Fruehere Semester in der Bibliothek (Routen /api/older-semesters)
 app.include_router(older_semesters_api.router)
 from . import sync_order_api  # noqa: E402 - Stufen des Abgleichs und Module je Semester (05.11.2026)

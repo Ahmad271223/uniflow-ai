@@ -72,6 +72,9 @@ def _account(user: dict) -> dict:
             # Formelblaetter (22.11.2026): welche Blaetter das Konto gekauft hat
             "formelblaetter": _rows(conn, "SELECT sheet_id, credits, created_at FROM formelblatt_purchases WHERE user_id=? "
                                           "ORDER BY created_at", (uid,)),
+            # StudiNow-Erklärungen (22.11.2026): gekaufte PDFs (nur Prüfsumme der Kursdatei, Preis, Zeitpunkt)
+            "erklaerungen_gekauft": _rows(conn, "SELECT sha256, credits, created_at FROM erklaerung_kaeufe WHERE user_id=? "
+                                                "ORDER BY created_at", (uid,)),
             "seiten_erklaerungen": _rows(conn, "SELECT record_name, file_key, page, mode, variant, payload, version, created_at "
                                                "FROM page_explain WHERE owner_id=? ORDER BY created_at", (uid,)),
         }

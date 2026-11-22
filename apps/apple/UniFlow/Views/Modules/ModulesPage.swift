@@ -418,6 +418,8 @@ struct ModulePage: View {
             }
             d = v
             error = nil
+            // Erklaerungen von StudiNow (22.11.2026): Kreis an den Dateien, nur mit Pro AI (der Kern merkt das Angebot)
+            await StudiNowErklaerungen.shared.load(fileIDs: v.list("files").compactMap { $0.s("id") }, api: api)
         } catch {
             guard !Task.isCancelled else { return }
             if d == nil { self.error = error.localizedDescription } else { toast.show("Neu laden fehlgeschlagen: \(error.localizedDescription)", seconds: 4) }
@@ -588,7 +590,12 @@ struct ModulePage: View {
             // Zeilen durch Haarlinien getrennt (Tabelle aus Linien und Ausrichtung)
             let rows = Row.rows(files)
             ForEach(rows) { row in
-                UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) }.ufBorderBottom(row.id != rows.last?.id)
+                // Kreis „Erklärung von StudiNow“ rechts neben der Zeile (nur mit Angebot und Pro AI)
+                HStack(spacing: 6) {
+                    UFDocRow(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) }
+                    ErklaerungBadge(fileID: row.value.s("id") ?? "")
+                }
+                .ufBorderBottom(row.id != rows.last?.id)
             }
         } else {
             UFAutoGrid(min: 210, spacing: 11.2) {

@@ -53,6 +53,7 @@ public final class LocalBackend: Sendable {
         StudyChoiceEndpoints.self,
         ExamGeneratorEndpoints.self,
         FormelblattEndpoints.self,
+        ErklaerungEndpoints.self,
     ]
 
     public struct ConflictError: Error, CustomStringConvertible {

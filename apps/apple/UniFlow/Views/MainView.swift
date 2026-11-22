@@ -91,6 +91,7 @@ struct MainView: View {
         .modifier(CommunityBadgeHost())                                      // Zahl neuer Korrekturhinweise an "Community"
         .modifier(MessagesInboxHost())                                       // "Nachrichten": sichtbar und Zahl neuer
         .modifier(ExamShopInboxHost())                                       // gekaufte Probeklausuren von selbst abholen
+        .modifier(ErklaerungInboxHost())                                     // gekaufte Erklaerungen von StudiNow von selbst abholen
         .modifier(UniMailBadgeHost())                                        // "Uni-Mail": Zahl der ungelesenen
         .modifier(DueReminderHost())                                         // Erinnerungen an Abgaben und Prüfungen
         .modifier(OlderSemestersQuestionHost())                              // einmal: "Auch frühere Semester laden?"

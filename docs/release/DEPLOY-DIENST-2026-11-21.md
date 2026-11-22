@@ -106,3 +106,19 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
     geladen ist; Zeile „Probeklausuren abholen: …“ im Protokoll `StiftSpur`), App-Tests 12 bestanden, neu installiert.
     Danach am Gerät (14:57): „neu 2 Dateien, beim Dienst in Arbeit 0“; im Modul „Grundlagen digitaler Systeme“, Ordner
     „Probeklausuren“, liegen „Probeklausur 1 – Aufgaben“ (1 Seite) und „– Lösungen“ (3 Seiten).
+
+14. Achtes Update 22.11.2026 16:14 auf `648489bb` (Zweig `app/erklaerung-shop` = `release/1.0.7` @ `16ef0214` + ein
+    Commit; Freigabe des Inhabers „Ja, ausrollen“ auf die Frage, ob der Server aktualisiert, die 59 PDFs hochgeladen und
+    das Angebot eingeschaltet werden darf). Neu: StudiNow-Erklärungen zum Kaufen – `app/erklaerung_shop.py`,
+    `app/erklaerung_shop_api.py` (`POST /api/erklaerungen/offer`, `/buy`, `GET /mine`, `GET /{sha256}/pdf`; nur Pro AI,
+    15 Credits je PDF), Tabelle `erklaerung_kaeufe` in `accounts.db` (beim Löschen des Kontos mit gelöscht, im Export),
+    Router in `app/server.py`. Stand auf dem Server vorher per Prüfsumme aller `app/*.py` gleich `32356351` und gleich
+    `16ef0214`. Davor: Python voll 4055 bestanden, 0 rot. Backup `uniflow-2026-11-22_1614.tar.gz` (245 MB, 27 Datenbanken).
+    Danach: `uniflow-app` und `uniflow-jobs` healthy, `dienst-check.sh`: alle Prüfungen bestanden.
+    PDFs: `tools/erklaerungen-pdf-hochladen.sh` → `/data/erklaerungen-pdf` (59 PDFs, 210 Seiten, Mathe I WiSe 2026/27,
+    erzeugt aus der Wissensbibliothek ohne wörtliche Folientexte). `deploy/.env`: `LERNAPP_ERKLAERUNGEN=1` ergänzt (Kopie
+    davor: `.env.vor-erklaerungen-2026-11-22`), Preis Standard 15. Im Container geprüft: Schalter an, 59 PDFs im Angebot,
+    PDF lesbar, die vier Routen im Router, 0 Käufe; von außen ohne Anmeldung 401. Ein Kauf mit Anmeldung ist nicht
+    gemacht (geht nur mit einer App ab diesem Stand, Test des Inhabers per Kabel). Wirkung für die App im Store (1.0.6): keine.
+    **Vor dem nächsten Deploy aus `release/1.0.7` den Zweig `app/erklaerung-shop` einmischen**, sonst fallen die Routen
+    weg. Zurück: Zeile aus `.env` nehmen und `docker compose up -d`; ganz zurück: Schritt 2 mit `32356351`.

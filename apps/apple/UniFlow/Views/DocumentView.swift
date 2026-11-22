@@ -1118,6 +1118,8 @@ struct DocumentView: View {
                     }
                     versionBanner
                     communityBanner
+                    // Erklärung von StudiNow zu dieser Datei (22.11.2026, nur Pro AI und nur mit Angebot)
+                    if api.isLocal, !readOnly { ErklaerungDocBanner(fileID: store.file.id, api: api) }
                     suggestionBanner
                     // passende Opencast-Aufzeichnung nur bei sicherem Treffer (lokal: der Abgleich des iPads holt sie);
                     // nicht in der alten Fassung (S7, nur ansehen)
@@ -1739,6 +1741,7 @@ struct DocumentView: View {
                 }
                 .disabled(!ownNotesVisible || !canWrite)
                 }
+                ErklaerungMenuItem(fileID: store.file.id)                 // Erklärung von StudiNow (nur mit Angebot)
                 Button { goToText = ""; goingToPage = true } label: { Label("Gehe zu Seite …", systemImage: "arrow.right.to.line") }
                 Button { showOutline = true } label: { Label("Gliederung …", systemImage: "list.bullet.indent") }
                 Divider()
