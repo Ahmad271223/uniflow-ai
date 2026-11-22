@@ -95,3 +95,19 @@ stehen noch aus.**
   Anfasser, Begrenzung auf die Seite). Abschlusslauf auf dem Endstand abgebrochen (61 grün, 0 rot; mehrere Klassen
   fehlen). Nicht gemischt, nicht am iPad gezeigt.
 
+## 6. Nachtrag 22.11.2026 mittags
+
+- Dienst läuft auf `07e26fea`: Wissensbank mit verbessertem Abgleich, Vorab-Frage für „Seite erklären“, KI mit Auszügen
+  (`LERNAPP_WISSENSBANK_KONTEXT=1`) und gemerkte KI-Antworten (`LERNAPP_WISSENSBANK_MERKEN=sofort`); alles in
+  `docs/release/DEPLOY-DIENST-2026-11-21.md` (Punkte 9 bis 11). Rückmeldung des Inhabers: „KI-Antwort passt immer“.
+- Bild in der Notiz daneben samt Hinüberziehen ist in `release/1.0.7` und vom Inhaber am iPad bestätigt.
+- In Arbeit (Helfer, Zweig `server/wissensbank-ki`): Formel-Aufgaben und Verweise im Abgleich – echter Fehlfall
+  `uebung3.pdf` (Grundlagen digitaler Systeme), Seite 25, Aufgabe 4.1.5: Lösung steht in der Bibliothek, der Dienst fand
+  sie nicht. Danach sechstes Dienst-Update nur mit Okay.
+- Entscheidung des Inhabers 22.11.: eigene KI (ChatGPT/Claude/Gemini) in der Spalte neben dem Dokument erst in der
+  nächsten Version nach 1.0.7; vor dem Bauen Tarif, Liste der Seiten und Verhältnis zu „KI über mein ChatGPT“ klären.
+- Vor der Veröffentlichung von 1.0.7 noch nötig: Datenschutz/AGB um Wissensbank, KI mit Auszügen und gemerkte Antworten
+  ergänzen und vom Inhaber freigeben lassen (Textvorschläge in `docs/WISSENSBANK-STAND.md`), Website-Upload durch ihn;
+  volle Testläufe (App iPad/iPhone, Swift-Kern), Unterlagen für Build 46; `StiftSpur` auf dem iPad wieder ausschalten;
+  Frage GitHub-Push ist weiter offen.
+
