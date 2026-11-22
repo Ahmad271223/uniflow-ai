@@ -10,6 +10,8 @@ import Foundation
 /// - `POST /api/modules/{id}/exam-generator/offer` {file_ids} -> Stand beim Dienst (Preis, je Probeklausur fertig/gekauft)
 /// - `POST /api/modules/{id}/exam-generator/buy` {file_ids, count} -> gekauft; schickt die Seitentexte nur bei Bedarf
 /// - `POST /api/modules/{id}/exam-generator/collect` {file_ids} -> fertige, gekaufte PDFs ins Modul legen
+/// - `GET /api/modules/{id}/exam-generator/saved` -> Probeklausuren, die auf dem Geraet im Modul liegen (fuer die Karte
+///   auf der Modulseite, 22.11.2026: der Inhaber fand sie in der Bibliothek nicht); nur lokal, ohne Dienst
 /// - `POST /api/exam-generator/collect` -> alles Gekaufte des Kontos abholen, ohne Auswahl (22.11.2026): eine
 ///   Probeklausur war fertig und bezahlt, kam aber nie aufs iPad, weil nur das offene Kauf-Blatt abholte. Das Modul
 ///   ergibt sich aus den Fingerabdruecken der Unterlagen (`moduleID(forFiles:)`).
@@ -172,6 +174,28 @@ enum ExamGeneratorShop {
         }
     }
 
+    /// Probeklausuren eines Moduls auf dem Geraet: je Probeklausur Nummer und die Dokumente (`aufgaben`, `loesungen`),
+    /// geloeschte nicht. Nummer aus dem Schluessel (`pk-<set>-NN`); mehrere Unterlagen-Saetze mit derselben Nummer
+    /// bleiben getrennt (nach Ablage geordnet).
+    static func savedInModule(_ moduleID: Int64, _ c: SQLiteConnection) throws -> [JSONValue] {
+        try ensureTable(c)
+        var order: [String] = []
+        var byKey: [String: [String: JSONValue]] = [:]
+        for r in try c.query("""
+            SELECT s.key, s.which, s.file_id, s.saved_at FROM exam_shop_saved s JOIN files f ON f.id=s.file_id
+            WHERE s.module_id=? AND f.deleted_at IS NULL ORDER BY s.saved_at, s.key
+            """, [.integer(moduleID)]) {
+            guard let key = r["key"]?.string, let which = r["which"]?.string, let fid = r["file_id"]?.string else { continue }
+            if byKey[key] == nil {
+                order.append(key)
+                let n = Int(key.split(separator: "-").last ?? "") ?? 0
+                byKey[key] = ["key": .string(key), "variant": .number(Double(n)), "saved_at": r["saved_at"]?.string.map(JSONValue.string) ?? .null]
+            }
+            byKey[key]?[which] = .string(fid)
+        }
+        return order.compactMap { byKey[$0].map(JSONValue.object) }
+    }
+
     /// Antwort des Dienstes plus, was davon schon auf dem Geraet liegt
     static func withSaved(_ v: JSONValue, _ ctx: LocalContext) async throws -> JSONValue {
         guard var o = v.object else { return v }
@@ -267,6 +291,12 @@ extension ExamGeneratorEndpoints {
             out["pending"] = .number(Double((v["variants"]?.array ?? []).filter {
                 $0["owned"]?.bool == true && ["pending", "running"].contains($0["status"]?.string ?? "") }.count))
             return .json(.object(out))
+        }
+
+        router.get("/api/modules/{module_id:int}/exam-generator/saved") { req, ctx in
+            let m = Int64(req.intParam("module_id"))
+            let items = try await ctx.database.transaction { c in try ExamGeneratorShop.savedInModule(m, c) }
+            return .json(["items": .array(items)])
         }
 
         router.post("/api/exam-generator/collect") { _, ctx in

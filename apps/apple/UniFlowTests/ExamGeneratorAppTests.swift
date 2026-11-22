@@ -52,6 +52,13 @@ final class ExamGeneratorAppTests: XCTestCase {
         XCTAssertTrue(ExamGenerator.sendNote.contains("kostet es nichts"))
     }
 
+    func testCardListsOwnExamsByNumber() {
+        XCTAssertEqual(ExamGenerator.mineTitle, "Deine Probeklausuren")
+        XCTAssertEqual(ExamGenerator.examName(1), "Probeklausur 1")
+        XCTAssertEqual(ExamGenerator.examName(0), "Probeklausur", "ohne lesbare Nummer keine 0")
+        XCTAssertEqual([ExamGenerator.tasks, ExamGenerator.solutions], ["Aufgaben", "Lösungen"])
+    }
+
     func testStatusTexts() {
         XCTAssertEqual(ExamGenerator.statusText("ready", hasFiles: true), "liegt im Modul")
         XCTAssertEqual(ExamGenerator.statusText("running", hasFiles: false), "wird erstellt")

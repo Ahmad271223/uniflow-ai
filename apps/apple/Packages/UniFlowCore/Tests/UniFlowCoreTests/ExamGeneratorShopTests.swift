@@ -200,10 +200,21 @@ final class ExamGeneratorShopTests: XCTestCase {
         XCTAssertEqual((later["added"]?.array ?? []).compactMap { $0["title"]?.string }, ["Probeklausur 2 – Aufgaben", "Probeklausur 2 – Lösungen"])
         XCTAssertEqual(later["pending"]?.int, 0)
 
+        // Karte auf der Modulseite: beide Probeklausuren mit ihren Dokumenten, nur im eigenen Modul
+        let r2 = await b.handle(LocalRequest(method: "GET", url: URL(string: "uniflow-local://device/api/modules/2/exam-generator/saved")!, body: Data()))
+        let saved = r2.json?["items"]?.array ?? []
+        XCTAssertEqual(saved.compactMap { $0["variant"]?.int }, [1, 2])
+        XCTAssertNotNil(saved.first?["aufgaben"]?.string)
+        XCTAssertNotNil(saved.first?["loesungen"]?.string)
+        let r1 = await b.handle(LocalRequest(method: "GET", url: URL(string: "uniflow-local://device/api/modules/1/exam-generator/saved")!, body: Data()))
+        XCTAssertEqual(r1.json?["items"]?.array?.count, 0)
+
         // bewusst geloescht: kommt von selbst nicht wieder
         try await b.context.database.execute("UPDATE files SET deleted_at='2026-11-22T12:00:00' WHERE course_id='__user__' AND title LIKE 'Probeklausur 1%'")
         let afterDelete = await post(b, "/api/exam-generator/collect", .object([:]))
         XCTAssertEqual(afterDelete["added"]?.array?.count, 0)
+        let r3 = await b.handle(LocalRequest(method: "GET", url: URL(string: "uniflow-local://device/api/modules/2/exam-generator/saved")!, body: Data()))
+        XCTAssertEqual((r3.json?["items"]?.array ?? []).compactMap { $0["variant"]?.int }, [2], "geloeschte stehen nicht auf der Karte")
         XCTAssertEqual(shop.requests.filter { $0.url.contains("/pdf/") }.count, 4)
     }
 

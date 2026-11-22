@@ -34,6 +34,12 @@ enum ExamGenerator {
     static let sendNote = "Für neue Probeklausuren gehen die Seitentexte der gewählten Dateien einmal an StudiNow und die KI. Fertige Probeklausuren sind sofort da. Klappt etwas nicht, kostet es nichts."
     static let savedNote = "Fertige Probeklausuren liegen in der Bibliothek im Ordner „Probeklausuren“ dieses Moduls."
     static let allOwned = "Zu diesen Unterlagen hast du schon alle Probeklausuren."
+    /// Karte auf der Modulseite: fertige Probeklausuren dieses Moduls (22.11.2026, Wunsch des Inhabers – er fand sie in
+    /// der Bibliothek nicht)
+    static let mineTitle = "Deine Probeklausuren"
+    static let tasks = "Aufgaben"
+    static let solutions = "Lösungen"
+    static func examName(_ n: Int) -> String { n > 0 ? "Probeklausur \(n)" : "Probeklausur" }
 
     static func buyButton(_ credits: Int) -> String { "Für \(credits) Credits kaufen" }
 
@@ -102,9 +108,13 @@ struct ExamGeneratorCard: View {
     let moduleID: Int
     let moduleName: String
     @ObservedObject private var ent = Entitlements.shared
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var router: UFRouter
     @Environment(\.ufProAIOfferHidden) private var proAIOfferHidden
     @State private var picker = false
     @State private var plan: UFPlan?
+    /// fertige Probeklausuren dieses Moduls auf dem Geraet (`GET /api/modules/{id}/exam-generator/saved`)
+    @State private var saved: [JSONValue] = []
 
     /// Schloss: die Funktion gehoert zur StudiNow-KI (wie die KI-Lernhilfe), ein eigenes ChatGPT reicht nicht
     private var lock: UFPlan? { UFLock.plan(.aiHelp, plan: ent.plan) }
@@ -114,6 +124,7 @@ struct ExamGeneratorCard: View {
             UFCard {
                 UFCardHead(ExamGenerator.title, icon: "flag", wrap: true) { UFLockMark(lock) }
                 Text(ExamGenerator.intro).ufFont(13.6).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                if !saved.isEmpty { savedList }
                 UFButton(lock.map { UFLock.label(ExamGenerator.open, $0) } ?? ExamGenerator.open, icon: lock == nil ? "sparkles" : nil,
                          kind: .primary, size: .small) {
                     if let lock { plan = lock } else { picker = true }
@@ -127,7 +138,42 @@ struct ExamGeneratorCard: View {
             .ufSheet(isPresented: $picker) {
                 ExamGeneratorFlow(moduleID: moduleID, moduleName: moduleName) { picker = false }
             }
+            // neu laden: beim Erscheinen, nach dem Abholen von selbst (`ExamShopInbox` laedt die Seiten neu) und wenn
+            // das Kauf-Blatt zugeht
+            .task(id: "\(moduleID)|\(router.reloadToken)|\(picker)") { if !picker { await loadSaved() } }
         }
+    }
+
+    /// "Deine Probeklausuren": je Probeklausur eine Zeile mit „Aufgaben“ und „Lösungen“ (öffnet das Dokument)
+    private var savedList: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(ExamGenerator.mineTitle).ufFont(13.6, 650).foregroundStyle(UF.text)
+                .accessibilityAddTraits(.isHeader)
+            ForEach(Row.rows(saved, key: "key")) { row in
+                let v = row.value
+                HStack(spacing: 8) {
+                    Text(ExamGenerator.examName(v.i("variant") ?? 0)).ufFont(14.5, 600).foregroundStyle(UF.text)
+                    Spacer(minLength: 8)
+                    if let a = v.s("aufgaben") {
+                        UFButton(ExamGenerator.tasks, icon: "file", size: .small) { router.go(.doc(a)) }
+                            .accessibilityLabel("\(ExamGenerator.examName(v.i("variant") ?? 0)), \(ExamGenerator.tasks) öffnen")
+                    }
+                    if let l = v.s("loesungen") {
+                        UFButton(ExamGenerator.solutions, icon: "check", kind: .ghost, size: .small) { router.go(.doc(l)) }
+                            .accessibilityLabel("\(ExamGenerator.examName(v.i("variant") ?? 0)), \(ExamGenerator.solutions) öffnen")
+                    }
+                }
+                .accessibilityIdentifier("examgen.card.saved.\(v.i("variant") ?? 0)")
+            }
+        }
+        .padding(.top, 10)
+    }
+
+    private func loadSaved() async {
+        guard let api = session.api, api.isLocal,
+              let v = try? await api.value("/api/modules/\(moduleID)/exam-generator/saved") else { return }
+        let items = v.list("items")
+        if items != saved { saved = items }
     }
 }
 
