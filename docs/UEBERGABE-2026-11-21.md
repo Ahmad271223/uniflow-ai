@@ -128,4 +128,6 @@ stehen noch aus.**
 - Frage des Inhabers „500 / 2000 / 4000 / 6000 neue Nutzer morgen?“: Berichte der Helfer in
   `~/Studora-Builds/kapazitaet-logs/` (Kosten und fremde Dienste fertig; Server-Auslegung und Lastmessung am Mac liefen
   noch). Der echte Server wurde dafür nicht angesehen (Zugriff eines Helfers per ssh wurde nicht erlaubt).
+- 22.11.2026 13:57: sechstes Dienst-Update auf `12aa93b0` ausgerollt (Okay des Inhabers), siehe
+  `docs/release/DEPLOY-DIENST-2026-11-21.md` Punkt 12. Der Dienst läuft damit auf dem Stand von `release/1.0.7`.
 

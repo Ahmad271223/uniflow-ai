@@ -80,4 +80,12 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
     Vor der Veröffentlichung von 1.0.7: Datenschutz/AGB um die gemerkten Antworten ergänzen (Textvorschlag im Bericht
     des Helfers, `docs/WISSENSBANK-STAND.md`). Zurück: beide Zeilen aus `.env` nehmen und `docker compose up -d`;
     ganz zurück: Schritt 2 mit `cdda3e89`.
+12. Sechstes Update 22.11.2026 13:57 auf `12aa93b0` (Freigabe des Inhabers „Ja, ausrollen“): einzige Dienst-Änderung
+    gegenüber `07e26fea` sind `app/wissensbank.py` und `app/wissensbank_ki.py` (Formel-Aufgaben als Auszug an die KI,
+    Verweise auf Aufgaben-Abschnitte, bei gleichem Inhalt die neueste Einheit; `52258f1b`, eingemischt mit `f8292e11`).
+    Keine neuen Schalter, App unverändert. Davor: schneller Python-Lauf auf `12aa93b0` 4046 bestanden, 0 rot (node 472);
+    Backup `uniflow-2026-11-22_1356.tar.gz` (232 MB, 27 Datenbanken). Danach: `uniflow-app` und `uniflow-jobs` healthy,
+    `dienst-check.sh`: alle Prüfungen bestanden. Im Container nachgestellt (ohne KI-Aufruf): der Fall des Inhabers
+    (Aufgabe 4.1.5, Seite 25) gibt jetzt einen Auszug an die KI, mit anderer Seite keinen. Die KI-Antwort selbst ist
+    nicht geprüft. Beim Backup gesehen: Platte 301 GB, 15 GB belegt (6 %). Zurück: `git archive 07e26fea` wie oben.
 
