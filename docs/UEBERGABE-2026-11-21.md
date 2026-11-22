@@ -117,4 +117,15 @@ stehen noch aus.**
   dorthin nachgezogen. Hinweis „ungesendete Seite(n) wiederhergestellt“ blendet sich nach dem Senden aus (`70235f08`).
   Offen aus dem Lesen der Texte: In Datenschutz 8c fehlt, dass bei „Bereich an KI“ das Bild des Ausschnitts an die KI
   geht (Vorschlag dem Inhaber angeboten, keine Antwort bisher).
+- 22.11.2026 nachmittags (2): `server/wissensbank-ki` @ `52258f1b` eingemischt (`f8292e11`: Formel-Aufgaben als Auszug an
+  die KI, Verweise auf Aufgaben-Abschnitte, neueste Einheit; Bericht in `docs/WISSENSBANK-STAND.md`). **Noch nicht auf
+  dem Server** (sechstes Update nur mit Okay). Offene Entscheidung des Inhabers: Weg über die Aufgabenbezeichnung für alle
+  Aufgaben-Ausschnitte ohne lesbare Zahlen (so gebaut) oder nur für sehr kurze (unter 6 Begriffen).
+- Lösungen anderer nur noch neben dem Dokument (`2d02c085`, Auftrag des Inhabers am iPad, Einzelheiten im Nachtrag von
+  `docs/LOESUNGEN-TEILEN.md`); Vorschau zeichnet die Handschrift wie der Editor. Testfassung per Kabel auf dem iPad,
+  Rückmeldung des Inhabers steht aus. Kern-Lauf komplett grün auf `7c1e81a4` (1773 Tests); der komplette App-Lauf lief auf
+  `7c1e81a4` und muss auf dem Endstand wiederholt werden.
+- Frage des Inhabers „500 / 2000 / 4000 / 6000 neue Nutzer morgen?“: Berichte der Helfer in
+  `~/Studora-Builds/kapazitaet-logs/` (Kosten und fremde Dienste fertig; Server-Auslegung und Lastmessung am Mac liefen
+  noch). Der echte Server wurde dafür nicht angesehen (Zugriff eines Helfers per ssh wurde nicht erlaubt).
 
