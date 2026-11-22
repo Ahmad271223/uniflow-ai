@@ -130,4 +130,11 @@ stehen noch aus.**
   noch). Der echte Server wurde dafür nicht angesehen (Zugriff eines Helfers per ssh wurde nicht erlaubt).
 - 22.11.2026 13:57: sechstes Dienst-Update auf `12aa93b0` ausgerollt (Okay des Inhabers), siehe
   `docs/release/DEPLOY-DIENST-2026-11-21.md` Punkt 12. Der Dienst läuft damit auf dem Stand von `release/1.0.7`.
+- Kompletter App-Lauf (`UniFlowTests`, iPad-Klon) auf `7c1e81a4`, 22.11.2026: 2160 Tests, 57 übersprungen, 5 rot. Vier
+  davon sind die bekannten Lasso-Tests im frischen Klon (`EditorStrichBleibtTests`, Tastaturleiste) – im Simulator
+  „fix-tinte“ auf `2d02c085` alle grün (44 Tests, Nachlauf). Der fünfte, `IPhoneStoreScreenshotTests.test02Stundenplan`
+  („Kurztest“ fehlt), war auch im Nachlauf rot: Die Testdaten legen den Kurztest auf „morgen“, der 22.11. ist ein
+  Sonntag, der Stundenplan zeigt die Woche 16.–22.11. – der Hinweis liegt damit in der nächsten Woche (Einschätzung,
+  am Montag gegenprüfen). **Vor Build 46 den kompletten App-Lauf und den iPhone-Lauf auf dem Endstand wiederholen**
+  (seit `7c1e81a4` kam `2d02c085` dazu).
 
