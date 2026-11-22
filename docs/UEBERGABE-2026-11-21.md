@@ -142,3 +142,4 @@ stehen noch aus.**
   der Lasttest-Nacht 09.11.; seitdem keine. Einzelheiten im Nachtrag von `~/Studora-Builds/kapazitaet-logs/BERICHT-SERVER.md`
   (Berichte zu Kosten und Lastmessung daneben). Offen beim Inhaber: Höhe des Probe-Budgets für den Ansturm.
 
+- 22.11.2026: Inhaber entscheidet „Bei 200 € lassen“ (Probe-Budget `LERNAPP_AI_TRIAL_BUDGET_EUR` bleibt 200).
