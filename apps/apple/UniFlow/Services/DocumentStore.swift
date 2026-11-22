@@ -211,12 +211,31 @@ final class DocumentStore: ObservableObject {
     /// Suchtext der eigenen Notizen (Textfelder, Handschrift, Scans) fuer "Suchen", solange das Dokument offen ist
     let noteIndex = NoteTextIndex()
     @Published private(set) var layoutVersion = 0
-    @Published private(set) var status: SyncStatus = .loading
+    @Published private(set) var status: SyncStatus = .loading {
+        didSet { if status == .saved { clearRestoredNoticeSoon() } }
+    }
     /// Warum nicht hochgeladen wird (offline, PIN fehlt, Zugriff verweigert, Serverfehler) oder dass Konflikte
     /// zusammengefuehrt wurden; `nil` = nichts zu melden. Fuer die Anzeige neben `status`.
     @Published private(set) var syncIssue: SyncIssue?
     @Published private(set) var errorMessage: String?
     @Published private(set) var notice: String?
+    /// Seit wann der Hinweis "n ungesendete Seite(n) wiederhergestellt" steht (nil: steht nicht). Frage des Inhabers
+    /// 21.11.2026 ("diese Meldung war gestern Abend durchgehend da - was heisst das?"): Der Hinweis blieb bis zum
+    /// Schliessen des Dokuments stehen, auch wenn laengst alles hochgeladen war. Jetzt geht er weg, sobald alles
+    /// gesendet ist - fruehestens nach `restoredNoticeMinimum`, damit man ihn lesen kann.
+    private var restoredNoticeSince: CFTimeInterval?
+    static let restoredNoticeMinimum: CFTimeInterval = 4
+
+    private func clearRestoredNoticeSoon() {
+        guard let since = restoredNoticeSince else { return }
+        let wait = max(0, Self.restoredNoticeMinimum - (CACurrentMediaTime() - since))
+        Task { @MainActor [weak self] in
+            if wait > 0 { try? await Task.sleep(nanoseconds: UInt64(wait * 1_000_000_000)) }
+            guard let self, self.restoredNoticeSince == since, self.status == .saved else { return }
+            self.restoredNoticeSince = nil
+            if self.notice?.hasSuffix("ungesendete Seite(n) wiederhergestellt.") == true { self.notice = nil }
+        }
+    }
     @Published private(set) var insertedPages = 0
     @Published private(set) var removedPDFPages: [Int] = []
     @Published private(set) var bookmarks: [Bookmark] = []
@@ -478,6 +497,8 @@ final class DocumentStore: ObservableObject {
                 notice = "\(opened.damagedFiles.count) lokale Datei(en) beschädigt – Serverstand verwendet, wo möglich."
             } else if opened.restoredUnsentPages > 0 {
                 notice = "\(opened.restoredUnsentPages) ungesendete Seite(n) wiederhergestellt."
+                restoredNoticeSince = CACurrentMediaTime()
+                if status == .saved { clearRestoredNoticeSoon() }
             }
             startMonitoring()
             await checkOrigin(opened.document)
