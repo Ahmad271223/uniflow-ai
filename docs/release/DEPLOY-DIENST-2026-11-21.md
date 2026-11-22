@@ -101,3 +101,8 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
     für das Konto des Inhabers seine eine Probeklausur (fertig, bezahlt). **Vor dem nächsten Deploy aus
     `release/1.0.7` den Zweig `fix/probeklausur-abholen` einmischen**, sonst fällt die Route weg (die App bliebe dann
     still beim alten Weg). Zurück: `git archive 12aa93b0` wie oben.
+    iPad des Inhabers (Kabel, Release, Build 46, nicht bei Apple): zuerst `32356351`; dort fiel das erste Abholen aus,
+    weil die App beim Start den Tarif noch nicht kannte. Nachgebessert in `264f0c79` (fragt auch, sobald der Tarif
+    geladen ist; Zeile „Probeklausuren abholen: …“ im Protokoll `StiftSpur`), App-Tests 12 bestanden, neu installiert.
+    Danach am Gerät (14:57): „neu 2 Dateien, beim Dienst in Arbeit 0“; im Modul „Grundlagen digitaler Systeme“, Ordner
+    „Probeklausuren“, liegen „Probeklausur 1 – Aufgaben“ (1 Seite) und „– Lösungen“ (3 Seiten).
