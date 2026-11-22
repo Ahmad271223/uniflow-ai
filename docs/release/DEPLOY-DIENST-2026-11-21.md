@@ -89,3 +89,15 @@ selbst am iPad testen (Testfassung per Kabel, Build 46 noch nicht hochgeladen).
     (Aufgabe 4.1.5, Seite 25) gibt jetzt einen Auszug an die KI, mit anderer Seite keinen. Die KI-Antwort selbst ist
     nicht geprüft. Beim Backup gesehen: Platte 301 GB, 15 GB belegt (6 %). Zurück: `git archive 07e26fea` wie oben.
 
+13. Siebtes Update 22.11.2026 14:46 auf `32356351` (Zweig `fix/probeklausur-abholen` = `release/1.0.7` @ `1f968244` +
+    ein Commit; Freigabe des Inhabers „Ja, ausrollen“ auf die Frage, ob die Behebung auf den Dienst und per Kabel auf
+    sein iPad darf). Anlass: Seine Probeklausur (Klausur-Generator) war beim Dienst fertig und bezahlt, kam aber nie
+    aufs iPad, weil nur das offene Kauf-Blatt abholte. Einzige Dienst-Änderung gegenüber `12aa93b0`: `app/exam_shop.py`
+    und `app/exam_shop_api.py` – neue Route `GET /api/exam-shop/mine` (nur lesen: Probeklausuren des Kontos mit
+    Fingerabdrücken der Unterlagen, keine Namen). Keine Schalter, `.env` unverändert. Davor: Python voll 4051
+    bestanden, 0 rot; Stand auf dem Server per Prüfsumme gleich `12aa93b0`; Hauptsitzung informiert (deployte nicht).
+    Backup `uniflow-2026-11-22_1445.tar.gz` (235 MB, 27 Datenbanken). Danach: `uniflow-app` und `uniflow-jobs` healthy,
+    `dienst-check.sh`: alle Prüfungen bestanden; Route im Router `exam_shop_api` vorhanden, `exam_shop.mine` liefert
+    für das Konto des Inhabers seine eine Probeklausur (fertig, bezahlt). **Vor dem nächsten Deploy aus
+    `release/1.0.7` den Zweig `fix/probeklausur-abholen` einmischen**, sonst fällt die Route weg (die App bliebe dann
+    still beim alten Weg). Zurück: `git archive 12aa93b0` wie oben.
