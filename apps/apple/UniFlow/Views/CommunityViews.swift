@@ -952,7 +952,7 @@ struct CommunitySolutionsSheet: View {
     static func explain(overlay: Bool, beside: Bool) -> String {
         overlay || !beside
             ? "Lösungen anderer zu genau dieser PDF. „Laden und anzeigen“ legt sie als eigene, nicht bearbeitbare Ebene über deine PDF – deine Notizen bleiben unverändert."
-            : "Lösungen anderer zu genau dieser PDF. \(SolutionOverlay.besideExplain)"
+            : "Lösungen anderer zu dieser PDF, auch zu anderen Fassungen davon. \(SolutionOverlay.besideExplain)"
     }
 
     private func rowActions(_ s: CommunitySolutionSummary) -> some View {
