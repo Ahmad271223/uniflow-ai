@@ -136,6 +136,14 @@ enum CommunityCourses {
     /// Eigene Kopie der PDF zu einem Fingerabdruck (Datei-ID und Ort auf dem Geraet), um eine fremde Loesung 1:1 auf
     /// der richtigen Seite zu zeigen. Nur lesen, nur im Container des Betrachters: die PDF des Lehrenden wird nie
     /// geschickt, die Loesung traegt nur den Fingerabdruck und die Seitennummern (13.11.2026).
+    /// Eigene PDF als Hintergrund einer fremden Loesung: nur bei gleicher Seitenzahl wie beim Absender (sonst laege eine
+    /// falsche Folie darunter; dann lieber gar keine PDF-Seiten)
+    static func ownPDF(for c: SolutionContent, host: LocalBackendHost) async -> OffscreenPDF? {
+        guard let own = await localPDF(fingerprint: c.fingerprint, host: host) else { return nil }
+        let pdf = OffscreenPDF(url: own.url)
+        return await pdf.pageCount() == c.pdfPageCount ? pdf : nil
+    }
+
     static func localPDF(fingerprint: String, host: LocalBackendHost) async -> (id: String, url: URL)? {
         guard !fingerprint.isEmpty, let files = host.files, let backend = try? await host.backend() else { return nil }
         let row = try? await backend.context.database.withConnection {

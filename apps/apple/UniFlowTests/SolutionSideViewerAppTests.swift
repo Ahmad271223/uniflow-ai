@@ -286,7 +286,7 @@ final class SolutionSideViewerAppTests: XCTestCase {
 
     /// Inhaber 22.11.2026: "nur noch daneben anzeigen ... ohne Ebene mehr erstmal jetzt", der Satz "Lösung neben deinem
     /// Dokument öffnen" soll zu lesen sein, und schon vor dem Laden steht da, was passiert
-    func testSolutionsOpenOnlyBesideTheDocument() {
+    func testSolutionsOpenOnlyBesideTheDocument() throws {
         XCTAssertFalse(SolutionOverlay.enabled, "keine Einblendung ueber der eigenen Seite")
         XCTAssertEqual(SolutionOverlay.openBeside, "Lösung neben deinem Dokument öffnen")
         let text = CommunitySolutionsSheet.explain(overlay: false, beside: true)
@@ -301,6 +301,15 @@ final class SolutionSideViewerAppTests: XCTestCase {
         let one = layer([SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 595, height: 842, rotation: 0, objects: [])])
         XCTAssertEqual(DocumentView.layerSymbol(one, beside: one.id), "checkmark.circle.fill")
         XCTAssertEqual(DocumentView.layerSymbol(one, beside: nil), "circle")
+
+        // Inhaber 23.11.2026: "nie einfach nur Striche, immer ganze Lösung mit Dokument" - eine PDF-Seite ohne eigene
+        // PDF erscheint nicht (Platzhalter), eigene Blaetter stehen auf ihrem Papier
+        let onPDF = SolutionPage(key: "p1", kind: .pdf, pdfIndex: 1, width: 595, height: 842, rotation: 0, objects: [])
+        let blank = SolutionPage(key: "b1", kind: .blank, pdfIndex: nil, width: 595, height: 842, rotation: 0, objects: [])
+        XCTAssertTrue(CommunityReaderPage.needsPDF(onPDF, source: nil))
+        XCTAssertFalse(CommunityReaderPage.needsPDF(onPDF, source: OffscreenPDF(url: try pdfURL())))
+        XCTAssertFalse(CommunityReaderPage.needsPDF(blank, source: nil))
+        XCTAssertFalse(CommunityTexts.noPDFNotice.contains("weißen Seiten"), CommunityTexts.noPDFNotice)
 
         // Bitte aus dem Leser der Community: wartet je Datei, wird genau einmal abgeholt
         let launch = SolutionBesideLaunch.shared

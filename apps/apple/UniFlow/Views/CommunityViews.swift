@@ -81,8 +81,11 @@ enum CommunityTexts {
     static let ownPDFNotice = "Du hast dieselbe PDF: Die Lösung steht hier auf deinen eigenen Seiten, genau wie sie geschrieben wurde. Im Dokument öffnest du sie neben deinem Dokument – nur zum Ansehen; in deinem eigenen Dokument schreibst du dabei normal weiter."
     /// eigene PDF bekannt, aber hier nicht lesbar: im Dokument oeffnet sich die Loesung daneben
     static let ownPDFLayerNotice = "Du hast dieselbe PDF. Öffne die Lösung neben deinem Dokument – dort steht sie auf deinen eigenen Seiten, nur zum Ansehen."
-    /// ohne eigene Kopie: leere Seiten statt der PDF
-    static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung): Notizen auf Folien stehen darum auf weißen Seiten. Eigene Blätter erscheinen auf ihrem Papier (liniert, kariert …). Die PDF des Lehrenden wird nie mitgeschickt."
+    /// ohne eigene Kopie (Inhaber 23.11.2026: "nie einfach nur Striche, immer ganze Lösung mit Dokument"): Seiten auf
+    /// Folien erscheinen nicht, nur eigene Blaetter auf ihrem Papier
+    static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung). Lösungen auf Folien und Aufgabenblättern siehst du nur zusammen mit dem Dokument: Lade die PDF in StudiNow (z. B. mit „Sync“), dann öffnest du die Lösung neben deinem Dokument. Eigene Blätter der Lösung erscheinen hier auf ihrem Papier. Die PDF des Lehrenden wird nie mitgeschickt."
+    /// an Stelle einer Seite auf einer Folie, wenn die eigene PDF fehlt
+    static let pageNeedsPDF = "Diese Seite steht auf der PDF. Du siehst sie, sobald du die PDF in StudiNow hast."
     /// Loesung nur auf eigenen Blaettern: jede Seite auf ihrem Papier, wie geschrieben
     static let ownPaperNotice = "Die Lösung steht auf eigenen Blättern – jede Seite auf ihrem Papier, genau wie sie geschrieben wurde."
 
@@ -611,12 +614,7 @@ struct CommunityReaderSheet: View {
             content = c
             if let host = ActiveContainer.current?.host {
                 localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host)
-                // eigene Kopie als Hintergrund: gleiche Seitenzahl wie beim Absender, sonst lieber leere Seiten als eine
-                // falsche Folie darunter
-                if let own = await CommunityCourses.localPDF(fingerprint: c.fingerprint, host: host) {
-                    let pdf = OffscreenPDF(url: own.url)
-                    if await pdf.pageCount() == c.pdfPageCount { ownPDF = pdf }
-                }
+                ownPDF = await CommunityCourses.ownPDF(for: c, host: host)
             }
             if service.supportsDiscussion { comments = try await service.comments(solutionID: solution.solutionID) }
         } catch { self.error = CommunityTexts.message(error) }
@@ -688,7 +686,8 @@ struct CommunityReaderPage: View {
 
     let page: SolutionPage
     let images: [String: UIImage]
-    /// eigene PDF des Betrachters (gleicher Fingerabdruck): PDF-Seiten erscheinen darauf wie beim Absender
+    /// eigene PDF des Betrachters (gleicher Fingerabdruck): PDF-Seiten erscheinen darauf wie beim Absender. Ohne sie
+    /// erscheint eine PDF-Seite nicht (nie nur Striche, Inhaber 23.11.2026), eigene Blaetter auf ihrem Papier.
     var source: OffscreenPDF?
     var marks: [Mark] = []
     var tapped: ((CommunityComment.Anchor) -> Void)?
@@ -699,8 +698,22 @@ struct CommunityReaderPage: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let title { Text(title).ufFont(11.84, 600, lh: 1.3).foregroundStyle(UF.muted) }
-            pageImage
+            if Self.needsPDF(page, source: source) { missingPDF } else { pageImage }
         }
+    }
+
+    /// PDF-Seite ohne eigene PDF: nicht als Striche auf Weiss zeigen
+    static func needsPDF(_ page: SolutionPage, source: OffscreenPDF?) -> Bool { page.kind == .pdf && source == nil }
+
+    private var missingPDF: some View {
+        HStack(spacing: 10) {
+            UFIcon("file-text", size: 18).foregroundStyle(UF.muted)
+            Text(CommunityTexts.pageNeedsPDF).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(UF.surface2, in: RoundedRectangle(cornerRadius: UF.rSm))
+        .accessibilityIdentifier("community.page.needsPDF")
     }
 
     private var pageImage: some View {

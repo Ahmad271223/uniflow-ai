@@ -711,3 +711,15 @@ ist nur zum Ansehen; im eigenen Dokument daneben wird normal weitergeschrieben.
   Dokument (Meldung des Inhabers mit Bildschirmfoto). Der PDF-Export selbst ist unverändert.
 - Web und Windows (Abschnitt 6b) sind unverändert: dort gibt es weiter die projizierte Ebene.
 
+
+## Nachtrag 23.11.2026: nie nur Striche (Apple-App)
+
+Inhaber 23.11.2026: „man soll immer [den] Hintergrund des Dokumentes auch sehen, nie einfach nur Striche übertragen,
+immer ganze Lösung mit Dokument“.
+
+- Leser der Community (`CommunityReaderSheet`) und Personen-Ansicht im Kanal (`CommunityPersonPane`): Seiten auf einer
+  Folie erscheinen nur mit der eigenen PDF darunter (`CommunityCourses.ownPDF`, gleiche Seitenzahl wie beim Absender).
+  Fehlt sie, steht an der Stelle der Seite der Hinweis `CommunityTexts.pageNeedsPDF`; eigene Blätter der Lösung stehen
+  auf ihrem Papier. Die Personen-Ansicht zeigte bis dahin immer Striche auf Weiß.
+- Menü „Ebenen“: „Vorschau ohne Original“ für fremde Lösungen entfällt. Die Vorschau im Dialog „Lösung teilen“ (eigene
+  Notizen des Absenders) bleibt.

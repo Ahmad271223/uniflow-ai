@@ -1916,9 +1916,8 @@ struct DocumentView: View {
                             Button { openBeside(layer) } label: {
                                 Label(SolutionOverlay.openBeside, systemImage: "rectangle.split.2x1")
                             }
-                            Button { solutionSheet = .preview(layer.id) } label: {
-                                Label("Vorschau ohne Original", systemImage: "rectangle.on.rectangle")
-                            }
+                            // "Vorschau ohne Original" (nur Striche auf Weiss) entfaellt: fremde Loesungen nur mit dem
+                            // Dokument darunter (Inhaber 23.11.2026)
                             Button(role: .destructive) { removeLayer(layer) } label: { Label("Entfernen", systemImage: "trash") }
                         } label: {
                             Label(layer.label, systemImage: Self.layerSymbol(layer, beside: solutionSide?.id))
