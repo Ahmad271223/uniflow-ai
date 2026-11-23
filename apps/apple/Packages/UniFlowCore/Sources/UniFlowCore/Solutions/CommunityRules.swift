@@ -84,6 +84,20 @@ public enum CommunityKeys {
         Data(SolutionSHA256.hash(Data(("uniflow.community.secret.v1\u{0}" + scope + "\u{0}" + university + "\u{0}" + value).utf8)))
     }
 
+    /// Datei-Familie (23.11.2026): eine Kennung, die fuer ALLE Fassungen einer Datei gleich bleibt, damit Loesungen zu
+    /// einer alten oder neuen Fassung gefunden werden. HMAC-SHA256 mit dem Schluesselmaterial des Kurses
+    /// (`secret(university:courseID:)`, kennt nur, wer die Kurs-ID kennt – anders als `courseKey`, den der Dienst kennt)
+    /// ueber Hochschule und die Datei-Kennung des Portals (Stud.IP: ID der Datei-Referenz, bleibt bei "Datei
+    /// aktualisieren"; Learnweb/Moodle: `Learnweb.fileID`, Kursmodul + Pfad und Name, bleibt beim Ersetzen mit gleichem
+    /// Namen). Das ist dieselbe Kennung, an der die App selbst eine neue Fassung erkennt (`FileVersionKeeper`, S7).
+    /// Der Dienst sieht nur die 64 Hexziffern: weder Kurs-ID noch Datei-ID lassen sich daraus zurueckrechnen oder
+    /// durch Raten pruefen, solange er die Kurs-ID nicht kennt.
+    public static func familyKey(university: String, courseID: String, fileID: String) -> String {
+        SolutionSHA256.hexString(DocIndexFingerprint.hmacSHA256(
+            key: secret(university: university, courseID: courseID),
+            message: Data(("uniflow.community.family.v1\u{0}" + university + "\u{0}" + fileID).utf8)))
+    }
+
     public static let groupCodeLength = 8
     /// ohne 0/O und 1/I, damit sich der Code vorlesen und abtippen laesst
     public static let groupCodeAlphabet: [Character] = Array("ABCDEFGHJKLMNPQRSTUVWXYZ23456789")

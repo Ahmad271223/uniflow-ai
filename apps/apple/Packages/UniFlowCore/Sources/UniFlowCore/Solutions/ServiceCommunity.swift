@@ -91,6 +91,7 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
         out.likes = s["likes"]?.int ?? 0
         out.likedByMe = s["liked_by_me"]?.bool ?? false
         out.commentCount = s["comments"]?.int ?? 0
+        out.family = s["family"]?.string
         return out
     }
 
@@ -147,9 +148,16 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
 
     // MARK: CommunityService
 
+    /// Body von POST/PUT /solutions; `family` nur, wenn bekannt (ein alter Dienst ignoriert das Feld)
+    static func body(_ package: SolutionPackage, options: CommunityPublishOptions, key: String) throws -> JSONValue {
+        var o: [String: JSONValue] = ["package": try JSONValue.parse(package.encoded()), "title": .string(options.title), "community_key": .string(key)]
+        if let family = options.family, CommunityKeys.isHex64(family) { o["family"] = .string(family) }
+        return .object(o)
+    }
+
     public func publish(_ package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
         guard let key = options.communityKey, package.header.isCommunityPackage else { throw CommunityServiceError.visibilityUnsupported }
-        let body = JSONValue.object(["package": try JSONValue.parse(package.encoded()), "title": .string(options.title), "community_key": .string(key)])
+        let body = try Self.body(package, options: options, key: key)
         let r: JSONValue
         do { r = try await transport.community("POST", "/solutions", body: body) } catch let e as AccountError where e.code == "already_published" {
             // 409 nennt die vorhandene Loesung; die Kennung steht auch in /mine (die Fehlerform traegt keine Zusatzfelder)
@@ -173,7 +181,7 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
     /// PUT /solutions/{id}: Paket der eigenen Loesung ersetzen
     public func update(solutionID: String, package: SolutionPackage, options: CommunityPublishOptions) async throws -> CommunityPublication {
         guard let key = options.communityKey, package.header.isCommunityPackage else { throw CommunityServiceError.visibilityUnsupported }
-        let body = JSONValue.object(["package": try JSONValue.parse(package.encoded()), "title": .string(options.title), "community_key": .string(key)])
+        let body = try Self.body(package, options: options, key: key)
         let r = try await call("PUT", "/solutions/" + Self.query(solutionID), body: body)
         return CommunityPublication(solutionID: r["solution_id"]?.string ?? solutionID,
                                     publishedAt: r["updated_at"]?.string.flatMap(SolutionValidator.parseDate) ?? Date())
@@ -181,8 +189,15 @@ public final class ServiceCommunityService: CommunityService, @unchecked Sendabl
 
     /// Loesungen zu einer PDF aus den eigenen Communities
     public func findMatching(fingerprint: String) async throws -> [CommunitySolutionSummary] {
+        try await findMatching(fingerprint: fingerprint, family: nil)
+    }
+
+    /// Mit Datei-Familie auch Loesungen zu anderen Fassungen (Dienst ab 23.11.2026; ein aelterer ignoriert `family`)
+    public func findMatching(fingerprint: String, family: String?) async throws -> [CommunitySolutionSummary] {
+        var path = "/solutions?fingerprint=" + Self.query(fingerprint.lowercased())
+        if let family, CommunityKeys.isHex64(family) { path += "&family=" + Self.query(family) }
         do {
-            return summaries(try await transport.community("GET", "/solutions?fingerprint=" + Self.query(fingerprint.lowercased()), body: nil))
+            return summaries(try await transport.community("GET", path, body: nil))
         } catch let e as AccountError where e.code == "file_not_owned" {
             return []                                                    // noch in keiner Community und keine eigene PDF
         } catch { throw Self.serviceError(error) }

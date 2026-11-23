@@ -54,6 +54,10 @@ public protocol CommunityService: Sendable {
     /// Veroeffentlichte Loesungen zu einer Original-PDF (Fingerabdruck dient nur der Zuordnung), schon gefiltert
     /// nach Hochschule, Sichtbarkeit, Zurueckgezogen und eigener Sperrliste.
     func findMatching(fingerprint: String) async throws -> [CommunitySolutionSummary]
+    /// Wie `findMatching(fingerprint:)`, dazu Loesungen zu anderen Fassungen derselben Datei (`family` =
+    /// `CommunityKeys.familyKey`, 23.11.2026). Ein Dienst ohne Familie (CloudKit, alter StudiNow-Dienst) liefert nur die
+    /// Treffer zum Fingerabdruck.
+    func findMatching(fingerprint: String, family: String?) async throws -> [CommunitySolutionSummary]
     /// Paket laden (verschluesselt; geoeffnet wird es lokal mit der eigenen PDF).
     func download(solutionID: String) async throws -> SolutionPackage
     /// Eigene Veroeffentlichung zurueckziehen (Paket wird beim Dienst geloescht, der Eintrag als zurueckgezogen markiert).
@@ -110,6 +114,11 @@ extension CommunityService {
     /// Veroeffentlichen mit Standardoptionen (Sichtbarkeit Modul ohne Kurs-Schluessel: der Dienst weist das ab).
     public func publish(_ package: SolutionPackage) async throws -> CommunityPublication {
         try await publish(package, options: CommunityPublishOptions())
+    }
+
+    /// Ohne Datei-Familie beim Dienst (CloudKit: das Schema hat kein Feld dafuer): nur ueber den Fingerabdruck
+    public func findMatching(fingerprint: String, family: String?) async throws -> [CommunitySolutionSummary] {
+        try await findMatching(fingerprint: fingerprint)
     }
 
     public func comments(solutionID: String) async throws -> [CommunityComment] { throw CommunityServiceError.notConnected }
@@ -270,15 +279,18 @@ public struct CommunityPublishOptions: Equatable, Sendable {
     public var week: Int
     /// Community, in der die Loesung erscheint (Pflicht am StudiNow-Dienst; `SolutionPackage.seal(communitySecret:)`)
     public var communityKey: String?
+    /// Datei-Familie der PDF (`CommunityKeys.familyKey`, gleich fuer alle Fassungen); nil ohne Datei aus dem Abgleich
+    public var family: String?
 
     public init(visibility: CommunityVisibility = .module, courseKey: String? = nil, groupKey: String? = nil,
-                title: String = "", week: Int = 0, communityKey: String? = nil) {
+                title: String = "", week: Int = 0, communityKey: String? = nil, family: String? = nil) {
         self.visibility = visibility
         self.courseKey = courseKey
         self.groupKey = groupKey
         self.title = title
         self.week = week
         self.communityKey = communityKey
+        self.family = family
     }
 }
 
@@ -312,6 +324,11 @@ public struct CommunitySolutionSummary: Equatable, Sendable {
     public var likes = 0
     public var likedByMe = false
     public var commentCount = 0
+    /// Datei-Familie beim Dienst (nil: alte Loesung oder Dienst ohne Familie)
+    public var family: String?
+
+    /// Loesung zu einer anderen Fassung als der eigenen PDF (`ownFingerprint`)
+    public func isOtherVersion(of ownFingerprint: String) -> Bool { fingerprint.lowercased() != ownFingerprint.lowercased() }
 
     public init(solutionID: String, fingerprint: String, displayName: String, createdAt: String, pageCount: Int,
                 title: String = "", visibility: CommunityVisibility = .module, week: Int = 0,

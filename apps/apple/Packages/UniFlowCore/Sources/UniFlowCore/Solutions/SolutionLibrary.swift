@@ -24,15 +24,21 @@ public final class SolutionLibrary: @unchecked Sendable {
         public var missingImages: Int
         /// Im Editor eingeblendet.
         public var visible: Bool
+        /// Datei-Familie (23.11.2026): gesetzt, wenn die Loesung zu einer ANDEREN Fassung der PDF gehoert, in deren
+        /// Dokument sie geladen wurde (`CommunityKeys.familyKey`); dann ist das Paket wie geladen mit dem Schluessel der
+        /// Community versiegelt (die eigene PDF hat einen anderen Fingerabdruck). nil = an genau ihre PDF gebunden.
+        public var family: String?
 
         var json: JSONValue {
-            .object([
+            var o: [String: JSONValue] = [
                 "solutionId": .string(solutionID), "fingerprint": .string(fingerprint),
                 "pdfPageCount": .number(Double(pdfPageCount)), "displayName": .string(displayName),
                 "createdAt": .string(createdAt), "receivedAt": .string(receivedAt),
                 "pageCount": .number(Double(pageCount)), "missingImages": .number(Double(missingImages)),
                 "visible": .bool(visible),
-            ])
+            ]
+            if let family { o["family"] = .string(family) }
+            return .object(o)
         }
 
         init?(json: JSONValue) {
@@ -47,6 +53,7 @@ public final class SolutionLibrary: @unchecked Sendable {
             pageCount = json["pageCount"]?.int ?? 0
             missingImages = json["missingImages"]?.int ?? 0
             visible = json["visible"]?.bool ?? true
+            family = json["family"]?.string.flatMap { SolutionValidator.isHex64($0) ? $0 : nil }
         }
 
         init(header h: SolutionHeader, receivedAt: Date) {
@@ -171,12 +178,17 @@ public final class SolutionLibrary: @unchecked Sendable {
     /// (anderer Fingerabdruck, anderer Kopf oder anderes Chiffrat) verdraengt die vorhandene Loesung nie: es wird mit
     /// `conflictingSolution` abgewiesen. Ist die vorhandene Datei unlesbar, wird sie ersetzt.
     /// Wirft bei ungueltigen Paketen; dann wird nichts gespeichert.
+    /// `family`: Loesung zu einer anderen Fassung (siehe `Entry.family`); nur fuer Community-Pakete.
     @discardableResult
-    public func importPackage(_ data: Data, now: Date = Date()) throws -> Entry {
+    public func importPackage(_ data: Data, now: Date = Date(), family: String? = nil) throws -> Entry {
         let package = try SolutionPackage.decode(data)
+        if family != nil {
+            guard package.header.isCommunityPackage, let f = family, SolutionValidator.isHex64(f) else { throw SolutionError.decryptionFailed }
+        }
         return try locked {
             var index = readIndex()
             var entry = Entry(header: package.header, receivedAt: now)
+            entry.family = family
             let url = receivedDir.appendingPathComponent(Self.fileName(entry.solutionID))
             let known = index.byFingerprint.values.flatMap { $0 }.first { $0.solutionID == entry.solutionID }
             if let stored = try? SolutionPackage.decode(Data(contentsOf: url)), stored != package {
@@ -198,6 +210,15 @@ public final class SolutionLibrary: @unchecked Sendable {
     /// Empfangene Loesungen zu einer Original-PDF.
     public func entries(fingerprint: String) -> [Entry] {
         locked { readIndex().byFingerprint[fingerprint.lowercased()] ?? [] }
+    }
+
+    /// Loesungen zu ANDEREN Fassungen derselben Datei (Datei-Familie), aelteste zuerst; ohne die zum Fingerabdruck
+    public func entries(family: String, except fingerprint: String) -> [Entry] {
+        let fp = fingerprint.lowercased()
+        return locked {
+            readIndex().byFingerprint.filter { $0.key != fp }.values.flatMap { $0 }.filter { $0.family == family }
+                .sorted { $0.receivedAt < $1.receivedAt }
+        }
     }
 
     public func allEntries() -> [Entry] {
