@@ -785,6 +785,7 @@
       "mine": false,
       "community_key": null,
       "reported_by_me": false,
+      "family": null,
       "likes": 0,
       "liked_by_me": false,
       "comments": 0
@@ -858,6 +859,7 @@
      "mine": false,
      "community_key": null,
      "reported_by_me": false,
+     "family": null,
      "likes": 0,
      "liked_by_me": false,
      "comments": 0
@@ -889,6 +891,7 @@
       "mine": true,
       "community_key": null,
       "reported_by_me": false,
+      "family": null,
       "likes": 0,
       "liked_by_me": false,
       "comments": 0
@@ -1114,6 +1117,7 @@
       "mine": false,
       "community_key": null,
       "reported_by_me": false,
+      "family": null,
       "likes": 1,
       "liked_by_me": true,
       "comments": 2
@@ -1952,6 +1956,7 @@
       "mine": false,
       "community_key": "<course-key>",
       "reported_by_me": false,
+      "family": null,
       "likes": 0,
       "liked_by_me": false,
       "comments": 0
@@ -1984,6 +1989,7 @@
       "mine": true,
       "community_key": "<course-key>",
       "reported_by_me": false,
+      "family": null,
       "likes": 0,
       "liked_by_me": false,
       "comments": 0
@@ -2097,6 +2103,7 @@
       "mine": false,
       "community_key": null,
       "reported_by_me": false,
+      "family": null,
       "reports": [
        {
         "reason": "foreignMaterial",
@@ -2168,7 +2175,8 @@
      "status": "hidden",
      "mine": false,
      "community_key": null,
-     "reported_by_me": false
+     "reported_by_me": false,
+     "family": null
     }
    }
   },
@@ -2198,7 +2206,8 @@
      "status": "active",
      "mine": false,
      "community_key": null,
-     "reported_by_me": false
+     "reported_by_me": false,
+     "family": null
     }
    }
   },
