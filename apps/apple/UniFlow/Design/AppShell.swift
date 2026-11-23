@@ -1484,6 +1484,8 @@ struct UFPullToRefresh: ViewModifier {
 extension Notification.Name {
     /// erneutes Tippen auf den offenen Reiter der unteren Leiste: Seite nach oben (`UFContent`)
     static let ufScrollToTop = Notification.Name("de.uniflow.scrollToTop")
+    /// zu einer Stelle der offenen Seite springen (`object`: die `.id` als String), z. B. Tag im Stundenplan
+    static let ufScrollToID = Notification.Name("de.uniflow.scrollToID")
 }
 
 struct UFHeader: View {

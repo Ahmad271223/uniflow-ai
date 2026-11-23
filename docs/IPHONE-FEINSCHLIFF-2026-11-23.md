@@ -15,6 +15,10 @@ Fassung (`ufCompact`: iPhone, iPad im schmalen Split View); iPad und Mac in voll
 | Begrüßung kleiner (24 statt 30,4 pt, Unterzeile 13,5 pt), Wortlaut gleich | `UFPageHeadGreet` | rund 170 pt bis zum ersten Inhalt |
 | Karten-Innenabstand 15 pt statt 17,6/19,2 pt | `UFCard` | mehr Platz für Inhalt auf schmalen Bildschirmen |
 
+| Stundenplan hochkant mit Umschalter „Tage | Woche“: Tage = Tagesliste wie bisher, Woche = ganze Woche als Raster (Mo–Fr, Wochenende nur mit Terminen); Tageskopf antippen springt in „Tage“ zu diesem Tag; Wahl gemerkt (`timetable.phoneMode`) | `TimetableView`, `PhoneWeekGrid(days:packages:hideEmptyWeekend:openDay:)`, `.ufScrollToID` | Auftrag des Inhabers 23.11.2026 abends: „Stundenplan der gesamten Woche sehen … und einzelne Tage wie aktuell“ |
+
+| Eigene Wochenansicht für den Stundenplan (`PhoneTimetableWeek`), nicht mehr das Lernkalender-Raster: Fach ausgeschrieben (ohne „– Vorlesung“), darunter „10:00 · VL“ und Raum; Schriftgröße je Block so gewählt, dass jedes Wort ganz passt, sonst Silbentrennung („Bildungs-forschung“); gleichzeitige Termine als ein Block mit je einer Zeile und Farbpunkt („3 Termine“, Antippen zeigt den Tag); heute als Kreis wie im Kalender des Systems | `PhoneTimetableWeek`, `IPhoneTimetableWeekTests` | Inhaber 23.11.2026: „muss man immer sehen, welches Fach“, dann zur ersten Fassung mit senkrechten Kurznamen: „nicht so, viel schöner“ |
+
 Nur Debug: `-UFScroll center` (Mitte der Seite für Bildvergleiche).
 
 ## Bewusst nicht umgesetzt (Entscheidung des Inhabers nötig)

@@ -781,6 +781,10 @@ struct UFContent<Content: View>: View {
                 guard compact else { return }
                 withAnimation(UF.transition) { proxy.scrollTo(Self.topID, anchor: .top) }
             }
+            .onReceive(NotificationCenter.default.publisher(for: .ufScrollToID)) { n in
+                guard let id = n.object as? String else { return }
+                withAnimation(UF.transition) { proxy.scrollTo(id, anchor: .top) }
+            }
         }
         .background(UF.bg)
     }

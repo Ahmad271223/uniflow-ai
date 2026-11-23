@@ -29,6 +29,9 @@ enum PhoneWeekList {
         return (evs + pks).sorted { $0.start < $1.start }
     }
 
+    /// Kennung eines Tages in der Liste (Sprung aus dem Wochenraster des Stundenplans, 23.11.2026)
+    static func dayID(_ date: String) -> String { "phoneWeek.day.\(date)" }
+
     /// "Montag, 9. November"
     static func dayTitle(_ dd: JSONValue) -> String {
         let f = Fmt.formatter("EEEE, d. MMMM")
@@ -94,6 +97,7 @@ struct PhoneWeekListView: View {
         .background(RoundedRectangle(cornerRadius: 12).fill(today ? Color.mix(UF.accentSoft, 0.5, UF.surface) : UFDayExtras.fill(dd, over: UF.surface)))
         .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(today ? UF.accent.opacity(0.35) : UF.line, lineWidth: 1))
         .accessibilityElement(children: .contain)
+        .id(PhoneWeekList.dayID(date))                     // Sprungziel aus dem Wochenraster (`UFContent`, .ufScrollToID)
     }
 
     private func eventRow(_ e: JSONValue, date: String) -> some View {

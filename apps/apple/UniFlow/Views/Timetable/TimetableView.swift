@@ -22,6 +22,9 @@ struct TimetableView: View {
     /// Breite des Rasters (fuer die Spaltenwahl und den Hinweis auf ausgeblendete Wochenendtage); 0 = noch nicht gemessen
     @State private var gridWidth: CGFloat = 0
     @Environment(\.ufWindowWidth) private var windowWidth
+    /// iPhone hochkant (Auftrag des Inhabers 23.11.2026): "days" = Tagesliste wie bisher, "week" = ganze Woche als
+    /// Raster (`PhoneTimetableWeek`); gemerkt fuer die naechsten Besuche. iPad, Mac und iPhone quer zeigen das volle Raster.
+    @AppStorage("timetable.phoneMode") private var phoneMode = "days"
 
     /// ttDate im Web: bleibt fuer die Sitzung erhalten
     @MainActor static var ttDate = UFFmt.todayISO()
@@ -101,8 +104,16 @@ struct TimetableView: View {
                 .padding(.bottom, 12.8)
             }
             if PhoneWeekList.applies(width: windowWidth) {
-                // iPhone hochkant (11.11.2026): die Woche als Liste, alles lesbar, nichts seitlich abgeschnitten
-                PhoneWeekListView(days: days, hideEmptyWeekend: true) { e, date in actions.openOccurrence(e, date: date) }
+                UFSegmented(options: [("days", "Tage"), ("week", "Woche")], selection: $phoneMode)
+                    .accessibilityIdentifier("timetable.phoneMode")
+                    .padding(.bottom, 12)
+                if phoneMode == "week" {
+                    // ganze Woche auf einen Blick; Tageskopf antippen: zu diesem Tag in der Tagesliste
+                    PhoneTimetableWeek(days: days, openEvent: { e, date in actions.openOccurrence(e, date: date) }, openDay: showDay)
+                } else {
+                    // iPhone hochkant (11.11.2026): die Woche als Liste, alles lesbar, nichts seitlich abgeschnitten
+                    PhoneWeekListView(days: days, hideEmptyWeekend: true) { e, date in actions.openOccurrence(e, date: date) }
+                }
             } else {
                 let cols = TimetableColumns.layout(days: days, width: gridWidth)
                 if !cols.hidden.isEmpty { weekendHint(cols.hidden) }
@@ -110,6 +121,14 @@ struct TimetableView: View {
             }
             Text(Self.footHint)
                 .ufFont(13.12).foregroundStyle(UF.muted).padding(.top, 9.6)
+        }
+    }
+
+    /// Aus dem Wochenraster in die Tagesliste, dort zum Tag (nach dem Umschalten, wenn die Liste steht)
+    private func showDay(_ date: String) {
+        phoneMode = "days"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+            NotificationCenter.default.post(name: .ufScrollToID, object: PhoneWeekList.dayID(date))
         }
     }
 
