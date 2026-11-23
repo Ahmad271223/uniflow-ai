@@ -50,6 +50,12 @@ enum StiftSpur {
         state.lock.unlock()
     }
 
+    /// letzte Zeile (Haenger-Waechter: was lief, bevor der Hauptthread stehen blieb)
+    static var lastLine: String? {
+        state.lock.lock(); defer { state.lock.unlock() }
+        return state.lines.last
+    }
+
     /// Zeilen im Speicher (Tests)
     static var linesForTesting: [String] {
         state.lock.lock(); defer { state.lock.unlock() }

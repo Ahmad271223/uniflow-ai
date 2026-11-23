@@ -87,6 +87,7 @@ struct UniFlowApp: App {
         // Weck-Signal: Registrierung mit dem StudiNow-Konto, Empfang startet den Lauf nach der Regel; "Im Hintergrund
         // abgleichen" aus nimmt das Token am Server zurueck
         WakePush.shared.attach(account: c.account)
+        HaengerSpur.shared.start()                                        // nur mit Ablauf-Protokoll (Fehlersuche per Kabel)
         WakePush.shared.onWake = { [weak b] in await b?.performWake() ?? .noData }
         b.onEnabledChange = { _ in WakePush.shared.refresh() }
         _scenes = State(initialValue: registry)
