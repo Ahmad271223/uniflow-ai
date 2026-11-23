@@ -24,11 +24,15 @@ targets:
     platform: iOS
     sources:
       - path: UniFlow
+      # Datenformat der Widgets (App schreibt, Widget liest; docs/WIDGETS-2026-11-23.md)
+      - path: WidgetShared
       # Lernseiten neben dem Dokument: Grundstock der erlaubten Seiten (docs/VIDEO-LERNSEITEN-2026-11-14.md)
       - path: ../../packages/shared-contracts/learning-sites.json
         buildPhase: resources
     dependencies:
       - package: UniFlowCore
+      # Widgets auf Home- und Sperrbildschirm (StudiNowWidgets, eingebettet unter PlugIns)
+      - target: StudiNowWidgets
     # Team und "Mit Apple anmelden" nur mit der nicht eingecheckten Config/Team.xcconfig (siehe Config/Base.xcconfig)
     configFiles:
       Debug: Config/Base.xcconfig
@@ -216,6 +220,40 @@ targets:
         # ueber URLSession, AES-GCM/HKDF aus CryptoKit), keine eigene Krypto-Bibliothek -> keine Dokumente noetig
         ITSAppUsesNonExemptEncryption: false
         # kein NSAppTransportSecurity: nur HTTPS (Stud.IP, Learnweb, LSF, Opencast); Debug siehe postBuildScripts
+  # Widgets (23.11.2026, docs/WIDGETS-2026-11-23.md): "Nächster Termin" und "Mensa heute". Liest nur den Schnappschuss
+  # der App aus der App-Gruppe group.de.uniflow.ai, geht nie ins Netz. Kennung = Kennung der App + ".widgets" (Debug
+  # folgt UF_DEBUG_BUNDLE_ID, damit tools/mac-test.sh auch hier die Test-Kennung nimmt).
+  StudiNowWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: StudiNowWidgets
+      - path: WidgetShared
+    configFiles:
+      Debug: Config/Base.xcconfig
+      Release: Config/Base.xcconfig
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai.widgets
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD: YES
+        CODE_SIGN_STYLE: Automatic
+        # eigene Berechtigung (nur App-Gruppe); Team.xcconfig setzt sonst die der App
+        CODE_SIGN_ENTITLEMENTS: StudiNowWidgets/StudiNowWidgets.entitlements
+        SKIP_INSTALL: YES
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/Frameworks @executable_path/../../Frameworks"
+      configs:
+        Debug:
+          UF_DEBUG_BUNDLE_ID: de.uniflow.ai
+          PRODUCT_BUNDLE_IDENTIFIER: $(UF_DEBUG_BUNDLE_ID).widgets
+    info:
+      path: StudiNowWidgets/Info.plist
+      properties:
+        CFBundleDisplayName: StudiNow
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   UniFlowTests:
     type: bundle.unit-test
     platform: iOS
@@ -225,6 +263,8 @@ targets:
           - "*.storekit"
       - path: UniFlowTests/UniFlow.storekit
         buildPhase: resources       # SKTestSession(configurationFileNamed:) sucht die Datei im Testbundle
+      # Ansichten der Widgets fuer die Bilder in WidgetSnapshotAppTests (Datenformat kommt ueber @testable import UniFlow)
+      - path: StudiNowWidgets/WidgetViews.swift
       # alle vier Tarife, nur fuer die Tests der Wechsel-Logik (Pro-Tarife kommen erst mit dem StudiNow-Dienst)
       - path: UniFlowTests/UniFlowAlleTarife.storekit
         buildPhase: resources
@@ -246,6 +286,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.uniflow.ai.tests
         GENERATE_INFOPLIST_FILE: YES
+        # StudiNowWidgets/WidgetViews.swift im Testbundle holt das Datenformat ueber @testable import UniFlow
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: "$(inherited) UF_WIDGET_VIEWS_IN_TESTS"
         # iPhone-Simulator: Szene regular wie am iPad, damit die Tests in iPad-Groesse die breite Fassung sehen
         # (UniFlowTests/TestBundlePrincipal.swift); auf dem iPad ohne Wirkung
         INFOPLIST_KEY_NSPrincipalClass: UniFlowTestsPrincipal

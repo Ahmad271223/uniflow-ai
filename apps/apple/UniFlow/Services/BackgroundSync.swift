@@ -644,6 +644,8 @@ final class BackgroundSyncController: ObservableObject {
         let ok = await performRun(kind, due: due, at: start, expired: expired, relogin: relogin)
         if let c, !due.isEmpty { await gradesAndNews(c, due: due, before: before, relogin: relogin, expired: expired) }
         if let c, !due.isEmpty, owns(c) { noteAutomaticResult(c, due: due, at: start) }
+        // Widgets: neuer Stand von Stundenplan und Mensa fuer Home- und Sperrbildschirm (HomeWidgetSync)
+        if let c, containers.active === c { await HomeWidgetSync.refresh(api: c.api) }
         await schedule()                                         // nach jedem Lauf neu planen
         return ok
     }

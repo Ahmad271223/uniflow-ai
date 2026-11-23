@@ -113,6 +113,8 @@ struct UniFlowApp: App {
                     // Ablage -> "Importieren …": Dateiauswahl dieses Fensters, danach "Wohin?" (LibraryImportCommand.swift)
                     .modifier(LibraryImportHost(router: router, overlay: overlay, toast: toast, enabled: containers.active != nil))
                     .modifier(UFToastOverlay(center: toast))
+                    // Widgets nach jedem Abgleich, beim Abmelden/Wechsel der Hochschule und beim Ein-/Ausschalten der Demo
+                    .background(HomeWidgetRefresher(containers: containers, studip: containers.studip))
                     .environmentObject(account)
                     .environmentObject(containers)
                     .environmentObject(session)
@@ -270,6 +272,8 @@ struct UniFlowApp: App {
             // beim Wechsel in den Hintergrund den naechsten Termin (im Fenster 8–18 Uhr) neu bestellen und die Uni-Anmeldung
             // der Webansicht merken: beendet iOS die App, ist sie beim naechsten Oeffnen wieder da (`UniWebSessions`)
             if phase == .background {
+                // Widgets: letzter Stand fuer Home- und Sperrbildschirm (Mensa-Filter, Ausblendungen seit dem Abgleich)
+                Task { await HomeWidgetSync.refresh(api: containers.active?.api) }
                 Task { await containers.saveWebSessions() }
                 Task { await background.schedule() }
                 sendPendingAccountChanges()
