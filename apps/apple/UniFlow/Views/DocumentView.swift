@@ -301,6 +301,8 @@ struct DocumentView: View {
     /// Treffer aus der Community zu dieser PDF (beim Oeffnen geholt, je Sitzung zwischengespeichert, nie blockierend)
     @State private var communityMatches: [CommunitySolutionSummary] = []
     @State private var communityFingerprint: String?
+    /// Datei-Familie dieses Dokuments (alle Fassungen gleich, 23.11.2026); nil fuer eigene Dokumente
+    @State private var communityFamily: String?
     @State private var communityBannerDismissed = false
     @ObservedObject private var entitlements = Entitlements.shared
     /// gesperrte Plus-Funktion, deren Sperrkarte gerade offen ist (Schreiben, geteilte Ansicht)
@@ -1972,7 +1974,7 @@ struct DocumentView: View {
             }
         case .community(let fp):
             // "Laden und anzeigen" nimmt denselben Weg wie die Datei (fremde Ebene, eigene Notizen unveraendert)
-            CommunitySolutionsSheet(fingerprint: fp, service: SolutionSharing.community,
+            CommunitySolutionsSheet(fingerprint: fp, family: communityFamily, service: SolutionSharing.community,
                                     importer: { id in try await store.importFromCommunity(id, service: SolutionSharing.community) },
                                     onImported: { result in Task { await handleImport(result) } },
                                     onBeside: { id in Task { await showSolutionBeside(id) } }) { solutionSheet = nil }
@@ -2130,9 +2132,13 @@ struct DocumentView: View {
     private func loadCommunityMatches() async {
         guard entitlements.allows(.communityRead), store.pdf != nil, !readOnly, let fp = await store.originalFingerprint() else { return }
         communityFingerprint = fp
+        // auch Loesungen zu anderen Fassungen derselben Datei (Datei-Familie, 23.11.2026)
+        let family = await store.communityFamily()
+        communityFamily = family
         guard SolutionSharing.community.isConnected else { return }
-        if let cached = CommunityMatches.shared.cached(fp) { communityMatches = cached }
-        communityMatches = (try? await CommunityMatches.shared.load(fingerprint: fp, service: SolutionSharing.community)) ?? communityMatches
+        if let cached = CommunityMatches.shared.cached(fp, family: family) { communityMatches = cached }
+        communityMatches = (try? await CommunityMatches.shared.load(fingerprint: fp, family: family, service: SolutionSharing.community))
+            ?? communityMatches
     }
 
     private func removeProblem(_ problem: SolutionLayerLoad.Problem) {

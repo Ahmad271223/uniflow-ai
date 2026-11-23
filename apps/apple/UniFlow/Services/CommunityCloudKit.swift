@@ -1039,17 +1039,22 @@ final class CommunityMatches {
     private var cache: [String: [CommunitySolutionSummary]] = [:]
     private var running: [String: Task<[CommunitySolutionSummary], Error>] = [:]
 
-    func cached(_ fingerprint: String) -> [CommunitySolutionSummary]? { cache[fingerprint] }
+    /// Schluessel des Zwischenspeichers: Fingerabdruck und (falls bekannt) Datei-Familie
+    private static func key(_ fingerprint: String, _ family: String?) -> String { fingerprint + "|" + (family ?? "") }
 
-    /// Treffer holen (aus dem Zwischenspeicher, sonst beim Dienst); `force` holt neu
-    func load(fingerprint: String, service: CommunityService, force: Bool = false) async throws -> [CommunitySolutionSummary] {
-        if !force, let c = cache[fingerprint] { return c }
-        if let t = running[fingerprint] { return try await t.value }
-        let t = Task { try await service.findMatching(fingerprint: fingerprint) }
-        running[fingerprint] = t
-        defer { running[fingerprint] = nil }
+    func cached(_ fingerprint: String, family: String? = nil) -> [CommunitySolutionSummary]? { cache[Self.key(fingerprint, family)] }
+
+    /// Treffer holen (aus dem Zwischenspeicher, sonst beim Dienst); `force` holt neu. Mit `family` auch Loesungen zu
+    /// anderen Fassungen derselben Datei (23.11.2026)
+    func load(fingerprint: String, family: String? = nil, service: CommunityService, force: Bool = false) async throws -> [CommunitySolutionSummary] {
+        let k = Self.key(fingerprint, family)
+        if !force, let c = cache[k] { return c }
+        if let t = running[k] { return try await t.value }
+        let t = Task { try await service.findMatching(fingerprint: fingerprint, family: family) }
+        running[k] = t
+        defer { running[k] = nil }
         let result = try await t.value
-        cache[fingerprint] = result
+        cache[k] = result
         return result
     }
 
@@ -1169,6 +1174,16 @@ extension DocumentStore {
             let pdf = try Data(contentsOf: originalPDFURL)
             let spaces = try await service.communities()
             let content = try SolutionSharing.openCommunity(package, spaces: spaces)
+            if let own = await originalFingerprint(), content.fingerprint != own {
+                // andere Fassung derselben Datei (23.11.2026): an die eigene PDF binden geht nicht (anderer
+                // Fingerabdruck); das Paket bleibt wie geladen mit dem Schluessel der Community und steht unter der
+                // Datei-Familie dieses Dokuments. Geoeffnet wird es mit den Community-Schluesseln dieses Geraets.
+                guard let family = await communityFamily() else { throw SolutionError.fingerprintMismatch }
+                let encoded = package.encoded()
+                let entry = try await Task.detached(priority: .userInitiated) { try library.importPackage(encoded, family: family) }.value
+                NotificationCenter.default.post(name: .uniflowSolutionsChanged, object: nil)
+                return .shown(entry)
+            }
             package = try SolutionPackage.seal(content, originalPDF: pdf, cipher: SolutionSharing.cipher)
         }
         let url = try SolutionSharing.writeDownloaded(package)

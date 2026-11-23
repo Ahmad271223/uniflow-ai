@@ -204,6 +204,10 @@ def _schema(conn) -> None:
     db.add_column(conn, "solutions", "community_key", "TEXT")     # mehrere Prozesse zugleich (Audit P11-02)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_solutions_community ON solutions(community_key, status)")
     db.add_column(conn, "solutions", "updated_at", "TEXT")        # letztes Ersetzen des Pakets (update), sonst NULL
+    # Datei-Familie (23.11.2026): gleiche Kennung fuer alle Fassungen einer PDF (HMAC beim Geraet aus Kurs-Geheimnis und
+    # Datei-Kennung des Portals, `CommunityKeys.familyKey`); NULL bei alten Loesungen und Clients ohne Familie
+    db.add_column(conn, "solutions", "family", "TEXT")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_solutions_family ON solutions(family, status)")
     conn.execute("INSERT OR IGNORE INTO community_kinds(community_key, kind, created_at) SELECT group_key, 'group', created_at FROM study_groups")
 
 
@@ -443,7 +447,7 @@ def _summary(r, me: str, reported: set[str] | None = None, conn=None) -> dict:
            "title": r["title"], "created_at": r["created_at"], "published_at": r["published_at"], "updated_at": r["updated_at"],
            "page_count": r["page_count"],
            "pages": r["pages"], "downloads": r["downloads"], "status": r["status"], "mine": r["author_id"] == me, "community_key": r["community_key"],
-           "reported_by_me": r["id"] in (reported or set())}
+           "reported_by_me": r["id"] in (reported or set()), "family": r["family"]}
     if conn is not None:
         out["likes"] = conn.execute("SELECT COUNT(*) FROM likes WHERE solution_id=?", (r["id"],)).fetchone()[0]
         out["liked_by_me"] = bool(conn.execute("SELECT 1 FROM likes WHERE solution_id=? AND user_id=?", (r["id"], me)).fetchone())
@@ -475,6 +479,17 @@ def _community_key(key) -> str:
     k = str(key or "").lower()
     if not HEX64.match(k):
         raise CommunityError("community_invalid", "Ungültige Community.")
+    return k
+
+
+def _family(value) -> str | None:
+    """Datei-Familie (64 Hexziffern) oder None, wenn keine angegeben ist. Sie verraet weder Kurs-ID noch Datei-ID: das
+    Geraet bildet sie als HMAC mit dem Kurs-Geheimnis, das der Dienst nicht kennt (docs/LOESUNGEN-TEILEN.md, Nachtrag 23.11.)."""
+    if value is None or value == "":
+        return None
+    k = str(value).lower()
+    if not HEX64.match(k):
+        raise CommunityError("family_invalid", "Ungültige Datei-Kennung.")
     return k
 
 
@@ -579,9 +594,12 @@ def _listed(conn, user: dict, rows) -> list[dict]:
     return out
 
 
-def publish(user: dict, university: str, pkg, title: str | None = None, community_key=None) -> dict:
+def publish(user: dict, university: str, pkg, title: str | None = None, community_key=None, family=None) -> dict:
+    """`family`: Datei-Familie der PDF (alle Fassungen gleich, `_family`); alte Clients senden keine, dann bleibt sie NULL
+    und die Loesung wird wie bisher nur ueber den Fingerabdruck gefunden."""
     require_plan(user)
     info = validate_package(pkg)
+    fam = _family(family)
     key = _community_key(community_key) if community_key else None
     if key:
         if info["key_material"] != "community-secret":
@@ -619,12 +637,13 @@ def publish(user: dict, university: str, pkg, title: str | None = None, communit
         # nie ein halb geschriebenes Paket.
         with _staged_package(info["id"], raw) as install:
             conn.execute("""INSERT INTO solutions(id, fingerprint, university, author_id, pseudonym, display_name, title, created_at, published_at,
-                            page_count, pages, size, status, community_key) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?)
+                            page_count, pages, size, status, community_key, family) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,'active',?,?)
                             ON CONFLICT(id) DO UPDATE SET fingerprint=excluded.fingerprint, community_key=excluded.community_key, display_name=excluded.display_name, title=COALESCE(excluded.title, solutions.title),
                               created_at=excluded.created_at, published_at=excluded.published_at, page_count=excluded.page_count,
-                              pages=excluded.pages, size=excluded.size, status='active', status_reason=NULL""",
+                              pages=excluded.pages, size=excluded.size, status='active', status_reason=NULL,
+                              family=COALESCE(excluded.family, solutions.family)""",
                          (info["id"], info["fingerprint"], university, user["id"], pseudonym(user["id"]), info["display_name"], title,
-                          info["created_at"], now, info["page_count"], info["pages"], len(raw), key))
+                          info["created_at"], now, info["page_count"], info["pages"], len(raw), key, fam))
             install()
     return {"solution_id": info["id"], "published_at": now, "pseudonym": pseudonym(user["id"]), "republished": bool(cur)}
 
@@ -658,12 +677,14 @@ def own_solution(conn, author_id: str, fingerprint: str, community_key: str | No
                            ORDER BY published_at DESC, id LIMIT 1""", (author_id, fingerprint, community_key)).fetchone()
 
 
-def update(user: dict, university: str, solution_id: str, pkg, title: str | None = None, community_key=None) -> dict:
+def update(user: dict, university: str, solution_id: str, pkg, title: str | None = None, community_key=None, family=None) -> dict:
     """Paket der EIGENEN Loesung ersetzen (zusammengefuehrt beim Client). Dieselben Pruefungen wie beim Veroeffentlichen;
     Kopf-ID, Fingerabdruck und Community muessen gleich bleiben. ID, Likes, Kommentare, Sichtbarkeit und
-    `published_at` bleiben, `updated_at` wird neu gesetzt."""
+    `published_at` bleiben, `updated_at` wird neu gesetzt. `family`: eine Loesung ohne Familie (vor dem 23.11.2026 oder
+    von einem alten Client) bekommt sie hier; eine schon gesetzte bleibt (eine andere: 400 `solution_mismatch`)."""
     require_plan(user)
     info = validate_package(pkg)
+    fam = _family(family)
     sid = str(solution_id or "").lower()
     with cursor() as conn:
         r = conn.execute("SELECT * FROM solutions WHERE id=?", (sid,)).fetchone()
@@ -681,6 +702,8 @@ def update(user: dict, university: str, solution_id: str, pkg, title: str | None
             raise CommunityError("solution_mismatch", "Das neue Paket gehört zu einer anderen PDF.")
         if community_key and _community_key(community_key) != r["community_key"]:
             raise CommunityError("solution_mismatch", "Die Community einer Lösung lässt sich nicht ändern.")
+        if fam and r["family"] and fam != r["family"]:
+            raise CommunityError("solution_mismatch", "Das neue Paket gehört zu einer anderen Datei.")
         if r["community_key"]:
             if info["key_material"] != "community-secret":
                 raise CommunityError("package_invalid", "Die Lösung ist beschädigt (Kopf: Verschlüsselung).")
@@ -700,9 +723,9 @@ def update(user: dict, university: str, solution_id: str, pkg, title: str | None
     # die Loesung noch aktiv ist - hat die Moderation sie inzwischen verborgen oder entfernt (Paket geloescht), kommt
     # kein neues Paket auf die Platte (vorher stand das Paket einer entfernten Loesung wieder da).
     with _staged_package(sid, raw) as install, cursor() as conn:
-        n = conn.execute("""UPDATE solutions SET display_name=?, title=COALESCE(?, title), page_count=?, pages=?, size=?, updated_at=?
-                            WHERE id=? AND author_id=? AND status='active'""",
-                         (info["display_name"], title, info["page_count"], info["pages"], len(raw), now, sid, user["id"])).rowcount
+        n = conn.execute("""UPDATE solutions SET display_name=?, title=COALESCE(?, title), page_count=?, pages=?, size=?, updated_at=?,
+                            family=COALESCE(family, ?) WHERE id=? AND author_id=? AND status='active'""",
+                         (info["display_name"], title, info["page_count"], info["pages"], len(raw), now, fam, sid, user["id"])).rowcount
         if n != 1:
             cur = conn.execute("SELECT status FROM solutions WHERE id=?", (sid,)).fetchone()
             if cur and cur["status"] in ("hidden", "removed"):
@@ -712,18 +735,31 @@ def update(user: dict, university: str, solution_id: str, pkg, title: str | None
     return {"solution_id": sid, "updated_at": now, "pages": info["pages"], "pseudonym": pseudonym(user["id"])}
 
 
-def find(user: dict, university: str, fingerprint: str) -> list[dict]:
-    """Loesungen zu einer PDF: aus den eigenen Communities, dazu Pakete ohne Community fuer die eigene PDF."""
+def find(user: dict, university: str, fingerprint: str, family=None) -> list[dict]:
+    """Loesungen zu einer PDF: aus den eigenen Communities, dazu Pakete ohne Community fuer die eigene PDF.
+    Mit `family` (23.11.2026) auch Loesungen zu anderen Fassungen derselben Datei, aber nur aus den eigenen Communities
+    (ein Paket ohne Community gehoert an genau seine PDF). Ohne `family` wie bisher (alte Clients)."""
     fp = fingerprint if HEX64.match(fingerprint or "") else None
+    fam = _family(family)
     with cursor() as conn:
         joined = [r[0] for r in conn.execute("SELECT community_key FROM community_members WHERE user_id=?", (user["id"],))]
     if not fp or not joined:
         require_file(fingerprint)
     owned = owns_file(fp) if fp else False
+
+    def allowed(r) -> bool:
+        if r["community_key"]:
+            return r["community_key"] in joined
+        return owned and r["fingerprint"] == fp
+
     with cursor() as conn:
-        rows = conn.execute("SELECT * FROM solutions WHERE fingerprint=? AND university=? AND status='active' ORDER BY published_at DESC",
-                            (fp, university)).fetchall()
-        return _listed(conn, user, [r for r in rows if (r["community_key"] in joined if r["community_key"] else owned)])
+        if fam:
+            rows = conn.execute("""SELECT * FROM solutions WHERE (fingerprint=? OR family=?) AND university=? AND status='active'
+                                   ORDER BY published_at DESC""", (fp, fam, university)).fetchall()
+        else:
+            rows = conn.execute("SELECT * FROM solutions WHERE fingerprint=? AND university=? AND status='active' ORDER BY published_at DESC",
+                                (fp, university)).fetchall()
+        return _listed(conn, user, [r for r in rows if allowed(r)])
 
 
 def _require_access(conn, user: dict, r) -> None:

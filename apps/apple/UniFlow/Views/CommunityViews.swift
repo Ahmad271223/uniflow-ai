@@ -86,6 +86,10 @@ enum CommunityTexts {
     static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung). Lösungen auf Folien und Aufgabenblättern siehst du nur zusammen mit dem Dokument: Lade die PDF in StudiNow (z. B. mit „Sync“), dann öffnest du die Lösung neben deinem Dokument. Eigene Blätter der Lösung erscheinen hier auf ihrem Papier. Die PDF des Lehrenden wird nie mitgeschickt."
     /// an Stelle einer Seite auf einer Folie, wenn die eigene PDF fehlt
     static let pageNeedsPDF = "Diese Seite steht auf der PDF. Du siehst sie, sobald du die PDF in StudiNow hast."
+    /// Treffer zu einer anderen Fassung derselben Datei (Datei-Familie, 23.11.2026)
+    static let otherVersion = "zu einer anderen Fassung dieser PDF"
+    /// Leser: Loesung zu einer anderen Fassung, gleich gebliebene Seiten auf der eigenen PDF
+    static let otherVersionNotice = "Diese Lösung gehört zu einer anderen Fassung deiner PDF. Seiten, die gleich geblieben sind, stehen auf deinen eigenen Seiten; geänderte Seiten auf der alten Fassung, wenn sie auf deinem Gerät liegt."
     /// Loesung nur auf eigenen Blaettern: jede Seite auf ihrem Papier, wie geschrieben
     static let ownPaperNotice = "Die Lösung steht auf eigenen Blättern – jede Seite auf ihrem Papier, genau wie sie geschrieben wurde."
 
@@ -442,6 +446,8 @@ struct CommunityReaderSheet: View {
     @State private var localFile: String?
     /// eigene Kopie derselben PDF (gleicher Fingerabdruck, gleiche Seitenzahl): Hintergrund der Seiten wie beim Absender
     @State private var ownPDF: OffscreenPDF?
+    /// Lage der Seiten bei einer Loesung zu einer anderen Fassung (23.11.2026)
+    @State private var version = SolutionVersionView()
     @State private var error: String?
     @State private var comments: [CommunityComment] = []
     @State private var liked = false
@@ -468,7 +474,8 @@ struct CommunityReaderSheet: View {
                     if let error { CommunityNotice(text: error) }
                     if let localFile {
                         UFCard {
-                            Text(ownPDF != nil ? CommunityTexts.ownPDFNotice : CommunityTexts.ownPDFLayerNotice).ufFont(13.12).foregroundStyle(UF.text2)
+                            Text(version.isOtherVersion ? CommunityTexts.otherVersionNotice
+                                 : ownPDF != nil ? CommunityTexts.ownPDFNotice : CommunityTexts.ownPDFLayerNotice).ufFont(13.12).foregroundStyle(UF.text2)
                                 .fixedSize(horizontal: false, vertical: true)
                             // 22.11.2026 (Inhaber): nur noch daneben, nicht mehr als Ebene ueber der eigenen Seite
                             UFButton(SolutionOverlay.openBeside, icon: "layers", kind: .primary, size: .small) {
@@ -490,7 +497,7 @@ struct CommunityReaderSheet: View {
                                 spot = (page.key, anchor)
                                 replyTo = nil
                                 editing = nil
-                            } : nil, title: SolutionPaper.title(content.pages, at: i))
+                            } : nil, title: SolutionPaper.title(content.pages, at: i), placement: version.placement(page), old: version.old)
                         }
                     } else if error == nil { CommunityLoading(text: "Lösung wird geladen …") }
                     if service.supportsDiscussion { commentsCard }
@@ -612,9 +619,12 @@ struct CommunityReaderSheet: View {
             let c = try await SolutionSharing.loadCommunity(solution.solutionID, service: service)
             images = c.images.compactMapValues { UIImage(data: $0.data) }
             content = c
-            if let host = ActiveContainer.current?.host {
-                localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host)
-                ownPDF = await CommunityCourses.ownPDF(for: c, host: host)
+            if let container = CommunityLocalContext.current {
+                let host = container.host
+                // dieselbe PDF oder eine andere Fassung derselben Datei (Datei-Familie, 23.11.2026)
+                version = await CommunityCourses.view(for: c, family: solution.family, host: host, university: container.university)
+                localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host) ?? version.fileID
+                ownPDF = version.own
             }
             if service.supportsDiscussion { comments = try await service.comments(solutionID: solution.solutionID) }
         } catch { self.error = CommunityTexts.message(error) }
@@ -693,13 +703,59 @@ struct CommunityReaderPage: View {
     var tapped: ((CommunityComment.Anchor) -> Void)?
     /// Beschriftung ueber der Seite: "PDF-Seite 4", "Notiz zu Folie 4" (`SolutionBuilder.pageTitle`, 05.11.2026)
     var title: String?
+    /// Lage der Seite beim Betrachter (`SolutionVersionView.placement`): bei einer anderen Fassung die eigene Seite an
+    /// ihrer Stelle, die Seite der aufbewahrten Fassung (`old`) oder "geaendert"; nil = wie bisher (`page.pdfIndex`)
+    var placement: SolutionVersions.Placement?
+    /// aufbewahrte Fassung des Absenders (S7)
+    var old: OffscreenPDF?
     @State private var image: UIImage?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             if let title { Text(title).ufFont(11.84, 600, lh: 1.3).foregroundStyle(UF.muted) }
-            if Self.needsPDF(page, source: source) { missingPDF } else { pageImage }
+            switch Self.display(page, source: source, placement: placement, old: old) {
+            case .changed: changedPage
+            case .needsPDF: missingPDF
+            case .page: pageImage
+            }
         }
+    }
+
+    /// Was an der Stelle einer Seite steht: das Bild (auf der eigenen bzw. alten PDF oder dem Papier), der Hinweis
+    /// "PDF fehlt" oder bei einer anderen Fassung der Satz `SolutionVersions.pageChanged` – nie Striche auf Weiss
+    enum Display: Equatable { case page, needsPDF, changed }
+
+    static func display(_ page: SolutionPage, source: OffscreenPDF?, placement: SolutionVersions.Placement?, old: OffscreenPDF?) -> Display {
+        if placement == .changed { return .changed }
+        if case .oldVersion? = placement { return old == nil ? .changed : .page }
+        return needsPDF(page, source: source) ? .needsPDF : .page
+    }
+
+    /// PDF, auf der die Seite steht: die eigene, bei `.oldVersion` die aufbewahrte Fassung
+    private var background: OffscreenPDF? {
+        if case .oldVersion? = placement { return old }
+        return source
+    }
+
+    /// Seite in der PDF von `background` (1-basiert)
+    private var backgroundIndex: Int? {
+        switch placement {
+        case .own(let j)?: return j
+        case .oldVersion(let i)?: return i
+        default: return page.pdfIndex
+        }
+    }
+
+    /// Seite in der eigenen Fassung geaendert, die alte liegt nicht auf dem Geraet: nur der Satz, nie die Striche
+    private var changedPage: some View {
+        HStack(spacing: 10) {
+            UFIcon("file-text", size: 18).foregroundStyle(UF.muted)
+            Text(SolutionVersions.pageChanged).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(UF.surface2, in: RoundedRectangle(cornerRadius: UF.rSm))
+        .accessibilityIdentifier("community.page.changed")
     }
 
     /// PDF-Seite ohne eigene PDF: nicht als Striche auf Weiss zeigen
@@ -742,10 +798,10 @@ struct CommunityReaderPage: View {
                     .accessibilityLabel("Seite wird geladen")
             }
         }
-        .task(id: page.key + (source == nil ? "" : "-pdf")) {
-            let page = self.page, images = self.images
-            if let source {
-                image = await source.solutionPreview(page, images: images, width: 860, scale: 2)
+        .task(id: page.key + (background == nil ? "" : "-pdf-\(backgroundIndex ?? 0)")) {
+            let page = self.page, images = self.images, index = backgroundIndex
+            if let source = background {
+                image = await source.solutionPreview(page, images: images, width: 860, scale: 2, pdfIndex: index)
             } else {
                 image = await Task.detached(priority: .utility) { ImageBox(SolutionPreview.image(page, images: images, width: 860)) }.value.image
             }
@@ -764,6 +820,8 @@ struct CommunityReaderPage: View {
 
 struct CommunitySolutionsSheet: View {
     let fingerprint: String
+    /// Datei-Familie des Dokuments: auch Loesungen zu anderen Fassungen derselben Datei (23.11.2026)
+    var family: String?
     let service: CommunityService
     /// "Laden und anzeigen": derselbe Weg wie die Datei (`DocumentStore.importFromCommunity`)
     let importer: (String) async throws -> SolutionImportResult
@@ -886,14 +944,15 @@ struct CommunitySolutionsSheet: View {
     private func rowSub(_ s: CommunitySolutionSummary) -> String {
         let pages = s.pageCount == 1 ? "1 Seite" : "\(s.pageCount) Seiten"
         let who = s.isOwn ? "deine Veröffentlichung" : s.visibility.title
-        return "\(pages) · \(who)\(service.supportsDiscussion ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")"
+        let version = s.isOtherVersion(of: fingerprint) ? " · \(CommunityTexts.otherVersion)" : ""
+        return "\(pages) · \(who)\(version)\(service.supportsDiscussion ? " · \(s.likes) Likes · \(s.commentCount) Kommentare" : "")"
     }
 
     /// Erklaerung ueber der Liste, schon vor dem Laden: was der Knopf tut (22.11.2026: nur noch daneben)
     static func explain(overlay: Bool, beside: Bool) -> String {
         overlay || !beside
             ? "Lösungen anderer zu genau dieser PDF. „Laden und anzeigen“ legt sie als eigene, nicht bearbeitbare Ebene über deine PDF – deine Notizen bleiben unverändert."
-            : "Lösungen anderer zu genau dieser PDF. \(SolutionOverlay.besideExplain)"
+            : "Lösungen anderer zu dieser PDF, auch zu anderen Fassungen davon. \(SolutionOverlay.besideExplain)"
     }
 
     private func rowActions(_ s: CommunitySolutionSummary) -> some View {
@@ -933,7 +992,7 @@ struct CommunitySolutionsSheet: View {
         guard Entitlements.shared.allows(.communityRead) else { return }
         error = nil
         do {
-            items = try await CommunityMatches.shared.load(fingerprint: fingerprint, service: service, force: force)
+            items = try await CommunityMatches.shared.load(fingerprint: fingerprint, family: family, service: service, force: force)
         } catch {
             self.error = CommunityTexts.message(error)
         }

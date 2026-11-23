@@ -227,7 +227,8 @@ public enum SolutionBuilder {
         for s in used { if let img = new.images[s] ?? previous.images[s] { images[s] = img } }
         let merged = SolutionContent(solutionID: previous.solutionID, createdAt: previous.createdAt, title: new.title,
                                      displayName: new.displayName, fingerprint: new.fingerprint, pdfPageCount: new.pdfPageCount,
-                                     pages: pages, images: images, missingImages: used.filter { images[$0] == nil }.sorted())
+                                     pages: pages, images: images, missingImages: used.filter { images[$0] == nil }.sorted(),
+                                     versionPages: new.versionPages ?? previous.versionPages)
         // dieselben Grenzen wie beim Empfaenger (z. B. hoechstens 2000 Seiten)
         _ = try SolutionContent(json: merged.json)
         return merged

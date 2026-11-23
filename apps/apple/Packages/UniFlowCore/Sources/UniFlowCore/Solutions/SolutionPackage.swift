@@ -342,9 +342,15 @@ public struct SolutionContent: Equatable, Sendable {
     public var images: [String: SolutionImage]
     /// Bilder, die beim Absender nicht verfuegbar waren (fehlen im Paket).
     public var missingImages: [String]
+    /// Kennzeichen des Seitentexts JEDER Seite der PDF des Absenders (`SolutionVersions.pageKey`, Laenge =
+    /// `pdfPageCount`, "" = Seite ohne Text); nil bei alten Paketen. Damit erkennt ein Empfaenger mit einer anderen
+    /// Fassung derselben Datei, welche Seiten gleich geblieben sind (23.11.2026). Steht nur im verschluesselten Inhalt;
+    /// aeltere Apps (1.0.6) lesen das Feld nicht und oeffnen das Paket wie bisher.
+    public var versionPages: [String]?
 
     public init(solutionID: String, createdAt: String, title: String, displayName: String, fingerprint: String,
-                pdfPageCount: Int, pages: [SolutionPage], images: [String: SolutionImage] = [:], missingImages: [String] = []) {
+                pdfPageCount: Int, pages: [SolutionPage], images: [String: SolutionImage] = [:], missingImages: [String] = [],
+                versionPages: [String]? = nil) {
         self.solutionID = solutionID
         self.createdAt = createdAt
         self.title = title
@@ -354,12 +360,13 @@ public struct SolutionContent: Equatable, Sendable {
         self.pages = pages
         self.images = images
         self.missingImages = missingImages
+        self.versionPages = versionPages
     }
 
     public var objectCount: Int { pages.reduce(0) { $0 + $1.objects.count } }
 
     public var json: JSONValue {
-        .object([
+        var o: [String: JSONValue] = [
             "format": .string(SolutionContent.format), "formatVersion": .number(Double(SolutionContent.formatVersion)),
             "solutionId": .string(solutionID), "createdAt": .string(createdAt), "title": .string(title),
             "displayName": .string(displayName),
@@ -367,7 +374,9 @@ public struct SolutionContent: Equatable, Sendable {
             "pages": .array(pages.map(\.json)),
             "images": .object(images.mapValues { .object(["mime": .string($0.mime), "data": .string($0.data.base64EncodedString())]) }),
             "missingImages": .array(missingImages.map { .string($0) }),
-        ])
+        ]
+        if let versionPages { o["versionPages"] = .array(versionPages.map { .string($0) }) }
+        return .object(o)
     }
 
     /// Liest und prueft den Inhalt vollstaendig (Typen, Zahlen, Grenzen, keine PDF-Daten).
@@ -425,8 +434,17 @@ public struct SolutionContent: Equatable, Sendable {
         // Bildquellen sind Verweise: streng pruefen
         try SolutionValidator.checkNoPDF(.array(missing.map { .string($0) }), field: "src")
         try SolutionValidator.checkNoPDF(.array(images.keys.map { .string($0) }), field: "src")
+        // Seitenkennzeichen (optional): genau eines je PDF-Seite, jedes leer oder `SolutionVersions.pageKey`
+        var versionPages: [String]?
+        if let raw = json["versionPages"] {
+            guard let list = raw.array, list.count == count else { throw SolutionError.invalidContent("Seitenkennzeichen") }
+            versionPages = try list.map { v -> String in
+                guard let s = v.string, SolutionVersions.isPageKey(s) else { throw SolutionError.invalidContent("Seitenkennzeichen") }
+                return s
+            }
+        }
         self.init(solutionID: id.lowercased(), createdAt: created, title: title, displayName: name, fingerprint: fp,
-                  pdfPageCount: count, pages: pages, images: images, missingImages: missing)
+                  pdfPageCount: count, pages: pages, images: images, missingImages: missing, versionPages: versionPages)
     }
 }
 

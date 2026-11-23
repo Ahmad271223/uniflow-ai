@@ -53,32 +53,35 @@ def info(request: Request):
 
 @router.post("/solutions", status_code=201)
 def publish(request: Request, body: dict = Body(...)):
-    """Paket veroeffentlichen: {package: <uniflow-solution>, title?}; nur fuer PDFs aus dem eigenen Abgleich, Tarif Plus,
+    """Paket veroeffentlichen: {package: <uniflow-solution>, title?, community_key, family?}; nur fuer PDFs aus dem eigenen Abgleich, Tarif Plus,
     bestaetigte E-Mail-Adresse (Schutz gegen Wegwerf-Konten, 28.10.2026)."""
     u = _user(request)
     if not u.get("email_verified"):
         raise HTTPException(403, {"detail": "Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Willkommensmail, "
                                             "neu anfordern unter Konto).", "code": "email_unverified"})
-    return _run(community.publish, u, config.university(), body.get("package"), body.get("title"), body.get("community_key"))
+    return _run(community.publish, u, config.university(), body.get("package"), body.get("title"), body.get("community_key"),
+                body.get("family"))
 
 
 @router.put("/solutions/{solution_id}")
 def update(request: Request, solution_id: str, body: dict = Body(...)):
-    """Paket der eigenen Loesung ersetzen: {package, title?, community_key?}. Nur der Autor; Kopf-ID, Fingerabdruck und
-    Community bleiben gleich. Der Client hat die Seiten vorher zusammengefuehrt (Antwort auf 409 `already_published`)."""
+    """Paket der eigenen Loesung ersetzen: {package, title?, community_key?, family?}. Nur der Autor; Kopf-ID, Fingerabdruck und
+    Community bleiben gleich, eine fehlende Datei-Familie kommt dazu. Der Client hat die Seiten vorher zusammengefuehrt (Antwort auf 409 `already_published`)."""
     u = _user(request)
     if not u.get("email_verified"):
         raise HTTPException(403, {"detail": "Bitte bestätige zuerst deine E-Mail-Adresse (Link in der Willkommensmail, "
                                             "neu anfordern unter Konto).", "code": "email_unverified"})
-    return _run(community.update, u, config.university(), solution_id, body.get("package"), body.get("title"), body.get("community_key"))
+    return _run(community.update, u, config.university(), solution_id, body.get("package"), body.get("title"), body.get("community_key"),
+                body.get("family"))
 
 
 @router.get("/solutions")
-def find(request: Request, fingerprint: str = "", limit: int = 200, offset: int = 0):
+def find(request: Request, fingerprint: str = "", family: str = "", limit: int = 200, offset: int = 0):
     """Loesungen zu einer PDF (Fingerabdruck = SHA-256 der Originaldatei), ohne gesperrte Autoren, meistgelikte
-    zuerst; seitenweise mit `limit` (hoechstens 200) und `offset`, `total` = alle."""
+    zuerst; seitenweise mit `limit` (hoechstens 200) und `offset`, `total` = alle. Mit `family` (Datei-Familie,
+    23.11.2026) auch Loesungen zu anderen Fassungen derselben Datei; je Eintrag `family` und `fingerprint`."""
     u = _user(request)
-    rows = _run(community.find, u, config.university(), fingerprint.lower())
+    rows = _run(community.find, u, config.university(), fingerprint.lower(), family.lower() or None)
     limit, offset = max(1, min(int(limit), 200)), max(0, int(offset))
     return {"solutions": rows[offset:offset + limit], "total": len(rows)}
 

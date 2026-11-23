@@ -222,9 +222,11 @@ extension SolutionSource {
         for p in parts { more.merge(p.images) { mine, _ in mine } }
         let sendable = SendableImages(more)
         let embedded = await Task.detached(priority: .userInitiated) { SolutionSharing.embed(sendable.images) }.value
-        return SolutionSource(document: SideNotes.interleaved(main: document, sheets: parts.map(\.sheet)),
-                              originalPDF: originalPDF, pdfPageCount: pdfPageCount, pageInfos: pageInfos,
-                              fingerprint: fingerprint, images: images.merging(embedded) { mine, _ in mine }, title: title)
+        var s = SolutionSource(document: SideNotes.interleaved(main: document, sheets: parts.map(\.sheet)),
+                               originalPDF: originalPDF, pdfPageCount: pdfPageCount, pageInfos: pageInfos,
+                               fingerprint: fingerprint, images: images.merging(embedded) { mine, _ in mine }, title: title)
+        s.pageKeys = pageKeys
+        return s
     }
 }
 

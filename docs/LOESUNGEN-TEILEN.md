@@ -723,3 +723,74 @@ immer ganze Lösung mit Dokument“.
   auf ihrem Papier. Die Personen-Ansicht zeigte bis dahin immer Striche auf Weiß.
 - Menü „Ebenen“: „Vorschau ohne Original“ für fremde Lösungen entfällt. Die Vorschau im Dialog „Lösung teilen“ (eigene
   Notizen des Absenders) bleibt.
+
+## Nachtrag 23.11.2026: Lösungen für alle Fassungen einer PDF (Datei-Familie)
+
+Freigabe des Inhabers 23.11.2026 („Ja, so bauen“): Lädt eine Lehrperson eine geänderte PDF hoch, passt der
+Fingerabdruck (`document.sha256`) nicht mehr. Lösungen zur alten Fassung sollen trotzdem gefunden werden und umgekehrt.
+Zweig `community/fassungen`. Was in Abschnitt 7, Punkt 5 („Zuordnung weiter nur über den Datei-Hash“) steht, gilt
+für die CloudKit-Variante weiter, für den StudiNow-Dienst nicht mehr.
+
+**Kennung „Datei-Familie“** (`CommunityKeys.familyKey`, Kern): HMAC-SHA256 mit dem Schlüsselmaterial des Kurses
+(`CommunityKeys.secret(university:courseID:)`) über `uniflow.community.family.v1 \0 <Hochschule> \0 <Datei-ID>`, 64
+Hexziffern. Datei-ID = die Kennung, an der die App selbst eine neue Fassung erkennt (`FileVersionKeeper`, S7):
+- LUH (Stud.IP): ID der Datei-Referenz (`file-refs/<id>`); sie bleibt bei „Datei aktualisieren“ gleich und ist für
+  alle Teilnehmenden dieselbe.
+- Hildesheim und HsH (Moodle/Learnweb): `Learnweb.fileID` = `lw-<Kursmodul>-<SHA-256(Pfad+Name), 8 Zeichen>`; bleibt
+  beim Ersetzen der Datei mit gleichem Namen gleich (Revision steigt). Ein neuer Dateiname oder ein gelöschter und neu
+  angelegter Upload ist für die App eine neue Datei – dann auch eine neue Familie.
+- Warum mit dem Kurs-Geheimnis und nicht mit `courseKey`: den Kurs-Schlüssel kennt der Dienst (Meldungen der Kurse);
+  damit könnte er Moodle-Kennungen (fortlaufende Kursmodul-Nummer + Dateiname) durch Raten prüfen. Das Geheimnis
+  entsteht nur aus der Kurs-ID auf dem Gerät. Der Dienst sieht weder Kurs-ID noch Datei-ID („nie … Kurs-ID“ bleibt
+  wahr). Eigene Dokumente, Kopien („Duplizieren“, eigene Datei-ID) und aufbewahrte alte Fassungen haben keine Familie.
+
+**Seitenkennzeichen** (`SolutionVersions.pageKey`, `SolutionContent.versionPages`): je Seite der PDF des Absenders 16
+Byte SHA-256 des Seitentexts (Wörter wie `PageMatch.words`: Ziffern als „#“, Leerraum zusammengefasst), als 32
+Buchstaben a–p, "" ohne Text. Sie stehen nur im **verschlüsselten Inhalt**, nie im Kopf, nie beim Dienst im Klartext.
+Der Empfänger bildet dieselben Kennzeichen aus seiner PDF (eigene PDFKit-Instanz, abseits des Hauptthreads) und
+ordnet mit `PageMatch` zu: gleich geblieben = Art `gleich` oder `wiederholt` und gleiche CropBox. Seiten ohne Text
+(Scans) gelten nie als gleich.
+
+**Anzeige einer Lösung zu einer anderen Fassung** (Spalte daneben `SolutionSideController`, Leser `CommunityReaderPage`,
+Personen-Ansicht `CommunityPersonPane`; Lage `SolutionVersions.Placement`):
+- gleich geblieben → 1:1 auf der eigenen PDF-Seite an ihrer Stelle in der eigenen Fassung (auch verschoben);
+- geändert, alte Fassung liegt auf dem Gerät (`file_versions.content_sha256` = Fingerabdruck der Lösung) → auf der
+  Seite der aufbewahrten Fassung, so wie geschrieben;
+- sonst steht an der Stelle nur „Diese Seite hat sich in deiner Fassung geändert“ (`SolutionVersions.pageChanged`),
+  keine Striche, keine fremde Folie darunter. Eigene Blätter des Absenders stehen wie bisher auf ihrem Papier.
+- Unterzeile der Spalte: „PDF-Seite 2 · in deiner Fassung geändert · 2 von 3“ bzw. „… · auf der alten Fassung …“,
+  „… · in deiner Fassung Seite 3 …“. In der Trefferliste: „zu einer anderen Fassung dieser PDF“.
+- Ablage: eine Lösung zu einer anderen Fassung lässt sich nicht an die eigene PDF binden (anderer Fingerabdruck). Sie
+  bleibt wie geladen mit dem Community-Schlüssel versiegelt, unter ihrem Fingerabdruck und mit `family` im Index
+  (`SolutionLibrary.Entry.family`, `entries(family:except:)`); geöffnet wird sie beim Öffnen des Dokuments mit den
+  Schlüsseln der Communities dieses Geräts (Module aus der Datenbank, Lerngruppen; ohne Netz,
+  `CommunityLocalContext`). Ohne Kennzeichen im Paket (älterer Absender) ordnet die aufbewahrte Fassung zu; fehlt
+  auch sie, gilt keine Seite als gleich (alle zeigen den Satz).
+- Über der eigenen Seite (Korrektur-Modus, `byPDFIndex`) liegen nur gleich gebliebene Seiten.
+
+**Dienst** (`app/community.py`, `app/community_api.py`, abwärtskompatibel, nur neue Felder und Parameter):
+- Spalte `solutions.family` (Index `family, status`), NULL bei allen bisherigen Lösungen.
+- `POST /api/community/solutions` und `PUT …/{id}` nehmen `family` an (64 Hex, sonst 400 `family_invalid`); beim
+  Aktualisieren bekommt eine Lösung ohne Familie die Kennung, eine gesetzte bleibt (andere: 400 `solution_mismatch`);
+  ein späterer Aufruf ohne `family` (alter Client) nimmt sie nicht weg.
+- `GET /api/community/solutions?fingerprint=…&family=…` findet Fingerabdruck ODER Familie, mit denselben Filtern
+  (Hochschule, aktiv, Mitgliedschaft der Community, eigene Sperrliste, Bann). Pakete ohne Community gehören nur an
+  ihre PDF (nie über die Familie). Jeder Eintrag trägt `family`.
+- Alte Apps (1.0.6) senden keine Familie und fragen nur nach dem Fingerabdruck: Antworten wie bisher (plus das
+  unbekannte Feld `family`, das sie nicht lesen). Ihre Lösungen werden nur über den Fingerabdruck gefunden. Das
+  Paketformat bleibt Version 2; `versionPages` liegt im verschlüsselten Inhalt, `SolutionContent(json:)` liest nur
+  bekannte Felder (Code in 1.0.6 = f5e21794 identisch), alte Apps öffnen neue Pakete daher unverändert.
+- Eine neue App an einem alten Dienst: `family` wird dort ignoriert, gefunden wird nur über den Fingerabdruck.
+
+**Nicht umgesetzt (begründet):** CloudKit-Variante ohne Familie – dafür bräuchte der Datensatz `Solution` ein neues
+Feld mit QUERYABLE-Index, das der Inhaber im CloudKit Dashboard nach Production deployen müsste; `findMatching(
+fingerprint:family:)` fällt dort auf den Fingerabdruck zurück. Web und Windows (`app/static/*.js`) senden noch keine
+Familie und keine Seitenkennzeichen; ihre Lösungen bleiben an den Fingerabdruck gebunden. Korrekturvorschläge zu
+Lösungen einer anderen Fassung brauchen weiter dieselbe PDF.
+
+**Tests:** Dienst `tests/test_community_fassungen.py` (Fassung 1 über Familie mit Fassung 2 gefunden, alte Clients,
+Aktualisieren setzt Familie, Filter, ungültige Kennung); Kern `SolutionVersionsTests` (fester HMAC-Testvektor, auch
+mit Python nachgerechnet; Zuordnung gleich/geändert/neu/verschoben; Paket hin und zurück; Merge; Ablage; Dienst-Client);
+App `SolutionVersionsAppTests` (erfundene PDFs: Lösung zu Fassung 1 im Dokument mit Fassung 2 geladen, Seite 1 auf der
+eigenen Seite mit dem Strich, Seite 2 nur der Satz ohne Striche, mit aufbewahrter Fassung die alte Seite mit dem
+Strich, dieselbe PDF wie bisher, Leser, Teilen trägt die Kennzeichen).

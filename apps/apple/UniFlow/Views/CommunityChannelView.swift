@@ -935,6 +935,8 @@ struct CommunityPersonPane: View {
     @State private var images: [String: UIImage] = [:]
     /// eigene Kopie derselben PDF: Hintergrund der Seiten (ohne sie keine PDF-Seiten, nie nur Striche, 23.11.2026)
     @State private var ownPDF: OffscreenPDF?
+    /// Lage der Seiten bei einer Loesung zu einer anderen Fassung derselben Datei (23.11.2026)
+    @State private var version = SolutionVersionView()
     @State private var failure: String?
     @State private var comments: [CommunityComment] = []
     @State private var liked = false
@@ -993,13 +995,15 @@ struct CommunityPersonPane: View {
                         if let content {
                             if ownPDF == nil, SolutionPaper.hasPDFPages(content.pages) {
                                 Text(CommunityTexts.noPDFNotice).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                            } else if version.isOtherVersion {
+                                Text(CommunityTexts.otherVersionNotice).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                             }
                             ForEach(Array(content.pages.enumerated()), id: \.element.key) { i, page in
                                 CommunityReaderPage(page: page, images: images, source: ownPDF, marks: marks(page), tapped: discussion ? { anchor in
                                     resetComposer()
                                     spot = (page.key, anchor)
                                     tab = .discussion
-                                } : nil, title: SolutionPaper.title(content.pages, at: i))
+                                } : nil, title: SolutionPaper.title(content.pages, at: i), placement: version.placement(page), old: version.old)
                             }
                         } else if failure == nil { CommunityLoading(text: "Notizen werden geladen …") }
                     } else {
@@ -1261,7 +1265,10 @@ struct CommunityPersonPane: View {
         do {
             let c = try await SolutionSharing.loadCommunity(solution.solutionID, service: service)
             images = c.images.compactMapValues { UIImage(data: $0.data) }
-            if let host = ActiveContainer.current?.host { ownPDF = await CommunityCourses.ownPDF(for: c, host: host) }
+            if let container = CommunityLocalContext.current {
+                version = await CommunityCourses.view(for: c, family: solution.family, host: container.host, university: container.university)
+                ownPDF = version.own
+            }
             content = c
         } catch { failure = CommunityTexts.message(error) }
     }
