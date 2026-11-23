@@ -36,11 +36,13 @@ struct FormelblattCard: View {
     @State private var shop = false
 
     var body: some View {
-        Group {
-            if !items.isEmpty {
-                VStack(spacing: 0) {
-                    ForEach(Row.rows(items, key: "id")) { row in card(row.value) }
-                }
+        // VStack statt Group (22.11.2026, am iPad gesehen): an einer leeren Group laufen .task und .alert nie, das
+        // Angebot wurde also nie geladen und die Karte blieb unsichtbar. Der leere VStack ist 0 pt hoch.
+        VStack(spacing: 0) {
+            if items.isEmpty {
+                Color.clear.frame(height: 0).accessibilityHidden(true)
+            } else {
+                ForEach(Row.rows(items, key: "id")) { row in card(row.value) }
             }
         }
         .task(id: "\(moduleID)|\(router.reloadToken)") { await load() }
@@ -97,10 +99,14 @@ struct FormelblattCard: View {
     }
 
     private func load() async {
-        guard let api = session.api, api.isLocal,
-              let v = try? await api.value("/api/modules/\(moduleID)/formelblatt") else { return }
-        let list = v.list("items")
-        if list != items { items = list }
+        guard let api = session.api, api.isLocal else { return }
+        do {
+            let list = try await api.value("/api/modules/\(moduleID)/formelblatt").list("items")
+            StiftSpur.log("Formelblatt: Modul \(moduleID), Angebote \(list.count)")
+            if list != items { items = list }
+        } catch {
+            StiftSpur.log("Formelblatt: Modul \(moduleID), Fehler \(error.localizedDescription)")
+        }
     }
 
     private func get(_ it: JSONValue) async {
