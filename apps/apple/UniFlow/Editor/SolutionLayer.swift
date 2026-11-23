@@ -19,11 +19,25 @@ struct ForeignSolutionLayer: Identifiable {
     let pages: [SolutionPage]
     let images: [String: UIImage]
     let missingImages: Int
+    /// Loesung zu einer anderen Fassung derselben PDF (23.11.2026, `SolutionVersions`): Lage jeder PDF-Seite beim
+    /// Betrachter (eigene Seite, Seite der aufbewahrten Fassung oder "geaendert"); leer = dieselbe PDF, jede Seite auf
+    /// ihrer eigenen
+    var placements: [String: SolutionVersions.Placement] = [:]
+    /// aufbewahrte Fassung des Absenders auf dem Geraet (Seiten `.oldVersion`)
+    var oldVersionURL: URL?
+    /// gehoert zu einer anderen Fassung (Fingerabdruck anders als die eigene PDF)
+    var otherVersion = false
 
-    /// PDF-Seite (1-basiert) -> geteilte Seite
+    /// Lage einer geteilten PDF-Seite beim Betrachter (nil fuer eigene Blaetter des Absenders)
+    func placement(_ p: SolutionPage) -> SolutionVersions.Placement? {
+        guard p.kind == .pdf, let i = p.pdfIndex else { return nil }
+        return placements.isEmpty ? .own(i) : placements[p.key] ?? .changed
+    }
+
+    /// Eigene PDF-Seite (1-basiert) -> geteilte Seite; bei einer anderen Fassung nur die gleich gebliebenen Seiten
     var byPDFIndex: [Int: SolutionPage] {
         var out: [Int: SolutionPage] = [:]
-        for p in pages { if let i = p.pdfIndex { out[i] = p } }
+        for p in pages { if case .own(let j)? = placement(p) { out[j] = p } }
         return out
     }
 

@@ -25,6 +25,8 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
     let pdfView = PDFView()
     /// eigene Instanz der Original-PDF; die Seiten der Spalte sind Kopien daraus und brauchen sie, solange sie leben
     private var source: PDFDocument?
+    /// eigene Instanz der aufbewahrten Fassung des Absenders (Loesung zu einer anderen Fassung, `layer.oldVersionURL`)
+    private var oldSource: PDFDocument?
     /// Overlays der Seiten, die PDFKit gerade zeigt (Index in `pdfView.document` = Index in `layer.pages`)
     private(set) var overlays: [Int: PageInkView] = [:]
     private var observers: [NSObjectProtocol] = []
@@ -52,16 +54,26 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
     // MARK: Seiten
 
     /// Anzeige-PDF der Spalte: je geteilte Seite eine Seite in der Reihenfolge des Absenders
-    static func document(for layer: ForeignSolutionLayer, pdf: PDFDocument?) -> PDFDocument {
+    static func document(for layer: ForeignSolutionLayer, pdf: PDFDocument?, old: PDFDocument? = nil) -> PDFDocument {
         let doc = PDFDocument()
-        for (i, p) in layer.pages.enumerated() { doc.insert(page(p, pdf: pdf), at: i) }
+        for (i, p) in layer.pages.enumerated() { doc.insert(page(p, pdf: pdf, old: old, placement: layer.placement(p)), at: i) }
         return doc
     }
 
     /// Eine geteilte Seite so, wie der Absender sie sah: PDF-Seite (Kopie aus der eigenen Instanz) bzw. leeres Blatt in
     /// seiner Groesse, jeweils mit der Drehung des Absenders (`/Rotate` + eigene Drehung; in ihr stehen die Objekte).
-    static func page(_ p: SolutionPage, pdf: PDFDocument?) -> PDFPage {
-        if p.kind == .pdf, let i = p.pdfIndex, i >= 1, let src = pdf?.page(at: i - 1), let copy = src.copy() as? PDFPage {
+    /// Loesung zu einer anderen Fassung (`placement`): gleich gebliebene Seite = die eigene Seite an ihrer Stelle in der
+    /// eigenen Fassung, geaenderte = die Seite der aufbewahrten Fassung des Absenders (`old`); ohne sie ein leeres Blatt,
+    /// auf dem nur `SolutionVersions.pageChanged` steht (`overlay`), nie die Striche.
+    static func page(_ p: SolutionPage, pdf: PDFDocument?, old: PDFDocument? = nil, placement: SolutionVersions.Placement? = nil) -> PDFPage {
+        let target: (doc: PDFDocument?, index: Int?)
+        switch placement {
+        case .own(let j)?: target = (pdf, j)
+        case .oldVersion(let i)?: target = (old, i)
+        case .changed?: target = (nil, nil)
+        case nil: target = (pdf, p.pdfIndex)
+        }
+        if p.kind == .pdf, let i = target.index, i >= 1, let src = target.doc?.page(at: i - 1), let copy = src.copy() as? PDFPage {
             copy.rotation = p.rotation
             return copy
         }
@@ -83,6 +95,17 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
         o.canvas.isUserInteractionEnabled = false
         o.canvas.drawingGestureRecognizer.isEnabled = false
         o.canvas.removeFromSuperview()                     // eigene Notizen gibt es hier nicht
+        if layer.placement(p) == .changed {
+            // Seite in der eigenen Fassung geaendert, die alte liegt nicht auf dem Geraet: nur der Satz, nie die Striche
+            o.objectsView.isHidden = true
+            let notice = changedNotice()
+            o.addSubview(notice)
+            NSLayoutConstraint.activate([
+                notice.leadingAnchor.constraint(equalTo: o.leadingAnchor), notice.trailingAnchor.constraint(equalTo: o.trailingAnchor),
+                notice.topAnchor.constraint(equalTo: o.topAnchor), notice.bottomAnchor.constraint(equalTo: o.bottomAnchor),
+            ])
+            return o
+        }
         if p.kind == .blank {
             o.objectsView.show(template: p.template, placeholder: nil, objects: [], images: [:])
             o.content.sendSubviewToBack(o.objectsView)     // Papier unter der Loesung
@@ -93,6 +116,31 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
                                        label: layer.label)
         o.setForeign([foreign])
         return o
+    }
+
+    /// Hinweis an der Stelle einer Seite, die sich in der eigenen Fassung geaendert hat
+    static func changedNotice() -> UIView {
+        let box = UIView()
+        box.translatesAutoresizingMaskIntoConstraints = false
+        box.backgroundColor = .secondarySystemBackground
+        box.isUserInteractionEnabled = false
+        let label = UILabel()
+        label.text = SolutionVersions.pageChanged
+        label.numberOfLines = 0
+        label.textAlignment = .center
+        label.font = .preferredFont(forTextStyle: .title3)
+        label.textColor = .secondaryLabel
+        label.translatesAutoresizingMaskIntoConstraints = false
+        box.addSubview(label)
+        NSLayoutConstraint.activate([
+            label.centerYAnchor.constraint(equalTo: box.centerYAnchor),
+            label.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 24),
+            label.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -24),
+        ])
+        box.accessibilityIdentifier = "solution.side.changed"
+        box.isAccessibilityElement = true
+        box.accessibilityLabel = SolutionVersions.pageChanged
+        return box
     }
 
     // MARK: Aufbau
@@ -118,7 +166,8 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
         pdfView.pageOverlayViewProvider = self             // vor dem Setzen des Dokuments
         pdfView.accessibilityIdentifier = "solution.side.pdf"
         source = pdfURL.flatMap { PDFDocument(url: $0) }
-        pdfView.document = Self.document(for: layer, pdf: source)
+        oldSource = layer.oldVersionURL.flatMap { PDFDocument(url: $0) }
+        pdfView.document = Self.document(for: layer, pdf: source, old: oldSource)
 
         doubleTap.numberOfTapsRequired = 2
         doubleTap.delegate = self

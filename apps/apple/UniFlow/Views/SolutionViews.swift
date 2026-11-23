@@ -58,6 +58,8 @@ struct SolutionShareSheet: View {
     @State private var spaceKey = ""
     @State private var courseKey: String?
     @State private var week = 0
+    /// Datei-Familie der PDF (`CommunityKeys.familyKey`), geht beim Veroeffentlichen mit
+    @State private var family: String?
     @State private var confirmingPublish = false
     @State private var publishing = false
     @State private var published: CommunityPublication?
@@ -366,6 +368,8 @@ struct SolutionShareSheet: View {
             courseKey = key
             week = await CommunityCourses.week(fileID: store.file.id, moduleID: store.file.module_id, api: api)
         }
+        // Datei-Familie (gleich fuer alle Fassungen dieser Datei, 23.11.2026); nil fuer eigene Dokumente
+        family = await store.communityFamily()
         spaceKey = spaces.first { $0.key == courseKey }?.key ?? spaces.first?.key ?? ""
         do {
             var s = try await store.solutionSource(loadImage: ShareExport.serverImageLoader(api))
@@ -409,7 +413,7 @@ struct SolutionShareSheet: View {
     private func publishOptions(_ space: CommunitySpace, title: String) -> CommunityPublishOptions {
         let group = space.kind == .group
         return CommunityPublishOptions(visibility: group ? .studyGroup : .module, courseKey: space.key, groupKey: group ? space.key : nil,
-                                       title: title, week: week, communityKey: space.key)
+                                       title: title, week: week, communityKey: space.key, family: family)
     }
 
     /// Inhalt und Siegel wie beim Teilen als Datei, dann zum Dienst (Kopie unter "Meine geteilten Lösungen"). Gibt es
@@ -839,7 +843,7 @@ struct SolutionSidePane: View {
             SolutionSideViewer(layer: layer, pdfURL: source.url) { page = $0 }
                 .overlay(alignment: .bottom) {
                     if !layer.pages.isEmpty {
-                        Text("\(SolutionPaper.title(layer.pages, at: min(page, layer.pages.count - 1))) · \(min(page, layer.pages.count - 1) + 1) von \(layer.pages.count)")
+                        Text(Self.caption(layer, at: min(page, layer.pages.count - 1)))
                             .ufFont(11.84, lh: 1.3).foregroundStyle(UF.muted).lineLimit(1)
                             .padding(.horizontal, 10).padding(.vertical, 4)
                             .background(.regularMaterial, in: Capsule())
@@ -850,5 +854,24 @@ struct SolutionSidePane: View {
                 }
         }
         .background(UF.surface2)
+    }
+
+    /// "PDF-Seite 4 · 2 von 5"; bei einer Loesung zu einer anderen Fassung dazu, wo die Seite steht
+    static func caption(_ layer: ForeignSolutionLayer, at i: Int) -> String {
+        guard layer.pages.indices.contains(i) else { return "" }
+        let base = SolutionPaper.title(layer.pages, at: i)
+        let note = versionNote(layer, layer.pages[i]).map { " · " + $0 } ?? ""
+        return "\(base)\(note) · \(i + 1) von \(layer.pages.count)"
+    }
+
+    /// Wo eine Seite einer Loesung zu einer anderen Fassung steht (nil bei derselben PDF und eigenen Blaettern)
+    static func versionNote(_ layer: ForeignSolutionLayer, _ p: SolutionPage) -> String? {
+        guard layer.otherVersion else { return nil }
+        switch layer.placement(p) {
+        case .own(let j)?: return j == p.pdfIndex ? "gleich in deiner Fassung" : "in deiner Fassung Seite \(j)"
+        case .oldVersion?: return "auf der alten Fassung"
+        case .changed?: return "in deiner Fassung geändert"
+        case nil: return nil
+        }
     }
 }

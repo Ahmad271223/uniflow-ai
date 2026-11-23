@@ -24,6 +24,10 @@ struct SolutionSource: Sendable {
     /// eigene Bilder nach `src`, eingebettet (zu grosse verkleinert)
     let images: [String: SolutionImage]
     let title: String
+    /// Kennzeichen des Seitentexts jeder PDF-Seite (`SolutionVersions.pageKey`); gehen verschluesselt mit
+    /// (`SolutionContent.versionPages`), damit Empfaenger mit einer anderen Fassung die gleichen Seiten finden. nil =
+    /// nicht gelesen (dann fehlt das Feld wie bei aelteren Apps).
+    var pageKeys: [String]?
 
     init(document: AnnotationDocument, originalPDF: Data, pdfPageCount: Int, pageInfos: [Int: SolutionBuilder.PDFPageInfo],
          fingerprint: String, images: [String: SolutionImage], title: String) {
@@ -38,9 +42,11 @@ struct SolutionSource: Sendable {
 
     /// Mit den Seiten des Notizblatts daneben (`SolutionBuilder.appendingNotebook`); Bilder beider zusammen
     func appendingNotebook(_ notebook: AnnotationDocument, images more: [String: SolutionImage]) -> SolutionSource {
-        SolutionSource(document: SolutionBuilder.appendingNotebook(document, notebook: notebook), originalPDF: originalPDF,
-                       pdfPageCount: pdfPageCount, pageInfos: pageInfos, fingerprint: fingerprint,
-                       images: images.merging(more) { mine, _ in mine }, title: title)
+        var s = SolutionSource(document: SolutionBuilder.appendingNotebook(document, notebook: notebook), originalPDF: originalPDF,
+                               pdfPageCount: pdfPageCount, pageInfos: pageInfos, fingerprint: fingerprint,
+                               images: images.merging(more) { mine, _ in mine }, title: title)
+        s.pageKeys = pageKeys
+        return s
     }
 
     /// Aus einer geladenen PDF und eigenen Bildern (Tests und einfache Aufrufer; bettet sofort ein).
@@ -213,10 +219,12 @@ enum SolutionSharing {
             SolutionBuilder.pageProblems(source.document, keys: [slide], pdfPageCount: source.pdfPageCount, pdfPage: { infos[$0] }).isEmpty
         }
         let srcs = Set(SolutionBuilder.imageSources(source.document, keys: keys))
-        return try SolutionBuilder.build(document: source.document, selectedKeys: keys, pdfPageCount: source.pdfPageCount,
-                                         pdfPage: { infos[$0] }, images: source.images.filter { srcs.contains($0.key) },
-                                         fingerprint: source.fingerprint, title: source.title, displayName: displayName,
-                                         solutionID: solutionID, createdAt: createdAt, requireOwnNotes: requireOwnNotes)
+        var built = try SolutionBuilder.build(document: source.document, selectedKeys: keys, pdfPageCount: source.pdfPageCount,
+                                              pdfPage: { infos[$0] }, images: source.images.filter { srcs.contains($0.key) },
+                                              fingerprint: source.fingerprint, title: source.title, displayName: displayName,
+                                              solutionID: solutionID, createdAt: createdAt, requireOwnNotes: requireOwnNotes)
+        if let k = source.pageKeys, k.count == source.pdfPageCount { built.versionPages = k }
+        return built
     }
 
     /// Aeltere v2-Staende haben Striche ohne Objekt (`strokeIds` []): sie stehen nur in der nativen Zeichnung, die
@@ -300,7 +308,8 @@ enum SolutionSharing {
     /// laeuft daher abseits des Hauptthreads.
     static func openAll(library: SolutionLibrary, originalPDF: Data, fingerprint: String,
                         cipher: SolutionCipher) -> [(entry: SolutionLibrary.Entry, result: Result<SolutionContent, Error>)] {
-        library.entries(fingerprint: fingerprint).map { entry in
+        // Loesungen anderer Fassungen (mit Familie, Community-Schluessel) oeffnet `DocumentStore.otherVersionLayers`
+        library.entries(fingerprint: fingerprint).filter { $0.family == nil }.map { entry in
             (entry, Result { try library.package(entry.solutionID).open(originalPDF: originalPDF, cipher: cipher) })
         }
     }
@@ -443,9 +452,12 @@ extension DocumentStore {
         let loaded = await ShareExport.completeImages(images, sources: SolutionBuilder.imageSources(doc, keys: keys), load: loadImage)
         let own = loaded.images
         let embedded = await Task.detached(priority: .userInitiated) { SolutionSharing.embed(own) }.value
-        return SolutionSource(document: doc, originalPDF: data, pdfPageCount: pdf.pageCount,
-                              pageInfos: SolutionSharing.pageInfos(pdf), fingerprint: fp, images: embedded,
-                              title: ShareExport.cleanTitle(file.displayTitle))
+        var source = SolutionSource(document: doc, originalPDF: data, pdfPageCount: pdf.pageCount,
+                                    pageInfos: SolutionSharing.pageInfos(pdf), fingerprint: fp, images: embedded,
+                                    title: ShareExport.cleanTitle(file.displayTitle))
+        // Seitenkennzeichen aus einer eigenen Instanz der Datei (abseits des Hauptthreads), nur bei gleicher Seitenzahl
+        if let facts = await SolutionPDFFacts.read(originalPDFURL), facts.pageCount == pdf.pageCount { source.pageKeys = facts.keys }
+        return source
     }
 
     /// Notizblatt daneben (Notizbuch der geteilten Ansicht) fuer `SolutionSource.appendingNotebook`: Seiten und
@@ -469,7 +481,12 @@ extension DocumentStore {
         let opened = await Task.detached(priority: .userInitiated) {
             SolutionSharing.openAll(library: library, originalPDF: data, fingerprint: fp, cipher: cipher)
         }.value
-        return SolutionSharing.layers(opened, pdf: pdf)
+        var out = SolutionSharing.layers(opened, pdf: pdf)
+        // dazu Loesungen zu anderen Fassungen derselben Datei (23.11.2026)
+        let others = await otherVersionLayers(library: library, pdf: pdf, fingerprint: fp)
+        out.layers += others.layers
+        out.problems += others.problems
+        return out
     }
 
     /// "Lösung importieren …" in diesem Dokument (siehe `SolutionSharing.importChecked`).
