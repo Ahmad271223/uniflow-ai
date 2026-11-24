@@ -309,6 +309,20 @@ struct UFNavItem: Identifiable {
         UFNavItem(id: "community", title: "Community", icon: "users", route: .community),
     ]
 
+    /// iPhone-Kopfzeile (Feinschliff 23.11.2026, Vergleich mit StudGo): auf Unterseiten (Modul, Ordner, Test,
+    /// Einstellungs-Gruppe …) der Name des Bereichs, damit nach dem Scrollen klar bleibt, wo man ist. Auf der Startseite
+    /// eines Bereichs nil: dort steht dieselbe Ueberschrift gross darunter, oben bleibt Logo und "StudiNow".
+    static func compactTitle(for route: UFRoute) -> String? {
+        if route == .dashboard || (areas + [messages, uniMail, cards]).contains(where: { $0.route == route }) { return nil }
+        switch route {
+        case .dashboard, .cards: return nil
+        case .settings(let tab): return tab == nil ? nil : "Einstellungen"
+        default:                                    // z. B. Modul -> "Meine Module", Bescheinigungen -> "Uni & Noten"
+            let key = route.navKey
+            return (areas + [messages, uniMail]).first { $0.id == key }?.title
+        }
+    }
+
     /// Stud.IP-Nachrichten (04.11.2026): direkt nach "Übersicht", nur wenn `visible(messages:)` es erlaubt
     /// (`MessagesInbox.showsNavItem`: iPad mit lokalem Backend und verbundenem Stud.IP oder gespeicherten Nachrichten).
     /// Sprechblase statt Brief: "Uni-Mail" traegt den Brief, eingeklappt standen sonst zwei gleiche Symbole (Inhaber 10.11.2026)
@@ -619,6 +633,7 @@ struct AppShell<Content: View>: View {
                         // Demo-Leiste und alles darunter ueber den rechten Rand (Breiten-Audit 04.11.2026, Einstellungen
                         // im iPad (A16) quer); LayoutWidthAuditTests prueft, dass keine Seite breiter wird
                         content(router.route)
+                            .modifier(UFPullToRefresh(enabled: compact && !docOpen && !hideChrome))
                             .frame(maxWidth: .infinity, maxHeight: .infinity)
                             .frame(width: max(0, geo.size.width - (showsSidebar ? sidebarWidth : 0)), alignment: .leading)
                         if narrow && !hideChrome && !docOpen && !(compact && keyboard.visible) {
@@ -837,7 +852,7 @@ struct UFSidebar: View {
             }
             .buttonStyle(UFPressStyle())
             .help("Zur Übersicht")
-            .accessibilityLabel("StudiNow, zur Übersicht")
+            .accessibilityLabel(UFNavItem.compactTitle(for: router.route).map { "\($0). StudiNow, zur Übersicht" } ?? "StudiNow, zur Übersicht")
             .accessibilityIdentifier("sidebar.home")
 
             ScrollView(showsIndicators: false) {                         // .nav scrollt selbst, Fuss bleibt fest
@@ -1189,7 +1204,12 @@ struct UFMobileNav: View {
                 let isMore = item.id == "more"
                 let active = isMore ? Self.moreActive(router.route, items: more) : router.route.navKey == item.id
                 let badge = isMore ? Self.moreBadge(router.badges, items: more) : router.badge(for: item.id)
-                Button { if isMore { showMore = true } else { router.go(item.route) } } label: {
+                Button {
+                    if isMore { showMore = true }
+                    // offener Reiter erneut angetippt (iPhone, 23.11.2026): an seiner Startseite nach oben, sonst dorthin
+                    else if router.route == item.route { NotificationCenter.default.post(name: .ufScrollToTop, object: nil) }
+                    else { router.go(item.route) }
+                } label: {
                     let layout = flat ? AnyLayout(HStackLayout(spacing: 6)) : AnyLayout(VStackLayout(spacing: compact ? 2.4 : 1.6))
                     layout {
                         UFIcon(item.icon, size: flat ? 19 : (compact ? 22 : 20))
@@ -1203,7 +1223,7 @@ struct UFMobileNav: View {
                     .foregroundStyle(active ? UF.accentText : UF.muted)
                     .padding(4)
                     .frame(maxWidth: .infinity, minHeight: flat ? 36 : (compact ? 48 : 44))
-                    .background(RoundedRectangle(cornerRadius: 6).fill(active ? UF.accentSoft : .clear))
+                    .background(RoundedRectangle(cornerRadius: compact ? 12 : 6).fill(active ? UF.accentSoft : .clear))
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
@@ -1232,6 +1252,8 @@ struct UFMobileNav: View {
         .padding(.bottom, flat ? 2.4 : 4.8)
         .background(UF.surface.ignoresSafeArea(edges: .bottom))
         .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
+        // leichter Tick beim Reiterwechsel wie die Tab-Leiste des Systems (nur iPhone)
+        .sensoryFeedback(.selection, trigger: compact ? router.route.navKey : "")
         .ufPlanSheet($lockSheet)
         .task {
             #if DEBUG
@@ -1413,12 +1435,12 @@ enum UFThemeMode: String {
     var label: String { self == .dark ? "Dunkel" : self == .light ? "Hell" : "wie iPad" }
 }
 
-struct UFHeader: View {
-    /// Sync-Knopf: Abgleich des eigenen Servers, sonst die Hochschule des Containers direkt auf dem iPad (LUH: alle
-    /// Portale - Stud.IP, QIS, Uni-Mail -, mit gespeichertem Uni-Zugang vorher verbunden; Learnweb und LSF, Moodle und
-    /// Campusmanagement; `ContainerManager.startUniversitySync`) oder der Weg zur Anmeldung. Am Ende das Ergebnis
-    /// ("Abgeglichen: Stud.IP und Uni-Mail. QIS: Anmeldung nötig.") in der Leiste.
-    private func sync() {
+/// Abgleich wie der Knopf "Sync" der Kopfzeile: eigener Server, sonst die Hochschule des Containers (ein Lauf fuer
+/// alle Portale, `ContainerManager.startUniversitySync`), in der Demo nur der Hinweis. Auch "Ziehen zum Aktualisieren"
+/// auf der Übersicht am iPhone (`UFPullToRefresh`) nimmt genau diesen Weg.
+@MainActor
+enum UFSyncAction {
+    static func run(session: Session, shell: ShellState, toast: UFToastCenter, containers: ContainerManager, router: UFRouter, demo: Bool) {
         if session.isOwnServer { Task { await shell.startSync(toast: toast) }; return }
         // Demo-Inhalte: kein Abgleich mit der Hochschule, nur der Hinweis auf "Beenden" in der Leiste darunter
         if demo {
@@ -1428,6 +1450,51 @@ struct UFHeader: View {
         let start = containers.startUniversitySync { report in toast.show(report.text, seconds: 5) }
         toast.show(start.text)
         if case .notConnected = start { router.go(.settings(tab: "uni")) }
+    }
+}
+
+/// iPhone (kompakt): jede scrollende Seite laesst sich nach unten ziehen (wie in den Apps des Systems; StudGo-Vergleich
+/// 23.11.2026). Die offene Seite laedt neu (`UFRouter.reload`, wie nach einem Abgleich); auf der Übersicht startet
+/// zusaetzlich der Abgleich wie der Knopf "Sync" (`UFSyncAction`), solange keiner laeuft. iPad und Mac unveraendert.
+struct UFPullToRefresh: ViewModifier {
+    let enabled: Bool
+    @EnvironmentObject private var router: UFRouter
+    @EnvironmentObject private var shell: ShellState
+    @EnvironmentObject private var toast: UFToastCenter
+    @EnvironmentObject private var session: Session
+    @EnvironmentObject private var studip: StudIPSync
+    @EnvironmentObject private var containers: ContainerManager
+    @Environment(\.ufDemoActive) private var demo
+
+    func body(content: Content) -> some View {
+        if enabled {
+            content.refreshable {
+                if router.route == .dashboard, !shell.syncRunning, !studip.isRunning {
+                    UFSyncAction.run(session: session, shell: shell, toast: toast, containers: containers, router: router, demo: demo)
+                }
+                router.reload()
+                try? await Task.sleep(nanoseconds: 600_000_000)          // Kreisel kurz sichtbar, dann laedt die Seite
+            }
+        } else {
+            content
+        }
+    }
+}
+
+extension Notification.Name {
+    /// erneutes Tippen auf den offenen Reiter der unteren Leiste: Seite nach oben (`UFContent`)
+    static let ufScrollToTop = Notification.Name("de.uniflow.scrollToTop")
+    /// zu einer Stelle der offenen Seite springen (`object`: die `.id` als String), z. B. Tag im Stundenplan
+    static let ufScrollToID = Notification.Name("de.uniflow.scrollToID")
+}
+
+struct UFHeader: View {
+    /// Sync-Knopf: Abgleich des eigenen Servers, sonst die Hochschule des Containers direkt auf dem iPad (LUH: alle
+    /// Portale - Stud.IP, QIS, Uni-Mail -, mit gespeichertem Uni-Zugang vorher verbunden; Learnweb und LSF, Moodle und
+    /// Campusmanagement; `ContainerManager.startUniversitySync`) oder der Weg zur Anmeldung. Am Ende das Ergebnis
+    /// ("Abgeglichen: Stud.IP und Uni-Mail. QIS: Anmeldung nötig.") in der Leiste.
+    private func sync() {
+        UFSyncAction.run(session: session, shell: shell, toast: toast, containers: containers, router: router, demo: demo)
     }
 
     let narrow: Bool
@@ -1476,7 +1543,9 @@ struct UFHeader: View {
             Button { router.go(.dashboard) } label: {
                 HStack(spacing: 8) {
                     UFLogoImage(size: 28)                               // neues Logo wie das App-Icon (develop 06.11.2026)
-                    Text("StudiNow").ufFont(16.32, 700).foregroundStyle(UF.text).lineLimit(1)
+                    // Name des offenen Bereichs (23.11.2026), auf der Übersicht "StudiNow"
+                    Text(UFNavItem.compactTitle(for: router.route) ?? "StudiNow").ufFont(16.32, 700).foregroundStyle(UF.text)
+                        .lineLimit(1).minimumScaleFactor(0.85)
                 }
                 .contentShape(Rectangle())
             }

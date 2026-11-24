@@ -220,12 +220,14 @@ struct UFCard<Content: View>: View {
     }
 
     @Environment(\.ufFillsCell) private var fillsCell
+    /// iPhone: Innenabstand 15 statt 17,6/19,2 pt (Feinschliff 23.11.2026, wie Karten des Systems); iPad unveraendert
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) { content.environment(\.ufFillsCell, false) }
             .fixedSize(horizontal: false, vertical: true)                   // natuerliche Hoehe, Text nie gekuerzt
-            .padding(.vertical, (padded ? 17.6 : 0) + ufB)                               // .card: padding + 1px Rand
-            .padding(.horizontal, (padded ? 19.2 : 0) + ufB)
+            .padding(.vertical, (padded ? (compact ? 15 : 17.6) : 0) + ufB)              // .card: padding + 1px Rand
+            .padding(.horizontal, (padded ? (compact ? 15 : 19.2) : 0) + ufB)
             .frame(maxWidth: .infinity, maxHeight: fillsCell ? .infinity : nil, alignment: .topLeading)
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(UF.line, lineWidth: 1))
@@ -765,22 +767,40 @@ struct UFContent<Content: View>: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) { content }
-                .padding(pad)
-                .frame(maxWidth: maxWidth.map(UFDevice.pageWidth) ?? (wide ? .infinity : UFDevice.pageWidth(1480)), alignment: .leading)
-                .frame(maxWidth: .infinity)
+        ScrollViewReader { proxy in
+            ScrollView {
+                // Marke ganz oben: erneutes Tippen auf den offenen Reiter am iPhone fuehrt hierher (23.11.2026)
+                Color.clear.frame(height: 0).id(Self.topID)
+                VStack(alignment: .leading, spacing: 0) { content }
+                    .padding(pad)
+                    .frame(maxWidth: maxWidth.map(UFDevice.pageWidth) ?? (wide ? .infinity : UFDevice.pageWidth(1480)), alignment: .leading)
+                    .frame(maxWidth: .infinity)
+            }
+            .defaultScrollAnchor(UFDebugScroll.anchor)
+            .onReceive(NotificationCenter.default.publisher(for: .ufScrollToTop)) { _ in
+                guard compact else { return }
+                withAnimation(UF.transition) { proxy.scrollTo(Self.topID, anchor: .top) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .ufScrollToID)) { n in
+                guard let id = n.object as? String else { return }
+                withAnimation(UF.transition) { proxy.scrollTo(id, anchor: .top) }
+            }
         }
-        .defaultScrollAnchor(UFDebugScroll.anchor)
         .background(UF.bg)
     }
+
+    static var topID: String { "uf.content.top" }
 }
 
-/// Nur Debug-Builds: -UFScroll bottom zeigt das Seitenende (Bildvergleich ohne Wischgeste)
+/// Nur Debug-Builds: -UFScroll bottom zeigt das Seitenende, -UFScroll center die Mitte (Bildvergleich ohne Wischgeste)
 enum UFDebugScroll {
     static var anchor: UnitPoint? {
         #if DEBUG
-        return UserDefaults.standard.string(forKey: "UFScroll") == "bottom" ? .bottom : nil
+        switch UserDefaults.standard.string(forKey: "UFScroll") {        // bottom: Seitenende, center: Mitte (23.11.2026)
+        case "bottom": return .bottom
+        case "center": return .center
+        default: return nil
+        }
         #else
         return nil
         #endif

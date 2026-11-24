@@ -23,6 +23,8 @@ struct DashboardView: View {
     @Environment(\.openURL) private var openURL
     @Environment(\.ufWindowWidth) private var windowWidth
     @Environment(\.dynamicTypeSize) private var typeSize
+    /// iPhone: Terminzeilen mit Zeitspalte und Farbbalken (`compactEventRow`)
+    @Environment(\.ufCompact) private var compact
     @State private var showGenerate = false
     @State private var suggestion: JSONValue?
     /// Tag, fuer den die Seite gerade steht: nach Mitternacht (NSCalendarDayChanged) laedt sie neu, und Begruessung
@@ -221,6 +223,9 @@ struct DashboardView: View {
                 let e = row.value
                 let attending = e.s("status") == "teilnahme"
                 Button { PlanEnv.make(session, overlay, toast, router).openOccurrence(e, date: e.s("date") ?? UFFmt.todayISO()) } label: {
+                  if compact {
+                    compactEventRow(e, attending: attending)
+                  } else {
                     HStack(spacing: 9.6) {
                         UFDot(color: Color(hex: e.s("color")))
                         Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")").ufFont(13.12, 700).foregroundStyle(UF.text).frame(minWidth: 92, alignment: .leading)
@@ -232,10 +237,43 @@ struct DashboardView: View {
                     .padding(.vertical, 4.8)
                     .ufBorderBottom()
                     .contentShape(Rectangle())
+                  }
                 }
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    /// iPhone (Feinschliff 23.11.2026, nach dem Vergleich mit StudGo): links Beginn fett und Ende klein, dann ein
+    /// 4-pt-Balken in Modulfarbe, rechts Titel bis zwei Zeilen und darunter der Raum. Vorher stand alles in einer
+    /// Zeile, auf 402 pt Breite wurde der Titel nach wenigen Zeichen gekuerzt. Inhalt und Reihenfolge wie bisher.
+    private func compactEventRow(_ e: JSONValue, attending: Bool) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(e.s("start") ?? "").ufFont(14, 700).foregroundStyle(UF.text).monospacedDigit()
+                Text(e.s("end") ?? "").ufFont(12).foregroundStyle(UF.muted).monospacedDigit()
+            }
+            .frame(width: 44, alignment: .leading)
+            RoundedRectangle(cornerRadius: 2).fill(Color(hex: e.s("color"))).frame(width: 4)
+                .opacity(attending ? 1 : 0.4)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(e.s("title") ?? "").ufFont(14, 600).strikethrough(!attending)
+                        .foregroundStyle(attending ? UF.text : UF.muted).lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 11.52).help(UFCancel.helpText(e) ?? mark) }
+                }
+                if let room = e.s("room"), !room.isEmpty {
+                    Text(room).ufFont(12.5).foregroundStyle(UF.muted).lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .padding(.vertical, 8)
+        .ufBorderBottom()
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
     }
 
     /// modules[] aus /api/dashboard ohne abgeschaltete Module, hoechstens fuenf (wie modulesCard in views-home.js)
@@ -383,6 +421,8 @@ private struct UFPageHeadGreet<Actions: View>: View {
     /// Datum und Tageszeile; aufgeraeumt mit dem Link "neu planen" (`DashboardTidy.summary`)
     let sub: Text
     @ViewBuilder var actions: Actions
+    /// iPhone: kleinere Begruessung (Feinschliff 23.11.2026; vorher rund 170 pt vor dem ersten Inhalt), Wortlaut gleich
+    @Environment(\.ufCompact) private var compact
 
     var body: some View {
         ViewThatFits(in: .horizontal) {
@@ -398,8 +438,9 @@ private struct UFPageHeadGreet<Actions: View>: View {
 
     private var titles: some View {
         VStack(alignment: .leading, spacing: 0) {                             // .greet .date: ohne margin-top (anders als .sub)
-            Text(title).ufFont(30.4, 700, em: -0.02).foregroundStyle(UF.text)
-            sub.ufFont(14.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            Text(title).ufFont(compact ? 24 : 30.4, 700, em: -0.02).foregroundStyle(UF.text)
+            sub.ufFont(compact ? 13.5 : 14.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                .padding(.top, compact ? 3 : 0)
         }
     }
 }
