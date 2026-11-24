@@ -3,6 +3,10 @@ import XCTest
 
 /// Formelblatt-Karte (22.11.2026): Texte für Preis, Kauf und Hinweis aufs Abschreiben
 final class FormelblattAppTests: XCTestCase {
+    // In 1.0.7 aus (Entscheidung des Inhabers 24.11.2026); die Tests pruefen die Funktion weiter mit Schalter an
+    override func setUp() { super.setUp(); FormelblattCard.isEnabled = true }
+    override func tearDown() { FormelblattCard.isEnabled = false; super.tearDown() }
+
     func testTexts() {
         XCTAssertEqual(Formelblatt.buyButton(3), "Für 3 Credits kaufen")
         XCTAssertEqual(Formelblatt.facts(pages: 2, credits: 3), "2 Seiten · einmalig 3 Credits")

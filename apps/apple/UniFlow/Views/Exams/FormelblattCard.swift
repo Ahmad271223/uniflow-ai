@@ -23,6 +23,8 @@ enum Formelblatt {
 }
 
 struct FormelblattCard: View {
+    /// Schalter: aus seit 24.11.2026 (Inhaber zu 1.0.7: keine fertige Bibliothek, nichts zu kaufen); Tests schalten ein
+    static var isEnabled = false
     let moduleID: Int
 
     @EnvironmentObject private var session: Session

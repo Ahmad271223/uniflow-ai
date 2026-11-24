@@ -6,6 +6,10 @@ import XCTest
 /// Nachsehen, solange der Dienst noch erstellt. Das Ablegen selbst prueft der Kern (`ExamGeneratorShopTests`).
 @MainActor
 final class ExamShopInboxAppTests: XCTestCase {
+    // In 1.0.7 aus (Entscheidung des Inhabers 24.11.2026); die Tests pruefen die Funktion weiter mit Schalter an
+    override func setUp() { super.setUp(); ExamGenerator.isEnabled = true }
+    override func tearDown() { ExamGenerator.isEnabled = false; super.tearDown() }
+
     private typealias Added = ExamShopInbox.Added
     private typealias Outcome = ExamShopInbox.Outcome
 

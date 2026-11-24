@@ -507,7 +507,7 @@ struct TutorPanel: View {
                         AIMarkdownText(Self.shownText(msg), size: Self.answerSize).accessibilityIdentifier("tutor.answer")
                     }
                     // Antwort aus der StudiNow-Wissensbank (Abzeichen) bzw. nach einer Wiederholung die Ja/Nein-Frage
-                    if let info = msg.wissensbank {
+                    if Wissensbank.shippedInApp, let info = msg.wissensbank {
                         TutorWissensbankLine(info: info, answered: msg.feedback, busy: busy) { better in
                             Task { await sendFeedback(m, better: better) }
                         }

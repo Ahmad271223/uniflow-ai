@@ -81,6 +81,9 @@ public struct AIRelayTask: Sendable, Equatable {
 /// Der Dienst entscheidet alles (Pro AI, LUH, Treffer ueber den Wortlaut, 1 Credit); die App zeigt nur das Abzeichen
 /// und nach einer Wiederholung die Ja/Nein-Frage. Ein alter Dienst liefert die Felder nicht: dann zeigt die App nichts.
 public enum Wissensbank {
+    /// In der App ausgeliefert? Aus seit 24.11.2026 (Inhaber zu 1.0.7: "keine Wissensbibliothek"): die App schickt keine
+    /// Angaben zur Stelle und zeigt kein Abzeichen, auch wenn der Dienst die Wissensbank meldet. Tests schalten ein.
+    nonisolated(unsafe) public static var shippedInApp = false
     public static let badge = "Aus der StudiNow-Wissensbank"
     public static let question = "Gefällt dir diese Antwort besser?"
     public static let thanksYes = "Danke! Wir prüfen die Antwort und nehmen sie vielleicht in die Wissensbank auf."

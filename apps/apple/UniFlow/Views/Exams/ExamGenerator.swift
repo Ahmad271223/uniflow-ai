@@ -9,8 +9,9 @@ import UniFlowCore
 ///
 /// Nicht zu verwechseln mit der "Probeklausur" der Wochentests (`MockExamDialog`): das ist ein Test in der App.
 enum ExamGenerator {
-    /// Schalter fuer die ganze Funktion (aus = nirgends sichtbar)
-    static var isEnabled = true
+    /// Schalter fuer die ganze Funktion (aus = nirgends sichtbar). Aus seit 24.11.2026 (Inhaber zu 1.0.7: "keine
+    /// StudiNow-Klausuren verkaufen"); damit holt auch `ExamShopInbox` nichts ab. Tests schalten ihn selbst ein.
+    static var isEnabled = false
 
     static let title = "Klausur-Generator"
     static let intro = "Die KI liest deine Vorlesungen, Übungen und Altklausuren und erstellt daraus Probeklausuren als PDF, mit Lösungen."

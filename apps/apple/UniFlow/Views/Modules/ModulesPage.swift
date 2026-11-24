@@ -503,7 +503,7 @@ struct ModulePage: View {
             // Klausur-Generator (17.11.2026): Probeklausuren als PDF aus den Unterlagen des Moduls, nur auf dem Geraet
             if session.api?.isLocal == true { ExamGeneratorCard(moduleID: id, moduleName: m.s("name") ?? "") }
             // Formelblatt (22.11.2026): mit Pro AI einmal kaufen, nur wo der Dienst eines zum Modul anbietet
-            if session.api?.isLocal == true { FormelblattCard(moduleID: id) }
+            if FormelblattCard.isEnabled, session.api?.isLocal == true { FormelblattCard(moduleID: id) }
             // Courseware, Wiki und Forum aus Stud.IP: ein zugeklappter Bereich, nur mit Eintraegen (nur lokal)
             if session.api?.isLocal == true && studip.offersStudIP { StudIPTextsCard(moduleID: id) }
             // Lehrende mit E-Mail und Sprechstunde (LUH, 06.11.2026): nur mit Eintraegen, an HsH/Hildesheim nie

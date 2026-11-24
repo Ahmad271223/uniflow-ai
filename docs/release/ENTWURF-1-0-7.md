@@ -6,26 +6,36 @@ Rechtstexte in `DATENSCHUTZ.md` / `NUTZUNGSBEDINGUNGEN.md`, dann Website hochlad
 
 ## Neu in dieser Version (App Store, Deutsch)
 
+Stand 24.11.2026 (Build 47): Entscheidung des Inhabers – in 1.0.7 KEIN Klausur-Generator/Verkauf von Probeklausuren,
+KEINE Wissensbank, KEINE fertigen Erklärungen/Formelblätter (Schalter aus, Code bleibt). Dafür Widgets, iPhone-Stundenplan
+mit Woche, Schutz beim Konto-Löschen, Community- und Schreib-Verbesserungen.
+
 ```text
-NEU: KLAUSUR-GENERATOR (PRO AI)
-Wähle in einem Modul Vorlesungen, Altklausuren und Übungen – StudiNow erstellt daraus bis zu zehn Probeklausuren im Stil deiner echten Klausur, mit ausführlichen Lösungen als PDF. Jede Probeklausur kostet 15 Credits; geht etwas schief, wird nichts berechnet.
+WIDGETS
+„Nächster Termin“ und „Mensa heute“ für Home- und Sperrbildschirm: was gerade läuft, was als Nächstes kommt, und der Speiseplan deiner Mensa – ohne die App zu öffnen.
 
-MENSA MIT FOTOS
-In Hannover siehst du jetzt zu den meisten Gerichten ein Foto vom Studentenwerk – direkt in der Karte und groß in „Alle Angaben“.
+STUNDENPLAN AUF DEM IPHONE: TAGE UND WOCHE
+Schalte zwischen deinen Tagen und der ganzen Woche um. In der Woche steht bei jedem Termin das Fach, gleichzeitige Termine erscheinen übersichtlich zusammen.
 
-KI-HILFE ZUVERLÄSSIGER
-Fragst du gleich nach dem Öffnen, hängt das Dokument jetzt immer an. „Ganzes Dokument“ und Verweise lassen sich auch mit VoiceOver wählen.
+KONTO LÖSCHEN NUR NOCH MIT FACE ID
+Bevor dein Konto gelöscht wird, fragt StudiNow nach Face ID oder deinem Code. Die Daten auf dem Gerät lassen sich danach noch 30 Tage zurückholen.
 
-ABO-WECHSEL
-Wechselst du von Pro AI zu Plus, zeigt StudiNow sofort „ab der nächsten Verlängerung Plus“.
+SCHREIBEN UND NOTIZEN
+Die Schrift bleibt beim Zoomen scharf und haftet am Blatt, das Lasso geht ohne Tastatur, Bilder lassen sich in Notizen einfügen, und die Lösung neben dem Dokument öffnet sich als echte PDF.
 
-Dazu kleinere Verbesserungen und Fehlerbehebungen.
+COMMUNITY
+Lösungen gelten jetzt für alle Fassungen derselben PDF – auch wenn die Datei in Stud.IP neu hochgeladen wurde.
+
+AUSSERDEM
+Mensa mit Fotos (Hannover), fehlende Leistungen selbst eintragen, Prüfungsanmeldungen auf allen Geräten, auf dem iPhone ziehen zum Aktualisieren und klarere Kopfzeilen, zuverlässigere KI-Hilfe.
+
+Dazu viele kleinere Verbesserungen und Fehlerbehebungen.
 ```
 
 ## Hinweis für Apples Prüfer (Englisch, an `review-notes-proai` anhängen)
 
 ```text
-New in 1.0.7 – Exam generator (Pro AI): In a module, tap "Klausur-Generator", pick lecture slides, past exams and exercises, then "Probeklausuren erstellen". The service creates up to ten practice exams with worked solutions as PDF; each costs 15 AI credits (taken from the monthly Pro AI credits, then from purchased credit packs, no new in-app purchase). If generation fails, nothing is charged. [VOR ÜBERNAHME PRÜFEN: Geht der Klausur-Generator in der Demo? Sonst diesen Satz weglassen und angeben, dass er ein Pro-AI-Konto mit Credits braucht.] Mensa: dish photos are loaded directly from the public Studentenwerk Hannover menu service (Studi|Futter), like the menu itself.
+[1.0.7 Build 47: Klausur-Generator ist AUS – dieser Absatz entfällt bis auf den Satz zur Mensa.] New in 1.0.7 – Exam generator (Pro AI): In a module, tap "Klausur-Generator", pick lecture slides, past exams and exercises, then "Probeklausuren erstellen". The service creates up to ten practice exams with worked solutions as PDF; each costs 15 AI credits (taken from the monthly Pro AI credits, then from purchased credit packs, no new in-app purchase). If generation fails, nothing is charged. [VOR ÜBERNAHME PRÜFEN: Geht der Klausur-Generator in der Demo? Sonst diesen Satz weglassen und angeben, dass er ein Pro-AI-Konto mit Credits braucht.] Mensa: dish photos are loaded directly from the public Studentenwerk Hannover menu service (Studi|Futter), like the menu itself.
 ```
 
 ## Datenschutz – neue Absätze

@@ -5,6 +5,10 @@ import XCTest
 /// Klausur-Generator, Stufe (a): Texte und Zaehler des Auswahl-Blatts (`ExamGeneratorPicker`). Die Regeln selbst
 /// prueft der Kern (`ExamGeneratorSelectionTests`).
 final class ExamGeneratorAppTests: XCTestCase {
+    // In 1.0.7 aus (Entscheidung des Inhabers 24.11.2026); die Tests pruefen die Funktion weiter mit Schalter an
+    override func setUp() { super.setUp(); ExamGenerator.isEnabled = true }
+    override func tearDown() { ExamGenerator.isEnabled = false; super.tearDown() }
+
     private typealias Item = ExamGeneratorSelection.Item
     private let limits = ExamGeneratorSelection.limits
 

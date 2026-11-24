@@ -90,7 +90,10 @@ final class StudiNowErklaerungen: ObservableObject {
 
     /// Tests: Antwort statt des lokalen Backends, Tarif, Uhr, Abholen
     var call: ((_ path: String, _ body: JSONValue) async throws -> JSONValue)?
-    var allowed: () -> Bool = { UFLock.plan(.aiHelp, plan: Entitlements.shared.plan) == nil }
+    /// Schalter fuer die ganze Funktion: aus seit 24.11.2026 (Inhaber zu 1.0.7: "keine fertigen Erklärungen");
+    /// ohne ihn fragt nichts beim Dienst und kein Kreis, Banner oder Menuepunkt erscheint. Tests schalten ihn ein.
+    static var isEnabled = false
+    var allowed: () -> Bool = { StudiNowErklaerungen.isEnabled && UFLock.plan(.aiHelp, plan: Entitlements.shared.plan) == nil }
     var now: () -> Date = Date.init
     var collectOverride: (() async -> [Added]?)?
 

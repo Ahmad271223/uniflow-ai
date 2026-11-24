@@ -656,7 +656,8 @@ final class StudoraAccountLink: ObservableObject {
         if let c = state?.credits { credits = c } else if creditsClient.tokens.load() == nil { clearCredits() }
         if let packs = state?.packs, packs != creditPacks { creditPacks = packs }
         // StudiNow-Wissensbank: die Angaben zur Stelle gehen nur mit, solange der Dienst sie fuer dieses Konto meldet
-        if let state { studinowAI?.wissensbankEnabled = state.wissensbank }
+        // Wissensbank aus seit 24.11.2026 (Inhaber zu 1.0.7: "keine Wissensbibliothek"): auch wenn der Dienst sie meldet
+        if let state { studinowAI?.wissensbankEnabled = Wissensbank.shippedInApp && state.wissensbank }
         StiftSpur.log("KI: Stand vom Dienst geladen \(state != nil), Dienst meldet Wissensbank \(state?.wissensbank == true), StudiNow-KI vorhanden \(studinowAI != nil)")
     }
 

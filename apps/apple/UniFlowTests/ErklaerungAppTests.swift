@@ -6,6 +6,10 @@ import XCTest
 /// Abholen von selbst. Angebot, Ablage und Merker prueft der Kern (`ErklaerungShopTests`).
 @MainActor
 final class ErklaerungAppTests: XCTestCase {
+    // In 1.0.7 aus (Entscheidung des Inhabers 24.11.2026); die Tests pruefen die Funktion weiter mit Schalter an
+    override func setUp() { super.setUp(); StudiNowErklaerungen.isEnabled = true }
+    override func tearDown() { StudiNowErklaerungen.isEnabled = false; super.tearDown() }
+
     private typealias Offer = StudiNowErklaerungen.Offer
 
     /// Attrappe von `/api/erklaerungen/offer` und `/api/files/{id}/erklaerung/buy`

@@ -9,6 +9,10 @@ import XCTest
 /// steht das Abzeichen bzw. nach einer Wiederholung die Ja/Nein-Frage. Schein-Dienst, nie ins Netz.
 @MainActor
 final class WissensbankAppTests: XCTestCase {
+    // In 1.0.7 aus (Entscheidung des Inhabers 24.11.2026); die Tests pruefen die Funktion weiter mit Schalter an
+    override func setUp() { super.setUp(); Wissensbank.shippedInApp = true }
+    override func tearDown() { Wissensbank.shippedInApp = false; super.tearDown() }
+
     func testAnnouncementSwitchesTheStelleOnAndLogoutOff() async throws {
         let link = StudoraAccountLink()
         link.use(userScope: "test-wissensbank-\(UUID().uuidString)")
