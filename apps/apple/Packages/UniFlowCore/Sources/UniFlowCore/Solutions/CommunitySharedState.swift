@@ -128,6 +128,21 @@ public enum AccountDevice {
     /// (iPhone seit der Universal-App, 11.11.2026: "iphone-")
     public static func idPrefix(isMac: Bool, isPhone: Bool = false) -> String { isMac ? "mac-" : (isPhone ? "iphone-" : "ipad-") }
 
+    /// Welche Geraete-Kennung gilt und wo sie nachzutragen ist (24.11.2026): Schluesselbund (ueberlebt die
+    /// Neuinstallation) vor den UserDefaults (bisheriger Ort; bestehende Geraete behalten ihre Kennung) vor einer neuen.
+    public struct IDResolution: Equatable {
+        public let id: String
+        public let writeKeychain: Bool
+        public let writeDefaults: Bool
+    }
+
+    public static func resolveID(keychain: String?, defaults: String?, new: () -> String) -> IDResolution {
+        let k = keychain.flatMap { $0.isEmpty ? nil : $0 }
+        let d = defaults.flatMap { $0.isEmpty ? nil : $0 }
+        let id = k ?? d ?? new()
+        return IDResolution(id: id, writeKeychain: k != id, writeDefaults: d != id)
+    }
+
     /// Betriebssystem fuer Diagnose und Supportmail ("iPadOS 26.1", "iOS 26.1" bzw. "macOS (App fuer iPad) 26.1")
     public static func systemLabel(version: String, isMac: Bool, isPhone: Bool = false) -> String {
         isMac ? "macOS (App für iPad) \(version)" : (isPhone ? "iOS \(version)" : "iPadOS \(version)")

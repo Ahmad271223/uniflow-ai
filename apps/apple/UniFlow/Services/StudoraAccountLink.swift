@@ -84,14 +84,26 @@ final class StudoraAccountLink: ObservableObject {
     }
 
     /// Feste Kennung dieses Geraets fuer die Geraeteliste (nicht die Werbe-ID, nur fuer StudiNow)
-    static var deviceID: String {
+    static var deviceID: String { storedDeviceID }
+
+    /// Schluesselbund-Dienst der Geraete-Kennung (nur dieses Geraet, nicht synchronisiert, ueberlebt die Neuinstallation)
+    static let deviceIDService = "de.uniflow.ai.device"
+
+    /// Einmal je Start ermittelt. Seit 24.11.2026 auch im Schluesselbund: vorher lag die Kennung nur in den
+    /// UserDefaults, eine Neuinstallation ergab ein "neues" Geraet - der Dienst erkannte es weder fuer die Regel
+    /// "Probe nur einmal je Geraet" (app/trial_claims.py) noch als das eine Geraet eines Free-Kontos wieder.
+    /// Reihenfolge: Schluesselbund, sonst die bisherige Kennung aus den UserDefaults (wird nachgetragen), sonst neu.
+    private static let storedDeviceID: String = {
         let key = "uniflow.account.deviceID"
-        if let id = UserDefaults.standard.string(forKey: key) { return id }
-        // neue Kennungen auf dem Mac mit "mac-" (vorhandene bleiben); der Dienst wertet das Praefix nicht aus
-        let id = AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac, isPhone: UFDevice.isPhone) + UUID().uuidString.lowercased()
-        UserDefaults.standard.set(id, forKey: key)
-        return id
-    }
+        let keychain = KeychainStore(service: deviceIDService)
+        let r = AccountDevice.resolveID(keychain: keychain.string(key), defaults: UserDefaults.standard.string(forKey: key)) {
+            // neue Kennungen auf dem Mac mit "mac-" (vorhandene bleiben); der Dienst wertet das Praefix nicht aus
+            AccountDevice.idPrefix(isMac: ProcessInfo.processInfo.isiOSAppOnMac, isPhone: UFDevice.isPhone) + UUID().uuidString.lowercased()
+        }
+        if r.writeDefaults { UserDefaults.standard.set(r.id, forKey: key) }
+        if r.writeKeychain { try? keychain.write(r.id, account: key) }      // gesperrt: beim naechsten Start erneut
+        return r.id
+    }()
 
     /// Name in der Geraeteliste des Kontos: auf dem Mac "Mac" statt des "iPad", das UIDevice dort meldet
     static var deviceName: String {

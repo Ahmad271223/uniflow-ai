@@ -157,6 +157,15 @@ final class CommunitySharedStateTests: XCTestCase {
         XCTAssertEqual(AccountDevice.idPrefix(isMac: true), "mac-")
         XCTAssertEqual(AccountDevice.idPrefix(isMac: false), "ipad-")
         XCTAssertEqual(AccountDevice.idPrefix(isMac: false, isPhone: true), "iphone-")
+        // Geraete-Kennung (24.11.2026): Schluesselbund vor UserDefaults vor neu; der fehlende Ort wird nachgetragen
+        typealias R = AccountDevice.IDResolution
+        XCTAssertEqual(AccountDevice.resolveID(keychain: nil, defaults: nil) { "ipad-neu" }, R(id: "ipad-neu", writeKeychain: true, writeDefaults: true))
+        XCTAssertEqual(AccountDevice.resolveID(keychain: nil, defaults: "ipad-alt") { "ipad-neu" }, R(id: "ipad-alt", writeKeychain: true, writeDefaults: false),
+                       "bestehendes Geraet behaelt seine Kennung")
+        XCTAssertEqual(AccountDevice.resolveID(keychain: "ipad-alt", defaults: nil) { "ipad-neu" }, R(id: "ipad-alt", writeKeychain: false, writeDefaults: true),
+                       "Neuinstallation: dieselbe Kennung wie vorher")
+        XCTAssertEqual(AccountDevice.resolveID(keychain: "ipad-a", defaults: "ipad-b") { "ipad-neu" }, R(id: "ipad-a", writeKeychain: false, writeDefaults: true))
+        XCTAssertEqual(AccountDevice.resolveID(keychain: "", defaults: "") { "ipad-neu" }.id, "ipad-neu")
         XCTAssertEqual(AccountDevice.systemLabel(version: "27.2", isMac: false, isPhone: true), "iOS 27.2")
         XCTAssertEqual(AccountDevice.systemLabel(version: "27.2", isMac: false), "iPadOS 27.2")
         XCTAssertEqual(AccountDevice.systemLabel(version: "26.1", isMac: false), "iPadOS 26.1")
