@@ -134,7 +134,8 @@ def _credit_kurs_bis_24_11(request, monkeypatch):
     # Vertrag und Tarif-Antwort zeigen die echten Werte
     if any(k in request.node.nodeid for k in ("test_credit_kurs", "test_old_apps_see_the_same_fields_with_the_same_meaning",
                                                "test_credit_packs_fixture_is_current",
-                                               "test_trial_is_pro_ai_in_contract_fixture_and_credits", "test_plans_fixture_is_current")):
+                                               "test_trial_is_pro_ai_in_contract_fixture_and_credits", "test_plans_fixture_is_current",
+                                               "test_allowance_per_plan_and_env")):
         return
     from app import ai_prices
     monkeypatch.setattr(ai_prices, "MICROEUR_PER_CREDIT", 6_500)

@@ -22,6 +22,7 @@ final class StudoraNameTests: XCTestCase {
         let allowed = try NSRegularExpression(pattern: [
             #"appendingPathComponent\("UniFlow"#,     // Ordner in Application Support (Daten bleiben)
             #""UniFlowContainers"#,                    // Container-Ordner
+            #""UniFlowDeleted"#,                       // 30-Tage-Bereich nach "Konto löschen" (Ordner, nie sichtbar)
             #"Application Support/UniFlow"#,           // gespeicherte Pfade in der Datenbank
             #"supportPrefix"#,                         // Umzug alter Daten
             #"beginBackgroundTask"#,                   // Name der Hintergrundaufgabe (nicht sichtbar)

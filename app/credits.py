@@ -56,10 +56,10 @@ TZ = ZoneInfo("Europe/Berlin")
 EXHAUSTED_MESSAGE = "Credits für diesen Monat aufgebraucht – am 1. gibt es neue."
 # Plus mit dem KI-Chat (15.11.2026): keine Monats-Credits, am 1. kommt nichts Neues - es helfen nur gekaufte Credits
 EXHAUSTED_NO_MONTHLY_MESSAGE = "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad."
-# Tarif -> Umgebungsvariable und Standard aus dem Vertrag (plans.CREDITS: 100 fuer Pro AI, sonst 0, Probe 25)
-ALLOWANCE_ENV = {"pro_ai": ("LERNAPP_CREDITS_PRO_AI", plans.CREDITS["pro_ai"]),
-                 "plus": ("LERNAPP_CREDITS_PLUS", plans.CREDITS["plus"]), "free": ("LERNAPP_CREDITS_FREE", plans.CREDITS["free"])}
-TRIAL_ENV = ("LERNAPP_CREDITS_TRIAL", plans.CREDITS["trial"])
+# Tarif -> Umgebungsvariable; der Standard kommt beim Aufruf aus dem Vertrag (plans.CREDITS: 80 fuer Pro AI seit
+# 24.11.2026, sonst 0, Probe 25) - nicht beim Import festgehalten
+ALLOWANCE_ENV = {"pro_ai": "LERNAPP_CREDITS_PRO_AI", "plus": "LERNAPP_CREDITS_PLUS", "free": "LERNAPP_CREDITS_FREE"}
+TRIAL_ENV = "LERNAPP_CREDITS_TRIAL"
 # Reservierungen ohne Abrechnung (Prozess abgestuerzt) verfallen nach so vielen Minuten
 STALE_MINUTES = 15
 # so lange liefert dieselbe request_id die fertige Antwort noch einmal
@@ -210,9 +210,9 @@ def plan_and_trial(conn: sqlite3.Connection, user_id: str, now: datetime | None 
 
 def allowance(plan: str, trial: bool) -> int:
     if trial:
-        return _int_env(*TRIAL_ENV)
-    name, default = ALLOWANCE_ENV.get(plan, ("", 0))
-    return _int_env(name, default) if name else 0
+        return _int_env(TRIAL_ENV, plans.CREDITS["trial"])
+    name = ALLOWANCE_ENV.get(plan)
+    return _int_env(name, plans.CREDITS.get(plan, 0)) if name else 0
 
 
 def _month(conn: sqlite3.Connection, user_id: str, now: datetime, state: dict | None = None) -> sqlite3.Row | tuple:
