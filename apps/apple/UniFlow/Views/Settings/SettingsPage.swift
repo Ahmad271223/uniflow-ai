@@ -839,6 +839,8 @@ private struct AppAccountCards: View {
                 SettingsDivider().padding(.vertical, 12)
                 StudoraAccountCard(link: studoraAccount)
             }
+            // nach "Konto löschen" 30 Tage aufbewahrte Daten derselben Apple-ID (24.11.2026, HeldDataViews.swift)
+            HeldDataSection()
             // Loeschen abgesetzt am Kartenende wie bei "Hochschule"
             SettingsDangerZone {
                 UFButton("Konto löschen", icon: "trash", kind: .danger, size: .small) { overlay.modal { DeleteAccountDialog() } }
@@ -956,6 +958,20 @@ enum DeleteAccountText {
     /// Seit 12.11.2026 (eine Anmeldung fuer alles): "Konto löschen" loescht zuerst das Konto beim StudiNow-Dienst
     /// (`AccountDeletion`, Dienst: sofort gesperrt, nach 30 Tagen endgueltig, Widerruf bei Apple), dann alles auf dem iPad.
     /// Vorher (P35-01) blieb das Konto beim Dienst bestehen und liess sich nur in der Karte StudiNow-Konto loeschen.
+    /// Was mit den Daten auf dem iPad geschieht (24.11.2026, `DeletedDataHold`): ohne "Auch sofort endgültig löschen"
+    /// 30 Tage in einem geschuetzten Bereich, zurueckholbar nur mit derselben Apple-ID auf diesem Geraet; sonst sofort.
+    /// Ehrlich: das Konto beim Dienst kommt dadurch nicht zurueck (es bleibt geloescht, Datenschutz Abschnitt 15).
+    static func localData(keep: Bool) -> String {
+        let what = "Ebenso werden alle Daten deines Kontos von diesem iPad entfernt, für jede Hochschule: heruntergeladene Dateien, eigene Dokumente, Notizen, Lernplan, Einstellungen und die Anmeldungen in den Webansichten."
+        if keep {
+            return UFDevice.adapt(what + " Dateien, Dokumente, Notizen und Einstellungen bewahrt StudiNow noch \(DeletedDataHold.retentionDays) Tage in einem geschützten Bereich auf diesem iPad auf (nicht in iCloud-Backups). Meldest du dich in dieser Zeit hier wieder mit derselben Apple-ID an, kannst du sie zurückholen; danach sind sie endgültig gelöscht. Das StudiNow-Konto beim Dienst bleibt gelöscht.")
+        }
+        return UFDevice.adapt(what + " Das lässt sich nicht rückgängig machen.")
+    }
+
+    static let immediately = "Auch auf diesem iPad sofort endgültig löschen"
+    static let typedConfirmationLabel = "Zur Bestätigung „\(DeleteAccountGate.typedWord)“ eintippen"
+
     static let service = "Dein StudiNow-Konto beim StudiNow-Dienst wird ebenfalls gelöscht – auf allen Geräten, unter Windows und im Web: sofort gesperrt, nach 30 Tagen endgültig mit allem, was dorthin abgeglichen wurde."
 
     /// Ohne Anmeldung beim Dienst auf diesem Geraet (z. B. offline beim Start): ehrlich sagen, was dann gilt
@@ -984,19 +1000,41 @@ private struct DeleteAccountDialog: View {
     @State private var busy = false
     @State private var servicePassword = ""
     @State private var problem: AccountDeletion.Outcome?
+    /// Face ID / Geraetecode bzw. "LÖSCHEN" eintippen (24.11.2026, `DeleteAccountGate`)
+    @State private var gate = DeleteAccountGate()
+    @State private var typed = ""
+    /// "Auch sofort endgültig löschen": dann ohne 30 Tage Aufbewahrung (`DeletedDataHold`)
+    @State private var immediately = false
 
     var body: some View {
         UFDialog("Konto löschen?", icon: "trash") {
             VStack(alignment: .leading, spacing: 9.6) {
                 Text(DeleteAccountText.removed(ownServer: Session.ownServerAvailable))
-                Text(UFDevice.adapt("Ebenso werden alle Daten deines Kontos auf diesem iPad gelöscht, für jede Hochschule: heruntergeladene Dateien, eigene Dokumente, Notizen, Lernplan, Einstellungen und die Anmeldungen in den Webansichten. Das lässt sich nicht rückgängig machen."))
+                Text(DeleteAccountText.localData(keep: !immediately))
                     .font(.uf(13.12, 600)).foregroundStyle(UF.bad)
+                Toggle(isOn: $immediately) {
+                    Text(UFDevice.adapt(DeleteAccountText.immediately)).ufFont(13.12, 600).foregroundStyle(UF.text)
+                }
+                .tint(UF.bad)
+                .disabled(busy)
+                .accessibilityIdentifier("delete.immediately")
                 Text("Ein Abo wird dadurch nicht gekündigt. Abos kündigst du bei Apple:").font(.uf(13.12, 700)).foregroundStyle(UF.text)
                 Link("Abos verwalten", destination: AccountStore.manageSubscriptionsURL)
                     .ufFont(13.12, 600).foregroundStyle(UF.accentText)
                 ForEach(DeleteAccountText.shows(serviceSignedIn: containers.account.user != nil), id: \.self) { Text($0) }
                 if SolutionSharing.community.isConnected { Text(DeleteAccountText.community) }
                 if let problem { ServiceDeletionProblem(outcome: problem, password: $servicePassword) }
+                if gate.needsTypedConfirmation && !gate.ownerConfirmed {
+                    UFField(DeleteAccountText.typedConfirmationLabel) {
+                        UFTextField(DeleteAccountGate.typedWord, text: $typed)
+                            .textInputAutocapitalization(.characters).autocorrectionDisabled()
+                            .accessibilityIdentifier("delete.typed")
+                    }
+                }
+                if let m = gate.message {
+                    Text(m).ufFont(13.12, 600).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("delete.ownerProblem")
+                }
                 ContainerSyncGate { syncing in
                     if syncing { ContainerSyncNotice() }
                 }
@@ -1020,8 +1058,17 @@ private struct DeleteAccountDialog: View {
     private func start(onlyThisDevice: Bool) {
         busy = true
         Task {
+            // erst die Besitzerin oder der Besitzer des Geraets (Face ID, Touch ID, Code; ohne Code "LÖSCHEN" eintippen)
+            var g = gate
+            let step = await g.tap(typed: typed)
+            gate = g
+            guard step == .proceed else {
+                busy = false
+                return
+            }
+            let keep = !immediately
             let steps = account.account.map {
-                AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID)
+                AccountStore.deletionSteps(containers: containers, session: session, userID: $0.userID, keepForRestore: keep)
             } ?? []
             let out = await AccountDeletion.run(service: containers.account, password: servicePassword.isEmpty ? nil : servicePassword,
                                                 onlyThisDevice: onlyThisDevice) {

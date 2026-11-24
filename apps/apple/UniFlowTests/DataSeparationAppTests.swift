@@ -356,6 +356,117 @@ final class DataSeparationAppTests: XCTestCase {
         XCTAssertFalse(keychain.accounts().contains { $0.hasPrefix(scope) }, "nichts des Kontos im Schluesselbund")
     }
 
+    // MARK: Konto löschen mit 30 Tagen Aufbewahrung (24.11.2026, DeletedDataHold)
+
+    /// Ohne "Auch sofort endgültig löschen": fuer die App ist sofort alles weg (Container, Schluesselbund, Cookies),
+    /// Dateien, Notizen und Einstellungen liegen aber 30 Tage im Bereich. Dieselbe Apple-ID holt sie nach der neuen
+    /// Anmeldung zurueck; Anmeldungen und Schluessel kommen nicht mit. Ein anderes Konto sieht nichts davon.
+    func testDeleteAccountKeepsDataThirtyDaysAndTheSameAppleIDGetsItBack() async throws {
+        let m = manager()
+        let a = account(user)
+        for uni in [UniversityKey.luh, .hildesheim] {
+            a.chooseUniversity(uni)
+            m.sync(account: a)
+            try await fill(m, try active(m), tag: "ADA-\(uni.rawValue)")
+        }
+        let id = user
+        await a.deleteAccount(also: [{ await m.deleteAllData(userID: id, keepForRestore: true) }])
+        m.sync(account: a)
+        XCTAssertEqual(a.stage, .welcome)
+        XCTAssertNil(a.deletionProblem)
+        for layout in DataContainerLayout.all(base: base, userID: user) {
+            XCTAssertFalse(layout.exists(), "fuer die App sofort weg: \(layout.university)")
+            XCTAssertTrue(StudIPCookieStore(service: cookieService, container: layout.identifier).load().isEmpty)
+        }
+        let scope = DataContainerKey.userScope(user) + "."
+        XCTAssertFalse(keychain.accounts().contains { $0.hasPrefix(scope) }, "Schluesselbund sofort leer")
+        let held = m.heldData(userID: user)
+        XCTAssertEqual(held.count, 1)
+        XCTAssertEqual(Set(held[0].manifest.containers.map(\.university)), ["luh", "hildesheim"])
+        XCTAssertTrue(held[0].folder.path.hasPrefix(m.holdArea.path))
+        XCTAssertEqual(m.holdArea.deletingLastPathComponent().standardizedFileURL, appSupport.standardizedFileURL,
+                       "neben UniFlowContainers in Application Support")
+        XCTAssertTrue(m.heldData(userID: otherUser).isEmpty, "ein anderes Konto sieht nichts")
+
+        // dieselbe Apple-ID meldet sich wieder an: leerer Container, dann "Daten zurückholen"
+        a.signIn(userID: user, name: nil, email: nil)
+        a.markPlanShown()
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        let fresh = try active(m)
+        let freshSettings = try await fresh.api.value("/api/settings")
+        XCTAssertNotEqual(freshSettings["user_name"]?.string, "Ada ADA-luh")
+
+        let problem = await m.restoreHeldData(userID: user)
+        XCTAssertNil(problem)
+        let back = try active(m)
+        XCTAssertEqual(back.key, DataContainerKey(userID: user, university: .luh), "derselbe Container wieder offen")
+        XCTAssertFalse(back === fresh, "neu geoeffnet")
+        let settings = try await back.api.value("/api/settings")
+        XCTAssertEqual(settings["user_name"]?.string, "Ada ADA-luh", "Datenbank zurueck")
+        XCTAssertEqual(m.studip.selectedCourses, ["kurs-ADA-luh"], "Einstellungen des Containers zurueck")
+        XCTAssertNotNil(try LocalJournal(store: FileBlobStore(root: back.layout.journal), documentID: "doc-ADA-luh", namespace: .local).load(),
+                        "Notizen zurueck")
+        XCTAssertEqual(try? String(contentsOf: back.layout.solutions.appendingPathComponent("probe.txt"), encoding: .utf8), "ADA-luh")
+        XCTAssertTrue(back.cookies.load().isEmpty, "Anmeldungen kommen nicht zurueck")
+        XCTAssertTrue(DataContainerLayout(base: base, key: DataContainerKey(userID: user, university: .hildesheim)).exists(),
+                      "die andere Hochschule kam mit")
+        let swapped = m.heldData(userID: user)
+        XCTAssertEqual(swapped.count, 1, "der leere neue Container liegt nun seinerseits im Bereich")
+        XCTAssertEqual(swapped[0].manifest.containers.map(\.university), ["luh"])
+    }
+
+    /// "Auch sofort endgültig löschen" (und alle bisherigen Aufrufer): nichts wird aufbewahrt
+    func testImmediateDeletionKeepsNothing() async throws {
+        let m = manager()
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        try await fill(m, try active(m), tag: "ADA")
+        let id = user
+        await a.deleteAccount(also: [{ await m.deleteAllData(userID: id, keepForRestore: false) }])
+        XCTAssertTrue(m.heldData(userID: user).isEmpty)
+        XCTAssertTrue(((try? FileManager.default.contentsOfDirectory(atPath: m.holdArea.path)) ?? []).isEmpty)
+        let restored = await m.restoreHeldData(userID: user)
+        XCTAssertEqual(restored, ContainerManager.nothingHeld)
+    }
+
+    /// Nach 30 Tagen raeumt der naechste Start den Bereich endgueltig; vorher bleibt er
+    func testHeldDataIsPurgedOnTheFirstStartAfterThirtyDays() async throws {
+        let m = manager()
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        try await fill(m, try active(m), tag: "ADA")
+        let id = user
+        await a.deleteAccount(also: [{ await m.deleteAllData(userID: id, keepForRestore: true) }])
+        XCTAssertEqual(m.heldData(userID: user).count, 1)
+
+        func start(afterDays days: Double) -> ContainerManager {
+            let later = UniFlowClock.fixed(clock.now.addingTimeInterval(days * 24 * 3600))
+            return ContainerManager(base: base, legacy: legacy, keychain: keychain, cookieService: cookieService, defaults: defaults,
+                                    clock: later, publishesCurrent: false)
+        }
+        XCTAssertEqual(start(afterDays: 29).heldData(userID: user).count, 1, "Tag 29: noch da")
+        XCTAssertEqual(((try? FileManager.default.contentsOfDirectory(atPath: m.holdArea.path)) ?? []).count, 1)
+        XCTAssertTrue(start(afterDays: 30).heldData(userID: user).isEmpty)
+        XCTAssertTrue(((try? FileManager.default.contentsOfDirectory(atPath: m.holdArea.path)) ?? []).isEmpty, "endgueltig geloescht")
+    }
+
+    /// "Endgültig löschen" im Dialog "Gelöschte Daten zurückholen?": sofort weg
+    func testDiscardHeldDataDeletesAtOnce() async throws {
+        let m = manager()
+        let a = account(user)
+        a.chooseUniversity(.luh)
+        m.sync(account: a)
+        try await fill(m, try active(m), tag: "ADA")
+        let id = user
+        await a.deleteAccount(also: [{ await m.deleteAllData(userID: id, keepForRestore: true) }])
+        XCTAssertNil(m.discardHeldData(userID: user))
+        XCTAssertTrue(m.heldData(userID: user).isEmpty)
+        XCTAssertTrue(((try? FileManager.default.contentsOfDirectory(atPath: m.holdArea.path)) ?? []).isEmpty)
+    }
+
     // MARK: Umzug der alten Daten
 
     /// Stand vor dieser Version: Datenbank und Notizen unter Application Support/UniFlow, Downloads unter

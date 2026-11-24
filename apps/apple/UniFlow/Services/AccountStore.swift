@@ -420,8 +420,10 @@ final class AccountStore: ObservableObject {
 
     /// Schritte fuer `deleteAccount(also:)` in der App: alle Container dieses Nutzers (beide Hochschulen) samt
     /// Webdaten, Sitzungs-Cookies, Learnweb-Schluessel und Einstellungen loeschen, Server-PIN loeschen
-    static func deletionSteps(containers: ContainerManager, session: Session, userID: String) -> [() async -> String?] {
-        [{ await containers.deleteAllData(userID: userID) },
+    /// `keepForRestore`: Daten auf dem Geraet 30 Tage aufbewahren (`ContainerManager.deleteAllData(keepForRestore:)`)
+    static func deletionSteps(containers: ContainerManager, session: Session, userID: String,
+                              keepForRestore: Bool = false) -> [() async -> String?] {
+        [{ await containers.deleteAllData(userID: userID, keepForRestore: keepForRestore) },
          { session.disconnect() ? nil : "Die Server-PIN ließ sich nicht aus dem Schlüsselbund entfernen." }]
     }
 

@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Stand 22.11.2026.**
+**Stand 24.11.2026.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -408,7 +408,7 @@ eine CloudKit-Nutzerkennung für die Community sperren. Eine automatische Schwel
   Tippen zurück.
 - **Wochentests und Bibliothek** enthalten keine persönlichen Inhalte; auf Anfrage löschen wir die Datensätze deiner
   Nutzerkennung.
-- **„Konto löschen“ in der App** entfernt alle Daten auf dem iPad, aber nicht von selbst, was du in iCloud
+- **„Konto löschen“ in der App** entfernt alle Daten auf dem iPad (Abschnitt 15), aber nicht von selbst, was du in iCloud
   veröffentlicht hast – darauf weist der Dialog hin. Zieh deine Beiträge vorher zurück oder schreib an
   support@studinow.app; wir löschen dann alle Datensätze deiner Nutzerkennung.
 
@@ -614,7 +614,14 @@ Datenschutz Niedersachsen, Prinzenstraße 5, 30159 Hannover.
   lässt sich die Löschung nicht. Ein Abo über Apple bzw. Google kündigst du zusätzlich dort; ein Abo über Stripe
   beenden wir mit der Löschung sofort (Abschnitt 9).
 - **iPad:** „Konto löschen“ (Einstellungen → Zugang & Darstellung → Konto) löscht dein StudiNow-Konto beim Dienst wie
-  oben (mit Widerruf bei Apple) und entfernt sofort alle Daten auf dem iPad; was du in der Community, als Wochentest
+  oben (mit Widerruf bei Apple). Vorher bestätigst du mit Face ID, Touch ID oder dem Code des iPads (ohne Code: durch
+  Eintippen von „LÖSCHEN“). Auf dem iPad sind die Daten danach für die App sofort weg; Schlüsselbund-Einträge,
+  Anmeldungen und Webdaten löschen wir sofort. Dateien, eigene Dokumente, Notizen und Einstellungen bewahrt die App
+  noch **30 Tage** in einem geschützten Bereich auf diesem iPad auf (nicht in iCloud-Backups, nicht beim Dienst): Meldest
+  du dich in dieser Zeit auf diesem iPad wieder mit derselben Apple-ID an, kannst du sie zurückholen („Gelöschte Daten
+  zurückholen“) oder sofort endgültig löschen; danach löscht die App sie endgültig. Willst du das nicht, wähle in der
+  Rückfrage „Auch auf diesem iPad sofort endgültig löschen“. Das StudiNow-Konto beim Dienst kommt dadurch nicht zurück.
+  Was du in der Community, als Wochentest
   oder in der Bibliothek über iCloud geteilt hast, löschen wir auf Anfrage (Abschnitt 8b).
 - **Daten mitnehmen:** Im Konto-Menü („Meine Daten exportieren“) lädst du alle Daten deines Kontos als ZIP herunter
   (Auskunft nach Art. 15 und Datenübertragbarkeit nach Art. 20 DSGVO): Konto, Geräte, Käufe, Nutzung, deine Kurse,
