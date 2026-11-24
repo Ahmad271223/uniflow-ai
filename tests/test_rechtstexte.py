@@ -31,7 +31,7 @@ COMPANY = "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih)
 # im Geräteabgleich (7), Probeklausuren 15 Credits (Nutzungsbedingungen 5a)
 # 22.11.2026 (1.0.7, Freigabe des Inhabers "Ja, freigegeben"): StudiNow-Wissensbank mit KI-Antworten mit Wissen aus der
 # Wissensbank und gemerkten KI-Antworten (Datenschutz 8e, Nutzungsbedingungen 5a)
-STAND = {"NUTZUNGSBEDINGUNGEN.md": "24.11.2026", "DATENSCHUTZ.md": "24.11.2026"}
+STAND = {"NUTZUNGSBEDINGUNGEN.md": "24.11.2026", "DATENSCHUTZ.md": "24.11.2026", "KONTO-LOESCHEN.md": "24.11.2026"}
 
 
 def test_wissensbank_steht_in_datenschutz_und_bedingungen():
