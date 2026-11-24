@@ -175,6 +175,13 @@ oder Pro AI, unten) – nur dass das iPad sie **ohne Dienst** führt.
   Neuinstallation). Eine weitere Apple-ID auf demselben iPad bekommt keine Probe („Auf diesem iPad wurde die Probe schon
   genutzt“, `UFLocalTrial.State.usedOnDevice`) und beim ersten Start gleich die Tarifwahl. Das Zurücksetzen des Geräts
   löscht die Marke; stärker wäre später Apple DeviceCheck.
+- **Auch im Dienst nur einmal** (Inhaber 24.11.2026, `app/trial_claims.py`): vorher hing die Probe des Dienstes nur am
+  Konto, und die App übernimmt sie mit Vorrang vor der Geräte-Marke. „Konto löschen“ und neu anmelden oder eine zweite
+  Apple-ID auf demselben Gerät ergab deshalb neue 7 Tage. Jetzt merkt sich der Dienst je Apple-/Google-Kennung,
+  E-Mail-Adresse und Geräte-Kennung (nur als HMAC, ohne Konto, 3 Jahre) das Ende der Probe; ein neues Konto mit
+  bekannter Kennung bekommt die alte Probe mit ihrem alten Ende (läuft sie noch: Rest samt verbrauchten Probe-Credits;
+  sonst Stand „Probe vorbei“). Die Geräte-Kennung der App liegt dafür auch im Schlüsselbund (überlebt die
+  Neuinstallation). Der Betrieb kann weiter jedem Konto eine Probe geben (`billing.extend_trial`).
 - **Rechnung** (reine Funktionen, Uhr von außen): `state(startedAt:now:)` liefert Ende und Resttage (aufgerundet wie
   `billing.trial_info`, 0 = vorbei), `resolve(keychain:cloud:now:)` den gültigen Beginn. Werte wie `plans.TRIAL`
   (geprüft in `PlanContractTests.testLocalTrialMatchesContract`).

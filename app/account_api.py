@@ -133,7 +133,7 @@ def register(request: Request, body: dict = Body(...)):
     _hosted_only()
     try:
         user = accounts.register(_text(body, "email"), _text(body, "password"), _text(body, "university").strip().lower(),
-                                 client_ip=_ip(request))
+                                 client_ip=_ip(request), device_id=_device(body, request)[0])
         # Sitzung direkt anlegen statt ueber login(): spart das zweite scrypt (Lasttest 30.10.: Registrieren = 2x Hash)
         with accounts.cursor() as conn:
             token = accounts.create_session(conn, user["id"], *_device(body, request))

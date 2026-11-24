@@ -177,6 +177,12 @@ def _migrate(conn) -> None:
     if _has_table(conn, "users"):
         for col in PRIMARY_DEVICE_COLUMNS:
             db.add_column(conn, "users", col, "TEXT")
+    # Probe nur einmal je Person und Geraet (24.11.2026, app/trial_claims.py): Tabelle und einmaliges Nachtragen der
+    # Geraete bestehender Konten. Wiederholbar; mehrere Prozesse zugleich schreiben dieselben Zeilen (INSERT OR IGNORE).
+    from . import trial_claims
+    conn.executescript(trial_claims.SCHEMA)
+    trial_claims.backfill(conn)
+    conn.commit()
 
 
 # Spalten der Geraete-Regel an users (app/device_limit.py); Konto loeschen leert sie sofort (_mark_deleted)
@@ -365,7 +371,10 @@ def hit_limit(name: str, ident: str, default: tuple[int, int] | None = None) -> 
 
 # ---------------------------------------------------------------- Konto anlegen, anmelden, Sitzungen
 
-def register(email: str, password: str, university: str, client_ip: str | None = None) -> dict:
+def register(email: str, password: str, university: str, client_ip: str | None = None,
+             device_id: str | None = None) -> dict:
+    """Konto mit E-Mail und Passwort anlegen. `device_id`: Geraet der Anfrage (Apps), nur fuer die Frage, ob dieses
+    Geraet seine Probe schon hatte (app/trial_claims.py)."""
     email = normalize_email(email)
     validate_email(email)
     validate_password(password, email)
@@ -381,7 +390,8 @@ def register(email: str, password: str, university: str, client_ip: str | None =
         uid = uuid.uuid4().hex
         conn.execute("INSERT INTO users(id, email, pw_hash, university, created_at) VALUES (?,?,?,?,?)",
                      (uid, email, hash_password(password), university, iso(now())))
-        _grant_trial_in(conn, uid)                        # dieselbe Transaktion: Konto und Probe oder nichts (Audit B02-02)
+        # dieselbe Transaktion: Konto und Probe oder nichts (Audit B02-02)
+        _grant_trial_in(conn, uid, email=email, device_id=device_id)
         user = _public(conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone())
     return user
 
@@ -393,11 +403,14 @@ def _billing_schema(conn) -> None:
     db.schema_once(conn, "billing", db_path(), billing.ensure_schema)
 
 
-def _grant_trial_in(conn, user_id: str) -> None:
+def _grant_trial_in(conn, user_id: str, email: str | None = None, identities=(), device_id: str | None = None) -> None:
     """Probe fuer ein neues Konto (app/billing.py, plans.TRIAL) in der laufenden Transaktion des Aufrufers: scheitert
-    sie, bleibt kein Konto ohne Probe zurueck (Audit B02-02/B02-08, 08.11.2026; vorher eigene Verbindung danach)."""
-    from . import billing
-    billing.start_trial(conn, user_id)
+    sie, bleibt kein Konto ohne Probe zurueck (Audit B02-02/B02-08, 08.11.2026; vorher eigene Verbindung danach).
+    Seit 24.11.2026 hoechstens einmal je Adresse, Anbieter-Kennung und Geraet (app/trial_claims.py): wer sein Konto
+    loescht und sich neu anmeldet oder auf demselben Geraet die Apple-ID wechselt, bekommt die alte Probe mit ihrem
+    alten Ende, keine neue."""
+    from . import trial_claims
+    trial_claims.grant(conn, user_id, trial_claims.keys_for(email, identities, [device_id]))
 
 
 def grant_trial(user_id: str) -> None:
@@ -427,6 +440,9 @@ def create_session(conn, user_id: str, device_id: str | None, device_name: str |
     conn.execute("INSERT INTO sessions(token_hash, user_id, device_id, device_name, created_at, last_seen_at, expires_at) VALUES (?,?,?,?,?,?,?)",
                  (_token_hash(token), user_id, (device_id or "")[:80] or None, (device_name or "")[:120] or None,
                   iso(t), iso(t), iso(t + timedelta(days=SESSION_DAYS))))
+    if device_id:
+        from . import trial_claims
+        trial_claims.note_device(conn, user_id, device_id)   # dieses Geraet hat die Probe des Kontos gesehen
     return token
 
 
@@ -835,7 +851,8 @@ def login_with_provider(provider: str, subject: str, email: str | None = None, e
                     raise AccountError("email_taken", "Für diese E-Mail-Adresse gibt es schon ein Konto. Bitte dort anmelden und die "
                                                       f"{provider.capitalize()}-Anmeldung verknüpfen.", 409)
             else:
-                _grant_trial_in(conn, uid)                # dieselbe Transaktion: Konto und Probe oder nichts (Audit B02-08)
+                # dieselbe Transaktion: Konto und Probe oder nichts (Audit B02-08)
+                _grant_trial_in(conn, uid, email=new_email, identities=[(provider, subject)], device_id=device_id)
                 row = conn.execute("SELECT * FROM users WHERE id=?", (uid,)).fetchone()
                 created = True
         token = create_session(conn, row["id"], device_id, device_name)
@@ -941,7 +958,10 @@ def revoke_apple(user_id: str, tokens: list[tuple[str | None, str | None]]) -> i
 
 def _mark_deleted(conn, user_id: str, t: str) -> None:
     """Sperren, abmelden, Adresse freigeben (umbenannt), Passwort-Hash, Anmeldewege, Reset-Token, das Hauptgeraet
-    (Geraete-Regel, app/device_limit.py) und die fuer das Weck-Signal gemeldeten Geraete (app/wake_push.py) sofort weg."""
+    (Geraete-Regel, app/device_limit.py) und die fuer das Weck-Signal gemeldeten Geraete (app/wake_push.py) sofort weg.
+    Vorher haelt app/trial_claims.py fest, dass Adresse, Anbieter-Kennung und Geraete ihre Probe schon hatten."""
+    from . import trial_claims
+    trial_claims.on_delete(conn, user_id)
     conn.execute("UPDATE users SET status='deleted', deleted_at=?, email=?, pw_hash=NULL, primary_device_id=NULL, "
                  "primary_device_name=NULL, primary_device_set_at=NULL WHERE id=?",
                  (t, f"deleted-{user_id}@invalid", user_id))
@@ -1069,6 +1089,8 @@ def purge_deleted(days: int = 30) -> int:
                 continue
             conn.execute("RELEASE purge_user")
             n += 1
+        from . import trial_claims
+        trial_claims.purge_old(conn)                        # Probe-Marken nach KEEP_DAYS (3 Jahre) entfernen
     return n
 
 
