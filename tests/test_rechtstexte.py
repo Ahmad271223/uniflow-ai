@@ -44,8 +44,9 @@ def test_wissensbank_steht_in_datenschutz_und_bedingungen():
     for must in ("Aus der StudiNow-Wissensbank", "Mit Wissen aus der StudiNow-Wissensbank", "Gemerkte KI-Antwort",
                  "ohne Bezug zu deinem Konto", "höchstens 7 Tage", "Datenexport", "Art. 6 Abs. 1 lit. f DSGVO"):
         assert must in ds, must
-    for must in ("gemerkte KI-Antwort kosten je 1 Credit", "können Fehler enthalten"):
-        assert must in nb, must
+    # 24.11.2026 (Inhaber zu 1.0.7): keine Wissensbank, kein Klausur-Verkauf in der App - die Preisangaben dazu stehen
+    # nicht mehr in den Nutzungsbedingungen; der Datenschutz beschreibt den Dienst weiter, solange er dort laeuft
+    assert "Wissensbank" not in nb and "Probeklausur" not in nb and "können fehlerhaft sein" in nb
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8") if (ROOT / "site" / "datenschutz.html").exists() else ""
     if site:
         assert "StudiNow-Wissensbank" in site and "Gemerkte" in site
@@ -160,7 +161,9 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     assert "neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | – | ✓ |" in nb
     assert "beenden wir mit der Löschung sofort" in nb and "beenden wir mit der Löschung sofort" in ds
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
-    assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds and "KI-Lernplan" in nb
+    assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds
+    # 24.11.2026: eigenes ChatGPT, Lernkalender und Zeitmesser sind in der App aus und stehen nicht mehr im Leistungsumfang
+    assert "KI-Lernplan" not in nb and "Lernkalender" not in nb and "Zeitmesser" not in nb and "| – | – | 80 |" in nb
     assert "Jede Nutzung hat ein StudiNow-Konto" in ds and "iPad-App ohne StudiNow-Konto" not in ds
     assert "zugleich bei Apple" in ds and "Stud.IP-Benutzerkennung" in ds and "dieselbe apple-id" in ds.lower()
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")

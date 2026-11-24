@@ -27,8 +27,8 @@ const POSITION = {
   free: "Organisieren, lesen, Stundenplan – kostenlos. Ohne Community und ohne StudiNow-KI.",
   // Plus gilt je Geraet (Entscheidung 04.11.2026): Notizen-Abgleich zwischen iPad, PC und Web erst mit Pro AI
   // Plus (Entscheidung des Inhabers 15.11.2026): KI-Chat mit gekauften Credits; die KI-Lernhilfe bleibt Pro AI
-  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), Community, eigene Karteikarten und Wochentests. KI-Chat mit gekauften Credits.",
-  pro_ai: "Komfortabel: KI-Lernhilfe inklusive mit 80 Credits im Monat, weitere Credits zum Nachkaufen. Kein eigenes ChatGPT-Konto nötig, Notizen auf allen Geräten.",
+  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), Community und eigene Karteikarten. KI-Chat mit gekauften Credits.",
+  pro_ai: "Komfortabel: KI-Lernhilfe inklusive mit 80 Credits im Monat, weitere Credits zum Nachkaufen. Wochentests aus deinen Unterlagen. Kein eigenes ChatGPT-Konto nötig, Notizen auf Hochschul-Dokumenten auf allen Geräten.",
 };
 
 // Funktionen der StudiNow-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)

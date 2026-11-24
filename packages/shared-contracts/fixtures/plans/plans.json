@@ -65,7 +65,7 @@
    "currency": "EUR",
    "period": "year",
    "apple_product_id": "de.uniflow.plus.yearly",
-   "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests",
+   "tagline": "Mit Stift auf deinen Unterlagen schreiben, eigene Karteikarten und Community",
    "entitlements": {
     "can_view_pdf": true,
     "can_manage_courses": true,

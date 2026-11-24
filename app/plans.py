@@ -49,7 +49,7 @@ PLANS: dict[str, dict] = {
              "tagline": "Studium organisieren und Unterlagen lesen"},
     "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 1999, "currency": "EUR", "period": "year",
              "apple_product_id": "de.uniflow.plus.yearly",
-             "tagline": "Mit Stift auf deinen Unterlagen schreiben, Karteikarten und Wochentests"},
+             "tagline": "Mit Stift auf deinen Unterlagen schreiben, eigene Karteikarten und Community"},
     "pro_ai": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 3999, "currency": "EUR", "period": "year",
                "apple_product_id": "de.uniflow.proai.yearly",
                "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"},

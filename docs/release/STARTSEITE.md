@@ -35,7 +35,7 @@ testen, ohne Zahlungsdaten.</p>
 <div class="device">
 <picture><source media="(prefers-color-scheme: dark)" srcset="img/uebersicht-dunkel.jpg"><img src="img/uebersicht-hell.jpg" width="1400" height="1050" alt="StudiNow auf dem iPad: Übersicht mit Begrüßung, der Prüfungsanmeldung, der Karte Heute in der Mensa und dem Lernplan für heute (Demo-Inhalte)"></picture>
 </div>
-<figcaption><svg class="scribble" viewBox="0 0 64 40" aria-hidden="true" focusable="false"><path d="M4 34c14 0 30-6 42-18 4-4 7-8 9-12M55 4l-11 2M55 4l1 11"/></svg>Deine Übersicht: Prüfungen, Mensa und Lernplan</figcaption>
+<figcaption><svg class="scribble" viewBox="0 0 64 40" aria-hidden="true" focusable="false"><path d="M4 34c14 0 30-6 42-18 4-4 7-8 9-12M55 4l-11 2M55 4l1 11"/></svg>Deine Übersicht: Prüfungen, Termine und Mensa</figcaption>
 </figure>
 </div>
 </section>
@@ -61,7 +61,7 @@ Semester zuerst.</p>
 <li>:i-folder: <h3>Unterlagen kommen von selbst</h3><p>Neue Skripte, Folien und Übungsblätter landen im richtigen Modulordner. Erst das aktuelle Semester, ältere folgen im Hintergrund.</p></li>
 <li>:i-mail: <h3>Nachrichten beantworten</h3><p>Nachrichten aus Stud.IP lesen und direkt aus der App antworten (Moodle in Kürze).</p></li>
 <li>:i-upload: <h3>Abgeben in Stud.IP</h3><p>Deine bearbeitete Übung als PDF dort abgeben, wo der Kurs sie erwartet. Abgeschickt wird erst, wenn du es bestätigst (Moodle in Kürze).</p></li>
-<li>:i-clock: <h3>Stundenplan und Lernkalender</h3><p>Vorlesungen und Übungen im Wochenraster, Lernpakete in deinen freien Zeitfenstern.</p></li>
+<li>:i-clock: <h3>Stundenplan</h3><p>Vorlesungen und Übungen im Wochenraster, am iPhone als Tage oder ganze Woche, mit Hinweisen zu Ausfällen, Fristen und Klausuren.</p></li>
 </ul>
 </div>
 </section>
@@ -116,7 +116,7 @@ Plan als Nächstes kommt und welche Prüfungen du im Meldezeitraum anmelden soll
 <p>Jede Vorlesungswoche ein kurzer Test, mit Erklärung zu jeder Antwort. Karteikarten sortierst du in Stapel je Modul,
 StudiNow fragt fällige Karten zuerst ab: richtig heißt seltener, falsch heißt morgen wieder.</p>
 <ul class="checks">
-<li>Lernstand je Modul aus Tests, Karten und Aufgaben</li>
+<li>Lernstand je Modul aus deinen Tests und Karteikarten</li>
 <li>Stapel je Lernwoche teilen und die anderer übernehmen</li>
 <li>Lösungen zu Übungsblättern mit anderen aus dem Kurs vergleichen</li>
 </ul>
@@ -178,10 +178,10 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 <ul class="checks">
 <li>Abgleich mit deiner Hochschule</li>
 <li>Speiseplan deiner Mensa</li>
-<li>PDFs lesen, durchsuchen, Lesezeichen</li>
-<li>Stundenplan, Lernkalender und Lernplanung</li>
-<li>Lernstand je Modul</li>
-<li>Eigenes ChatGPT zu deinen Folien fragen (iPad: mit deinem eigenen ChatGPT-Schlüssel)</li>
+<li>PDFs lesen und durchsuchen</li>
+<li>Stundenplan mit Hinweisen zu Terminen, Fristen und Klausuren</li>
+<li>Uni-Mail, Noten und Raumfinder</li>
+<li>Widgets für den nächsten Termin und die Mensa</li>
 </ul>
 </article>
 <article class="plan" aria-labelledby="p-plus">
@@ -191,10 +191,11 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 <ul class="checks">
 <li>Schreiben mit dem Apple Pencil</li>
 <li>Übung und Skript nebeneinander</li>
-<li>Eigene Karteikarten mit Stapeln</li>
-<li>Wochentests</li>
+<li>Lesezeichen setzen, Seiten einfügen und ordnen</li>
+<li>Eigene Karteikarten mit Stapeln und Lernstand je Modul</li>
 <li>Community deines Kurses: lesen, fragen, Lösungen teilen</li>
-<li>Karteikarten-Stapel von StudiNow übernehmen (4 im Monat)</li>
+<li>Geteilte Karteikarten-Stapel aus der Community übernehmen (4 im Monat)</li>
+<li>Fragen an die KI mit gekauften Credits</li>
 </ul>
 </article>
 <article class="plan plan-top" aria-labelledby="p-pro">
@@ -202,11 +203,12 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 <p class="price"><span class="amount">39,99 €</span> <span class="per">pro Jahr</span></p>
 <p class="tagline">Alles aus Plus, dazu die KI von StudiNow, ohne eigenes ChatGPT-Konto:</p>
 <ul class="checks">
+<li>80 Credits im Monat für die KI, weitere zum Nachkaufen</li>
 <li>KI-Erklärungen, auch für das ganze Dokument</li>
-<li>Fertige Fragen zu jeder Vorlesungswoche</li>
+<li>Wochentests aus deinen Unterlagen: 20 neue KI-Tests im Monat</li>
 <li>Karteikarten aus deinen Unterlagen erstellen lassen</li>
-<li>20 neue KI-Tests im Monat, Testbibliothek und Karteikarten-Stapel ohne Monatsgrenze</li>
-<li>Notizen auf allen deinen Geräten</li>
+<li>Geteilte Tests und Karteikarten-Stapel ohne Monatsgrenze</li>
+<li>Notizen auf deinen Hochschul-PDFs auf allen deinen Geräten</li>
 <li>Erinnerungen an Abgaben und Klausuren</li>
 </ul>
 </article>
@@ -233,7 +235,7 @@ wieder anmeldet – abschaltbar und jederzeit löschbar.</p>
 </details>
 <details>
 <summary>Wo liegen meine Daten?</summary>
-<p>Auf deinem iPad. Dateien, Termine, Notizen, Stundenplan und Lernkalender speichert die App lokal. Die Systeme deiner
+<p>Auf deinem iPad. Dateien, Termine, Notizen und Stundenplan speichert die App lokal. Die Systeme deiner
 Hochschule liest das iPad direkt. Was die KI-Hilfe bekommt, steht in der <a href="https://studinow.app/datenschutz">Datenschutzerklärung</a>.</p>
 </details>
 <details>
@@ -252,7 +254,7 @@ Noten sind immer die Systeme deiner Hochschule.</p>
 </details>
 <details>
 <summary>Gibt es StudiNow fürs iPhone?</summary>
-<p>Ja. Am iPhone liest du Unterlagen, hakst Aufgaben ab und siehst Stundenplan, Lernkalender, Nachrichten, Uni-Mail,
+<p>Ja. Am iPhone liest du Unterlagen und siehst Stundenplan, Nachrichten, Uni-Mail,
 Noten und Mensa. Geschrieben wird mit dem Apple Pencil weiter am iPad. StudiNow Free gilt für ein Gerät; mit Pro AI
 nutzt du iPhone und iPad zusammen.</p>
 </details>
