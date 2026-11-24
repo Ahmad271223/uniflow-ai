@@ -214,6 +214,54 @@ final class WhisperViewsAppTests: XCTestCase {
         XCTAssertEqual(t.count("PATCH", "/api/recordings/own/v1"), 0)
     }
 
+    /// Bilder der neuen Ansichten fuer die Durchsicht (nur mit UF_WHISPER_SHOTS=<Ordner>; xcodebuild:
+    /// TEST_RUNNER_UF_WHISPER_SHOTS): Dialog ohne Modell, Zeilen in den Staenden, Karte, Mitschrift zu einem Video –
+    /// je einmal breit (iPad) und schmal (iPhone). Ohne die Variable prueft der Test nur, dass alles ohne Absturz zeichnet.
+    func testViewsDrawWideAndNarrow() throws {
+        let dir = ProcessInfo.processInfo.environment["UF_WHISPER_SHOTS"].map { URL(fileURLWithPath: $0, isDirectory: true) }
+        if let dir { try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true) }
+        func shot(_ env: HostedEnvironment, _ name: String) {
+            guard let dir else { return }
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = 2
+            let png = UIGraphicsImageRenderer(bounds: env.view.bounds, format: format).pngData { _ in
+                _ = env.view.drawHierarchy(in: env.view.bounds, afterScreenUpdates: true)
+            }
+            try? png.write(to: dir.appendingPathComponent(name + ".png"))
+        }
+        let t = AIViewsAppTests.Transport()
+        t.answer("/api/recordings/own/v1", ["id": "v1", "module_id": 1, "module_name": "Analysis I", "title": "Analysis I – 3. Vorlesung", "duration": 5400,
+                                            "recorded_at": "2026-11-25T10:20:00", "transcript_status": "done", "sections": 3, "audio_path": .null,
+                                            "source_video_id": "kurs1|video7", "transcript_engine": "whisper",
+                                            "transcript": [["start": 0, "end": 34, "text": "Guten Morgen zusammen, heute geht es in der Analysis um die Ableitung und um den Mittelwertsatz der Differentialrechnung."],
+                                                           ["start": 34, "end": 62, "text": "Ein einfaches Beispiel: Die Ableitung von x² ist 2x. Jetzt zum Mittelwertsatz."],
+                                                           ["start": 62, "end": 92, "text": "Der Beweis benutzt den Satz von Rolle. In der Informatik begegnet uns das beim Gradient Descent."]]])
+        for (name, size) in [("ipad", CGSize(width: 820, height: 900)), ("iphone", CGSize(width: 393, height: 852))] {
+            let rows = VStack(alignment: .leading, spacing: 12) {
+                WhisperModelRow(choice: WhisperModels.gross, state: .downloading(0.42), isActive: false, bytes: 260_000_000, offered: true, suggested: true,
+                                load: {}, cancel: {}, use: {}, delete: {})
+                WhisperModelRow(choice: WhisperModels.klein, state: .ready, isActive: true, bytes: 221_000_000, offered: true, suggested: false,
+                                load: {}, cancel: {}, use: {}, delete: {})
+                WhisperJobStatus(state: .running(0.37)) {}
+            }
+            let states = try hostWithEnvironment(rows.padding(16).background(UF.bg), size: CGSize(width: size.width, height: 420))
+            XCTAssertTrue(states.wait { states.labels().contains("42 %") && states.labels().contains("37 %") }, "\(states.labels())")
+            shot(states, "\(name)-1-modelle-staende")
+
+            let dialog = try hostWithEnvironment(WhisperModelDialog().padding(12).background(UF.bg), size: size)
+            XCTAssertTrue(dialog.wait { dialog.labels().contains("Kompakt") && dialog.labels().contains("Fertig") }, "\(dialog.labels())")
+            shot(dialog, "\(name)-2-dialog")
+
+            let card = try hostWithEnvironment(WhisperSettingsCard().padding(16).background(UF.bg), size: CGSize(width: size.width, height: 300))
+            XCTAssertTrue(card.wait { card.labels().contains("Bessere Mitschrift") }, "\(card.labels())")
+            shot(card, "\(name)-3-karte")
+
+            let detail = try hostWithEnvironment(OwnRecordingDetail(id: "v1") {}.padding(12).background(UF.bg), api: api(t), size: size)
+            XCTAssertTrue(detail.wait { detail.labels().contains { $0.hasPrefix("Guten Morgen zusammen") } }, "\(detail.labels())")
+            shot(detail, "\(name)-4-mitschrift-video")
+        }
+    }
+
     func testBodyForANewVideoTranscript() {
         let video = OpencastVideo(id: "video7", title: "Analysis I – 3. Vorlesung", duration: 5400)
         let entry = OpencastEntry(courseID: "kurs1", courseTitle: "Analysis I", moduleID: 4, video: video, week: 3)
