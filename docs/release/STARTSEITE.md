@@ -14,6 +14,16 @@
      -s formatOptions 70 (1400 x 1050).
      :i-name: setzt ein Symbol ein (ICONS in tools/gen-site.py). -->
 
+<details class="news">
+<summary><span class="wrap news-head"><span class="news-tag">Neu</span> <span>Die erste Testphase ist abgeschlossen: StudiNow ist jetzt für alle offen.</span> <span class="news-more"><span class="news-open">Mehr dazu</span><span class="news-close">Schließen</span></span></span></summary>
+<div class="wrap news-body">
+<p>StudiNow ist ein Studentenprojekt, von Studenten für Studenten. Gerade am Anfang kommen regelmäßig System- und
+Sicherheitsupdates, weil wir die App ständig verbessern wollen, und die Studienverlaufspläne werden nach und nach
+aktualisiert. Fehlt bei deinem Studiengang etwas oder hast du eine Idee? Über Feedback freuen wir uns jederzeit:
+<a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
+</div>
+</details>
+
 <section class="hero" aria-labelledby="hero-title">
 <div class="wrap hero-grid">
 <div class="hero-text">

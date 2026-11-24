@@ -308,8 +308,21 @@ main.doc { padding: 3rem 0 4.5rem; }
    Skript: Zettel am iPad, Laufband, Karteikarte zum Umdrehen und Testfrage (details/summary), Kleinigkeiten beim
    Draufzeigen. Bewegung nur, wenn das System sie nicht abgeschaltet hat (prefers-reduced-motion); Effekte beim Scrollen
    nur, wo der Browser animation-timeline kennt, sonst steht alles einfach da. */
-:root { --marker: #ffd84a; --no: #c2413b; --pop: cubic-bezier(.34, 1.56, .64, 1); }
-@media (prefers-color-scheme: dark) { :root { --marker: #d6ae2b; --no: #f0827c; } }
+:root { --marker: #ffd84a; --no: #c2413b; --news: #fff3c4; --pop: cubic-bezier(.34, 1.56, .64, 1); }
+@media (prefers-color-scheme: dark) { :root { --marker: #d6ae2b; --no: #f0827c; --news: #2b2710; } }
+
+/* Hinweis ganz oben (24.11.2026): eine Zeile, der ganze Text klappt beim Antippen auf (details/summary). Ohne Skript kann
+   sich die Seite nicht merken, ob jemand schon da war; darum ein schmaler Streifen statt eines Fensters beim ersten Besuch. */
+.news { background: var(--news); border-bottom: 1px solid var(--line); font-size: .97rem; }
+.news summary { list-style: none; cursor: pointer; }
+.news summary::-webkit-details-marker { display: none; }
+.news-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: .25rem .7rem; padding: .7rem 0; color: var(--text); font-weight: 600; }
+.news-tag { padding: .08rem .6rem; border-radius: 999px; background: var(--text); color: var(--surface); font-size: .8rem; font-weight: 700; }
+.news-more { margin-left: auto; font-weight: 700; color: var(--accent-text); text-decoration: underline; text-underline-offset: .18em; white-space: nowrap; }
+.news .news-close, .news[open] .news-open { display: none; }
+.news[open] .news-close { display: inline; }
+.news-body { padding: 0 0 1rem; }
+.news-body p { margin: 0; max-width: 48rem; color: var(--text-2); }
 
 .btn { transition: translate .18s var(--pop), scale .18s var(--pop), box-shadow .18s ease, background-color .18s ease, border-color .18s ease; }
 .btn:hover { translate: 0 -2px; }
