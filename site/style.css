@@ -253,18 +253,51 @@ main.doc { padding: 3rem 0 4.5rem; }
 .systems li { transition: translate .2s var(--pop), rotate .2s var(--pop); }
 .systems li:not(.soon):hover { translate: 0 -2px; rotate: -2deg; }
 
-/* Zettel am iPad im Einstieg (Demo-Inhalte wie im Bildschirmfoto, fuer Vorleseprogramme ausgeblendet) */
+/* Einstieg wie ein Schreibtisch (24.11.2026; der Inhaber zeigte eine Notiz-App als Anregung, "nicht 1 zu 1, mach was
+   Eigenes"): eine handgeschriebene Zeile mit Textmarker, am iPad eine Karteikarte mit Bueroklammer, ein Mensa-Bon und die
+   drei Knoepfe der KI-Hilfe aus der App, dazu Kritzeleien in Fuellerblau wie am Heftrand. Alles Demo und fuer
+   Vorleseprogramme ausgeblendet. Handschrift nur aus Schriften, die auf dem Geraet schon da sind (keine von Dritten). */
+:root { --hand: "Bradley Hand", "Noteworthy", "Segoe Print", "Ink Free", "Comic Sans MS", cursive; --marker-soft: rgba(255, 216, 74, .78); --paper: #fffdf6; --paper-ink: #1d2030; }
+@media (prefers-color-scheme: dark) { :root { --marker-soft: rgba(214, 174, 43, .38); --paper: #f3f0e6; } }
 .hero { overflow-x: clip; }
+.hero-grid { position: relative; }
+.hand-line { margin: -.25rem 0 1.4rem; font-family: var(--hand); font-weight: 700; font-size: clamp(1.5rem, 1rem + 1.7vw, 2.15rem); line-height: 1.2; color: var(--ink); rotate: -1.5deg; transform-origin: 0 50%; }
+.hand-line span { padding: 0 .45rem; margin: 0 -.45rem; border-radius: 4px; background: linear-gradient(var(--marker-soft), var(--marker-soft)) 0 55% / 100% 72% no-repeat; }
 .hero-shot { position: relative; }
-.stickers { list-style: none; margin: 0; padding: 0; }
-.stickers li { position: absolute; z-index: 2; margin: 0; display: flex; align-items: center; gap: .55rem; padding: .5rem .9rem .5rem .55rem; border-radius: 14px;
-  background: var(--surface); border: 1.5px solid var(--line-strong); box-shadow: 0 14px 26px -14px rgba(37, 45, 120, .5);
-  font-size: .9rem; font-weight: 700; line-height: 1.25; color: var(--text); white-space: nowrap; rotate: var(--tilt, 0deg); }
-.stickers small { display: block; font-size: .78rem; font-weight: 500; color: var(--muted); }
-.stickers .ico { width: 2rem; height: 2rem; padding: .4rem; border-radius: 10px; background: var(--chip, var(--accent-soft)); color: var(--chip-ink, var(--accent-text)); }
-.stickers li:nth-child(1) { left: -5%; top: -4%; --tilt: -4deg; --d: .5s; }
-.stickers li:nth-child(2) { right: -3%; top: 39%; --tilt: 3deg; --d: .8s; --chip: color-mix(in srgb, var(--ok) 16%, var(--surface)); --chip-ink: var(--ok); }
-.stickers li:nth-child(3) { left: 6%; bottom: 14%; --tilt: 2deg; --d: 1.1s; --chip: color-mix(in srgb, var(--marker) 40%, var(--surface)); --chip-ink: var(--warn); }
+.hero-shot .device { position: relative; }
+.hero-shot figcaption { margin-top: 2.2rem; }
+.desk { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.desk p { margin: 0; }
+.desk p, .desk span, .desk strong, .desk b { color: var(--paper-ink); }
+/* Karteikarte: liniert mit roter Kopflinie, eine zweite dahinter, Bueroklammer oben */
+.idx { position: absolute; left: -7%; top: -12%; width: 11.2rem; min-height: 7.3rem; padding: 1.72rem 1rem .7rem; border-radius: 7px; rotate: -5deg; --d: .5s;
+  font-family: var(--hand); font-weight: 700; font-size: 1.4rem; line-height: 1.5rem;
+  background: linear-gradient(#e2574c, #e2574c) 0 1.56rem / 100% 2px no-repeat, repeating-linear-gradient(transparent 0 1.42rem, #b9c6ee 1.42rem 1.5rem) 0 1.66rem, var(--paper);
+  box-shadow: 6px 6px 0 -1px var(--paper), 6px 6px 0 0 #cfd5ea, 0 22px 24px -14px rgba(20, 24, 60, .6), 0 0 0 1px #cfd5ea; }
+.idx span { display: block; white-space: nowrap; }
+.idx sub { font-size: .6em; }
+.idx::before, .idx::after { content: ""; position: absolute; border: 2.5px solid #7d86ad; border-radius: 999px; rotate: 9deg; }
+.idx::before { right: 1.3rem; top: -.9rem; width: .9rem; height: 2.5rem; }
+.idx::after { right: 1.52rem; top: -.5rem; width: .46rem; height: 1.7rem; border-top-color: transparent; }
+/* Mensa-Bon mit Zackenkante unten (der Schatten sitzt aussen, die Kante schneidet innen) */
+.bon { position: absolute; right: -5%; bottom: 13%; width: 9rem; rotate: 4deg; --d: .8s; filter: drop-shadow(0 12px 9px rgba(20, 24, 60, .34)); }
+.bon p { padding: .75rem .8rem 1.25rem; background: var(--paper); font-family: var(--mono); font-size: .78rem; line-height: 1.5;
+  -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / .7rem 100%;
+  mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / .7rem 100%; }
+.bon strong { display: block; margin-bottom: .35rem; padding-bottom: .3rem; border-bottom: 1.5px dashed var(--paper-ink); font-size: .84rem; }
+.bon span { display: flex; justify-content: space-between; gap: .5rem; white-space: nowrap; }
+/* Die drei Knoepfe der KI-Hilfe, Farben wie in der App */
+.acts { position: absolute; left: 50%; bottom: -1.6rem; transform: translateX(-50%); display: flex; gap: .4rem; padding: .45rem; border-radius: 16px; --d: 1.1s;
+  background: var(--surface); border: 1.5px solid var(--line-strong); box-shadow: 0 16px 26px -14px rgba(20, 24, 60, .55); white-space: nowrap; }
+.desk .act { display: flex; align-items: center; gap: .35rem; padding: .32rem .7rem; border-radius: 10px; border: 1.5px solid var(--c); font-size: .85rem; font-weight: 700;
+  color: var(--text); background: color-mix(in srgb, var(--c) 11%, var(--surface)); }
+.act .ico { width: 1.05rem; height: 1.05rem; color: var(--c); }
+.act-1 { --c: var(--ok); } .act-2 { --c: #d9822b; } .act-3 { --c: var(--accent); }
+/* Kritzeleien wie mit dem Fueller am Heftrand */
+.doodle { position: absolute; z-index: 1; fill: none; stroke: var(--c, var(--ink)); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; pointer-events: none; }
+.doodle-check { width: 2.5rem; height: 2.5rem; left: 100%; top: .1rem; margin-left: .5rem; rotate: 5deg; }
+.doodle-sum { width: 3.2rem; height: 3.6rem; right: -.6rem; top: 1.3rem; rotate: 6deg; }
+.doodle-curl { --c: #8b5cf6; width: 3.6rem; height: 2.4rem; left: 37%; bottom: 2rem; rotate: -8deg; }
 
 /* Laufband unter dem Einstieg: was alles drin ist (zweite Haelfte ist die Wiederholung fuer die Endlosschleife) */
 .ticker { overflow: hidden; background: var(--band); padding: .85rem 0; }
@@ -331,6 +364,8 @@ main.doc { padding: 3rem 0 4.5rem; }
 @keyframes aufkleben { from { opacity: 0; scale: .4; } to { opacity: 1; scale: 1; } }
 @keyframes wippen { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
 @keyframes zeichnen { from { stroke-dashoffset: 130; } to { stroke-dashoffset: 0; } }
+@keyframes zeichnen-lang { from { stroke-dashoffset: 220; } to { stroke-dashoffset: 0; } }
+@keyframes anstreichen { from { background-size: 0% 72%; } to { background-size: 100% 72%; } }
 @keyframes laufband { to { transform: translateX(calc(-50% - 1.2rem)); } }
 @keyframes umdrehen { from { transform: perspective(900px) rotateY(-90deg); } to { transform: perspective(900px) rotateY(0deg); } }
 @keyframes wackeln { 20%, 60% { translate: -6px 0; } 40%, 80% { translate: 6px 0; } }
@@ -344,7 +379,10 @@ main.doc { padding: 3rem 0 4.5rem; }
 
 @media (prefers-reduced-motion: no-preference) {
   .hero-shot .device { animation: schweben 7s ease-in-out infinite; }
-  .stickers li { animation: aufkleben .6s var(--pop) var(--d, .5s) both, wippen 5s ease-in-out calc(var(--d, .5s) + .6s) infinite; }
+  .idx, .bon, .acts { animation: aufkleben .6s var(--pop) var(--d, .5s) both, wippen 5.5s ease-in-out calc(var(--d, .5s) + .6s) infinite; }
+  .hand-line span { animation: anstreichen .7s ease-out .5s both; }
+  .doodle { stroke-dasharray: 220; animation: zeichnen-lang 1.1s ease-out var(--dd, 1.2s) both; }
+  .doodle-check { --dd: 1.6s; } .doodle-curl { --dd: 1.9s; }
   .scribble { stroke-dasharray: 130; animation: zeichnen 1s ease-out 1.2s both; }
   .ticker-track { animation: laufband 48s linear infinite; }
   .ticker:hover .ticker-track { animation-play-state: paused; }
@@ -370,16 +408,27 @@ main.doc { padding: 3rem 0 4.5rem; }
 }
 @media (max-width: 960px) {
   .try-grid { grid-template-columns: minmax(0, 1fr); max-width: 34rem; }
-  .stickers li:nth-child(1) { left: -1%; }
-  .stickers li:nth-child(2) { right: -1%; }
+  .hero-shot { margin-top: 4rem; }
+  .idx { left: -2%; top: -7%; }
+  .bon { right: -2%; }
+  .doodle-curl { display: none; }
+  .doodle-sum { right: 0; top: .8rem; width: 2.6rem; height: 3rem; }
 }
 @media (max-width: 720px) {
   .header::after { display: none; }
 }
 @media (max-width: 600px) {
-  .stickers li { font-size: .78rem; padding: .35rem .65rem .35rem .4rem; border-radius: 11px; gap: .4rem; }
-  .stickers small { display: none; }
-  .stickers .ico { width: 1.6rem; height: 1.6rem; padding: .3rem; border-radius: 8px; }
+  .idx { width: 7.9rem; min-height: 5.2rem; padding: 1.24rem .7rem .5rem; font-size: 1rem; line-height: 1.07rem; top: -17%;
+    background: linear-gradient(#e2574c, #e2574c) 0 1.12rem / 100% 2px no-repeat, repeating-linear-gradient(transparent 0 1rem, #b9c6ee 1rem 1.07rem) 0 1.21rem, var(--paper); }
+  .idx::before { right: .9rem; top: -.7rem; width: .7rem; height: 1.9rem; border-width: 2px; }
+  .idx::after { right: 1.06rem; top: -.4rem; width: .38rem; height: 1.3rem; border-width: 2px; }
+  .doodle-check { width: 1.8rem; height: 1.8rem; }
+  .bon { width: 6.9rem; bottom: 7%; }
+  .bon p { padding: .5rem .55rem 1rem; font-size: .62rem; }
+  .bon strong { font-size: .68rem; }
+  .acts { bottom: -1.3rem; gap: .25rem; padding: .3rem; border-radius: 12px; }
+  .desk .act { padding: .22rem .45rem; font-size: .68rem; border-radius: 8px; gap: .25rem; }
+  .act .ico { width: .85rem; height: .85rem; }
   .ticker-track { gap: 1.8rem; }
   .ticker-track li { font-size: .92rem; }
   .flip, .flip summary, .flip-back, .quiz { min-height: 15rem; }

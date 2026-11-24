@@ -29,6 +29,7 @@ aktualisiert. Fehlt bei deinem Studiengang etwas oder hast du eine Idee? Über F
 <div class="hero-text">
 <p class="eyebrow">Lernmanagementsystem für Hochschulen in ganz Deutschland</p>
 <h1 id="hero-title">Dein Studium an einem Ort.</h1>
+<p class="hand-line"><span>Mitschreiben, verstehen, üben.</span></p>
 <p class="lead">StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland. Es holt Skripte, Übungsblätter, Termine und Nachrichten aus den Systemen deiner Hochschule auf dein
 iPad und iPhone. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen erklären und übst mit Wochentests und Karteikarten.</p>
 <p class="unis">:i-cap: <span>Heute angebunden: <strong>Leibniz Universität Hannover</strong> und
@@ -42,16 +43,18 @@ iPad und iPhone. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen
 testen, ohne Zahlungsdaten.</p>
 </div>
 <figure class="hero-shot">
-<ul class="stickers" aria-hidden="true">
-<li>:i-folder: <span>Neues Skript <small>Kapitel 1 – Zahlensysteme</small></span></li>
-<li>:i-check: <span>Wochentest <small>3 von 4 richtig</small></span></li>
-<li>:i-utensils: <span>Heute in der Mensa <small>Gemüse-Kichererbsen-Curry</small></span></li>
-</ul>
 <div class="device">
+<div class="desk" aria-hidden="true">
+<p class="idx"><span>13 = 1101<sub>2</sub></span><span>= D<sub>16</sub></span><svg class="doodle doodle-check" viewBox="0 0 40 40"><path d="M5 22l9 11L35 6"/></svg></p>
+<div class="bon"><p><strong>Mensa heute</strong><span>Gemüse-Curry</span><span>vegan <b>2,50 €</b></span></p></div>
+<p class="acts"><span class="act act-1">:i-book: Erklären</span><span class="act act-2">:i-cards: Karteikarten</span><span class="act act-3">:i-check: Test</span></p>
+</div>
 <picture><source media="(prefers-color-scheme: dark)" srcset="img/uebersicht-dunkel.jpg"><img src="img/uebersicht-hell.jpg" width="1400" height="1050" alt="StudiNow auf dem iPad: Übersicht mit Begrüßung, der Prüfungsanmeldung, der Karte Heute in der Mensa und dem Lernplan für heute (Demo-Inhalte)"></picture>
 </div>
 <figcaption><svg class="scribble" viewBox="0 0 64 40" aria-hidden="true" focusable="false"><path d="M4 34c14 0 30-6 42-18 4-4 7-8 9-12M55 4l-11 2M55 4l1 11"/></svg>Deine Übersicht: Prüfungen, Mensa und Lernplan</figcaption>
 </figure>
+<svg class="doodle doodle-sum" viewBox="0 0 40 46" aria-hidden="true" focusable="false"><path d="M31 7H10l11 13-11 13h21"/><path d="M6 42c4-3 7 3 11 0s7 3 11 0"/></svg>
+<svg class="doodle doodle-curl" viewBox="0 0 48 30" aria-hidden="true" focusable="false"><path d="M3 22c5-13 13-14 13-5s-9 5-5-3 12-11 17-2-4 11-5 2 7-11 13-6 6 9 9 6"/></svg>
 </div>
 </section>
 
