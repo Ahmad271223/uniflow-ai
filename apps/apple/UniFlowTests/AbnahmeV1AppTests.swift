@@ -109,7 +109,8 @@ final class AbnahmeV1AppTests: XCTestCase {
         XCTAssertFalse(CommunityPage.planned(onDevice: true).contains { $0.hasPrefix("Lösungen in der Online-Community veröffentlichen – geplant") },
                        "nicht mehr 'geplant': programmiert, nur ohne Container nicht verfuegbar")
         XCTAssertEqual(CommunityPage.howItWorks.count, 3)
-        XCTAssertTrue(CommunityPage.howItWorks.contains { $0.text.contains("„Ebenen“") })
+        // Text seit 20.11.2026 (Lösung daneben statt „Ebenen“, release/1.0.7): der Test hing noch am alten Wortlaut
+        XCTAssertTrue(CommunityPage.howItWorks.contains { $0.text.contains("neben deinem Dokument") })
     }
 
     /// Empfangene Loesungen ansehen gehoert zum Lesen der Community (seit 05.11.2026 ab Plus, vorher jeder Tarif); nur
