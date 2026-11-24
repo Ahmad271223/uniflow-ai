@@ -258,6 +258,8 @@ final class ContainerManager: ObservableObject {
         UniversityPasswordCleanup.run(secrets: keychain, defaults: defaults)
         studip = Self.idleSync()
         DataContainerLayout.purgeTrash(base: base)
+        // "Konto löschen" hebt die Daten 30 Tage auf (`DeletedDataHold`): was laenger liegt, jetzt endgueltig weg
+        DeletedDataHold.purgeExpired(in: DeletedDataHold.area(besides: base), clock: clock)
         // Datei-Eingang (18.11.2026): nur der Container der App, nicht der von Tests
         if publishesCurrent { CourseFileIntakeRunner.link = account }
     }
@@ -574,9 +576,14 @@ final class ContainerManager: ObservableObject {
 
     /// "Konto löschen": alle Container des Nutzers samt Webdaten, Schluesselbund und Einstellungen; laufende Abgleiche
     /// werden vorher angehalten und abgewartet. Rueckgabe wie `deleteUniversityData`.
+    /// `keepForRestore` (24.11.2026, Rueckfrage ohne "Auch sofort endgültig löschen"): die Ordner der Container und ihre
+    /// Einstellungen kommen fuer 30 Tage in den Aufbewahrungsbereich (`DeletedDataHold`), statt sofort zu verschwinden;
+    /// fuer die App sind sie trotzdem sofort weg. Schluesselbund, Webdaten und Cookies gehen wie bisher sofort. Laesst
+    /// sich nichts ablegen (z. B. Speicher voll), wird wie bisher sofort geloescht: Loeschen muss gelingen.
     @discardableResult
-    func deleteAllData(userID: String) async -> String? {
+    func deleteAllData(userID: String, keepForRestore: Bool = false) async -> String? {
         if active?.key.userID == userID { deactivate() }
+        if keepForRestore { await hold(userID: userID) }
         var left: [String] = []
         for uni in UniversityKey.allCases { left += await remove(DataContainerKey(userID: userID, university: uni)) }
         let tokens = UniversityTokenStore(secrets: keychain, defaults: appDefaults, userScope: DataContainerKey.userScope(userID))
@@ -599,6 +606,78 @@ final class ContainerManager: ObservableObject {
         SolutionSharing.purgeInbox()
         return Self.deletionProblem(Array(Set(left)).sorted())
     }
+
+    // MARK: 30 Tage aufbewahren (DeletedDataHold)
+
+    /// Bereich der aufbewahrten Daten neben den Containern
+    var holdArea: URL { DeletedDataHold.area(besides: base) }
+    /// zaehlt Aenderungen im Bereich (Ablegen, Zurueckholen, endgueltig Loeschen): die Einstellungen lesen neu
+    @Published private(set) var heldDataChanges = 0
+
+    /// Container des Nutzers anhalten (Schreibrecht entziehen, Abgleiche abwarten) und in den Bereich verschieben
+    private func hold(userID: String) async {
+        let keys = UniversityKey.allCases.map { DataContainerKey(userID: userID, university: $0) }
+        var settings: [UUID: [String: Any]] = [:]
+        for key in keys {
+            let layout = DataContainerLayout(base: base, key: key)
+            guard layout.exists() else { continue }
+            ContainerLeases.revoke(layout.identifier)
+            await stopSyncs(key)
+            let suite = ActiveContainer.defaultsSuite(layout.identifier)
+            if let d = UserDefaults(suiteName: suite)?.persistentDomain(forName: suite) { settings[layout.identifier] = d }
+        }
+        _ = try? DeletedDataHold.store(keys.map { DataContainerLayout(base: base, key: $0) }, owner: DataContainerKey.userScope(userID),
+                                       in: holdArea, settings: settings, clock: clock)
+        heldDataChanges += 1
+    }
+
+    /// Aufbewahrte Daten dieses Nutzers (noch nicht abgelaufen), die neuesten zuerst
+    func heldData(userID: String) -> [DeletedDataHold] {
+        DeletedDataHold.all(in: holdArea, owner: DataContainerKey.userScope(userID), clock: clock)
+    }
+
+    /// "Daten zurückholen": den neuesten Eintrag des Nutzers zurueck an seinen Platz. Ein inzwischen neu angelegter
+    /// Container derselben Hochschule kommt dafuer seinerseits 30 Tage in den Bereich (nichts geht verloren). Der offene
+    /// Container wird geschlossen und danach wieder geoeffnet (die Oberflaeche baut sich neu auf).
+    /// - Returns: nil, wenn es geklappt hat; sonst die Meldung
+    @discardableResult
+    func restoreHeldData(userID: String) async -> String? {
+        guard let entry = heldData(userID: userID).first else { return Self.nothingHeld }
+        let reopen = active?.key.userID == userID ? active?.key : nil
+        if reopen != nil { deactivate() }
+        for c in entry.manifest.containers {
+            guard let uni = UniversityKey(rawValue: c.university) else { continue }
+            let key = DataContainerKey(userID: userID, university: uni)
+            ContainerLeases.revoke(key.identifier)
+            await stopSyncs(key)
+        }
+        var problem: String?
+        do {
+            for back in try entry.restore(into: base, clock: clock) {
+                let suite = ActiveContainer.defaultsSuite(back.identifier)
+                if back.settings.isEmpty { UserDefaults(suiteName: suite)?.removePersistentDomain(forName: suite) }
+                else { UserDefaults(suiteName: suite)?.setPersistentDomain(back.settings, forName: suite) }
+            }
+        } catch {
+            problem = Self.restoreFailed
+        }
+        heldDataChanges += 1
+        if let reopen { activate(reopen) }
+        return problem
+    }
+
+    /// "Aufbewahrte Daten jetzt löschen": alle Eintraege des Nutzers sofort endgueltig entfernen
+    @discardableResult
+    func discardHeldData(userID: String) -> String? {
+        var failed = false
+        for entry in heldData(userID: userID) where (try? entry.discard()) == nil { failed = true }
+        heldDataChanges += 1
+        return failed ? Self.deletionProblem([Self.leftHeld]) : nil
+    }
+
+    static let nothingHeld = "Es gibt keine aufbewahrten Daten mehr. Nach 30 Tagen werden sie endgültig gelöscht."
+    static let restoreFailed = "Die Daten ließen sich nicht vollständig zurückholen. Was nicht zurückkam, liegt weiter im geschützten Bereich; versuche es erneut."
+    static let leftHeld = "aufbewahrte Daten"
 
     static let leftFiles = "Dateien und Notizen"
     static let leftKey = "Learnweb-Schlüssel"
