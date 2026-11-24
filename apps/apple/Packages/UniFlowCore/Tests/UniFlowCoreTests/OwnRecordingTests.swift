@@ -247,7 +247,7 @@ final class OwnRecordingTests: XCTestCase {
     func testTranscriptForAUniversityVideo() async throws {
         let (b, container) = try await backend()
         await XCTAssertEqualAsync(await json(b, "GET", "/api/recordings/own/videos"), .object([:]))
-        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video/v-17"), 404)
+        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video?id=v-17"), 404)
         let own = await b.handle(request("POST", "/api/recordings/own", ["module_id": 1, "title": "Eigene Aufnahme"]))
         XCTAssertEqual(own.status, 201)
         let created = await b.handle(request("POST", "/api/recordings/own", ["module_id": 1, "title": "Analysis I – 3. Vorlesung",
@@ -272,7 +272,7 @@ final class OwnRecordingTests: XCTestCase {
         let patch: JSONValue = ["transcript": [["start": 0, "end": 60, "text": "Heute geht es um den Satz von Bolzano-Weierstraß."]],
                                 "transcript_status": "done", "transcript_engine": "whisper"]
         await XCTAssertEqualAsync(await status(b, "PATCH", "/api/recordings/own/\(id)", patch), 200)
-        let got = await json(b, "GET", "/api/recordings/own/video/v-17")
+        let got = await json(b, "GET", "/api/recordings/own/video?id=v-17")
         XCTAssertEqual(got?["id"]?.string, id)
         XCTAssertEqual(got?["sections"]?.int, 1)
         XCTAssertEqual(got?["transcript_status"], "done")
@@ -294,7 +294,8 @@ final class OwnRecordingTests: XCTestCase {
         let old = await json(b, "GET", "/api/recordings/own")
         XCTAssertEqual(old?.array?.count, 1)
         await XCTAssertEqualAsync(await json(b, "GET", "/api/recordings/own/videos"), .object([:]))
-        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video/x"), 404)
+        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video?id=x"), 404)
+        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video"), 422)
         await XCTAssertEqualAsync(await status(b, "PATCH", "/api/recordings/own/alt1", ["transcript_engine": "whisper", "transcript_status": "running"]), 200)
         let patched = await json(b, "GET", "/api/recordings/own/alt1")
         XCTAssertEqual(patched?["transcript_engine"], "whisper")
@@ -306,7 +307,7 @@ final class OwnRecordingTests: XCTestCase {
         XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/suggest")?.pattern.template, "/api/recordings/own/suggest")
         XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/abc")?.pattern.template, "/api/recordings/own/{rec_id}")
         XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/videos")?.pattern.template, "/api/recordings/own/videos")
-        XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/video/v-1")?.pattern.template, "/api/recordings/own/video/{video_id}")
+        XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/video")?.pattern.template, "/api/recordings/own/video")
         await XCTAssertEqualAsync(await status(b, "PUT", "/api/recordings/own"), 405)
     }
 }

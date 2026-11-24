@@ -10,7 +10,7 @@ import Foundation
 /// - POST /api/recordings/own                   eintragen {id?, module_id?, course_id?, title?, event_title?, event_id?,
 ///                                              recorded_at?, duration?, language?, transcript?, transcript_status?}
 /// - GET  /api/recordings/own/suggest?date=&time=  laufender Termin des Stundenplans und die Termine des Tages
-/// - GET  /api/recordings/own/video/{video_id}  Mitschrift zu einer Uni-Aufzeichnung (1.0.8); /own/videos: Stand je Video
+/// - GET  /api/recordings/own/video?id=        Mitschrift zu einer Uni-Aufzeichnung (1.0.8); /own/videos: Stand je Video
 /// - GET  /api/recordings/own/{id}              eine Aufnahme mit Abschnitten
 /// - PATCH /api/recordings/own/{id}             Felder aendern (Titel, Modul, Termin, Dauer, Transkript, Stand)
 /// - DELETE /api/recordings/own/{id}            Aufnahme, Transkript und Zeile entfernen
@@ -181,8 +181,8 @@ public enum OwnRecordingEndpoints: LocalEndpointModule {
         }
 
         // Mitschrift zu einer Uni-Aufzeichnung (404 ohne) und der Stand aller solcher Mitschriften {video_id: status}
-        router.get("/api/recordings/own/video/{video_id}") { req, ctx in
-            let video = req.param("video_id")
+        router.get("/api/recordings/own/video") { req, ctx in
+            guard let video = req.query("id"), !video.isEmpty else { throw bad("id: Kennung der Aufzeichnung erwartet") }
             guard let r = try await ctx.database.withConnection({ try OwnRecordingStore.forVideo($0, videoID: video) }) else {
                 throw LocalHTTPError.notFound("Keine Mitschrift zu dieser Aufzeichnung")
             }

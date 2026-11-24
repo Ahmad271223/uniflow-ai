@@ -20,6 +20,12 @@ final class AudioTranscriber: ObservableObject {
 
     @Published private(set) var state: State = .idle
     private var task: SFSpeechRecognitionTask?
+    /// laufende Erkennung mit Whisper (1.0.8, `WhisperMitschrift.swift`): statt der Erkennung von Apple, sobald ein
+    /// Sprachmodell geladen ist
+    private var whisperTask: Task<[String], Error>?
+
+    /// Wird mit Whisper erkannt? (Sprachmodell geladen)
+    static var usesWhisper: Bool { WhisperFeature.isEnabled && WhisperModelStore.shared.active != nil }
 
     /// Sprachen fuer das Transkript (Erkennung auf dem Geraet; welche installiert sind, entscheidet das System)
     static let languages: [(locale: String, label: String)] = [("de-DE", "Deutsch"), ("en-US", "Englisch")]
@@ -64,6 +70,14 @@ final class AudioTranscriber: ObservableObject {
                 return
             }
             guard Self.supports(stored) else { state = .failed("Nur .mp3 und .m4a lassen sich transkribieren."); return }
+            if Self.usesWhisper {
+                let lines = try await whisperLines(url: url, locale: locale)
+                guard !lines.isEmpty else { state = .failed("Es wurde keine Sprache erkannt."); return }
+                _ = try files.write(Data((lines.joined(separator: "\n") + "\n").utf8), to: OfficeText.transcriptPath(for: stored))
+                try await backend.context.database.execute("DELETE FROM page_texts WHERE file_id=?", [.text(fileID)])
+                state = .done(pages: OfficeText.pages(paragraphs: lines).count)
+                return
+            }
             let status = await Self.authorize()
             guard status == .authorized else {
                 state = .failed(status == .denied ? "Spracherkennung ist in den Einstellungen nicht erlaubt." : "Spracherkennung ist auf diesem Gerät nicht verfügbar.")
@@ -83,14 +97,30 @@ final class AudioTranscriber: ObservableObject {
             // gespeicherte Seitentexte einer frueheren Fassung weg: das Backend liest beim naechsten Abruf das Transkript
             try await backend.context.database.execute("DELETE FROM page_texts WHERE file_id=?", [.text(fileID)])
             state = .done(pages: OfficeText.pages(paragraphs: lines).count)
+        } catch is CancellationError {
+            state = .idle
         } catch {
             state = .failed(error.localizedDescription)
         }
     }
 
+    /// Erkennung mit Whisper: Abschnitte der ganzen Datei, als Zeilen je Satz wie bei der Erkennung von Apple
+    private func whisperLines(url: URL, locale: String) async throws -> [String] {
+        let work = Task { @MainActor [weak self] () throws -> [String] in
+            let sections = try await WhisperJobs.transcribe(url: url, language: WhisperSlices.language(locale), store: .shared) { fraction, _, _ in
+                if case .running = self?.state { self?.state = .running(fraction) }
+            }
+            return sections.flatMap { Self.paragraphs($0.text) }
+        }
+        whisperTask = work
+        defer { whisperTask = nil }
+        return try await withTaskCancellationHandler { try await work.value } onCancel: { work.cancel() }
+    }
+
     func cancel() {
         task?.cancel()
         task = nil
+        whisperTask?.cancel()
         if case .running = state { state = .idle }
     }
 

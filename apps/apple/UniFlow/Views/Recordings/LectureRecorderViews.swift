@@ -460,11 +460,21 @@ struct OwnRecordingDetail: View {
     @State private var cardsSaved = false
     @State private var error: String?
     @State private var transcribing = false
+    /// geladene Datei der Uni-Aufzeichnung, zu der diese Mitschrift gehoert (1.0.8); nil bei eigenen Aufnahmen
+    @State private var videoURL: URL?
+    @ObservedObject private var whisper = WhisperJobs.shared
+    @ObservedObject private var models = WhisperModelStore.shared
 
     private var audioURL: URL? {
         guard let p = recording?.s("audio_path"), let files = LocalBackendHost.shared.files, files.exists(stored: p) else { return nil }
         return files.url(stored: p)
     }
+
+    /// Mitschrift zu einer Uni-Aufzeichnung (kein eigener Ton)?
+    private var isVideo: Bool { recording?.s("source_video_id") != nil }
+
+    /// Datei, aus der die Mitschrift entsteht: die eigene Aufnahme oder das geladene Video
+    private var mediaURL: URL? { isVideo ? videoURL : audioURL }
 
     var body: some View {
         UFDialog(recording?.s("title") ?? "Aufnahme", icon: "circle") {
@@ -494,11 +504,18 @@ struct OwnRecordingDetail: View {
         }
         .task { await load() }
         .onDisappear { player.stop() }
+        // Whisper schreibt den Zwischenstand nach jedem Stueck: Abschnitte neu laden
+        .onChange(of: whisper.state(id)) { _, _ in Task { await load() } }
+        .onChange(of: whisper.revision) { _, _ in Task { await load(); onChange() } }
     }
 
     private var playerView: some View {
         HStack(spacing: 10) {
-            if audioURL != nil {
+            if isVideo {
+                Text(videoURL != nil ? "Mitschrift zur Uni-Aufzeichnung. Ansehen kannst du das Video unter „Aufzeichnungen“."
+                                     : UFDevice.adapt("Das Video ist nicht mehr auf diesem iPad geladen. Die Mitschrift bleibt."))
+                    .ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            } else if audioURL != nil {
                 UFButton(player.playing ? "Pause" : "Abspielen", icon: player.playing ? "square" : "play", kind: .primary, size: .small) {
                     if player.playing { player.pause() } else if let url = audioURL { player.play(url) }
                 }
@@ -516,13 +533,15 @@ struct OwnRecordingDetail: View {
             Text("Mitschrift").ufFont(15.2, 650).foregroundStyle(UF.text)
             let (text, tone) = OwnRecordingRow.badge(r)
             UFBadge(text, tone: tone)
+            if r.s("transcript_engine") == "whisper", !sections.isEmpty { UFBadge("Whisper", tone: .info) }
             Spacer()
-            if status != "done", audioURL != nil {
+            if status != "done", audioURL != nil, !whisper.isActive(id) {
                 UFButton(transcribing ? "Erkennt …" : "Mitschrift nachholen", icon: "text", size: .small) { Task { await transcribe() } }
                     .disabled(transcribing)
                     .accessibilityHint("Spracherkennung auf dem Gerät für die ganze Aufnahme")
             }
         }
+        whisperView(r, status: status)
         if sections.isEmpty {
             Text(status == "unavailable" ? "Diese Aufnahme wurde ohne Spracherkennung gemacht." : "Noch keine Mitschrift.")
                 .ufFont(12.8).foregroundStyle(UF.muted)
@@ -533,6 +552,42 @@ struct OwnRecordingDetail: View {
                 }
             }
         }
+    }
+
+    /// Bessere Mitschrift mit Whisper (1.0.8): laufende Erkennung mit Anteil, sonst der passende Knopf – oder der Weg
+    /// zum Sprachmodell, solange keins geladen ist
+    @ViewBuilder private func whisperView(_ r: JSONValue, status: String) -> some View {
+        if WhisperFeature.isEnabled, mediaURL != nil {
+            if let state = whisper.state(id) {
+                WhisperJobStatus(state: state) { whisper.cancel(id) }
+            }
+            if !whisper.isActive(id), !transcribing,
+               let label = WhisperText.action(sections: sections.count, status: status, engine: r.s("transcript_engine")) {
+                if models.active != nil {
+                    UFButton(label, icon: "sparkles", kind: sections.isEmpty ? .primary : .normal, size: .small) { startWhisper(r) }
+                        .accessibilityHint("Genauere Spracherkennung mit dem geladenen Sprachmodell, nur auf diesem Gerät")
+                        .accessibilityIdentifier("ownrec.whisper")
+                } else {
+                    HStack(spacing: 8) {
+                        UFButton("Bessere Mitschrift …", icon: "sparkles", kind: isVideo && sections.isEmpty ? .primary : .normal, size: .small) {
+                            _ = overlay.modal { WhisperModelDialog() }
+                        }
+                        .accessibilityIdentifier("ownrec.whisper.model")
+                        Text(WhisperText.noModel).ufFont(12.16).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Whisper starten oder weitermachen: eine unterbrochene Whisper-Mitschrift geht an ihrem Ende weiter, eine
+    /// Mitschrift von Apple bleibt stehen, bis die neue sie Stueck fuer Stueck ersetzt
+    private func startWhisper(_ r: JSONValue) {
+        guard let url = mediaURL, let api = session.api else { return }
+        error = nil
+        whisper.clearFailure(id)
+        let resume = r.s("transcript_engine") == "whisper" && r.s("transcript_status") != "done" ? sections : []
+        whisper.start(id: id, url: url, language: r.s("language"), resume: resume, api: api)
     }
 
     private var chunks: [[TranscriptSection]] { TranscriptSections.chunks(sections) }
@@ -585,11 +640,26 @@ struct OwnRecordingDetail: View {
         do {
             let r = try await api.value("/api/recordings/own/\(id)")
             recording = r
-            sections = TranscriptSections.sections(r["transcript"]) ?? []
-            chunk = 0
+            let loaded = TranscriptSections.sections(r["transcript"]) ?? []
+            if loaded != sections {
+                sections = loaded
+                if chunk >= TranscriptSections.chunks(loaded).count { chunk = 0 }
+            }
+            if let video = r.s("source_video_id") { videoURL = await Self.videoFile(video) }
         } catch {
             self.error = error.localizedDescription
         }
+    }
+
+    /// Geladene Datei einer Uni-Aufzeichnung (`source_video_id` = "Kurs|Video" wie `OpencastEntry.id`); nil, wenn das
+    /// Video nicht (mehr) auf dem Geraet liegt
+    static func videoFile(_ sourceID: String, host: LocalBackendHost = .shared) async -> URL? {
+        let parts = sourceID.split(separator: "|", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+        guard parts.count == 2, let files = host.files, let backend = try? await host.backend(),
+              let row = try? await backend.context.database.queryOne("SELECT local_path FROM opencast_videos WHERE course_id=? AND id=?",
+                                                                     [.text(parts[0]), .text(parts[1])]),
+              let path = row["local_path"]?.string, files.exists(stored: path) else { return nil }
+        return files.url(stored: path)
     }
 
     /// Tutor-Endpunkt mit dem Text des gewaehlten Teils (kein Dokument, keine Seite); nur nach Antippen
@@ -669,12 +739,14 @@ struct OwnRecordingDetail: View {
     }
 
     private func remove() async {
-        guard let api = session.api, await overlay.confirm(UFDevice.adapt("Aufnahme samt Mitschrift von diesem iPad löschen?")) else { return }
+        let question = isVideo ? "Mitschrift löschen? Das Video bleibt." : UFDevice.adapt("Aufnahme samt Mitschrift von diesem iPad löschen?")
+        guard let api = session.api, await overlay.confirm(question) else { return }
         do {
             player.stop()
+            whisper.cancel(id)
             _ = try await api.value("/api/recordings/own/\(id)", method: "DELETE")
             onChange()
-            toast.show("Aufnahme gelöscht.")
+            toast.show(isVideo ? "Mitschrift gelöscht." : "Aufnahme gelöscht.")
             close()
         } catch {
             self.error = error.localizedDescription

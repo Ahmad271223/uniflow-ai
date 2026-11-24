@@ -128,6 +128,7 @@ struct SettingsPage: View {
                 ModulesTab(d: Loaded(s: local.s, courses: local.courses, mods: local.mods, log: [], cred: .null, term: local.term),
                            reload: { await load() }, withTests: false)
             }
+            WhisperSettingsCard()                                        // Bessere Mitschrift mit Whisper (1.0.8)
         case .plan:
             if let s = d?.s ?? local?.s { PlanTab(s: s) }
         case .community:

@@ -9,6 +9,11 @@ options:
 packages:
   UniFlowCore:
     path: Packages/UniFlowCore
+  # "Bessere Mitschrift" mit Whisper auf dem Geraet (1.0.8, docs/WHISPER-MITSCHRIFT.md): einziges Fremdpaket der App,
+  # MIT-Lizenz, auf eine feste Version gelegt. Gebunden wird nur das Produkt WhisperKit (Kern ohne Server und CLI).
+  WhisperKit:
+    url: https://github.com/argmaxinc/WhisperKit
+    exactVersion: 1.1.1
 settings:
   base:
     SWIFT_VERSION: "5.0"
@@ -31,6 +36,8 @@ targets:
         buildPhase: resources
     dependencies:
       - package: UniFlowCore
+      - package: WhisperKit
+        product: WhisperKit
       # Widgets auf Home- und Sperrbildschirm (StudiNowWidgets, eingebettet unter PlugIns)
       - target: StudiNowWidgets
     # Team und "Mit Apple anmelden" nur mit der nicht eingecheckten Config/Team.xcconfig (siehe Config/Base.xcconfig)
