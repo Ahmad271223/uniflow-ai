@@ -148,7 +148,7 @@ def test_review_notes_describe_the_build_honestly():
     text = (REL / "APP-STORE.md").read_text(encoding="utf-8")
     assert "ÜBERHOLT, nicht verwenden" in text and "für 1.0.6 verwenden" in text and "für 1.0.4 verwenden" not in text
     pro = f["review-notes-proai"]
-    assert "sandbox" in pro and "100 credits" in pro and "section 8c" in pro and "never name, e-mail or university credentials" in pro
+    assert "sandbox" in pro and "80 credits" in pro and "section 8c" in pro and "never name, e-mail or university credentials" in pro
     # 07.11.2026 abends: Probe einmal je iPad, danach Pflicht-Entscheidung mit "Bei Free bleiben" ohne Kauf (3.1.2/5.1.1);
     # Frage nach frueheren Semestern (Demo hat keine); eigener Schluessel praezise je Funktion
     trial = _swift("Views/Settings/TrialBanner.swift")
@@ -200,10 +200,11 @@ def test_review_notes_describe_the_build_honestly():
     assert "keine Werbung von StudiNow" in desc
     wn = f["whats-new-proai"]
     assert wn.startswith("Neu in 1.0.7:\n") and wn.count("\n• ") == 10, "höchstens zehn kurze Punkte"
-    for must in ("Klausur-Generator (Pro AI)", "15 Credits", "Noten selbst eintragen", "ohne Noten und Ergebnisse",
-                 "höchstens ein Versuch", "Mensa mit Fotos", "mit zwei Fingern zoomen", "ab der nächsten Verlängerung Plus"):
+    for must in ("Widgets", "Face ID", "Noten selbst eintragen", "ohne Noten und Ergebnisse",
+                 "höchstens ein Versuch", "Mensa mit Fotos", "mit zwei Fingern zoomen", "80 Credits im Monat"):
         assert must in wn, must
-    for gone in ("Glättung", "geglättet", "Lernziele"):
+    # 24.11.2026 (Inhaber): 1.0.7 ohne Klausur-Verkauf, Wissensbank und fertige Erklaerungen
+    for gone in ("Glättung", "geglättet", "Lernziele", "Klausur-Generator", "Probeklausur", "Wissensbank"):
         assert gone not in wn, gone
     assert "„iPhone- und iPad-Apps auf Apple-Silicon-Macs“ = verfügbar" in text and "macOS nicht einreichen" in text
     # 1.0.6: Angaben bei Apple, die sich mit "YouTube öffnen" aendern muessen (nur Vorschlag, nichts bei Apple geaendert)

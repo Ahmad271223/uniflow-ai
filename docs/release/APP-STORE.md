@@ -253,22 +253,23 @@ Neu in 1.0.4:
 • Viele kleine Verbesserungen und Fehler behoben.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, zehn Punkte) – 1464 Zeichen
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, zehn Punkte) – 1645 Zeichen
 
 Die Fassung von 1.0.4 steht in `EINREICHUNG-1-0-4.md`. „Lernkalender … vorerst ausgeblendet“ steht bewusst drin: Wer 1.0.4 hatte, vermisst ihn sonst ohne Erklärung.
 
 ```text whats-new-proai
 Neu in 1.0.7:
-• Klausur-Generator (Pro AI): Wähle in einem Modul Vorlesungen, Altklausuren und Übungen – StudiNow erstellt bis zu zehn Probeklausuren im Stil deiner echten Klausur, mit ausführlichen Lösungen als PDF. Jede Probeklausur kostet 15 Credits; geht etwas schief, wird nichts berechnet.
+• Widgets: „Nächster Termin“ und „Mensa heute“ für Home- und Sperrbildschirm – was gerade läuft, was als Nächstes kommt und der Speiseplan deiner Mensa.
+• Stundenplan am iPhone: Schalte zwischen deinen Tagen und der ganzen Woche um; in der Woche steht bei jedem Termin das Fach. Seiten aktualisierst du am iPhone jetzt durch Ziehen nach unten.
+• Konto löschen nur noch mit Face ID, Touch ID oder deinem Code – damit niemand anderes dein Konto löschen kann.
 • Noten selbst eintragen: Fehlt eine bestandene Prüfung in QIS, hakst du sie im Studienverlauf ab oder trägst die Note ein. Sie zählt bei den LP mit, als „selbst eingetragen“ – meldet QIS sie später, gilt der Wert aus QIS.
 • Prüfungsanmeldungen auf allen Geräten: Was ein Gerät aus QIS holt, siehst du auch auf iPhone, iPad und Mac – ohne Noten und Ergebnisse.
 • Anmeldung im Hintergrund: QIS, Stud.IP und LSF melden sich auch bei geschlossener App neu an – höchstens ein Versuch, damit dein Uni-Konto nie gesperrt wird.
+• Community: Lösungen gelten jetzt für alle Fassungen derselben PDF. Die Lösung daneben sieht genau aus wie beim Verfasser und lässt sich mit zwei Fingern zoomen.
+• Schreiben: Die Schrift bleibt beim Zoomen scharf, das Lasso geht ohne Tastatur, Bilder lassen sich in die Notiz daneben ziehen, der Textmarker blitzt beim Geradeziehen nicht mehr weg.
 • Mensa mit Fotos: In Hannover siehst du zu den meisten Gerichten ein Foto vom Studentenwerk.
-• Lösung daneben: sieht jetzt genau aus wie beim Verfasser und lässt sich mit zwei Fingern zoomen. Eingeblendete Lösungen blendest du mit einem Tipp wieder aus.
-• KI-Hilfe zuverlässiger: Fragst du gleich nach dem Öffnen, hängt das Dokument immer an. „Ganzes Dokument“ und Verweise gehen auch mit VoiceOver.
-• Abo-Wechsel: Wechselst du von Pro AI zu Plus, zeigt StudiNow sofort „ab der nächsten Verlängerung Plus“.
-• Textmarker: blitzt beim Geradeziehen nicht mehr kurz weg.
-• Dazu kleinere Verbesserungen, etwa im Wochenkopf der Module („1/4 erledigt“).
+• KI-Hilfe: Fragst du gleich nach dem Öffnen, hängt das Dokument immer an. Pro AI enthält 80 Credits im Monat, zum Nachkaufen gibt es 80 und 160 Credits.
+Dazu viele kleinere Verbesserungen und Fehlerbehebungen.
 ```
 
 ## Weitere Angaben
@@ -528,7 +529,7 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, Credit-Pakete 24.11.2026) – 3991 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, Credit-Pakete 24.11.2026) – 3937 Zeichen (max. 4000)
 
 **1.0.6:** Wege in den Einstellungen nach der neuen Gliederung („Konto & Tarif“, „Uni-Zugang & Abgleich“), dazu
 Credit-Pakete (wo, wer darf), Lernkalender bewusst aus, Hintergrund-Modi (`fetch`/`processing` für den Abgleich 8–18 Uhr,
@@ -537,7 +538,7 @@ dem Gerät, „YouTube öffnen“. Gestrichen gegenüber 1.0.4: der eigene OpenA
 die Geräte-Regel im Einzelnen. Die Fassung von 1.0.4 steht in `EINREICHUNG-1-0-4.md`.
 
 ```text review-notes-proai
-New in 1.0.7: exam generator (Pro AI, see end), own grades in "Studienverlauf", exam registrations on all devices (no grades), background re-login (one attempt, never resends a rejected password), Mensa dish photos (from Studentenwerk Hannover). Since 1.0.6: credit packs, exam dates from slides, sync 8:00-18:00, YouTube (Plus); The study calendar (study packages, auto planning) is switched off on purpose; the timetable is the calendar.
+New in 1.0.7: home and lock screen widgets (next class, canteen menu; they only read a snapshot the app writes to its app group, no network), iPhone timetable with a day/week switch, own grades in "Studienverlauf", exam registrations on all devices (no grades), background re-login (one attempt, never resends a rejected password), Mensa dish photos (from Studentenwerk Hannover). Since 1.0.6: credit packs, exam dates from slides, sync 8:00-18:00, YouTube (Plus); The study calendar (study packages, auto planning) is switched off on purpose; the timetable is the calendar.
 
 Connected today: Leibniz Universität Hannover and Universität Hildesheim. University features need a personal account. Please use the demo:
 1. Tap "Mit Apple anmelden" (Sign in with Apple). It separates data per Apple account.
@@ -560,15 +561,13 @@ Subscriptions (yearly only, no introductory offers; monthly products are removed
 
 Credit packs "80 Credits" (de.uniflow.credits.klein), "160 Credits" (de.uniflow.credits.gross): need paid Plus or Pro AI (not the trial) and the StudiNow account. Sandbox: "Einstellungen" → "Konto & Tarif" → "Tarif" → "Credits kaufen"; the sheet also opens in "KI-Hilfe" when credits run out. Each transaction is verified and credited once; credits never expire and stay with the account. With Plus they pay only for questions (AI chat).
 
-AI (Pro AI, 100 credits per month) runs on https://app.studinow.app with the StudiNow account (fallback "StudiNow-Konto" → "Mit Apple anmelden"). In the sandbox or trial open a demo PDF, tap "KI-Hilfe", ask. "KI-Hilfe: Was wird gesendet?" comes first: page text or image of a circled area, question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Okay, los". Uni-Mail "Mit KI verbessern" (Pro AI) only proposes; sent only with "Senden". No own API key and no ChatGPT login in this build.
+AI (Pro AI, 80 credits per month) runs on https://app.studinow.app with the StudiNow account (fallback "StudiNow-Konto" → "Mit Apple anmelden"). In the sandbox or trial open a demo PDF, tap "KI-Hilfe", ask. "KI-Hilfe: Was wird gesendet?" comes first: page text or image of a circled area, question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Okay, los". Uni-Mail "Mit KI verbessern" (Pro AI) only proposes; sent only with "Senden". No own API key and no ChatGPT login in this build.
 
-Account deletion: "Einstellungen" → "Konto & Tarif" → "Konto löschen" (also revokes Sign in with Apple).
+Account deletion: "Einstellungen" → "Konto & Tarif" → "Konto löschen" asks for Face ID, Touch ID or the passcode first, then deletes the account (also revokes Sign in with Apple).
 
 Community (1.2): pseudonyms, "Melden", "Blockieren", reports reviewed within 24 hours; support@studinow.app.
 
 No tracking, no analytics. Not endorsed by universities.
-
-Exam generator: module (also demo module) → "Klausur-Generator" → pick slides, past exams, exercises. Up to ten practice exams with solutions as PDF, 15 AI credits each (no new in-app purchase); nothing charged if it fails. Without Pro AI the card shows a lock.
 ```
 
 ## Bildschirmfotos
