@@ -277,11 +277,22 @@ struct IntroSetupLayout: View {
             IntroTopBar(count: model.shownSteps.count, index: model.progressIndex, skipTitle: "Später", onSkip: model.step == .ready ? nil : onSkipAll)
             GeometryReader { geo in
                 if geo.size.width >= 900 {
-                    HStack(alignment: .top, spacing: 32) {
-                        IntroChatHistory(model: model).frame(width: min(480, geo.size.width * 0.42))
-                        IntroAnswerPanel(model: $model, onAnswer: onAnswer, onFinish: onFinish).frame(maxWidth: 560)
+                    // Beide Spalten scrollen fuer sich (24.11.2026, Bild des Inhabers vom iPad): mit vielen Modulen lief
+                    // die Liste "Wann sind deine anderen Prüfungen?" unten aus dem Bild, "Weiter" war nicht erreichbar
+                    HStack(alignment: .top, spacing: 16) {
+                        ScrollView(showsIndicators: false) {
+                            // 8 pt Rand innen: der Scrollbereich schneidet sonst die Schatten der Sprechblasen ab
+                            IntroChatHistory(model: model).padding(.top, 28).padding(.bottom, 30).padding(.horizontal, 8)
+                        }
+                        .frame(width: min(480, geo.size.width * 0.42) + 16)
+                        ScrollView {
+                            IntroAnswerPanel(model: $model, onAnswer: onAnswer, onFinish: onFinish)
+                                .padding(.top, 28).padding(.bottom, 30).padding(.horizontal, 8)
+                        }
+                        .frame(maxWidth: 576)
+                        .accessibilityIdentifier("intro.answers.scroll")
                     }
-                    .padding(.horizontal, 40).padding(.top, 28)
+                    .padding(.horizontal, 32)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                 } else {
                     ScrollView {

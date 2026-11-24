@@ -62,6 +62,34 @@ final class IntroShotsAppTests: XCTestCase {
         }
     }
 
+    /// Viele Module (24.11.2026, Bild des Inhabers vom iPad): die Liste "Wann sind deine anderen Prüfungen?" muss sich
+    /// im breiten Layout scrollen lassen, sonst sind die unteren Module und "Weiter" nicht erreichbar. Mit
+    /// UF_SCREENSHOT_DIR entsteht dazu das Bild "3-fragen-pruefungen-viele".
+    func testExamListScrollsWithManyModulesOnTheIPad() throws {
+        var m = Self.sampleSetup(step: .exams)
+        m.modules = (1...14).map { IntroSetupModule(moduleID: $0, name: "Modul \($0) mit einem längeren Namen", color: "#4f5bd5", planned: true) }
+        let view = AnyView(IntroSetupShot(model: m))
+        let frame = CGRect(origin: .zero, size: Self.smallLandscape)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
+        window.frame = frame
+        let hosting = UIHostingController(rootView: view)
+        window.rootViewController = hosting
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+        func scrollViews(_ v: UIView) -> [UIScrollView] { ((v as? UIScrollView).map { [$0] } ?? []) + v.subviews.flatMap(scrollViews) }
+        let all = scrollViews(hosting.view)
+        let scrollable = all.filter { $0.contentSize.height > $0.bounds.height + 1 }
+        XCTAssertFalse(scrollable.isEmpty, "die Antworten lassen sich scrollen: \(all.map { "\($0.contentSize.height)/\($0.bounds.height)" })")
+        XCTAssertTrue(all.allSatisfy { $0.frame.maxY <= hosting.view.bounds.height + 1 }, "kein Scrollbereich ragt aus dem Bild")
+        if let path = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !path.isEmpty {
+            let dir = URL(fileURLWithPath: path, isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try shoot(view, name: "3-fragen-pruefungen-viele", size: Self.smallLandscape, dir: dir)
+        }
+    }
+
     private struct IntroSetupShot: View {
         @State var model: IntroSetupModel
         var body: some View { IntroSetupLayout(model: $model, onAnswer: { _ in }, onSkipAll: {}, onFinish: {}) }

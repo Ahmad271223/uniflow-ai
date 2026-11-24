@@ -176,13 +176,14 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     for must in ("Stand der Store-Version 1.0.4 (Build 42, `fc66fba4`) plus genau zwei Korrekturen", "`Views.swift`", "`SyncEngine.swift`", "iPadOS 26.2"):
         assert must in r[44]["content"], must
     # Build 45 (19.11.2026): Version 1.0.6 aus f5e21794, eingereicht 15:00 mit beiden Credit-Paketen; develop ist Build 46 (1.0.7)
-    assert r[45]["commit"] == "f5e21794" and project_build() == 47 and r[45]["date"] == "19.11.2026 14:20"
+    assert r[45]["commit"] == "f5e21794" and project_build() == 48 and r[45]["date"] == "19.11.2026 14:20"
     assert r[45]["status"].startswith("eingereicht: Version 1.0.6 am 19.11.2026 15:00 zur Prüfung gegeben")
     for must in ("AFTER_APPROVAL", "Credit-Pakete", "`UFIntakeOffered` YES", "Demo hinter „Hilfe“"):
         assert must in r[45]["status"], must
     # Build 46 (23.11.2026) hochgeladen, nicht eingereicht; Build 47 (24.11.2026) ohne Klausur-Verkauf, Wissensbank, Erklaerungen
     assert r[46]["commit"] == "b9966b80" and r[46]["status"].startswith("hochgeladen (TestFlight), nicht eingereicht: Version 1.0.7")
-    assert r[47]["status"].startswith(("vorbereitet, noch nicht hochgeladen: Version 1.0.7", "hochgeladen (TestFlight)"))
+    assert r[47]["commit"] == "646d1b54" and r[47]["status"].startswith("hochgeladen (TestFlight), nicht eingereicht")
+    assert r[48]["status"].startswith(("vorbereitet, noch nicht hochgeladen: Version 1.0.7", "hochgeladen (TestFlight)"))
     for must in ("Lernkalender aus", "Erinnerungen ab Pro AI", "KI-Credits", "YouTube öffnen"):
         assert must in r[45]["content"], must
     doc = DOC.read_text(encoding="utf-8")
