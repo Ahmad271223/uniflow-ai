@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>StudiNow – Vorschaubild für geteilte Links</title>
+<!-- Quelle für vorschau.jpg (1200 x 630): das Bild, das WhatsApp, iMessage usw. zeigen, wenn jemand studinow.app oder einen
+     Einladungslink teilt (og:image, tools/gen-site.py). Neu bauen: ./vorschau-bauen.sh (Chrome ohne Fenster, dann JPEG).
+     Kein Wort über die KI, weil das Bild auch zur Einladungsseite gehört (tests/test_site.py). -->
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { width: 1200px; height: 630px; position: relative; overflow: hidden; color: #171a26; -webkit-font-smoothing: antialiased;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Helvetica Neue", Arial, sans-serif;
+  background-color: #eceefb;
+  background-image: linear-gradient(rgba(79, 91, 213, .13) 2px, transparent 2px), linear-gradient(90deg, rgba(79, 91, 213, .13) 2px, transparent 2px);
+  background-size: 42px 42px; background-position: -1px -1px; }
+p, h1 { margin: 0; }
+.marke { position: absolute; left: 64px; top: 46px; display: flex; align-items: center; gap: 16px; font-weight: 800; font-size: 36px; letter-spacing: -.01em; }
+.marke img { width: 62px; height: 62px; display: block; }
+h1 { position: absolute; left: 60px; top: 138px; font-size: 112px; line-height: .98; font-weight: 800; letter-spacing: -.04em; }
+.kreis { position: relative; display: inline-block; }
+.kreis svg { position: absolute; left: -40px; top: -12px; width: calc(100% + 100px); height: calc(100% + 38px); overflow: visible; }
+.lead { position: absolute; left: 64px; top: 396px; font-size: 40px; font-weight: 500; letter-spacing: -.012em; white-space: nowrap; }
+.lead span { background: linear-gradient(transparent 12%, rgba(255, 206, 46, .8) 12%, rgba(255, 206, 46, .8) 88%, transparent 88%); border-radius: 6px; padding: 0 8px; margin: 0 -8px; }
+.hand { position: absolute; left: 66px; top: 478px; font-family: "SignPainter", "Bradley Hand", cursive; font-size: 62px; line-height: 1; color: #2a3a9c; transform: rotate(-4deg); transform-origin: left center; white-space: nowrap; }
+.ziel { position: absolute; left: 64px; top: 556px; font-size: 38px; font-weight: 800; letter-spacing: -.02em; color: #2a3a9c; }
+.ipad { position: absolute; left: 690px; top: 196px; width: 760px; padding: 16px; background: #1d2030; border-radius: 40px; transform: rotate(-4deg); box-shadow: 0 44px 64px -30px rgba(37, 45, 120, .6); }
+.ipad img { display: block; width: 100%; border-radius: 26px; }
+</style>
+</head>
+<body>
+<div class="marke"><img src="../website-logo/logo.png" alt="">StudiNow</div>
+<h1>Du bist<br><span class="kreis">eingeladen.<svg viewBox="0 0 100 40" preserveAspectRatio="none"><path d="M 6 26 C 1 9, 36 1.5, 60 2 C 88 2.6, 99.5 12, 97.5 22 C 95 35, 62 38.6, 38 38 C 13 37.4, -1 30, 2.5 17 C 5 8.5, 20 3.5, 37 2.4" fill="none" stroke="#2a3a9c" stroke-width="6" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg></span></h1>
+<p class="lead">Dein Studium, <span>alles an einem Ort</span>.</p>
+<p class="hand">7 Tage alles frei testen</p>
+<p class="ziel">studinow.app</p>
+<div class="ipad"><img src="../website-img/uebersicht-hell.jpg" alt=""></div>
+</body>
+</html>

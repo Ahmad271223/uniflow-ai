@@ -218,3 +218,157 @@ main.doc { padding: 3rem 0 4.5rem; }
   .footer-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   main.doc { padding: 1.25rem 0 3rem; }
 }
+
+/* Spielerische Effekte (24.11.2026, Wunsch des Inhabers: "bisschen spielerischer", Vorbild Lernplattformen). Alles ohne
+   Skript: Zettel am iPad, Laufband, Karteikarte zum Umdrehen und Testfrage (details/summary), Kleinigkeiten beim
+   Draufzeigen. Bewegung nur, wenn das System sie nicht abgeschaltet hat (prefers-reduced-motion); Effekte beim Scrollen
+   nur, wo der Browser animation-timeline kennt, sonst steht alles einfach da. */
+:root { --marker: #ffd84a; --no: #c2413b; --pop: cubic-bezier(.34, 1.56, .64, 1); }
+@media (prefers-color-scheme: dark) { :root { --marker: #d6ae2b; --no: #f0827c; } }
+
+.btn { transition: translate .18s var(--pop), scale .18s var(--pop), box-shadow .18s ease, background-color .18s ease, border-color .18s ease; }
+.btn:hover { translate: 0 -2px; }
+.btn:active { translate: 0 0; scale: .97; }
+.btn .ico { transition: translate .25s var(--pop); }
+.btn-store:hover .ico { translate: 0 3px; }
+.brand img { transition: rotate .3s var(--pop), scale .3s var(--pop); }
+.brand:hover img { rotate: -8deg; scale: 1.08; }
+.trust-list .ico, .tiles .ico { transition: translate .3s var(--pop), rotate .3s var(--pop), scale .3s var(--pop); }
+.trust-list li:hover .ico, .tiles li:hover .ico { translate: 0 -3px; rotate: -6deg; scale: 1.08; }
+.tiles li { transition: border-color .2s ease; }
+.tiles li:hover { border-top-color: var(--accent); }
+.systems li { transition: translate .2s var(--pop), rotate .2s var(--pop); }
+.systems li:not(.soon):hover { translate: 0 -2px; rotate: -2deg; }
+
+/* Zettel am iPad im Einstieg (Demo-Inhalte wie im Bildschirmfoto, fuer Vorleseprogramme ausgeblendet) */
+.hero { overflow-x: clip; }
+.hero-shot { position: relative; }
+.stickers { list-style: none; margin: 0; padding: 0; }
+.stickers li { position: absolute; z-index: 2; margin: 0; display: flex; align-items: center; gap: .55rem; padding: .5rem .9rem .5rem .55rem; border-radius: 14px;
+  background: var(--surface); border: 1.5px solid var(--line-strong); box-shadow: 0 14px 26px -14px rgba(37, 45, 120, .5);
+  font-size: .9rem; font-weight: 700; line-height: 1.25; color: var(--text); white-space: nowrap; rotate: var(--tilt, 0deg); }
+.stickers small { display: block; font-size: .78rem; font-weight: 500; color: var(--muted); }
+.stickers .ico { width: 2rem; height: 2rem; padding: .4rem; border-radius: 10px; background: var(--chip, var(--accent-soft)); color: var(--chip-ink, var(--accent-text)); }
+.stickers li:nth-child(1) { left: -5%; top: -4%; --tilt: -4deg; --d: .5s; }
+.stickers li:nth-child(2) { right: -3%; top: 39%; --tilt: 3deg; --d: .8s; --chip: color-mix(in srgb, var(--ok) 16%, var(--surface)); --chip-ink: var(--ok); }
+.stickers li:nth-child(3) { left: 6%; bottom: 14%; --tilt: 2deg; --d: 1.1s; --chip: color-mix(in srgb, var(--marker) 40%, var(--surface)); --chip-ink: var(--warn); }
+
+/* Laufband unter dem Einstieg: was alles drin ist (zweite Haelfte ist die Wiederholung fuer die Endlosschleife) */
+.ticker { overflow: hidden; background: var(--band); padding: .85rem 0; }
+.ticker-track { list-style: none; margin: 0; padding: 0; display: flex; gap: 2.4rem; width: max-content; }
+.ticker-track li { margin: 0; display: flex; align-items: center; gap: .55rem; font-weight: 700; font-size: 1rem; color: var(--band-text); white-space: nowrap; }
+.ticker-track .ico { width: 1.3rem; height: 1.3rem; opacity: .85; }
+
+/* Bildschirmfotos liegen leicht schraeg wie Blaetter auf dem Tisch und richten sich beim Draufzeigen auf */
+.feature { overflow-x: clip; }
+.feature .device { rotate: 1.2deg; transition: rotate .45s var(--pop), translate .45s var(--pop), scale .45s var(--pop); }
+.feature.alt .device { rotate: -1.2deg; }
+.feature .device:hover { rotate: 0deg; translate: 0 -6px; scale: 1.015; }
+
+/* Zum Ausprobieren: Karteikarte und Testfrage, beides details/summary */
+.try { background-color: var(--hero);
+  background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 22px 22px; background-position: -1px -1px; border-bottom: 1px solid var(--line); }
+.try-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2.2rem; align-items: start; max-width: 62rem; }
+.try-label { margin: 0; font-size: .88rem; font-weight: 700; color: var(--accent-text); }
+.flip { position: relative; min-height: 18rem; border-radius: var(--r-lg); background: var(--surface); border: 2px solid var(--line-strong);
+  box-shadow: 0 9px 0 -4px var(--surface), 0 9px 0 -2px var(--line-strong), 0 18px 0 -8px var(--surface), 0 18px 0 -6px var(--line-strong); }
+.flip summary { list-style: none; cursor: pointer; display: flex; flex-direction: column; justify-content: center; gap: .7rem; min-height: 18rem; padding: 2rem; border-radius: inherit; }
+.flip summary::-webkit-details-marker { display: none; }
+.flip-q { font-family: var(--display); font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.1rem); font-weight: 800; letter-spacing: -.025em; line-height: 1.12; }
+.flip-hint { display: flex; align-items: center; gap: .4rem; font-size: .9rem; color: var(--muted); }
+.flip-hint .ico { width: 1.1rem; height: 1.1rem; }
+.flip[open] { background: var(--accent); border-color: var(--accent); }
+.flip[open] summary { position: absolute; inset: 0; min-height: 0; }
+.flip[open] summary > * { visibility: hidden; }
+.flip-back { min-height: 18rem; padding: 2rem; display: flex; flex-direction: column; justify-content: center; gap: .5rem; }
+.flip-back p { margin: 0; color: var(--on-fill); }
+.flip-back .try-label { opacity: .85; }
+.flip-back .flip-a { font-family: var(--display); font-size: 3.6rem; font-weight: 850; letter-spacing: -.03em; line-height: 1; }
+.quiz { background: var(--surface); border: 2px solid var(--line-strong); border-radius: var(--r-lg); padding: 1.8rem 1.8rem 1.6rem; min-height: 18rem; }
+.quiz-q { font-family: var(--display); font-size: 1.4rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.2; margin: .5rem 0 1.1rem; }
+.opt { position: relative; margin-top: .6rem; border: 2px solid var(--line-strong); border-radius: 14px; background: var(--bg); transition: border-color .2s ease, background-color .2s ease; }
+.opt summary { list-style: none; cursor: pointer; position: relative; padding: .8rem 1rem .8rem 3rem; border-radius: 12px; font-weight: 700; font-size: 1.05rem; }
+.opt summary::-webkit-details-marker { display: none; }
+.opt summary::before { content: ""; position: absolute; left: 1rem; top: 50%; width: 1.25rem; height: 1.25rem; margin-top: -.625rem; border-radius: 50%;
+  border: 2px solid var(--line-strong); background: var(--surface); }
+.opt:not([open]) summary:hover { background: var(--accent-soft); }
+.opt p { margin: 0; padding: 0 1rem .9rem 3rem; font-size: .95rem; color: var(--text-2); }
+.opt.yes[open] { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, var(--surface)); }
+.opt.no[open] { border-color: var(--no); background: color-mix(in srgb, var(--no) 10%, var(--surface)); }
+.opt.yes[open] summary::before { border-color: var(--ok); background: var(--ok); box-shadow: inset 0 0 0 3px var(--surface); }
+.opt.no[open] summary::before { border-color: var(--no); background: var(--no); box-shadow: inset 0 0 0 3px var(--surface); }
+
+.plan { transition: translate .3s var(--pop), rotate .3s var(--pop), box-shadow .3s ease; }
+.plan:hover { translate: 0 -6px; rotate: -.5deg; }
+.plan-top:hover { rotate: .5deg; }
+.faq-list summary { transition: color .15s ease; }
+.faq-list summary:hover { color: var(--accent-text); }
+.faq-list summary::after { transition: rotate .3s var(--pop); }
+.faq-list details[open] summary::after { rotate: 180deg; }
+
+/* Abschluss mit Wellenkante */
+.closing { --w: 20px; padding-top: calc(var(--w) * 1.4);
+  -webkit-mask: radial-gradient(calc(var(--w) * 1.28) at 50% calc(1.8 * var(--w)), #000 99%, #0000 101%) calc(50% - 2 * var(--w)) 0 / calc(4 * var(--w)) 100%,
+    radial-gradient(calc(var(--w) * 1.28) at 50% calc(-.8 * var(--w)), #0000 99%, #000 101%) 50% var(--w) / calc(4 * var(--w)) 100% repeat-x;
+  mask: radial-gradient(calc(var(--w) * 1.28) at 50% calc(1.8 * var(--w)), #000 99%, #0000 101%) calc(50% - 2 * var(--w)) 0 / calc(4 * var(--w)) 100%,
+    radial-gradient(calc(var(--w) * 1.28) at 50% calc(-.8 * var(--w)), #0000 99%, #000 101%) 50% var(--w) / calc(4 * var(--w)) 100% repeat-x; }
+
+@keyframes schweben { 0%, 100% { translate: 0 0; } 50% { translate: 0 -10px; } }
+@keyframes aufkleben { from { opacity: 0; scale: .4; } to { opacity: 1; scale: 1; } }
+@keyframes wippen { 0%, 100% { translate: 0 0; } 50% { translate: 0 -7px; } }
+@keyframes zeichnen { from { stroke-dashoffset: 130; } to { stroke-dashoffset: 0; } }
+@keyframes laufband { to { transform: translateX(calc(-50% - 1.2rem)); } }
+@keyframes umdrehen { from { transform: perspective(900px) rotateY(-90deg); } to { transform: perspective(900px) rotateY(0deg); } }
+@keyframes wackeln { 20%, 60% { translate: -6px 0; } 40%, 80% { translate: 6px 0; } }
+@keyframes huepfen { 0% { scale: .96; } 60% { scale: 1.03; } 100% { scale: 1; } }
+@keyframes konfetti { from { transform: scale(.2); opacity: 1; } to { transform: scale(1.7) rotate(30deg); opacity: 0; } }
+@keyframes hinlegen { from { opacity: .15; transform: translate(60px, 40px) rotate(5deg) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes hinlegen-links { from { opacity: .15; transform: translate(-60px, 40px) rotate(-5deg) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes plopp { from { scale: .3; opacity: 0; } 70% { scale: 1.15; opacity: 1; } to { scale: 1; opacity: 1; } }
+@keyframes hochkommen { from { opacity: .25; transform: translateY(40px); } to { opacity: 1; transform: none; } }
+@keyframes fortschritt { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero-shot .device { animation: schweben 7s ease-in-out infinite; }
+  .stickers li { animation: aufkleben .6s var(--pop) var(--d, .5s) both, wippen 5s ease-in-out calc(var(--d, .5s) + .6s) infinite; }
+  .scribble { stroke-dasharray: 130; animation: zeichnen 1s ease-out 1.2s both; }
+  .ticker-track { animation: laufband 48s linear infinite; }
+  .ticker:hover .ticker-track { animation-play-state: paused; }
+  .flip[open] { animation: umdrehen .55s var(--pop); }
+  .opt.no[open] { animation: wackeln .4s ease; }
+  .opt.yes[open] { animation: huepfen .5s var(--pop); }
+  .opt.yes[open]::after { content: ""; position: absolute; right: 3.2rem; top: 1.5rem; width: 8px; height: 8px; border-radius: 2px; pointer-events: none;
+    box-shadow: -28px -22px 0 var(--accent), 26px -26px 0 var(--marker), -8px -38px 0 var(--ok), 36px -2px 0 #8b5cf6, -38px 4px 0 var(--marker), 12px 30px 0 var(--accent), -20px 28px 0 var(--ok);
+    animation: konfetti .9s ease-out both; }
+  @supports (interpolate-size: allow-keywords) {
+    .faq-list details, .opt { interpolate-size: allow-keywords; }
+    .faq-list details::details-content, .opt::details-content { block-size: 0; overflow: clip; transition: block-size .3s ease, content-visibility .3s allow-discrete; }
+    .faq-list details[open]::details-content, .opt[open]::details-content { block-size: auto; }
+  }
+  @supports (animation-timeline: view()) {
+    .feature .shot { animation: hinlegen linear both; animation-timeline: view(); animation-range: entry 0% cover 38%; }
+    .feature.alt .shot { animation-name: hinlegen-links; }
+    .steps li::before { animation: plopp linear both; animation-timeline: view(); animation-range: entry 30% cover 32%; }
+    .plan { animation: hochkommen linear both; animation-timeline: view(); animation-range: entry 0% cover 26%; }
+    .header::after { content: ""; position: absolute; left: 0; right: 0; bottom: -3px; height: 3px; background: var(--marker); transform-origin: 0 50%;
+      animation: fortschritt linear both; animation-timeline: scroll(root); }
+  }
+}
+@media (max-width: 960px) {
+  .try-grid { grid-template-columns: minmax(0, 1fr); max-width: 34rem; }
+  .stickers li:nth-child(1) { left: -1%; }
+  .stickers li:nth-child(2) { right: -1%; }
+}
+@media (max-width: 720px) {
+  .header::after { display: none; }
+}
+@media (max-width: 600px) {
+  .stickers li { font-size: .78rem; padding: .35rem .65rem .35rem .4rem; border-radius: 11px; gap: .4rem; }
+  .stickers small { display: none; }
+  .stickers .ico { width: 1.6rem; height: 1.6rem; padding: .3rem; border-radius: 8px; }
+  .ticker-track { gap: 1.8rem; }
+  .ticker-track li { font-size: .92rem; }
+  .flip, .flip summary, .flip-back, .quiz { min-height: 15rem; }
+  .flip summary, .flip-back, .quiz { padding: 1.4rem; }
+}

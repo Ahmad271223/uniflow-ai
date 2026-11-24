@@ -19,7 +19,7 @@ SITE = ROOT / "site"
 PAGES = ("index.html", "support.html", "datenschutz.html", "nutzungsbedingungen.html", "impressum.html", "konto-loeschen.html")
 # Kopie der Apple-Datei an der Wurzel: Drag-and-drop aus dem Finder laesst den versteckten Ordner .well-known weg (05.11.2026)
 AASA_ROOT = "apple-app-site-association"
-FILES = PAGES + ("style.css", "icon.svg", "logo.png", "favicon.png", "apple-touch-icon.png", "_redirects", "_headers", AASA_ROOT)
+FILES = PAGES + ("style.css", "icon.svg", "logo.png", "favicon.png", "apple-touch-icon.png", "vorschau.jpg", "_redirects", "_headers", AASA_ROOT)
 IMG_SRC = ROOT / "docs" / "release" / "website-img"
 IMAGES = tuple(f"img/{p.name}" for p in sorted(IMG_SRC.glob("*.jpg")))
 # ausserhalb der Navigation: Einladungsseite hinter https://studinow.app/i/<CODE>, Bilder der Startseite und Universal Links
@@ -37,7 +37,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert f"{16 + len(IMAGES)} Dateien" in p.stdout and "Platzhalter offen" not in p.stdout   # Hosting seit 08.11.2026 eingetragen
+    assert f"{17 + len(IMAGES)} Dateien" in p.stdout and "Platzhalter offen" not in p.stdout   # Hosting seit 08.11.2026 eingetragen
     return out
 
 
@@ -215,6 +215,34 @@ def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_prom
     assert 'src="../logo.png"' in html and 'href="../index.html#preise"' in html
     assert not re.search(r"\bKI\b|ChatGPT|OpenAI", html), "keine KI-Versprechen auf oeffentlichen Seiten (docs/release/README.md)"
     assert not PLACEHOLDER.findall(html)
+
+
+def test_shared_links_show_the_invitation_card_as_preview():
+    """Link-Vorschau (Open Graph, seit 24.11.2026): Startseite und Einladungsseite zeigen die Einladungskarte vorschau.jpg
+    (1200 x 630, JPEG) mit vollstaendiger Adresse; die anderen Seiten nur Titel und Text. Die Einladungsseite behaelt den
+    geteilten Link (kein og:url) und bleibt ohne KI-Versprechen."""
+    import struct
+    data = (SITE / "vorschau.jpg").read_bytes()
+    assert data[:3] == b"\xff\xd8\xff" and len(data) < 150_000
+    assert data == (ROOT / "docs" / "release" / "website-vorschau" / "vorschau.jpg").read_bytes()
+    i = 2
+    while data[i + 1] not in (0xC0, 0xC2):                       # bis zum Rahmen-Kopf mit Hoehe und Breite
+        i += 2 + struct.unpack(">H", data[i + 2:i + 4])[0]
+    assert struct.unpack(">HH", data[i + 5:i + 9]) == (630, 1200)
+    for name in ("index.html", "i/index.html"):
+        html = page(name)
+        assert '<meta property="og:image" content="https://studinow.app/vorschau.jpg">' in html, name
+        assert '<meta property="og:image:width" content="1200">' in html and '<meta property="og:image:height" content="630">' in html
+        assert '<meta name="twitter:card" content="summary_large_image">' in html and 'property="og:image:alt" content="Einladungskarte' in html
+    home, invite = page("index.html"), page("i/index.html")
+    assert '<meta property="og:title" content="StudiNow – dein Studium an einem Ort">' in home
+    assert '<meta property="og:url" content="https://studinow.app/">' in home and "og:url" not in invite
+    assert "7 Tage alles testen, ohne Zahlungsdaten." in home.split('property="og:description" content="')[1].split('"')[0]
+    assert '<meta property="og:title" content="Du bist zu StudiNow eingeladen – StudiNow">' in invite
+    for name in PAGES[1:]:
+        html = page(name)
+        assert "og:image" not in html and '<meta name="twitter:card" content="summary">' in html, name
+        assert f'<meta property="og:url" content="https://studinow.app/{name[:-5]}">' in html and 'property="og:title"' in html
 
 
 def test_apple_app_site_association_declares_the_invite_links():

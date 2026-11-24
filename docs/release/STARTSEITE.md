@@ -32,6 +32,11 @@ iPad und iPhone. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen
 testen, ohne Zahlungsdaten.</p>
 </div>
 <figure class="hero-shot">
+<ul class="stickers" aria-hidden="true">
+<li>:i-folder: <span>Neues Skript <small>Kapitel 1 – Zahlensysteme</small></span></li>
+<li>:i-check: <span>Wochentest <small>3 von 4 richtig</small></span></li>
+<li>:i-utensils: <span>Heute in der Mensa <small>Gemüse-Kichererbsen-Curry</small></span></li>
+</ul>
 <div class="device">
 <picture><source media="(prefers-color-scheme: dark)" srcset="img/uebersicht-dunkel.jpg"><img src="img/uebersicht-hell.jpg" width="1400" height="1050" alt="StudiNow auf dem iPad: Übersicht mit Begrüßung, der Prüfungsanmeldung, der Karte Heute in der Mensa und dem Lernplan für heute (Demo-Inhalte)"></picture>
 </div>
@@ -39,6 +44,11 @@ testen, ohne Zahlungsdaten.</p>
 </figure>
 </div>
 </section>
+
+<div class="ticker" aria-hidden="true">
+<ul class="ticker-track"><li>:i-folder: Skripte</li><li>:i-pen: Apple Pencil</li><li>:i-clock: Stundenplan</li><li>:i-mail: Nachrichten</li><li>:i-sparkle: KI-Hilfe</li><li>:i-check: Wochentests</li><li>:i-cards: Karteikarten</li><li>:i-utensils: Mensa</li><li>:i-route: Studienverlauf</li><li>:i-calendar: Prüfungsanmeldung</li><li>:i-upload: Abgeben in Stud.IP</li>
+<li>:i-folder: Skripte</li><li>:i-pen: Apple Pencil</li><li>:i-clock: Stundenplan</li><li>:i-mail: Nachrichten</li><li>:i-sparkle: KI-Hilfe</li><li>:i-check: Wochentests</li><li>:i-cards: Karteikarten</li><li>:i-utensils: Mensa</li><li>:i-route: Studienverlauf</li><li>:i-calendar: Prüfungsanmeldung</li><li>:i-upload: Abgeben in Stud.IP</li></ul>
+</div>
 
 <section class="trust" aria-label="Was StudiNow verspricht">
 <ul class="wrap trust-list">
@@ -126,6 +136,32 @@ StudiNow fragt fällige Karten zuerst ab: richtig heißt seltener, falsch heißt
 <picture><source media="(prefers-color-scheme: dark)" srcset="img/wochentest-dunkel.jpg"><img src="img/wochentest-hell.jpg" width="1400" height="1050" loading="lazy" decoding="async" alt="Ergebnis eines Wochentests zu Zahlensystemen: 75 Prozent, drei von vier Aufgaben richtig, mit Erklärung zur Lösung (Demo-Inhalte)"></picture>
 </div>
 </figure>
+</div>
+</section>
+
+<section class="section try" id="ausprobieren" aria-labelledby="try-title">
+<div class="wrap">
+<div class="section-head">
+<h2 id="try-title">Probier es gleich hier aus</h2>
+<p>Eine Karteikarte und eine Testfrage zum Antippen, mit Beispiel-Inhalten aus einer Vorlesung über Zahlensysteme.</p>
+</div>
+<div class="try-grid">
+<details class="flip">
+<summary><span class="try-label">Karteikarte</span><span class="flip-q">Was ist 13 im Dualsystem?</span><span class="flip-hint">:i-flip: Antippen zum Umdrehen</span></summary>
+<div class="flip-back">
+<p class="try-label">Antwort</p>
+<p class="flip-a">1101</p>
+<p>8 + 4 + 0 + 1 = 13. In der App gilt: richtig heißt seltener, falsch heißt morgen wieder.</p>
+</div>
+</details>
+<div class="quiz" role="group" aria-labelledby="quiz-q">
+<p class="try-label">Wochentest</p>
+<p class="quiz-q" id="quiz-q">Welche Zahl ist D im Hexadezimalsystem?</p>
+<details class="opt no" name="quiz"><summary>11</summary><p>Noch nicht. 11 ist B. Zähl von A = 10 weiter.</p></details>
+<details class="opt yes" name="quiz"><summary>13</summary><p>Richtig. A = 10, B = 11, C = 12, D = 13.</p></details>
+<details class="opt no" name="quiz"><summary>15</summary><p>Noch nicht. 15 ist F, die letzte Ziffer.</p></details>
+</div>
+</div>
 </div>
 </section>
 
