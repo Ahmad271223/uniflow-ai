@@ -228,7 +228,7 @@ final class CreditsDisplayAppTests: XCTestCase {
         let t = StudoraCreditsRow.explanation
         XCTAssertFalse(t.contains("Cent"), "kein Centbetrag fuer Nutzer (Entscheidung 11.11.2026)")
         XCTAssertFalse(t.contains("1 Credit ist 1 Cent"))
-        XCTAssertTrue(t.contains("100"))
+        XCTAssertTrue(t.contains("80"), "Pro AI 80 Credits im Monat (24.11.2026)")
         XCTAssertTrue(t.contains("25"))
         XCTAssertTrue(t.contains("Tarif wechseln"))
         XCTAssertTrue(t.contains("Gekaufte Credits verfallen nicht"), "zwei Toepfe (15.11.2026)")

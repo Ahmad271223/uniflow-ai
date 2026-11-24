@@ -74,7 +74,7 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     var monthlyCredits: Int {
         switch self {
         case .free, .plus: return 0
-        case .proAI: return 100
+        case .proAI: return 80           // 24.11.2026 (Inhaber): 80 statt 100, 1 Credit = 1 Cent
         }
     }
 

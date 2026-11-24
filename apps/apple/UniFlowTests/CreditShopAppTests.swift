@@ -189,7 +189,9 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
         let (l, _, store) = await start(service)
         XCTAssertEqual(store.products.map(\.id), CreditPacks.productIDs)
         XCTAssertEqual(store.products.map(\.type), [.consumable, .consumable], "Verbrauchskaeufe, kein Abo")
-        XCTAssertEqual(l.creditPacks, CreditPacks.defaultPacks)
+        // die Zahl kommt vom Dienst (hier noch 100/200 wie vor dem 24.11.2026), nicht aus der Vorgabe der App (80/160)
+        XCTAssertEqual(l.creditPacks, [CreditPacks.Pack(productID: "de.uniflow.credits.klein", credits: 100),
+                                       CreditPacks.Pack(productID: "de.uniflow.credits.gross", credits: 200)])
         let small = try XCTUnwrap(store.product(for: l.creditPacks[0]))
         let big = try XCTUnwrap(store.product(for: l.creditPacks[1]))
         XCTAssertEqual(small.price, Decimal(string: "1.99"))
