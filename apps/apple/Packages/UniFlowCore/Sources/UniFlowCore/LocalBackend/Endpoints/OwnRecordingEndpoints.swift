@@ -10,6 +10,7 @@ import Foundation
 /// - POST /api/recordings/own                   eintragen {id?, module_id?, course_id?, title?, event_title?, event_id?,
 ///                                              recorded_at?, duration?, language?, transcript?, transcript_status?}
 /// - GET  /api/recordings/own/suggest?date=&time=  laufender Termin des Stundenplans und die Termine des Tages
+/// - GET  /api/recordings/own/video/{video_id}  Mitschrift zu einer Uni-Aufzeichnung (1.0.8); /own/videos: Stand je Video
 /// - GET  /api/recordings/own/{id}              eine Aufnahme mit Abschnitten
 /// - PATCH /api/recordings/own/{id}             Felder aendern (Titel, Modul, Termin, Dauer, Transkript, Stand)
 /// - DELETE /api/recordings/own/{id}            Aufnahme, Transkript und Zeile entfernen
@@ -56,6 +57,16 @@ public enum OwnRecordingEndpoints: LocalEndpointModule {
             } else {
                 guard let sections = TranscriptSections.sections(b["transcript"]) else { throw bad("transcript: Liste von {start, end, text} erwartet") }
                 out["transcript"] = .text(TranscriptSections.json(sections).jsonString(sortedKeys: true))
+            }
+        }
+        if b.keys.contains("transcript_engine") {
+            if let v = b["transcript_engine"], v.isNull {
+                out["transcript_engine"] = .null
+            } else {
+                guard let s = b["transcript_engine"]?.string, OwnRecordingStore.engines.contains(s) else {
+                    throw bad("transcript_engine: " + OwnRecordingStore.engines.sorted().joined(separator: " | "))
+                }
+                out["transcript_engine"] = .text(s)
             }
         }
         if b.keys.contains("transcript_status") {
@@ -136,17 +147,30 @@ public enum OwnRecordingEndpoints: LocalEndpointModule {
                 let event = vals["event_title"]?.string ?? ""
                 vals["title"] = .text(event.isEmpty ? "Vorlesung vom \(UFDate.german(day))" : "\(event) · \(UFDate.german(day))")
             }
-            vals["audio_path"] = .text(OwnRecordingFiles.audioPath(id))
+            // Mitschrift zu einer Uni-Aufzeichnung: keine eigene Tondatei (der Ton kommt aus dem geladenen Video)
+            var videoID: String?
+            if let v = b["source_video_id"], !v.isNull {
+                guard let s = v.string?.trimmingCharacters(in: .whitespaces), !s.isEmpty, s.count <= 200 else { throw bad("source_video_id: Text erwartet") }
+                videoID = s
+                vals["source_video_id"] = .text(s)
+                vals["audio_path"] = .null
+            } else {
+                vals["audio_path"] = .text(OwnRecordingFiles.audioPath(id))
+            }
             if vals["transcript_status"] == nil { vals["transcript_status"] = .text(vals["transcript"] == nil ? "none" : "done") }
             if let t = vals["transcript"]?.string, let sections = TranscriptSections.sections(try? JSONValue.parse(t)),
                let path = writeTranscript(sections, id: id, files: ctx.files) {
                 vals["transcript_path"] = .text(path)
             }
             let values = vals
+            let video = videoID
             return .json(try await ctx.database.transaction { c -> JSONValue in
                 try OwnRecordingStore.ensureTables(c)
                 guard try c.queryOne("SELECT 1 FROM own_recordings WHERE id=?", [.text(id)]) == nil else {
                     throw LocalHTTPError(status: 409, message: "Diese Aufnahme ist schon eingetragen.")
+                }
+                if let video, try OwnRecordingStore.forVideo(c, videoID: video) != nil {
+                    throw LocalHTTPError(status: 409, message: "Zu dieser Aufzeichnung gibt es schon eine Mitschrift.")
                 }
                 if let m = values["module_id"]?.int, try c.queryOne("SELECT 1 FROM modules WHERE id=?", [.integer(Int64(m))]) == nil {
                     throw LocalHTTPError.notFound("Modul nicht gefunden")
@@ -154,6 +178,20 @@ public enum OwnRecordingEndpoints: LocalEndpointModule {
                 try OwnRecordingStore.insert(c, id: id, values: values, now: now)
                 return try OwnRecordingStore.get(c, id: id) ?? .null
             }, status: 201)
+        }
+
+        // Mitschrift zu einer Uni-Aufzeichnung (404 ohne) und der Stand aller solcher Mitschriften {video_id: status}
+        router.get("/api/recordings/own/video/{video_id}") { req, ctx in
+            let video = req.param("video_id")
+            guard let r = try await ctx.database.withConnection({ try OwnRecordingStore.forVideo($0, videoID: video) }) else {
+                throw LocalHTTPError.notFound("Keine Mitschrift zu dieser Aufzeichnung")
+            }
+            return .json(r)
+        }
+
+        router.get("/api/recordings/own/videos") { _, ctx in
+            let map = try await ctx.database.withConnection { try OwnRecordingStore.videoStatuses($0) }
+            return .json(.object(map.mapValues { JSONValue.string($0) }))
         }
 
         router.get("/api/recordings/own/{rec_id}") { req, ctx in
