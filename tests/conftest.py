@@ -134,12 +134,14 @@ def _credit_kurs_bis_24_11(request, monkeypatch):
     # Vertrag und Tarif-Antwort zeigen die echten Werte
     if any(k in request.node.nodeid for k in ("test_credit_kurs", "test_old_apps_see_the_same_fields_with_the_same_meaning",
                                                "test_credit_packs_fixture_is_current",
-                                               "test_trial_is_pro_ai_in_contract_fixture_and_credits")):
+                                               "test_trial_is_pro_ai_in_contract_fixture_and_credits", "test_plans_fixture_is_current")):
         return
     from app import ai_prices
     monkeypatch.setattr(ai_prices, "MICROEUR_PER_CREDIT", 6_500)
     monkeypatch.setattr(ai_prices, "STRONG_CREDIT_FACTOR", 1.3)
     monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "100")
+    from app import plans
+    monkeypatch.setitem(plans.CREDITS, "pro_ai", 100)
     monkeypatch.setenv("LERNAPP_CREDIT_PACKS", "de.uniflow.credits.klein=100,de.uniflow.credits.gross=200")
 
 

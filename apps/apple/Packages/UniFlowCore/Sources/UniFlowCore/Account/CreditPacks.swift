@@ -30,8 +30,8 @@ public enum CreditPacks {
 
     /// Pakete aus dem Vertrag (plans.json `credit_packs.packs`): Rueckfall, bis der Dienst geantwortet hat. Die
     /// Produkt-IDs tragen keine Zahl; die Groesse stellt der Dienst ein.
-    public static let defaultPacks = [Pack(productID: "de.uniflow.credits.klein", credits: 100),
-                                      Pack(productID: "de.uniflow.credits.gross", credits: 200)]
+    public static let defaultPacks = [Pack(productID: "de.uniflow.credits.klein", credits: 80),
+                                      Pack(productID: "de.uniflow.credits.gross", credits: 160)]   // 80/160 seit 24.11.2026 (Inhaber), vorher 100/200
 
     /// Apple-Produkte der Pakete (StoreKit laedt genau diese)
     public static var productIDs: [String] { defaultPacks.map(\.productID) }

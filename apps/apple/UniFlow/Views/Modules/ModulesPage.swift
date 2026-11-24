@@ -362,7 +362,8 @@ struct ModulePage: View {
     @State private var d: JSONValue?
     @State private var error: String?
     @State private var tab = "overview"                                   // nur im Speicher wie im Web
-    @State private var mode = "list"
+    /// Liste oder Kacheln; gemerkt ueber Module und Neustarts hinweg (24.11.2026, vorher nur im Speicher)
+    @AppStorage("module.docMode") private var mode = "list"
     /// Aufgeklappte Wochen: beim Oeffnen eines Moduls alle zu (Auftrag 13.11.2026), beim Neuladen bleiben sie offen
     @State private var opened: Set<Int> = []
     /// Opencast-Aufzeichnungen je Block (nur lokal) und Woche, zu der aus der Uebersicht gesprungen wurde
@@ -573,6 +574,13 @@ struct ModulePage: View {
                     .accessibilityIdentifier("module.studyPlan")
             }
             UFIconSegmented(options: [("list", "list"), ("cards", "grid")], selection: $mode)
+                // In der Übersicht sind beim Öffnen alle Wochen zu: ohne offene Woche sähe man vom Umschalten nichts.
+                // Dann klappt die neueste Woche mit Dateien auf, damit der Wechsel sichtbar ist (24.11.2026).
+                .onChange(of: mode) { _, _ in
+                    guard tab == "overview", opened.isEmpty else { return }
+                    let filled = (d?.list("weeks") ?? []).filter { ($0.i("count") ?? 0) > 0 }.compactMap { $0.i("week") }
+                    if let w = filled.filter({ $0 >= 1 }).max() ?? filled.first { UFMotion.toggle { opened = [w] } }
+                }
         }
     }
 
@@ -674,8 +682,18 @@ struct ModulePage: View {
                                 (Text(lab) + Text(group.count > 1 ? " · \(group.count)" : "").font(.uf(12.8, 400)).foregroundColor(UF.muted))
                                     .ufFont(12.8, 600).foregroundStyle(UF.text2)
                                     .padding(.top, 12).padding(.bottom, 2).padding(.leading, 8)
-                                ForEach(Row.rows(group)) { row in
-                                    ModuleWeekFileRow(moduleID: id, f: row.value, targets: targets) { router.go(.doc(row.value.s("id") ?? "")) }
+                                if mode == "cards" {
+                                    // Kacheln auch in der Übersicht (24.11.2026, Inhaber am iPad: "der Button hat keine
+                                    // Funktion" - der Umschalter wirkte nur in den Reitern Vorlesungen, Übungen …).
+                                    // Verschieben und "erledigt" je Datei gibt es weiter in der Listenansicht.
+                                    UFAutoGrid(min: 210, spacing: 11.2) {
+                                        ForEach(Row.rows(group)) { row in UFDocCard(f: row.value) { router.go(.doc(row.value.s("id") ?? "")) } }
+                                    }
+                                    .padding(.top, 6).padding(.horizontal, 8)
+                                } else {
+                                    ForEach(Row.rows(group)) { row in
+                                        ModuleWeekFileRow(moduleID: id, f: row.value, targets: targets) { router.go(.doc(row.value.s("id") ?? "")) }
+                                    }
                                 }
                             }
                         }

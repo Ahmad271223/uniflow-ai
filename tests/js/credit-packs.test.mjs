@@ -36,19 +36,19 @@ test("Zusatz zum Monat steht in Klammern, mit Ueberschrift 'Credits' davor", () 
 test("Tarifseite: Stand zeigen, kaufen nur in der App", () => {
   const flow = step => contract.flows.find(f => f.step === step).response;
   const abo = read("views-abo.js");
-  const pro = flow("Verbrauch: erst die 100 Monats-Credits, dann 30 gekaufte");
+  const pro = flow("Verbrauch: erst die 80 Monats-Credits, dann 30 gekaufte");
   assert.ok(showsCredits(pro.credits));
-  assert.equal(balanceLine(pro.credits), "Diesen Monat: 0 von 100 · Gekauft: 270");
+  assert.equal(balanceLine(pro.credits), "Diesen Monat: 0 von 80 · Gekauft: 210");
   assert.equal(webNote(pro.credits, pro.credit_packs), `${KEEP} ${pro.credit_packs.purchase.web.note}`);
   assert.ok(pro.credit_packs.purchase.web.note.includes("iPhone und iPad") && pro.credit_packs.purchase.web.available === false);
   // ohne Angabe des Dienstes (Windows-App mit aelterem Zwischenstand): der feste Hinweis
   assert.equal(webNote({ allowance: 100, remaining: 5, purchased: 0, resets_at: "2026-12-01T00:00:00+01:00" }, undefined),
     `Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder. ${WEB_HINT}`);
   const resting = flow("Pro AI ist vorbei: die gekauften Credits bleiben beim Konto und ruhen");
-  assert.ok(showsCredits(resting.credits) && webNote(resting.credits, resting.credit_packs).startsWith("Du hast noch 191 gekaufte Credits."));
+  assert.ok(showsCredits(resting.credits) && webNote(resting.credits, resting.credit_packs).startsWith("Du hast noch 154 gekaufte Credits."));
   // Plus (15.11.2026): nur der gekaufte Topf, dazu der Satz, was die Credits dort koennen (nur der KI-Chat)
   const plus = flow("Wechsel zu Plus: die gekauften Credits bleiben, gelten aber nur noch fuer den KI-Chat");
-  assert.equal(balanceLine(plus.credits), "Gekauft: 200");
+  assert.equal(balanceLine(plus.credits), "Gekauft: 160");
   assert.equal(webNote(plus.credits, plus.credit_packs), `${KEEP} ${CHAT_ONLY} ${plus.credit_packs.purchase.web.note}`);
   assert.ok(showsCredits({ allowance: 0, remaining: 0, purchased: 0, purchased_usable: true, purchased_scope: "chat" }), "Plus sieht die Zeile auch mit 0");
   assert.ok(abo.includes("KI-Chat mit gekauften Credits") && abo.includes("weitere Credits zum Nachkaufen"));

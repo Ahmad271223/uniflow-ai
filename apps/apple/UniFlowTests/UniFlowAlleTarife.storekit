@@ -8,8 +8,8 @@
       "internalID": "6500000021",
       "localizations": [
         {
-          "description": "100 Credits für die StudiNow-KI",
-          "displayName": "100 Credits",
+          "description": "80 Credits für die StudiNow-KI",
+          "displayName": "80 Credits",
           "locale": "de"
         }
       ],
@@ -23,8 +23,8 @@
       "internalID": "6500000022",
       "localizations": [
         {
-          "description": "200 Credits für die StudiNow-KI",
-          "displayName": "200 Credits",
+          "description": "160 Credits für die StudiNow-KI",
+          "displayName": "160 Credits",
           "locale": "de"
         }
       ],

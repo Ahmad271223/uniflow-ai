@@ -166,7 +166,7 @@ def build(app=None) -> dict:
         call("Verbrauch: erst die 80 Monats-Credits, dann 30 gekaufte", "GET", "/api/entitlements", token=tok)
         note = signer.notification("REFUND", pack_tx(signer, pro["id"], klein, "9000000000000001", revoked=True))
         st, _, raw = asgi_call(app, "POST", "/api/billing/apple/notifications", body=json.dumps({"signedPayload": note}))
-        flows.append({"step": "Apple meldet die Erstattung des kleinen Pakets: nur sein Rest (70) geht weg", "method": "POST",
+        flows.append({"step": "Apple meldet die Erstattung des kleinen Pakets: nur sein Rest (50) geht weg", "method": "POST",
                       "path": "/api/billing/apple/notifications", "auth": False, "request": {"signedPayload": "<signierte-mitteilung>"},
                       "status": st, "response": scrub({k: v for k, v in json.loads(raw).items()
                                                        if k in ("ok", "type", "applied", "status", "credits_added", "credits_removed", "product_id")})})
