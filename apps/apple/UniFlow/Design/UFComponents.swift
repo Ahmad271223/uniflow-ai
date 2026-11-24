@@ -769,12 +769,13 @@ struct UFContent<Content: View>: View {
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                // Marke ganz oben: erneutes Tippen auf den offenen Reiter am iPhone fuehrt hierher (23.11.2026)
-                Color.clear.frame(height: 0).id(Self.topID)
+                // Marke am Inhalt selbst (kein eigenes Element: das veraenderte die Hoehe der Seite um 1,5 pt,
+                // IPhoneLearnCardsTests 24.11.2026): erneutes Tippen auf den offenen Reiter am iPhone fuehrt nach oben
                 VStack(alignment: .leading, spacing: 0) { content }
                     .padding(pad)
                     .frame(maxWidth: maxWidth.map(UFDevice.pageWidth) ?? (wide ? .infinity : UFDevice.pageWidth(1480)), alignment: .leading)
                     .frame(maxWidth: .infinity)
+                    .id(Self.topID)
             }
             .defaultScrollAnchor(UFDebugScroll.anchor)
             .onReceive(NotificationCenter.default.publisher(for: .ufScrollToTop)) { _ in
