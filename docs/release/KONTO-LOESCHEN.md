@@ -1,6 +1,6 @@
 # StudiNow-Konto löschen
 
-**Stand 14.11.2026.** So löschst du dein StudiNow-Konto und alle Daten dazu.
+**Stand 24.11.2026.** So löschst du dein StudiNow-Konto und alle Daten dazu.
 
 ## In der App
 
@@ -16,6 +16,11 @@ Daten von StudiNow auf diesem iPad. Alle übrigen Daten im StudiNow-Dienst
 (Kurse, Dateien, Notizen, Kalender, Karteikarten, Kommentare, Fragen und Antworten) werden **30 Tage** nach der
 Löschung endgültig entfernt, aus den Sicherungskopien spätestens 30 Tage später. Rückgängig machen lässt sich die
 Löschung nicht.
+
+Die kostenlose Probe gibt es nur einmal: Wir behalten dafür einen nicht umkehrbaren Prüfwert (Hash) deiner
+Anmelde-Kennung, deiner E-Mail-Adresse und der Gerätekennung der App mit dem Enddatum deiner Probe, ohne Kontonummer
+und ohne Inhalte, höchstens 3 Jahre. Wer sich nach dem Löschen wieder anmeldet, bekommt keine neue Probe; eine noch
+laufende Probe läuft bis zu ihrem alten Ende weiter (Datenschutzerklärung, Abschnitt 15).
 
 ## Per E-Mail
 
