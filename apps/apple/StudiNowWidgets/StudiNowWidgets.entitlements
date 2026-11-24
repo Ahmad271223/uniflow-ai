@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Widgets (docs/WIDGETS-2026-11-23.md): nur die App-Gruppe, aus der das Widget den Schnappschuss der App liest
+  (WidgetShared/HomeWidgetData.swift). Im Apple-Konto muss die Gruppe group.de.uniflow.ai fuer de.uniflow.ai UND
+  de.uniflow.ai.widgets eingeschaltet sein (automatische Signierung legt sie an).
+-->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.de.uniflow.ai</string>
+	</array>
+</dict>
+</plist>

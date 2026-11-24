@@ -29,6 +29,11 @@
 <dict>
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- Widgets: Schnappschuss fuer Home- und Sperrbildschirm (docs/WIDGETS-2026-11-23.md) -->
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.de.uniflow.ai</string>
+	</array>
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:studinow.app</string>
