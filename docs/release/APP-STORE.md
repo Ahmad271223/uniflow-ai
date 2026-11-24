@@ -161,7 +161,7 @@ Datenschutz: https://studinow.app/datenschutz
 StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3990 Zeichen
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, Credits 24.11.2026) – 3988 Zeichen
 
 **1.0.6 (18.11.2026, nicht hochgeladen):** nur, was es in 1.0.6 gibt (Richtlinie 2.3). Entfernt gegenüber 1.0.4:
 Lernkalender, KI-Lernplan, automatischer Lernplan, Lernziele in Stunden, „Lernplan“ auf iPhone und bei Plus, der eigene
@@ -203,7 +203,7 @@ KI-HILFE MIT STUDINOW PRO AI
 • Frag zur Seite oder zu einem markierten Bereich: erklären, zusammenfassen, Aufgabe lösen
 • Ganzes Dokument: „Ganze Vorlesung erklären“ oder „Alle Aufgaben erklären“
 • Wochentests und Karteikarten aus deinen Unterlagen, E-Mails ans Prüfungsamt verbessern
-• Credits aufgebraucht? 100 oder 200 Credits einmalig nachkaufen; sie verfallen nicht
+• Credits aufgebraucht? 80 oder 160 Credits einmalig nachkaufen; sie verfallen nicht
 Die KI ist freiwillig und braucht ein StudiNow-Konto (Anmelden mit Apple). Nur was du ihr schickst, verlässt dein Gerät. KI-Antworten können Fehler enthalten.
 
 DEINE DATEN
@@ -211,7 +211,7 @@ DEINE DATEN
 • Dein Hochschul-Passwort bleibt bei dir: Mit „Passwort auf diesem iPad merken“ liegt es nur im Schlüsselbund dieses Geräts (nicht in iCloud). An Server von StudiNow geht es nie.
 
 STUDINOW FREE, PLUS UND PRO AI
-StudiNow Free ist dauerhaft kostenlos (ein Gerät): Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Community, KI-Chat mit gekauften Credits. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 100 Credits im Monat, Erinnerungen an Abgaben, Tests und Klausuren und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
+StudiNow Free ist dauerhaft kostenlos (ein Gerät): Abgleich mit der Hochschule, Uni-Mail, Noten, Lesen, Stundenplan, Raumfinder und Mensa. Zum Start 7 Tage Probe mit allem aus Pro AI (einmal je Gerät), ohne Zahlungsdaten; danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI. StudiNow Plus (19,99 €/Jahr): Apple Pencil, Übung und Skript nebeneinander, Karteikarten, Community, KI-Chat mit gekauften Credits. StudiNow Pro AI (39,99 €/Jahr): alles aus Plus, die StudiNow-KI mit 80 Credits im Monat, Erinnerungen an Abgaben, Tests und Klausuren und deine Notizen auf allen Geräten. Beide sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf in deinem Apple-Konto gekündigt werden. Danach bleiben alle Notizen lesbar und exportierbar.
 
 Nutzungsbedingungen: https://studinow.app/nutzungsbedingungen
 Datenschutz: https://studinow.app/datenschutz
@@ -285,7 +285,7 @@ Neu in 1.0.7:
 | Copyright | © 2026 IT solutions by Ahmad Fakih |
 | Händlerstatus (DSA) | Händler; Name, Anschrift, E-Mail wie im Impressum (IT solutions by Ahmad Fakih, Inhaber Ahmad Fakih, Vahrenwalder Straße 30, 30165 Hannover, support@studinow.app; werden im Store angezeigt); Telefonnummer verlangt Apple zusätzlich – vom Inhaber eintragen; die E-Mail beim Händlerstatus ändert der Inhaber selbst |
 | Bundle-ID, SKU | `de.uniflow.ai` (`docs/RELEASE-VORBEREITUNG.md`); SKU frei wählbar, z. B. `studinow-ipad` |
-| Version, Build | 1.0.7 (`MARKETING_VERSION` auf develop seit 19.11.2026: Klausur-Generator, Mensa-Fotos; 1.0.6 in der Prüfung; 1.0.5 ist der veröffentlichte Hotfix; 1.0.4 seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 46** (`CURRENT_PROJECT_VERSION` auf develop); Build 45 in der Prüfung (`f5e21794`, Version 1.0.6, eingereicht am 19.11.2026 15:00 mit beiden Credit-Paketen, WAITING_FOR_REVIEW, Veröffentlichung nach der Freigabe automatisch); Build 44 als Version 1.0.5 veröffentlicht am 18.11.2026 abends (`10cf2836`, Hotfix: Absturz bei offenem Dokument auf iPadOS 18/26, Speicher-Runde nach dem Schließen; eingereicht am 16.11.2026 23:42, von Hand freigegeben); Build 43 (`e2e26e56`) seit 15.11.2026 19:41 nur intern in TestFlight (Gruppe „Intern (Inhaber)“, nicht an „LUH-Tester“, nicht eingereicht); Build 42 als Version 1.0.4 veröffentlicht am 16.11.2026 10:49 (eingereicht am 15.11.2026 10:13, von Apple genehmigt, von Hand freigegeben); Build 41 am 14.11.2026 19:56 eingereicht und um 21:54 zurückgezogen (Fehler im iPhone-Layout am echten Gerät), seitdem nur TestFlight; Builds 36 bis 40 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
+| Version, Build | 1.0.7 (`MARKETING_VERSION` auf develop seit 19.11.2026: Klausur-Generator, Mensa-Fotos; 1.0.6 in der Prüfung; 1.0.5 ist der veröffentlichte Hotfix; 1.0.4 seit 13.11.2026 für Build 36: Smart Planner 2.0, eigene Wochen, kurzer KI-Hinweis; Entscheidung des Inhabers 09.11.2026: der erste veröffentlichte Stand heißt 1.0.1), **Build 47** (`CURRENT_PROJECT_VERSION` auf `release/1.0.7-b47`, 24.11.2026: 1.0.7 ohne Klausur-Generator, Wissensbank und fertige Erklärungen; Build 46 hochgeladen, nicht eingereicht); Build 45 in der Prüfung (`f5e21794`, Version 1.0.6, eingereicht am 19.11.2026 15:00 mit beiden Credit-Paketen, WAITING_FOR_REVIEW, Veröffentlichung nach der Freigabe automatisch); Build 44 als Version 1.0.5 veröffentlicht am 18.11.2026 abends (`10cf2836`, Hotfix: Absturz bei offenem Dokument auf iPadOS 18/26, Speicher-Runde nach dem Schließen; eingereicht am 16.11.2026 23:42, von Hand freigegeben); Build 43 (`e2e26e56`) seit 15.11.2026 19:41 nur intern in TestFlight (Gruppe „Intern (Inhaber)“, nicht an „LUH-Tester“, nicht eingereicht); Build 42 als Version 1.0.4 veröffentlicht am 16.11.2026 10:49 (eingereicht am 15.11.2026 10:13, von Apple genehmigt, von Hand freigegeben); Build 41 am 14.11.2026 19:56 eingereicht und um 21:54 zurückgezogen (Fehler im iPhone-Layout am echten Gerät), seitdem nur TestFlight; Builds 36 bis 40 (1.0.4) nur TestFlight seit 13.11.2026 (ab 39 mit iPhone, ab 40 mit Hildesheim); Build 35 als Version 1.0.3 veröffentlicht am 13.11.2026; Builds 33 und 34 (1.0.3) nur TestFlight; Build 32 nur TestFlight (Absturz); Build 31 als Version 1.0.2 veröffentlicht am 11.11.2026; Build 30 als Version 1.0.1 veröffentlicht am 10.11.2026; Version 1.0 mit Build 25 freigegeben, nie veröffentlicht, zurückgezogen; Build 26 nie hochgeladen; Build 5 bis 24 nicht einreichen; welcher Commit in welchem Build steckt: `docs/release/BUILD-HERKUNFT.md` |
 | Mit Apple anmelden | Fähigkeit aktiv. Seit 12.11.2026 eine Anmeldung für alles: „Mit Apple anmelden“ beim Start trennt die Daten je Apple-Nutzer und meldet zugleich beim StudiNow-Dienst an (Token-Tausch beim Dienst; ein neues Konto direkt nach der Hochschulwahl; dieselbe Apple-ID = dasselbe Konto auf jedem Gerät). Rückfall bei Fehler/offline: Einstellungen → Konto. „Konto löschen“ in der App löscht Gerätedaten und Dienst-Konto und widerruft die Apple-Anmeldung bei Apple (Richtlinie 5.1.1(v); `app/apple_signin.py`, braucht `LERNAPP_APPLE_TEAM_ID`, `LERNAPP_APPLE_SIGNIN_KEY_ID`, `LERNAPP_APPLE_SIGNIN_KEY_FILE` am Server) |
 | Exportkontrolle | `ITSAppUsesNonExemptEncryption = NO` steht schon in `project.yml` (nur Verschlüsselung des Betriebssystems: HTTPS über URLSession, AES-256-GCM und HKDF aus CryptoKit); App Store Connect fragt beim Build nicht nach |
 
@@ -427,7 +427,7 @@ genehmigt und nicht löschbar, darum **aus dem Verkauf genommen** (Klickliste in
 lädt und zeigt sie nicht mehr; ein früherer Kauf damit (Sandbox/TestFlight) gilt in App und Dienst weiter als Kauf des
 Tarifs (`UFPlan(productID:)`, `plans.LEGACY_PRODUCTS`), die Tarifkarte bietet dann den Wechsel zum Jahresabo an.
 
-Die KI-Credits gelten auch beim Jahresabo je Kalendermonat (100 Credits, `credit_months` im Dienst).
+Die KI-Credits gelten auch beim Jahresabo je Kalendermonat (80 Credits seit 24.11.2026, vorher 100; `credit_months` im Dienst).
 
 **Credit-Pakete (neu mit 1.0.6, `docs/KI-CREDITS-2026-11-15.md` Abschnitt 9):** zwei Verbrauchsartikel (Consumable),
 ohne Familienfreigabe, mit der Version 1.0.6 zur Prüfung geben (erste Einreichung eines neuen In-App-Kaufs braucht eine
@@ -440,8 +440,8 @@ sind. Prüf-Bild: Blatt „Credits kaufen“ (`CreditShopAppTests`, nur mit `UF_
 |---|---|---|
 | Produkt-ID | `de.uniflow.credits.klein` | `de.uniflow.credits.gross` |
 | Referenzname | Credits klein | Credits groß |
-| Anzeigename (de-DE) | 100 Credits | 200 Credits |
-| Beschreibung (max. 45) | 100 Credits für die StudiNow-KI | 200 Credits für die StudiNow-KI |
+| Anzeigename (de-DE) | 80 Credits | 160 Credits |
+| Beschreibung (max. 45) | 80 Credits für die StudiNow-KI | 160 Credits für die StudiNow-KI |
 | Preis | 1,99 € | 3,99 € |
 
 Liefert StoreKit Pro AI nicht (fehlt in App Store Connect, nicht freigegeben, kein Netz), zeigt die Tarifseite nur Free
@@ -457,7 +457,7 @@ ChatGPT (`UFPlanCard`, `PlanContractTests`).
   Karteikarten, „Lernplan automatisch erstellen“ (Lernslots in deinen freien Zeiten; Free sieht dafür das Schloss).
 - **Pro AI:** „KI-Hilfe zu deinen Unterlagen“ (Seite, Bereich, ganzes Dokument, „Ganze Vorlesung erklären“, „Alle
   Aufgaben erklären“), „Karteikarten aus deinen Unterlagen“, „Wochentests erstellen“ (StudiNow-KI; auf dem iPad darum
-  Pro AI), „Notizen auf allen deinen Geräten“; Zeile „Braucht ein StudiNow-Konto (Anmelden mit Apple). 100 Credits im
+  Pro AI), „Notizen auf allen deinen Geräten“; Zeile „Braucht ein StudiNow-Konto (Anmelden mit Apple). 80 Credits im
   Monat.“ Nicht gebaute Rechte des Vertrags (Lernstatistik, Empfehlungen, Testbibliothek, fertige Wochenfragen,
   vollständige Testliste) stehen auf keiner Karte.
 
@@ -528,7 +528,7 @@ Community (guideline 1.2): students of a course share notes on an exercise sheet
 No tracking, no ads, no third-party analytics. Not endorsed by universities; it writes to them only on explicit user action.
 ```
 
-### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026) – 3992 Zeichen (max. 4000)
+### Fassung mit Pro AI – für 1.0.6 verwenden (Stand 18.11.2026, Credit-Pakete 24.11.2026) – 3991 Zeichen (max. 4000)
 
 **1.0.6:** Wege in den Einstellungen nach der neuen Gliederung („Konto & Tarif“, „Uni-Zugang & Abgleich“), dazu
 Credit-Pakete (wo, wer darf), Lernkalender bewusst aus, Hintergrund-Modi (`fetch`/`processing` für den Abgleich 8–18 Uhr,
@@ -558,7 +558,7 @@ YouTube (Plus): document → "Mehr" → "Video oder Lernseite daneben …" → "
 
 Subscriptions (yearly only, no introductory offers; monthly products are removed from sale; 19.99 € and 39.99 € from 11 Nov 2026): "Einstellungen" → "Konto & Tarif" → "Tarif" → "Tarif wechseln", with "Käufe wiederherstellen".
 
-Credit packs "100 Credits" (de.uniflow.credits.klein), "200 Credits" (de.uniflow.credits.gross): need paid Plus or Pro AI (not the trial) and the StudiNow account. Sandbox: "Einstellungen" → "Konto & Tarif" → "Tarif" → "Credits kaufen"; the sheet also opens in "KI-Hilfe" when credits run out. Each transaction is verified and credited once; credits never expire and stay with the account. With Plus they pay only for questions (AI chat).
+Credit packs "80 Credits" (de.uniflow.credits.klein), "160 Credits" (de.uniflow.credits.gross): need paid Plus or Pro AI (not the trial) and the StudiNow account. Sandbox: "Einstellungen" → "Konto & Tarif" → "Tarif" → "Credits kaufen"; the sheet also opens in "KI-Hilfe" when credits run out. Each transaction is verified and credited once; credits never expire and stay with the account. With Plus they pay only for questions (AI chat).
 
 AI (Pro AI, 100 credits per month) runs on https://app.studinow.app with the StudiNow account (fallback "StudiNow-Konto" → "Mit Apple anmelden"). In the sandbox or trial open a demo PDF, tap "KI-Hilfe", ask. "KI-Hilfe: Was wird gesendet?" comes first: page text or image of a circled area, question, course and file name go via our service to OpenAI or Claude (Amazon Bedrock, Frankfurt), privacy policy section 8c; never name, e-mail or university credentials. Nothing is sent before "Okay, los". Uni-Mail "Mit KI verbessern" (Pro AI) only proposes; sent only with "Senden". No own API key and no ChatGPT login in this build.
 

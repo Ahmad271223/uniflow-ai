@@ -74,18 +74,18 @@ def balance_cases() -> list[dict]:
         return c
 
     cases = [
-        ("Pro AI, beide Toepfe gefuellt", state(100, 37, 80)),
-        ("Pro AI, Monat leer, gekaufte da", state(100, 0, 80)),
-        ("Pro AI, alles aufgebraucht", state(100, 0, 0)),
-        ("Pro AI ohne Kauf", state(100, 100, 0)),
+        ("Pro AI, beide Toepfe gefuellt", state(80, 37, 80)),
+        ("Pro AI, Monat leer, gekaufte da", state(80, 0, 80)),
+        ("Pro AI, alles aufgebraucht", state(80, 0, 0)),
+        ("Pro AI ohne Kauf", state(80, 80, 0)),
         ("Probe: 25 Credits, kaufen geht nicht", state(25, 9, 0, can_buy=False, plan="pro_ai:trial")),
         ("Plus mit gekauften Credits: nur der KI-Chat", state(0, 0, 60, scope="chat", plan="plus")),
         ("Plus ohne Credits: darf kaufen", state(0, 0, 0, scope="chat", plan="plus")),
         ("Free mit ruhenden gekauften Credits", state(0, 0, 60, usable=False, can_buy=False, plan="free")),
         ("Free ohne Credits", state(0, 0, 0, usable=False, can_buy=False, plan="free")),
-        ("Jahreswechsel", state(100, 5, 12, resets_at="2027-01-01T00:00:00+01:00")),
-        ("aelterer Dienst ohne die neuen Felder", state(100, 37)),
-        ("Stand ohne lesbares Datum", state(100, 0, 3, resets_at="")),
+        ("Jahreswechsel", state(80, 5, 12, resets_at="2027-01-01T00:00:00+01:00")),
+        ("aelterer Dienst ohne die neuen Felder", state(80, 37)),
+        ("Stand ohne lesbares Datum", state(80, 0, 3, resets_at="")),
     ]
     return [{"name": name, "credits": c,
              "expect": {"line": texts.balance_line(c), "keep_note": texts.keep_note(c), "dormant_note": texts.dormant_note(c),
@@ -161,9 +161,9 @@ def build(app=None) -> dict:
         buy("Dieselbe Transaktion noch einmal (Wiederholung nach Netzfehler): nichts doppelt",
             pack_tx(signer, pro["id"], klein, "9000000000000001"))
         buy("Grosses Paket kaufen", pack_tx(signer, pro["id"], gross, "9000000000000002"))
-        spend(pro["id"], 100, "monat")
+        spend(pro["id"], 80, "monat")
         spend(pro["id"], 30, "gekauft")
-        call("Verbrauch: erst die 100 Monats-Credits, dann 30 gekaufte", "GET", "/api/entitlements", token=tok)
+        call("Verbrauch: erst die 80 Monats-Credits, dann 30 gekaufte", "GET", "/api/entitlements", token=tok)
         note = signer.notification("REFUND", pack_tx(signer, pro["id"], klein, "9000000000000001", revoked=True))
         st, _, raw = asgi_call(app, "POST", "/api/billing/apple/notifications", body=json.dumps({"signedPayload": note}))
         flows.append({"step": "Apple meldet die Erstattung des kleinen Pakets: nur sein Rest (70) geht weg", "method": "POST",
@@ -177,7 +177,7 @@ def build(app=None) -> dict:
         os.environ["LERNAPP_AI_PRICE_IN_EUR"], os.environ["LERNAPP_AI_PRICE_OUT_EUR"] = "350", "350"
         ai_backend.set_provider(FakeAI())
         leer, tok_leer = register("leer@beispiel.de", "pro_ai")
-        spend(leer["id"], 100, "monat-leer")
+        spend(leer["id"], 80, "monat-leer")
         call("Credits reichen nicht: 429 mit dem Stand (die App zeigt das Blatt, weil can_buy true ist)", "POST", "/api/ai/tutor",
              {"mode": "explain", "page_text": "Matrizen", "request_id": "leer-1"}, token=tok_leer)
         _, tok_plus = register("plus@beispiel.de", "plus")

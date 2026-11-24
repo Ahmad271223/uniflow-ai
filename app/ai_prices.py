@@ -2,7 +2,7 @@
 
 PRUEFEN VOR START (und bei jedem Modellwechsel): die Zahlen in PRICES mit den Preislisten vergleichen (SOURCE, Stand
 CHECKED). OpenAI und Anthropic/Bedrock rechnen in US-Dollar, Scaleway (DeepSeek in der EU) in Euro, jeweils je 1 Mio.
-Tokens; der Dienst rechnet in Credits (1 Credit = 0,65 Cent echter KI-Kosten, app/credits.py). Ohne Preis fuer das
+Tokens; der Dienst rechnet in Credits (1 Credit = 1 Cent echter KI-Kosten, app/credits.py). Ohne Preis fuer das
 Modell sperrt der Dienst die KI (fail closed). Modellmischung: docs/KI-MODELLMISCHUNG-2026-11-05.md, app/ai_router.py.
 
 Umgebung (deploy/.env, alles optional):
@@ -81,11 +81,12 @@ RECOMMENDED = "gpt-6-luna"
 # Empfehlung je Anbieter der Modellmischung (app/ai_router.py)
 RECOMMENDED_BY_PROVIDER = {"openai": "gpt-6-luna", "deepseek": "deepseek-v4.1-flash-1017", "anthropic": "claude-sonnet-5-5"}
 
-# 1 Credit = 0,65 Cent = 6.500 Millionstel Euro (Entscheidung des Inhabers 15.11.2026, vorher 0,9 Cent seit 08.11.2026):
-# ein Kurs fuer alle Credits - Monats-Credits, Probe und gekaufte Pakete. Pro AI zeigt 100 Credits im Monat, die echten
-# KI-Kosten je Konto bleiben dabei unter 0,65 EUR; die Probe mit 25 Credits unter 0,17 EUR; ein Paket mit 100 Credits
-# kostet hoechstens 0,65 EUR, eines mit 200 hoechstens 1,30 EUR.
-MICROEUR_PER_CREDIT = 6_500
+# 1 Credit = 1 Cent = 10.000 Millionstel Euro (Entscheidung des Inhabers 24.11.2026: "einheitlich, 100 Credits sollen
+# genau so viele Cent sein"; vorher 0,65 Cent seit 15.11.2026, 0,9 Cent seit 08.11.2026): ein Kurs fuer alle Credits -
+# Monats-Credits, Probe und gekaufte Pakete. Abgezogen wird, was die Antwort beim Anbieter gekostet hat (`usage`),
+# umgerechnet und auf ganze Credits aufgerundet. Pro AI mit 100 Credits im Monat: hoechstens 1,00 EUR KI-Kosten je Konto;
+# die Probe mit 25 Credits hoechstens 0,25 EUR; ein Paket mit 80 Credits hoechstens 0,80 EUR, eines mit 160 hoechstens 1,60 EUR (Pakete 24.11.2026).
+MICROEUR_PER_CREDIT = 10_000
 # Schaetzung vor dem Aufruf: Zeichen je Token (deutscher Text liegt bei etwa 4; 3 ist vorsichtig) und Aufschlag je Anfrage
 CHARS_PER_TOKEN = 3
 OVERHEAD_TOKENS = 64
@@ -250,13 +251,13 @@ def cost_microeur(model: str | None, input_tokens: int, output_tokens: int, cach
     return int(round((i - c) * p.input_eur + c * p.cached_eur + o * p.output_eur))
 
 
-# Aufschlag fuer starke Modelle (Auftrag des Inhabers 18.11.2026 abends: "dann sollen das halt 10 credits ... bei 4,9 cent"):
+# Aufschlag fuer starke Modelle (Auftrag des Inhabers 18.11.2026 abends, AUFGEHOBEN 24.11.2026: "alles einheitlich", Faktor 1):
 # Modelle ab STRONG_OUTPUT_EUR Ausgabepreis (EUR je 1 Mio. Tokens; gpt-6.1-sol, gpt-6-sol, Claude Sonnet) kosten
 # STRONG_CREDIT_FACTOR-mal so viele Credits wie ihre echten Kosten - eine lange Rechen-Antwort mit 4,9 Cent also 10 statt
 # 8 Credits. Guenstige Modelle (gpt-6-luna, gpt-6.1-terra) bleiben beim Kurs. Einstellbar mit LERNAPP_CREDIT_STRONG_FACTOR
 # (1 = aus) in deploy/.env.
 STRONG_OUTPUT_EUR = 8.0
-STRONG_CREDIT_FACTOR = 1.3
+STRONG_CREDIT_FACTOR = 1.0   # 24.11.2026 (Inhaber): kein Aufschlag mehr, alle Modelle zum selben Kurs; vorher 1.3
 STRONG_FACTOR_ENV = "LERNAPP_CREDIT_STRONG_FACTOR"
 
 

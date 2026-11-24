@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Stand 22.11.2026.**
+**Stand 24.11.2026.**
 
 ## 1. Geltung und Vertragspartner
 
@@ -79,7 +79,7 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   Monatsabos bieten wir nicht an.
 - **StudiNow Pro AI** ist ein Jahresabo (Stand: 39,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und die
   KI von StudiNow über den StudiNow-Dienst, ohne eigenes ChatGPT-Konto. Dafür brauchst du ein StudiNow-Konto; die App
-  bietet Pro AI erst an, wenn der Dienst verfügbar ist. Die KI wird mit Credits abgerechnet: 100 Credits je
+  bietet Pro AI erst an, wenn der Dienst verfügbar ist. Die KI wird mit Credits abgerechnet: 80 Credits je
   Kalendermonat (auch beim Jahresabo). Nicht verbrauchte
   Credits verfallen am Monatsende; sind sie aufgebraucht, steht die KI von StudiNow bis zum nächsten Monat nicht zur
   Verfügung, alle anderen Funktionen bleiben. Dazu kommen bis zu 50 E-Mails je Kalendermonat, die du in Uni-Mail mit

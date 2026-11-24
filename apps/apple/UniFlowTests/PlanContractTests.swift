@@ -176,7 +176,7 @@ final class PlanContractTests: XCTestCase {
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: plusOnly, loading: false, current: .proAI))
         // Konto-Hinweis nur auf der Pro-AI-Karte (07.11.2026), Credits wie im Vertrag
         XCTAssertEqual(UFPlanCatalog.serviceNote(.proAI), UFPlanCatalog.proAIServiceNote)
-        XCTAssertEqual(UFPlanCatalog.proAIServiceNote, "Braucht ein StudiNow-Konto (Anmelden mit Apple). 100 Credits im Monat, weitere Credits zum Nachkaufen.")
+        XCTAssertEqual(UFPlanCatalog.proAIServiceNote, "Braucht ein StudiNow-Konto (Anmelden mit Apple). 80 Credits im Monat, weitere Credits zum Nachkaufen.")
         XCTAssertFalse(UFPlanCatalog.proAIServiceNote.contains("denselben Umfang"))
         XCTAssertNil(UFPlanCatalog.serviceNote(.plus))
         XCTAssertNil(UFPlanCatalog.serviceNote(.free))
@@ -359,7 +359,7 @@ final class PlanContractTests: XCTestCase {
         let help = try? XCTUnwrap(UFPlanCard.included(.proAI).first)
         XCTAssertTrue(help?.detail?.contains("„Ganze Vorlesung erklären“") == true)
         XCTAssertTrue(help?.detail?.contains("„Alle Aufgaben erklären“") == true)
-        XCTAssertTrue(help?.detail?.contains("100 Credits im Monat, weitere Credits zum Nachkaufen") == true)
+        XCTAssertTrue(help?.detail?.contains("80 Credits im Monat, weitere Credits zum Nachkaufen") == true)
         XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title.contains("Community") }, "Free ohne Community")
 
         // was es auf dem iPad nicht gibt, steht auf keiner Karte; "ChatGPT" nur in der Zeile des eigenen Schluessels

@@ -31,7 +31,7 @@ COMPANY = "IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih)
 # im Geräteabgleich (7), Probeklausuren 15 Credits (Nutzungsbedingungen 5a)
 # 22.11.2026 (1.0.7, Freigabe des Inhabers "Ja, freigegeben"): StudiNow-Wissensbank mit KI-Antworten mit Wissen aus der
 # Wissensbank und gemerkten KI-Antworten (Datenschutz 8e, Nutzungsbedingungen 5a)
-STAND = {"NUTZUNGSBEDINGUNGEN.md": "22.11.2026", "DATENSCHUTZ.md": "22.11.2026"}
+STAND = {"NUTZUNGSBEDINGUNGEN.md": "24.11.2026", "DATENSCHUTZ.md": "24.11.2026"}
 
 
 def test_wissensbank_steht_in_datenschutz_und_bedingungen():
@@ -148,7 +148,7 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     # Hash der Stud.IP-Benutzerkennung im Geraeteabgleich (app/apple_signin.py, app/sync.py check_studip_user)
     # 13.11.2026: Konto loeschen auch im Web und unter Windows; ein Stripe-Abo endet mit der Loeschung (Bedingungen 5, 10;
     # Datenschutz 9, 15), keine anteilige Erstattung (anwaltlich pruefen)
-    assert "**Stand 22.11.2026.**" in ds and "**Stand 22.11.2026.**" in nb
+    assert "**Stand 24.11.2026.**" in ds and "**Stand 24.11.2026.**" in nb
     # 18.11.2026 (1.0.6, "YouTube öffnen" an, YouTubeBrowse.shipped): YouTube als eigener Verantwortlicher, Werbung von
     # YouTube auf dessen Seite, eigener Speicher auf dem Geraet, nichts an unseren Dienst
     for must in ("## 4a. Video, YouTube und Lernseiten neben einem Dokument (Plus)", "Google Ireland Limited",
@@ -164,7 +164,7 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
     assert "Jede Nutzung hat ein StudiNow-Konto" in ds and "iPad-App ohne StudiNow-Konto" not in ds
     assert "zugleich bei Apple" in ds and "Stud.IP-Benutzerkennung" in ds and "dieselbe apple-id" in ds.lower()
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
-    assert "Stand 22.11.2026." in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site and "Google Ireland Limited" in site
+    assert "Stand 24.11.2026." in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site and "Google Ireland Limited" in site
     assert "Mit KI verbessern" in ds and "50 E-Mails je Kalendermonat" in nb
     assert "19,99 € pro Jahr" in nb and "39,99 € pro Jahr" in nb and "verlängert sich automatisch um ein Jahr" in nb
     assert "pro Monat" not in nb.split("## 5a.")[0].split("## 5.")[-1], "kein Monatsabo in Abschnitt 5"

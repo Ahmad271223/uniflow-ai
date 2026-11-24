@@ -70,7 +70,7 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         }
     }
 
-    /// Credits fuer die StudiNow-KI je Kalendermonat aus plans.json (`plans.<tarif>.credits`; 1 Credit = 0,65 Cent)
+    /// Credits fuer die StudiNow-KI je Kalendermonat aus plans.json (`plans.<tarif>.credits`; 1 Credit = 1 Cent)
     var monthlyCredits: Int {
         switch self {
         case .free, .plus: return 0

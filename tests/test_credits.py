@@ -51,7 +51,8 @@ class FailingAI(FakeAI):
 
 def test_allowance_per_plan_and_env(monkeypatch):
     from app import credits
-    assert credits.allowance("pro_ai", False) == 100
+    monkeypatch.delenv("LERNAPP_CREDITS_PRO_AI", raising=False)   # ohne den alten Kurs der Rechen-Tests (conftest)
+    assert credits.allowance("pro_ai", False) == 80, "Pro AI 80 Credits = hoechstens 0,80 EUR (24.11.2026)"
     assert [credits.allowance(p, False) for p in ("plus", "free", "unbekannt")] == [0, 0, 0]
     assert credits.allowance("free", True) == 25, "Probe: eigener Rahmen"
     monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "40")
@@ -59,7 +60,7 @@ def test_allowance_per_plan_and_env(monkeypatch):
     monkeypatch.setenv("LERNAPP_CREDITS_TRIAL", "7")
     assert (credits.allowance("pro_ai", False), credits.allowance("plus", False), credits.allowance("plus", True)) == (40, 5, 7)
     monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "kaputt")
-    assert credits.allowance("pro_ai", False) == 100
+    assert credits.allowance("pro_ai", False) == 80
 
 
 def test_month_is_the_calendar_month_in_berlin():

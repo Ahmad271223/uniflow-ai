@@ -73,7 +73,7 @@ def test_pack_sizes_and_buy_rule_live_in_one_place(monkeypatch):
     assert [p["credits"] * ai_prices.MICROEUR_PER_CREDIT / 1_000_000 for p in plans.credit_packs()] == [0.65, 1.3]
     # die Groesse ist eine Einstellung des Dienstes
     monkeypatch.setenv("LERNAPP_CREDIT_PACKS", f"{GROSS}=185, unbekannt=5, {KLEIN}=kaputt")
-    assert plans.credit_pack_sizes() == {KLEIN: 100, GROSS: 185}
+    assert plans.credit_pack_sizes() == {KLEIN: 80, GROSS: 185}, "unlesbar: Standard des Codes (80 seit 24.11.2026)"
     assert plans.credit_pack_credits(GROSS) == 185 and plans.credit_pack_credits("de.uniflow.proai.yearly") is None
     # wer kaufen darf (Entscheidung des Inhabers 15.11.2026): bezahltes Plus und Pro AI; Free nicht, die Probe allein nicht
     assert [plans.can_buy_credits(p) for p in ("free", "plus", "pro_ai", "pro_connect", None)] == [False, True, True, True, False]
@@ -584,31 +584,31 @@ def test_old_apps_see_the_same_fields_with_the_same_meaning(hosted, apple, monke
     c = e["credits"]
     # die bisherigen Felder sind da und meinen weiter nur die Monats-Credits
     assert [k for k in OLD_FIELDS if k not in c] == []
-    assert (c["allowance"], c["used"], c["reserved"], c["remaining"], c["plan"], c["credit_eur"]) == (100, 0, 0, 100, "pro_ai", 0.0065)
+    assert (c["allowance"], c["used"], c["reserved"], c["remaining"], c["plan"], c["credit_eur"]) == (80, 0, 0, 80, "pro_ai", 0.01)
     assert c["resets_at"] == credits.resets_at()
     assert check(e, schema_v2("me")) == [], "Vertrag der Antwort (nur zusaetzliche, freiwillige Felder)"
     give(u["id"], 300)
     c = credits_of(hosted, h)
-    assert (c["allowance"], c["remaining"]) == (100, 100), "gekaufte Credits veraendern die alten Felder nicht"
+    assert (c["allowance"], c["remaining"]) == (80, 80), "gekaufte Credits veraendern die alten Felder nicht"
     # neu und zusaetzlich
-    assert (c["purchased"], c["purchased_usable"], c["available"], c["can_buy"]) == (300, True, 400, True)
-    assert e["credit_packs"]["packs"] == [{"product_id": KLEIN, "credits": 100}, {"product_id": GROSS, "credits": 200}]
+    assert (c["purchased"], c["purchased_usable"], c["available"], c["can_buy"]) == (300, True, 380, True)
+    assert e["credit_packs"]["packs"] == [{"product_id": KLEIN, "credits": 80}, {"product_id": GROSS, "credits": 160}]
     assert e["credit_packs"]["purchase"]["web"]["available"] is False and "iPhone und iPad" in e["credit_packs"]["purchase"]["web"]["note"]
     # KI-Antwort: `credits` mit charged/replay wie bisher
     st, d = ask(hosted, h, "Seite", "alt-1")
     assert st == 200 and [k for k in (*OLD_FIELDS, "charged", "replay") if k not in d["credits"]] == []
-    assert d["credits"]["remaining"] == 100 - d["credits"]["charged"]
+    assert d["credits"]["remaining"] == 80 - d["credits"]["charged"]
     # die Abo-Route antwortet fuer Abos wie bisher ...
     st, d = verify(hosted, h, apple.tx(u["id"], "de.uniflow.proai.yearly", IN_30, otid="7200000000000001"))
     assert st == 200 and check(d, schema_v2("apple-verify")) == [] and "credit_purchase" not in d
     # ... und schreibt ein Credit-Paket gut, falls eine aeltere App es dort meldet und danach abschliesst
     st, d = verify(hosted, h, pack_tx(apple, u["id"], KLEIN, "7200000000000002"))
-    assert st == 200 and d["plan"] is None and d["credit_purchase"]["credits_added"] == 100, d
-    assert d["entitlements"]["plan"] == "pro_ai" and credits_of(hosted, h)["purchased"] == 400
+    assert st == 200 and d["plan"] is None and d["credit_purchase"]["credits_added"] == 80, d
+    assert d["entitlements"]["plan"] == "pro_ai" and credits_of(hosted, h)["purchased"] == 380
     assert verify(hosted, h, pack_tx(apple, u["id"], KLEIN, "7200000000000002"))[1]["credit_purchase"]["status"] == "already_granted"
     # die Tarife (oeffentlich) nennen die Pakete zusaetzlich
     st, p = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
-    assert st == 200 and p["plans"]["pro_ai"]["credits"] == 100 and p["credits"] == {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
+    assert st == 200 and p["plans"]["pro_ai"]["credits"] == 80 and p["credits"] == {"free": 0, "plus": 0, "pro_ai": 80, "trial": 25}
     assert [x["product_id"] for x in p["credit_packs"]["packs"]] == [KLEIN, GROSS] and p["credit_packs"]["buy_plans"] == ["plus", "pro_ai"]
 
 

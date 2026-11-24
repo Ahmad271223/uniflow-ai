@@ -144,9 +144,9 @@ QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Test
                 "card_stacks_adopted": "Karteikarten-Stapel von StudiNow (Wochenstapel und geteilte Stapel)",
                 "ai_mail": "E-Mails mit KI verbessern"}
 
-# Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 0,65 Cent KI-Kosten, 15.11.2026): Pro AI 100,
+# Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 1 Cent KI-Kosten, 24.11.2026): Pro AI 80 (= hoechstens 0,80 EUR, Inhaber 24.11.2026),
 # sonst 0; die Probe hat 25. Standardwerte, die der Betrieb per Umgebungsvariable (LERNAPP_CREDITS_*) aendern kann.
-CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
+CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 80, "trial": 25}
 
 # Credit-Pakete zum Nachkaufen (Auftrag des Inhabers vom 15.11.2026, docs/KI-CREDITS-2026-11-15.md): Verbrauchskaeufe im
 # App Store. Gekaufte Credits verfallen nie und werden erst nach den Monats-Credits verbraucht (app/credits.py).
@@ -163,8 +163,8 @@ CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25}
 #   ein Plus-Konto Credits ausgeben. Ohne beide Rechte (Free) ruhen gekaufte Credits beim Konto.
 CREDIT_PACKS: dict = {
     "packs": {
-        "de.uniflow.credits.klein": {"credits": 100, "price_cents": 199},
-        "de.uniflow.credits.gross": {"credits": 200, "price_cents": 399},
+        "de.uniflow.credits.klein": {"credits": 80, "price_cents": 199},    # 24.11.2026 (Inhaber): 80 statt 100
+        "de.uniflow.credits.gross": {"credits": 160, "price_cents": 399},   # 24.11.2026 (Inhaber): 160 statt 200
     },
     "currency": "EUR",
     "buy_plans": ("plus", "pro_ai"),

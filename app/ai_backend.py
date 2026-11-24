@@ -31,7 +31,7 @@ Anbieter und Modell sind zentral konfiguriert (Umgebung), der Schluessel liegt n
                                Bibliothek frisst nie das Budget der Konten, die Konten nie das der Bibliothek.
 
 Credits (app/credits.py, 04.11.2026): Fragen, Erklaerungen, Karteikarten, Dokument-Index und Wochentests ueber den
-Dienst kosten das Konto Credits (1 Credit = 0,65 Cent echter Kosten); `complete` reserviert vorher eine Schaetzung und
+Dienst kosten das Konto Credits (1 Credit = 1 Cent echter Kosten); `complete` reserviert vorher eine Schaetzung und
 rechnet danach mit `usage` der Antwort ab. Erzeugen fuer den gemeinsamen Fragenpool der Bibliothek (test_generation) und
 die automatischen Wochentests (weekly_test) zaehlen weiter ueber die Kontingente des Tarifs (app/plans.py QUOTAS).
 
@@ -51,7 +51,7 @@ deterministisch aus request_id und Zweck einen Anbieter (Standard: OpenAI gpt-6-
 Bedrock Frankfurt etwa 25 % fuer schwere Faelle; DeepSeek in der EU nur auf Wunsch). Vor dem Aufruf wird die harte Obergrenze (app/ai_prices.worst_case_microeur) fuer das TEUERSTE Modell
 der Kette reserviert; reicht der Rest der Credits nicht, wird die Ausgabegrenze verkleinert oder abgelehnt. Faellt der
 gewaehlte Anbieter aus, ohne etwas zu berechnen (5xx, 429, keine Verbindung), uebernimmt der naechste innerhalb derselben
-Reservierung; abgerechnet wird genau einmal. So verursacht ein Konto nie mehr als seine Credits (Pro AI 100 = 0,65 EUR,
+Reservierung; abgerechnet wird genau einmal. So verursacht ein Konto nie mehr als seine Credits (Pro AI 100 = 1,00 EUR,
 dazu gekaufte Credits: deren Kosten zaehlen nicht gegen die Becken, `ai_usage_log.purchased_microeur`).
 """
 from __future__ import annotations

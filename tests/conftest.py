@@ -127,6 +127,23 @@ def _ai_prices(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def _credit_kurs_bis_24_11(request, monkeypatch):
+    """Die Rechen-Tests der Credits (Reservieren, Abrechnen, Erstatten, Pakete) rechnen mit festen Beispielzahlen des
+    Kurses bis 24.11.2026: 1 Credit = 0,65 Cent, starke Modelle x1,3, Pro AI 100 Credits, Pakete 100/200. Seit 24.11.2026 gilt
+    1 Credit = 1 Cent, kein Aufschlag, Pro AI 80, Pakete 80/160 (Entscheidung des Inhabers) - das pruefen tests/test_credit_kurs.py."""
+    # Vertrag und Tarif-Antwort zeigen die echten Werte
+    if any(k in request.node.nodeid for k in ("test_credit_kurs", "test_old_apps_see_the_same_fields_with_the_same_meaning",
+                                               "test_credit_packs_fixture_is_current",
+                                               "test_trial_is_pro_ai_in_contract_fixture_and_credits")):
+        return
+    from app import ai_prices
+    monkeypatch.setattr(ai_prices, "MICROEUR_PER_CREDIT", 6_500)
+    monkeypatch.setattr(ai_prices, "STRONG_CREDIT_FACTOR", 1.3)
+    monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "100")
+    monkeypatch.setenv("LERNAPP_CREDIT_PACKS", "de.uniflow.credits.klein=100,de.uniflow.credits.gross=200")
+
+
+@pytest.fixture(autouse=True)
 def _no_leaked_job_runner():
     """Kein Job-Runner (app/jobs.py) darf einen Test ueberleben: ein vergessener Arbeiter-Thread holte unter Last die
     Jobs der folgenden Tests (test_qis_isolation: claim_next fand nichts, test_hosted_sync, test_retention). Uebrig

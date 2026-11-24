@@ -1,22 +1,22 @@
 {
  "_hinweis": "Erzeugt mit tools/gen-credit-packs-fixture.py aus der Python-Referenz (app/plans.py, app/credits.py, app/credit_texts.py); nicht von Hand aendern.",
- "credit_microeur": 6500,
+ "credit_microeur": 10000,
  "packs": [
   {
    "product_id": "de.uniflow.credits.klein",
-   "credits": 100,
+   "credits": 80,
    "price_cents": 199,
    "currency": "EUR",
-   "label": "100 Credits",
-   "max_cost_microeur": 650000
+   "label": "80 Credits",
+   "max_cost_microeur": 800000
   },
   {
    "product_id": "de.uniflow.credits.gross",
-   "credits": 200,
+   "credits": 160,
    "price_cents": 399,
    "currency": "EUR",
-   "label": "200 Credits",
-   "max_cost_microeur": 1300000
+   "label": "160 Credits",
+   "max_cost_microeur": 1600000
   }
  ],
  "buy_rule": {
@@ -119,8 +119,8 @@
    "name": "Pro AI, beide Toepfe gefuellt",
    "credits": {
     "period": "2026-11",
-    "allowance": 100,
-    "used": 63,
+    "allowance": 80,
+    "used": 43,
     "reserved": 0,
     "remaining": 37,
     "plan": "pro_ai",
@@ -133,8 +133,8 @@
     "can_buy": true
    },
    "expect": {
-    "line": "Diesen Monat: 37 von 100 · Gekauft: 80",
-    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "line": "Diesen Monat: 37 von 80 · Gekauft: 80",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 80 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
     "scope": "all",
     "scope_note": null,
@@ -147,8 +147,8 @@
    "name": "Pro AI, Monat leer, gekaufte da",
    "credits": {
     "period": "2026-11",
-    "allowance": 100,
-    "used": 100,
+    "allowance": 80,
+    "used": 80,
     "reserved": 0,
     "remaining": 0,
     "plan": "pro_ai",
@@ -161,8 +161,8 @@
     "can_buy": true
    },
    "expect": {
-    "line": "Diesen Monat: 0 von 100 · Gekauft: 80",
-    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "line": "Diesen Monat: 0 von 80 · Gekauft: 80",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 80 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
     "scope": "all",
     "scope_note": null,
@@ -175,8 +175,8 @@
    "name": "Pro AI, alles aufgebraucht",
    "credits": {
     "period": "2026-11",
-    "allowance": 100,
-    "used": 100,
+    "allowance": 80,
+    "used": 80,
     "reserved": 0,
     "remaining": 0,
     "plan": "pro_ai",
@@ -189,8 +189,8 @@
     "can_buy": true
    },
    "expect": {
-    "line": "Diesen Monat: 0 von 100 · Gekauft: 0",
-    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "line": "Diesen Monat: 0 von 80 · Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 80 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
     "scope": "all",
     "scope_note": null,
@@ -203,26 +203,26 @@
    "name": "Pro AI ohne Kauf",
    "credits": {
     "period": "2026-11",
-    "allowance": 100,
+    "allowance": 80,
     "used": 0,
     "reserved": 0,
-    "remaining": 100,
+    "remaining": 80,
     "plan": "pro_ai",
     "resets_at": "2026-12-01T00:00:00+01:00",
     "credit_eur": 0.0065,
     "purchased": 0,
     "purchased_usable": true,
     "purchased_scope": "all",
-    "available": 100,
+    "available": 80,
     "can_buy": true
    },
    "expect": {
-    "line": "Diesen Monat: 100 von 100 · Gekauft: 0",
-    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "line": "Diesen Monat: 80 von 80 · Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 80 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
     "scope": "all",
     "scope_note": null,
-    "available": 100,
+    "available": 80,
     "offers_shop": true,
     "reset_day": "1. Dezember"
    }
@@ -371,8 +371,8 @@
    "name": "Jahreswechsel",
    "credits": {
     "period": "2026-11",
-    "allowance": 100,
-    "used": 95,
+    "allowance": 80,
+    "used": 75,
     "reserved": 0,
     "remaining": 5,
     "plan": "pro_ai",
@@ -385,8 +385,8 @@
     "can_buy": true
    },
    "expect": {
-    "line": "Diesen Monat: 5 von 100 · Gekauft: 12",
-    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Januar wieder.",
+    "line": "Diesen Monat: 5 von 80 · Gekauft: 12",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 80 Monats-Credits gibt es am 1. Januar wieder.",
     "dormant_note": null,
     "scope": "all",
     "scope_note": null,
@@ -399,8 +399,8 @@
    "name": "aelterer Dienst ohne die neuen Felder",
    "credits": {
     "period": "2026-11",
-    "allowance": 100,
-    "used": 63,
+    "allowance": 80,
+    "used": 43,
     "reserved": 0,
     "remaining": 37,
     "plan": "pro_ai",
@@ -408,8 +408,8 @@
     "credit_eur": 0.0065
    },
    "expect": {
-    "line": "Diesen Monat: 37 von 100 · Gekauft: 0",
-    "keep_note": "Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder.",
+    "line": "Diesen Monat: 37 von 80 · Gekauft: 0",
+    "keep_note": "Gekaufte Credits verfallen nicht. Deine 80 Monats-Credits gibt es am 1. Dezember wieder.",
     "dormant_note": null,
     "scope": "none",
     "scope_note": null,
@@ -422,8 +422,8 @@
    "name": "Stand ohne lesbares Datum",
    "credits": {
     "period": "2026-11",
-    "allowance": 100,
-    "used": 100,
+    "allowance": 80,
+    "used": 80,
     "reserved": 0,
     "remaining": 0,
     "plan": "pro_ai",
@@ -436,7 +436,7 @@
     "can_buy": true
    },
    "expect": {
-    "line": "Diesen Monat: 0 von 100 · Gekauft: 3",
+    "line": "Diesen Monat: 0 von 80 · Gekauft: 3",
     "keep_note": "Gekaufte Credits verfallen nicht.",
     "dormant_note": null,
     "scope": "all",
@@ -459,28 +459,28 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
+     "allowance": 80,
      "used": 0,
      "reserved": 0,
-     "remaining": 100,
+     "remaining": 80,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
+     "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 100,
+     "available": 80,
      "can_buy": true
     },
     "credit_packs": {
      "packs": [
       {
        "product_id": "de.uniflow.credits.klein",
-       "credits": 100
+       "credits": 80
       },
       {
        "product_id": "de.uniflow.credits.gross",
-       "credits": 200
+       "credits": 160
       }
      ],
      "purchase": {
@@ -507,7 +507,7 @@
    "status": 200,
    "response": {
     "status": "granted",
-    "credits_added": 100,
+    "credits_added": 80,
     "credits_removed": 0,
     "product_id": "de.uniflow.credits.klein",
     "transaction_id": "9000000000000001",
@@ -516,17 +516,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
+     "allowance": 80,
      "used": 0,
      "reserved": 0,
-     "remaining": 100,
+     "remaining": 80,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 100,
+     "credit_eur": 0.01,
+     "purchased": 80,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 200,
+     "available": 160,
      "can_buy": true
     }
    }
@@ -551,17 +551,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
+     "allowance": 80,
      "used": 0,
      "reserved": 0,
-     "remaining": 100,
+     "remaining": 80,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 100,
+     "credit_eur": 0.01,
+     "purchased": 80,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 200,
+     "available": 160,
      "can_buy": true
     }
    }
@@ -577,7 +577,7 @@
    "status": 200,
    "response": {
     "status": "granted",
-    "credits_added": 200,
+    "credits_added": 160,
     "credits_removed": 0,
     "product_id": "de.uniflow.credits.gross",
     "transaction_id": "9000000000000002",
@@ -586,23 +586,23 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
+     "allowance": 80,
      "used": 0,
      "reserved": 0,
-     "remaining": 100,
+     "remaining": 80,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 300,
+     "credit_eur": 0.01,
+     "purchased": 240,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 400,
+     "available": 320,
      "can_buy": true
     }
    }
   },
   {
-   "step": "Verbrauch: erst die 100 Monats-Credits, dann 30 gekaufte",
+   "step": "Verbrauch: erst die 80 Monats-Credits, dann 30 gekaufte",
    "method": "GET",
    "path": "/api/entitlements",
    "auth": true,
@@ -612,28 +612,28 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
-     "used": 100,
+     "allowance": 80,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 270,
+     "credit_eur": 0.01,
+     "purchased": 210,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 270,
+     "available": 210,
      "can_buy": true
     },
     "credit_packs": {
      "packs": [
       {
        "product_id": "de.uniflow.credits.klein",
-       "credits": 100
+       "credits": 80
       },
       {
        "product_id": "de.uniflow.credits.gross",
-       "credits": 200
+       "credits": 160
       }
      ],
      "purchase": {
@@ -664,7 +664,7 @@
     "applied": true,
     "status": "refunded",
     "credits_added": 0,
-    "credits_removed": 70,
+    "credits_removed": 50,
     "product_id": "de.uniflow.credits.klein"
    }
   },
@@ -679,28 +679,28 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
-     "used": 100,
+     "allowance": 80,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 200,
+     "credit_eur": 0.01,
+     "purchased": 160,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 200,
+     "available": 160,
      "can_buy": true
     },
     "credit_packs": {
      "packs": [
       {
        "product_id": "de.uniflow.credits.klein",
-       "credits": 100
+       "credits": 80
       },
       {
        "product_id": "de.uniflow.credits.gross",
-       "credits": 200
+       "credits": 160
       }
      ],
      "purchase": {
@@ -736,17 +736,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
-     "used": 100,
+     "allowance": 80,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 200,
+     "credit_eur": 0.01,
+     "purchased": 160,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 200,
+     "available": 160,
      "can_buy": true
     }
    }
@@ -767,19 +767,19 @@
     "code": "credits_exhausted",
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
-     "used": 100,
+     "allowance": 80,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
+     "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "all",
      "available": 0,
      "can_buy": true,
-     "needed": 544
+     "needed": 354
     }
    }
   },
@@ -806,13 +806,13 @@
      "remaining": 0,
      "plan": "plus",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
+     "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "chat",
      "available": 0,
      "can_buy": true,
-     "needed": 542
+     "needed": 353
     }
    }
   },
@@ -828,27 +828,27 @@
     "credits": {
      "period": "<monat>",
      "allowance": 0,
-     "used": 100,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "plus",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 200,
+     "credit_eur": 0.01,
+     "purchased": 160,
      "purchased_usable": true,
      "purchased_scope": "chat",
-     "available": 200,
+     "available": 160,
      "can_buy": true
     },
     "credit_packs": {
      "packs": [
       {
        "product_id": "de.uniflow.credits.klein",
-       "credits": 100
+       "credits": 80
       },
       {
        "product_id": "de.uniflow.credits.gross",
-       "credits": 200
+       "credits": 160
       }
      ],
      "purchase": {
@@ -883,18 +883,18 @@
     "credits": {
      "period": "<monat>",
      "allowance": 0,
-     "used": 100,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "plus",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 191,
+     "credit_eur": 0.01,
+     "purchased": 154,
      "purchased_usable": true,
      "purchased_scope": "chat",
-     "available": 191,
+     "available": 154,
      "can_buy": true,
-     "charged": 9,
+     "charged": 6,
      "replay": false
     },
     "explain": null
@@ -930,13 +930,13 @@
     "credits": {
      "period": "<monat>",
      "allowance": 0,
-     "used": 100,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "free",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 191,
+     "credit_eur": 0.01,
+     "purchased": 154,
      "purchased_usable": false,
      "purchased_scope": "none",
      "available": 0,
@@ -946,11 +946,11 @@
      "packs": [
       {
        "product_id": "de.uniflow.credits.klein",
-       "credits": 100
+       "credits": 80
       },
       {
        "product_id": "de.uniflow.credits.gross",
-       "credits": 200
+       "credits": 160
       }
      ],
      "purchase": {
@@ -977,28 +977,28 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
-     "used": 100,
+     "allowance": 80,
+     "used": 80,
      "reserved": 0,
      "remaining": 0,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
-     "purchased": 191,
+     "credit_eur": 0.01,
+     "purchased": 154,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 191,
+     "available": 154,
      "can_buy": true
     },
     "credit_packs": {
      "packs": [
       {
        "product_id": "de.uniflow.credits.klein",
-       "credits": 100
+       "credits": 80
       },
       {
        "product_id": "de.uniflow.credits.gross",
-       "credits": 200
+       "credits": 160
       }
      ],
      "purchase": {
@@ -1031,7 +1031,7 @@
      "remaining": 25,
      "plan": "pro_ai:trial",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
+     "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "all",
@@ -1042,11 +1042,11 @@
      "packs": [
       {
        "product_id": "de.uniflow.credits.klein",
-       "credits": 100
+       "credits": 80
       },
       {
        "product_id": "de.uniflow.credits.gross",
-       "credits": 200
+       "credits": 160
       }
      ],
      "purchase": {
@@ -1115,7 +1115,7 @@
    "status": 200,
    "response": {
     "status": "granted",
-    "credits_added": 100,
+    "credits_added": 80,
     "credits_removed": 0,
     "product_id": "de.uniflow.credits.klein",
     "transaction_id": "9000000000000005",
@@ -1124,17 +1124,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 100,
+     "allowance": 80,
      "used": 0,
      "reserved": 0,
-     "remaining": 100,
+     "remaining": 80,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
-     "credit_eur": 0.0065,
+     "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 100,
+     "available": 80,
      "can_buy": true
     }
    }

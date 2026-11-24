@@ -148,7 +148,7 @@
     "card_stacks_adopted": null,
     "ai_mail": 50
    },
-   "credits": 100
+   "credits": 80
   }
  },
  "entitlements": {
@@ -306,20 +306,20 @@
  "credits": {
   "free": 0,
   "plus": 0,
-  "pro_ai": 100,
+  "pro_ai": 80,
   "trial": 25
  },
  "credit_packs": {
   "packs": [
    {
     "product_id": "de.uniflow.credits.klein",
-    "credits": 100,
+    "credits": 80,
     "price_cents": 199,
     "currency": "EUR"
    },
    {
     "product_id": "de.uniflow.credits.gross",
-    "credits": 200,
+    "credits": 160,
     "price_cents": 399,
     "currency": "EUR"
    }

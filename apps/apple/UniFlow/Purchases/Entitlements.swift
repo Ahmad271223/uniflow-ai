@@ -133,7 +133,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren und bei neu erkannten Klausurterminen"
         case .autoPlan: return "Lernslots in deinen freien Zeiten"
         case .aiChat: return "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI"
-        case .aiHelp: return "Erklären zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“ – mit 100 Credits im Monat, weitere Credits zum Nachkaufen"
+        case .aiHelp: return "Erklären zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“ – mit 80 Credits im Monat, weitere Credits zum Nachkaufen"
         case .aiFlashcards: return "Die StudiNow-KI schlägt Karten zu einem Dokument vor, du prüfst sie vor dem Übernehmen"
         case .weeklyTests: return "Aus deinen Unterlagen, mit der StudiNow-KI"
         case .deviceSync: return "Abgleich über dein StudiNow-Konto"

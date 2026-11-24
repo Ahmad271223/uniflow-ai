@@ -1,9 +1,9 @@
 """Credits der StudiNow-KI je Konto und Monat (Entscheidung des Inhabers 04.11.2026).
 
 Regeln:
-- Ein Credit ist 0,65 Cent echter KI-Kosten (`ai_prices.MICROEUR_PER_CREDIT`, Entscheidung des Inhabers 15.11.2026;
+- Ein Credit ist 1 Cent echter KI-Kosten (`ai_prices.MICROEUR_PER_CREDIT`, Entscheidung des Inhabers 24.11.2026, vorher 0,65 Cent;
   app/ai_prices.py rechnet, aufgerundet auf ganze Credits) - ein Kurs fuer Monats-Credits, Probe und gekaufte Credits.
-  Pro AI hat 100 Credits je Monat (= hoechstens 0,65 EUR KI-Kosten je Konto), alle anderen Tarife 0; einstellbar je Tarif ueber
+  Pro AI hat 100 Credits je Monat (= hoechstens 1,00 EUR KI-Kosten je Konto), alle anderen Tarife 0; einstellbar je Tarif ueber
   LERNAPP_CREDITS_PRO_AI, LERNAPP_CREDITS_PLUS, LERNAPP_CREDITS_FREE und fuer die 7-Tage-Probe
   LERNAPP_CREDITS_TRIAL (Vorschlag 25, damit das Probe-Becken in app/ai_backend.py fuer viele Probekonten reicht).
 - Credit-Regel des Inhabers 08.11.2026: Probe ohne bezahltes Abo 25, Plus 0, Pro AI 100. Laufende Probe + Plus: 25, bis

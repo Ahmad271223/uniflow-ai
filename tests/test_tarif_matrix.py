@@ -85,11 +85,11 @@ def test_trial_is_pro_ai_in_contract_fixture_and_credits():
     assert {k: plans.quota_limit("free", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0, "ai_mail": 0}
     assert {k: plans.quota_limit("plus", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4, "ai_mail": 0}
     assert {k: plans.quota_limit("pro_ai", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300, "ai_mail": 50}
-    # Credits (app/credits.py): Pro AI 100, Probe 25, Free und Plus 0 - die Probe hat also Pro-AI-Rechte und -Kontingente,
+    # Credits (app/credits.py): Pro AI 80 (seit 24.11.2026, vorher 100), Probe 25, Free und Plus 0 - die Probe hat also Pro-AI-Rechte und -Kontingente,
     # aber einen kleineren Credit-Rahmen (Entscheidung 04.11.2026, docs/ABO-SYSTEM.md 6a)
-    assert credits.allowance("pro_ai", False) == 100 and credits.allowance("pro_ai", True) == 25
+    assert credits.allowance("pro_ai", False) == 80 and credits.allowance("pro_ai", True) == 25
     assert credits.allowance("plus", False) == 0 and credits.allowance("free", False) == 0
-    assert fx["credits"] == {"free": 0, "plus": 0, "pro_ai": 100, "trial": 25} and fx["plans"]["pro_ai"]["credits"] == 100
+    assert fx["credits"] == {"free": 0, "plus": 0, "pro_ai": 80, "trial": 25} and fx["plans"]["pro_ai"]["credits"] == 80
 
 
 @pytest.mark.parametrize("kind", KINDS)

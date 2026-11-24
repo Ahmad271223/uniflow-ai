@@ -926,7 +926,7 @@ struct StudoraCreditsRow: View {
 
     /// Wie viele Credits es gibt, ohne Centbetrag (Entscheidung des Inhabers 11.11.2026: „das müssen Nutzer nicht wissen“);
     /// die Tarife und ihren Rahmen zeigt "Tarif wechseln" darunter
-    static let explanation = "Pro AI hat 100 Credits im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang. Gekaufte Credits verfallen nicht; mit Plus reichen sie für Fragen an die KI. Welcher Tarif was enthält, steht unter „Tarif wechseln“."
+    static let explanation = "Pro AI hat 80 Credits im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang. Gekaufte Credits verfallen nicht; mit Plus reichen sie für Fragen an die KI. Welcher Tarif was enthält, steht unter „Tarif wechseln“."
 
     var body: some View {
         if let c = link.credits, let value = AICost.balanceLine(c, trial: link.planStatus?.trialActive ?? false, labelled: false) {

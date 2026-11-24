@@ -214,7 +214,7 @@ public enum StudiNowAIText {
     /// "Die StudiNow-KI gibt es ab StudiNow Pro AI …" je nach verlangtem Tarif (`required_plan`)
     public static func planRequired(_ required: String?) -> String {
         if required == "plus" { return "Diese KI-Funktion gibt es ab StudiNow Plus." }
-        return "Die StudiNow-KI gehört zu StudiNow Pro AI (100 Credits im Monat) und zur 7-Tage-Probe."
+        return "Die StudiNow-KI gehört zu StudiNow Pro AI (80 Credits im Monat) und zur 7-Tage-Probe."
     }
 
     /// Text fuer Status und Code des Dienstes; `serverMessage` bleibt bei unbekannten Codes und bei `credits_exhausted`
