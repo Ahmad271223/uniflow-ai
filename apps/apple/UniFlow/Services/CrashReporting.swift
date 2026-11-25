@@ -15,7 +15,8 @@ import UniFlowCore
 // Schalter: Einstellungen -> Hilfe & Rechtliches -> "Absturzberichte an StudiNow senden". Von selbst AN (wie der
 // Datei-Eingang: Grundlage ist der Absatz in der Datenschutzerklaerung, Ausschalten = Widerspruch); AUS loescht die
 // wartenden Meldungen und die Kennung der Installation und meldet die App bei MetricKit ab.
-// ENTSCHEIDUNG DES INHABERS OFFEN: "von selbst an" (`CrashReportSetting.onByDefault`) und der Datenschutz-Absatz.
+// Entscheidung des Inhabers 25.11.2026 ("Ja, von selbst an"): `CrashReportSetting.onByDefault` bleibt an.
+// Weiter offen: der Datenschutz-Absatz (Entwurf in docs/release) muss vor der Auslieferung freigegeben und online sein.
 //
 // Debug-Builds (Xcode, Simulator) und Tests schicken nie etwas (`CrashReporter.buildSends`, XCTest).
 // MetricKit liefert nur auf echten Geraeten, meist erst beim naechsten Start oder am Folgetag; im Simulator kommt nie
@@ -26,7 +27,7 @@ enum CrashReportSetting {
     /// Zufaellige Kennung nur fuer diese Meldungen (nicht die Geraete-Kennung des Kontos): der Dienst begrenzt damit
     /// die Menge je Geraet und Tag und speichert nur einen Tages-HMAC davon. Aus -> geloescht, wieder an -> neue.
     static let installKey = "studinow.crashReports.install"
-    /// Ohne Eintrag: an. Diese eine Stelle aendern, wenn der Inhaber "erst fragen" will.
+    /// Ohne Eintrag: an (Entscheidung des Inhabers 25.11.2026). "Erst fragen" waere diese eine Stelle plus ein Dialog.
     static let onByDefault = true
 
     static func isOn(_ d: UserDefaults = .standard) -> Bool { (d.object(forKey: key) as? Bool) ?? onByDefault }

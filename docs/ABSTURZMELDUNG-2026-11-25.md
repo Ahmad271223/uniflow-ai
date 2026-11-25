@@ -78,7 +78,7 @@ Dinge absichtlich enthält (`packages/shared-contracts/fixtures/crash-report/`).
 3. **Schalter: ja, und von selbst an.** Einstellungen → Hilfe & Rechtliches → „Absturzberichte an StudiNow senden“.
    An ohne Rückfrage wie beim Datei-Eingang (Entscheidung vom 18.11.2026); Aus löscht die wartenden Meldungen und
    die Kennung. Begründung: Ohne Schalter gäbe es keinen einfachen Widerspruch; mit „erst fragen“ melden so wenige,
-   dass die Zahlen kaum etwas sagen. **Das ist eine Vorentscheidung – der Inhaber muss sie bestätigen** (siehe unten).
+   dass die Zahlen kaum etwas sagen. **Vom Inhaber am 25.11.2026 so entschieden („Ja, von selbst an“).**
 4. **Debug-Builds und Tests schicken nie.** Nur Release-Builds (App Store, TestFlight, Kabel-Fassung) melden.
 5. **Aufbewahrung 90 Tage**, dann löscht der tägliche Aufräumlauf (`app/retention.py`).
 6. **Aufrufkette wird roh gespeichert**, erst die Auswertung deutet sie (Absturzstelle zuerst). So lässt sich die
@@ -123,8 +123,8 @@ genau diese Datei annimmt und richtig zählt. `tools/absturz-durchlauf.sh` macht
 
 ## Was der Inhaber noch entscheiden muss
 
-1. **Von selbst an oder erst fragen?** Siehe „Offene Frage“ im Entwurf des Datenschutz-Absatzes (§ 25 TDDDG). Im
-   Code eine Stelle: `CrashReportSetting.onByDefault`. „Erst fragen“ braucht zusätzlich einen Dialog.
+1. ~~Von selbst an oder erst fragen?~~ **Entschieden am 25.11.2026: von selbst an.** Der rechtliche Hinweis dazu
+   (§ 25 TDDDG) steht im Entwurf des Datenschutz-Absatzes; er gehört zur Prüfung des Textes in Punkt 2.
 2. **Datenschutztext.** Entwurf lesen, ändern, freigeben. Erst dann kommt er in `docs/release/DATENSCHUTZ.md` und
    `site/datenschutz.html` – und online erst zusammen mit der App-Version (Uploads zur Website sind laut Notiz bis
    05.12.2026 ohnehin gesperrt).

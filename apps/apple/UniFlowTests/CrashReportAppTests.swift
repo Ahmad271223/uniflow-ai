@@ -69,7 +69,7 @@ final class CrashReportAppTests: XCTestCase {
 
     func testSwitchIsOnUntilSwitchedOffAndForgetsTheInstallID() async {
         let accountDevice = await MainActor.run { StudoraAccountLink.deviceID }
-        XCTAssertTrue(CrashReportSetting.onByDefault, "Entscheidung des Inhabers offen: von selbst an (docs/ABSTURZMELDUNG-2026-11-25.md)")
+        XCTAssertTrue(CrashReportSetting.onByDefault, "Entscheidung des Inhabers 25.11.2026: von selbst an (docs/ABSTURZMELDUNG-2026-11-25.md)")
         XCTAssertTrue(CrashReportSetting.isOn(defaults))
         let id = CrashReportSetting.installID(defaults)
         XCTAssertEqual(id.count, 32)

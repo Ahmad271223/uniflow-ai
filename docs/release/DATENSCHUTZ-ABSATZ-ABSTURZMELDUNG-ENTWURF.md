@@ -5,7 +5,7 @@ studinow.app. Online stellen darf ihn nur der Inhaber, und erst zusammen mit der
 enthält. Der Text beschreibt, was der Code im Zweig `app/absturzmeldung` wirklich tut
 (`apps/apple/UniFlow/Services/CrashReporting.swift`, `app/crash_reports.py`); ändert sich der Code, muss der Text mit.
 
-Hinweis: Das ist kein Rechtsrat. Vor dem Veröffentlichen bitte prüfen (lassen), vor allem die offene Frage unten.
+Hinweis: Das ist kein Rechtsrat. Vor dem Veröffentlichen bitte prüfen (lassen), vor allem den Punkt zu § 25 TDDDG unten.
 
 ## Vorschlag für einen neuen Abschnitt 10a (nach „Web-Oberfläche, Cookies und Server-Protokolle“)
 
@@ -55,18 +55,17 @@ Hinweis: Das ist kein Rechtsrat. Vor dem Veröffentlichen bitte prüfen (lassen)
   verknüpft: nein, Tracking: nein, Zweck: App-Funktionalität. Die Tabelle in `docs/release/APP-STORE.md` und das
   Datenschutz-Manifest der App (`PrivacyInfo.xcprivacy`) sind im Zweig schon angepasst.
 
-## Offene Frage für den Inhaber (bitte entscheiden, am besten mit rechtlichem Rat)
+## Entschieden am 25.11.2026: der Schalter ist von selbst an
 
-Der Schalter ist im Zweig **von selbst an** (wie beim Datei-Eingang, Entscheidung vom 18.11.2026): Wer nichts tut,
-schickt Absturzberichte; Ausschalten gilt als Widerspruch. Dafür spricht: Nur so sagen die Zahlen etwas aus, und der
-Bericht enthält nichts über die Person.
+Der Inhaber hat am 25.11.2026 entschieden („Ja, von selbst an“): Wer nichts tut, schickt Absturzberichte; Ausschalten
+gilt als Widerspruch. So wie beim Datei-Eingang (Entscheidung vom 18.11.2026). Der Text oben passt dazu
+(Rechtsgrundlage berechtigtes Interesse, Widerspruch über den Schalter).
 
-Dagegen steht eine deutsche Besonderheit: § 25 TDDDG verlangt eine Einwilligung, wenn eine App Informationen aus dem
-Gerät ausliest, die für den Dienst nicht „unbedingt erforderlich“ sind. Ob ein so knapper Absturzbericht darunter
-fällt, wird unterschiedlich beurteilt. Der vorsichtige Weg wäre: **beim ersten Start einmal fragen** („Absturzberichte
-senden? Ja / Nein“) und erst nach „Ja“ senden. Dann melden deutlich weniger Geräte, die Zahlen bleiben aber als Trend
-brauchbar.
+Was bei der Prüfung des Textes trotzdem auf den Tisch gehört: § 25 TDDDG verlangt eine Einwilligung, wenn eine App
+Informationen aus dem Gerät ausliest, die für den Dienst nicht „unbedingt erforderlich“ sind. Ob ein so knapper
+Absturzbericht darunter fällt, wird unterschiedlich beurteilt. Der vorsichtige Weg wäre gewesen, beim ersten Start
+einmal zu fragen und erst nach „Ja“ zu senden; dann melden deutlich weniger Geräte.
 
-Im Code ist das eine Stelle (`CrashReportSetting.onByDefault`); die Frage beim ersten Start wäre zusätzliche Arbeit
-(ein Dialog in der Begrüßung). Bei „erst fragen“ ändert sich im Text oben die Rechtsgrundlage auf Einwilligung
+Sollte die Prüfung doch „erst fragen“ ergeben: Im Code ist das eine Stelle (`CrashReportSetting.onByDefault`) plus
+ein Dialog in der Begrüßung (nicht gebaut). Im Text oben würde die Rechtsgrundlage dann zur Einwilligung
 (Art. 6 Abs. 1 lit. a DSGVO, § 25 Abs. 1 TDDDG) mit Widerruf über denselben Schalter.
