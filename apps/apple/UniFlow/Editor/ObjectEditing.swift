@@ -302,7 +302,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             // Ziehen mit Form-, Lasso- oder Bereichswerkzeug, oder auf der Auswahl bzw. an einem ihrer Anfasser; sonst
             // scrollt die Ansicht
             if tool.shapeKind != nil || tool == .lasso || tool == .area { return true }
-            return grip(for: pan) != nil
+            return grip(for: pan) != nil || editorGrip(for: pan) != nil
         }
         if g === pinch {
             // zwei Finger AUF der Auswahl aendern ihre Groesse; daneben zoomt die Seite wie immer
@@ -403,8 +403,14 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         case .began:
             guard tool.shapeKind != nil || tool == .lasso || tool == .area else {
                 // Auswahl: verschieben oder an einer Ecke die Groesse aendern
-                guard let (overlay, kind) = grip(for: g) else { g.state = .cancelled; return }
-                beginGrab(kind, on: overlay)
+                if let (overlay, kind) = grip(for: g) {
+                    beginGrab(kind, on: overlay)
+                } else if let overlay = editorGrip(for: g) {
+                    // am Text gezogen, in dem gerade getippt wird (nicht ausgewaehlt, evtl. noch gar nicht gespeichert)
+                    beginGrab(.move, on: overlay, editorOnly: true)
+                } else {
+                    g.state = .cancelled
+                }
                 return
             }
             guard let (v, now) = locate(g) else { g.state = .cancelled; return }
@@ -547,6 +553,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         let box: CGRect
         /// die Auswahl enthaelt einen Textblock, der auf den Linien sitzt: senkrecht nur in ganzen Zeilen
         var snapsToLines = false
+        /// gegriffen ist nur der Text, in dem gerade getippt wird (keine Auswahl, kein Rahmen)
+        var editorOnly = false
         var change = Change.none
     }
 
@@ -692,13 +700,43 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                        inkTransform: scale.concatenating(CGAffineTransform(translationX: d.x, y: d.y)))
     }
 
-    func beginGrab(_ kind: Grab.Kind, on overlay: PageInkView) {
-        beginInkDrag(on: overlay)                           // ausgewaehlte Handschrift geht als Bild mit
-        let list = overlay.objectsView.shownObjects, ids = selection?.ids ?? []
-        let inkBox = inkDrag?.view.frame ?? .null
-        let box = Self.box(of: list, ids: ids).union(inkBox)
+    func beginGrab(_ kind: Grab.Kind, on overlay: PageInkView, editorOnly: Bool = false) {
+        if !editorOnly { beginInkDrag(on: overlay) }        // ausgewaehlte Handschrift geht als Bild mit
+        var list = overlay.objectsView.shownObjects, ids = selection?.ids ?? []
+        if editorOnly, let e = editing { ids = [e.id] }
+        // Text, in dem gerade getippt wird: sein Stand aus der Textansicht (ein neuer steht noch gar nicht auf der Seite)
+        if let e = editing, ids.contains(e.id) { list = list.filter { $0["id"]?.string != e.id } + [e.object] }
+        let inkBox = editorOnly ? .null : (inkDrag?.view.frame ?? .null)
+        var box = Self.box(of: list, ids: ids).union(inkBox)
+        if editorOnly, let e = editing { box = e.view.frame }
         grab = Grab(kind: kind, overlay: overlay, list: list, ids: ids, inkBox: inkBox, box: box.isNull ? selectionBox : box,
-                    snapsToLines: TextBlock.containsSnapped(list, ids: ids))
+                    snapsToLines: TextBlock.containsSnapped(list, ids: ids), editorOnly: editorOnly)
+    }
+
+    /// Greift die Beruehrung den Text, in dem gerade getippt wird? (Meldung des Inhabers am iPad 25.11.2026: "man kann
+    /// Notizzettel nicht verschieben … der blaue Kasten … verzögert stark und Notizzettel geht nicht mit" - am Zettel
+    /// wurde gezogen, waehrend die Tastatur offen war; es bewegten sich nur der Rahmen und der ruhende Zettel darunter.)
+    /// Gilt, wenn die Auswahl ihn nicht schon greift (`grip`).
+    private func editorGrip(for g: UIPanGestureRecognizer) -> PageInkView? {
+        guard grab == nil, !transferring, isActive, tool == .select, let e = editing, let c = controller, c.writable,
+              let overlay = c.boundOverlay(forKey: e.key), overlay.window != nil else { return nil }
+        let now = g.location(in: overlay.content), t = g.translation(in: overlay.content)
+        let p = panDown.map { overlay.content.convert($0, from: nil) } ?? CGPoint(x: now.x - t.x, y: now.y - t.y)
+        return e.view.frame.insetBy(dx: -8, dy: -8).contains(p) ? overlay : nil
+    }
+
+    /// Textansicht des laufenden Tippens an die Stelle und in die Breite eines Stands bringen (Vorschau beim Ziehen,
+    /// gespeicherter Stand danach): Der sichtbare Zettel bzw. Block ist beim Tippen die Textansicht.
+    func placeEditor(like o: JSONValue) {
+        guard let e = editing else { return }
+        let x = ObjectGeometry.coordinate(o["x"], 0), y = ObjectGeometry.coordinate(o["y"], 0)
+        let width = CGFloat(ObjectGeometry.number(o["width"], 220, in: 0...ObjectGeometry.maxCoordinate))
+        // Ankerpunkt ist die linke obere Ecke (`startTextEditing`): `center` ist ihre Lage auf der Seite
+        if abs(e.view.center.x - x) > 0.005 || abs(e.view.center.y - y) > 0.005 { e.view.center = CGPoint(x: x, y: y) }
+        if abs(e.view.bounds.width - width) > 0.01 {
+            e.view.bounds.size.width = width
+            fitEditor(e, minHeight: CGFloat(StickyNote.minHeight(o)))
+        }
     }
 
     /// Versatz beim Verschieben: eingerastete Textbloecke in ganzen Zeilen, alles bleibt auf der Seite
@@ -721,11 +759,16 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             g.overlay.objectsView.previewMove(ids: g.ids, by: .zero)
             g.overlay.objectsView.preview(nil)
             inkDrag?.view.transform = .identity
-            showFrame(g.box, on: g.overlay)
+            if !g.editorOnly { showFrame(g.box, on: g.overlay) }
+            if let e = editing, g.ids.contains(e.id) { placeEditor(like: e.object) }
         case .move(let d):
             g.overlay.objectsView.previewMove(ids: g.ids, by: d)
             inkDrag?.view.transform = CGAffineTransform(translationX: d.x, y: d.y)
-            showFrame(g.box.offsetBy(dx: d.x, dy: d.y), on: g.overlay)
+            if !g.editorOnly { showFrame(g.box.offsetBy(dx: d.x, dy: d.y), on: g.overlay) }
+            // der Text, in dem getippt wird, folgt dem Finger (seine Anzeige auf der Seite ruht solange)
+            if let e = editing, g.ids.contains(e.id) {
+                placeEditor(like: PageObjectEdit.move([e.object], ids: [e.id], dx: Double(d.x), dy: Double(d.y)).first ?? e.object)
+            }
         case .scale(let f, let anchor):
             let r = Self.resized(g.list, ids: g.ids, inkBox: g.inkBox, by: f, about: anchor, page: Self.page(of: g.overlay))
             g.overlay.objectsView.preview(r.objects.filter { ($0["id"]?.string).map(g.ids.contains) == true })
@@ -736,6 +779,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                                                    tx: to.x - c.x, ty: to.y - c.y)
             }
             showFrame(r.box, on: g.overlay)
+            if let e = editing, let o = r.objects.first(where: { $0["id"]?.string == e.id }), g.ids.contains(e.id) { placeEditor(like: o) }
         }
         CATransaction.commit()
     }
@@ -746,6 +790,18 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         grab = nil
         endTransferHover(g)
         switch g.change {
+        case .move(let d) where abs(d.x) + abs(d.y) > 0.5 && g.editorOnly:
+            // nur der Text, in dem getippt wird: ein neuer merkt sich die Stelle (gespeichert wird er mit dem Text), ein
+            // vorhandener wird verschoben gespeichert; das Tippen geht weiter
+            guard var e = editing else { return }
+            if e.isNew {
+                e.object = TextBlock.resnapped(PageObjectEdit.move([e.object], ids: [e.id], dx: Double(d.x), dy: Double(d.y))).first ?? e.object
+                editing = e
+                placeEditor(like: e.object)
+            } else {
+                let key = e.key, id = e.id
+                Task { await commit(key) { PageObjectEdit.move($0, ids: [id], dx: Double(d.x), dy: Double(d.y)) } }
+            }
         case .move(let d) where abs(d.x) + abs(d.y) > 0.5:
             finishMove(dx: d.x, dy: d.y)
         case .scale(let f, let anchor) where abs(f - 1) > 0.005:
@@ -909,6 +965,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         guard let before = await c.store.editObjects(pageKey: key, { Self.resnappingChanged($0, change($0)) }) else { return false }
         let after = await objects(key)
         if undoable { registerUndo(key: key, restore: before, then: after) }
+        // Text, in dem gerade getippt wird: Lage und Breite aus dem gespeicherten Stand (verschoben, Groesse geaendert,
+        // umgestaltet) - die Textansicht steht wieder genau auf dem Objekt, das Tippen geht weiter
+        if var e = editing, e.key == key, !e.isNew, let o = after.first(where: { $0["id"]?.string == e.id }) {
+            for k in ["x", "y", "width", "minHeight", "rotation", "bg", "note"] { e.object[k] = o[k] }
+            editing = e
+            placeEditor(like: e.object)
+        }
         if let sel = selection, sel.key == key {
             drawSelection(after)
             publishFormat(after)
