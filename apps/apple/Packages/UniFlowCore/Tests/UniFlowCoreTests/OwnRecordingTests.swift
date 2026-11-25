@@ -242,11 +242,119 @@ final class OwnRecordingTests: XCTestCase {
     }
 
     /// Der Python-Dienst kennt die Pfade nicht: nur das lokale Backend registriert sie, ohne Konflikt mit anderen Modulen
+    /// Mitschrift zu einer Uni-Aufzeichnung (1.0.8, docs/WHISPER-MITSCHRIFT.md): keine eigene Tondatei, nicht in der
+    /// Liste der eigenen Aufnahmen, eine je Video, Erkennung vermerkt, Suche findet sie
+    func testTranscriptForAUniversityVideo() async throws {
+        let (b, container) = try await backend()
+        await XCTAssertEqualAsync(await json(b, "GET", "/api/recordings/own/videos"), .object([:]))
+        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video?id=v-17"), 404)
+        let own = await b.handle(request("POST", "/api/recordings/own", ["module_id": 1, "title": "Eigene Aufnahme"]))
+        XCTAssertEqual(own.status, 201)
+        let created = await b.handle(request("POST", "/api/recordings/own", ["module_id": 1, "title": "Analysis I – 3. Vorlesung",
+                                                                               "source_video_id": "v-17", "duration": 5400, "language": "de-DE",
+                                                                               "transcript_status": "running", "transcript_engine": "whisper"]))
+        XCTAssertEqual(created.status, 201, String(decoding: created.body, as: UTF8.self))
+        let id = try XCTUnwrap(created.json?["id"]?.string)
+        XCTAssertEqual(created.json?["audio_path"], .null)
+        XCTAssertEqual(created.json?["source_video_id"], "v-17")
+        XCTAssertEqual(created.json?["transcript_engine"], "whisper")
+        // eine je Video; unbekannte Erkennung abgelehnt
+        await XCTAssertEqualAsync(await status(b, "POST", "/api/recordings/own", ["source_video_id": "v-17"]), 409)
+        await XCTAssertEqualAsync(await status(b, "POST", "/api/recordings/own", ["source_video_id": 17]), 422)
+        await XCTAssertEqualAsync(await status(b, "PATCH", "/api/recordings/own/\(id)", ["transcript_engine": "cloud"]), 422)
+        // nicht unter "Eigene Aufnahmen", aber beim Video
+        let list = await json(b, "GET", "/api/recordings/own?module_id=1")
+        XCTAssertEqual(list?.array?.compactMap { $0["title"]?.string }, ["Eigene Aufnahme"])
+        let all = await json(b, "GET", "/api/recordings/own")
+        XCTAssertEqual(all?.array?.count, 1)
+        await XCTAssertEqualAsync(await json(b, "GET", "/api/recordings/own/videos"), ["v-17": "running"])
+        // Zwischenstand und fertige Mitschrift
+        let patch: JSONValue = ["transcript": [["start": 0, "end": 60, "text": "Heute geht es um den Satz von Bolzano-Weierstraß."]],
+                                "transcript_status": "done", "transcript_engine": "whisper"]
+        await XCTAssertEqualAsync(await status(b, "PATCH", "/api/recordings/own/\(id)", patch), 200)
+        let got = await json(b, "GET", "/api/recordings/own/video?id=v-17")
+        XCTAssertEqual(got?["id"]?.string, id)
+        XCTAssertEqual(got?["sections"]?.int, 1)
+        XCTAssertEqual(got?["transcript_status"], "done")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: container.appendingPathComponent("recordings/eigene/\(id).txt").path))
+        let hits = await json(b, "GET", "/api/search?q=weierstra%C3%9F")
+        XCTAssertEqual(hits?["recordings"]?.array?.first?["id"]?.string, id)
+        // Loeschen entfernt nur die Mitschrift
+        await XCTAssertEqualAsync(await status(b, "DELETE", "/api/recordings/own/\(id)"), 200)
+        await XCTAssertEqualAsync(await json(b, "GET", "/api/recordings/own/videos"), .object([:]))
+    }
+
+    /// Alte Datenbank ohne die neuen Spalten: Lesen legt nichts an und bricht nicht, Schreiben traegt sie nach
+    func testOldTableWithoutNewColumnsStillWorks() async throws {
+        let (b, _) = try await backend(files: false)
+        try await b.context.database.transaction { c in
+            try c.executeScript(OwnRecordingStore.tables)
+            try c.execute("INSERT INTO own_recordings(id, title, recorded_at, transcript_status) VALUES ('alt1', 'Alte Aufnahme', '2026-11-01T10:00:00', 'none')")
+        }
+        let old = await json(b, "GET", "/api/recordings/own")
+        XCTAssertEqual(old?.array?.count, 1)
+        await XCTAssertEqualAsync(await json(b, "GET", "/api/recordings/own/videos"), .object([:]))
+        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video?id=x"), 404)
+        await XCTAssertEqualAsync(await status(b, "GET", "/api/recordings/own/video"), 422)
+        await XCTAssertEqualAsync(await status(b, "PATCH", "/api/recordings/own/alt1", ["transcript_engine": "whisper", "transcript_status": "running"]), 200)
+        let patched = await json(b, "GET", "/api/recordings/own/alt1")
+        XCTAssertEqual(patched?["transcript_engine"], "whisper")
+    }
+
+    func testVocabularyComesFromTheScriptsOfTheModule() async throws {
+        let (b, _) = try await backend()
+        try await b.context.database.transaction { c in
+            try c.execute("UPDATE courses SET module_id=1 WHERE id='c1'")
+            try c.execute("INSERT INTO courses(id, title, subject, kind, active, created_at) VALUES ('c2', 'Physik', 'Physik', 'vorlesung', 1, '2026-01-01')")
+            try c.execute("INSERT INTO files(id, course_id, name, chdate) VALUES ('f1', 'c1', 'Skript Analysis.pdf', 5)")
+            try c.execute("INSERT INTO files(id, course_id, name, chdate) VALUES ('f2', 'c1', 'Übungsblatt 3.pdf', 5)")
+            try c.execute("INSERT INTO files(id, course_id, name, chdate) VALUES ('f3', 'c2', 'Skript Physik.pdf', 5)")
+            for (file, page, text) in [("f1", 1, "Das Taylor-Polynom. Der Mittelwertsatz gilt."), ("f1", 2, "Taylor-Polynom und Mittelwertsatz nach Cauchy. Cauchy!"),
+                                       ("f2", 1, "Hausaufgabe Hausaufgabe Hausaufgabe Zusatzpunkt-Regel Zusatzpunkt-Regel"),
+                                       ("f3", 1, "Die Schrödinger-Gleichung. Schrödinger-Gleichung.")] {
+                try c.execute("INSERT INTO page_texts(file_id, page, text, chdate) VALUES (?, ?, ?, 5)", [.text(file), .integer(Int64(page)), .text(text)])
+            }
+        }
+        // Aufnahme im Modul: nur Vorlesungen und Skripte des Moduls zaehlen
+        let rec = await json(b, "POST", "/api/recordings/own", ["title": "Vorlesung", "module_id": 1])
+        let id = try XCTUnwrap(rec?["id"]?.string)
+        let path = "/api/recordings/own/vocabulary"
+        let got = await json(b, "POST", path, ["id": .string(id)])
+        XCTAssertEqual(got?["terms"], ["Taylor-Polynom", "Cauchy", "Mittelwertsatz"])
+        XCTAssertEqual(got?["files"], 1)
+        // mit dem zuletzt Erkannten: gleiche Begriffe (hier passt keine Seite gut genug), weiter ohne Fehler
+        await XCTAssertEqualAsync(await json(b, "POST", path, ["id": .string(id), "text": "Heute geht es weiter."])?["terms"],
+                                  ["Taylor-Polynom", "Cauchy", "Mittelwertsatz"])
+        // Mitschrift zu einem Uni-Video: das Modul kommt ueber die Veranstaltung
+        let video = await json(b, "POST", "/api/recordings/own", ["title": "Video", "source_video_id": "c1|v1", "course_id": "c1"])
+        let videoID = try XCTUnwrap(video?["id"]?.string)
+        await XCTAssertEqualAsync(await json(b, "POST", path, ["id": .string(videoID)])?["terms"], ["Taylor-Polynom", "Cauchy", "Mittelwertsatz"])
+        // Datei der Bibliothek (Audio-Datei im selben Kurs)
+        await XCTAssertEqualAsync(await json(b, "POST", path, ["file_id": "f2"])?["terms"], ["Taylor-Polynom", "Cauchy", "Mittelwertsatz"])
+        // ohne Modul: leer, kein Fehler
+        let free = await json(b, "POST", "/api/recordings/own", ["title": "Frei"])
+        let freeID = try XCTUnwrap(free?["id"]?.string)
+        await XCTAssertEqualAsync(await json(b, "POST", path, ["id": .string(freeID)]), ["terms": [], "files": 0])
+        await XCTAssertEqualAsync(await json(b, "POST", path, ["file_id": "f3"]), ["terms": [], "files": 0])
+        await XCTAssertEqualAsync(await status(b, "POST", path, ["id": "gibtsnicht"]), 404)
+        await XCTAssertEqualAsync(await status(b, "POST", path, .object([:])), 422)
+        // neue Fassung des Skripts: das Glossar wird neu gebildet
+        try await b.context.database.transaction { c in
+            try c.execute("UPDATE files SET chdate=6 WHERE id='f1'")
+            try c.execute("DELETE FROM page_texts WHERE file_id='f1'")
+            try c.execute("INSERT INTO page_texts(file_id, page, text, chdate) VALUES ('f1', 1, 'Die Hesse-Matrix. Hesse-Matrix!', 6)")
+        }
+        await XCTAssertEqualAsync(await json(b, "POST", path, ["id": .string(id)])?["terms"], ["Hesse-Matrix"])
+    }
+
     func testRoutesRegisteredWithoutConflict() async throws {
         let (b, _) = try await backend(files: false)
         XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own")?.module, "Eigene Aufnahmen")
         XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/suggest")?.pattern.template, "/api/recordings/own/suggest")
         XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/abc")?.pattern.template, "/api/recordings/own/{rec_id}")
+        XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/videos")?.pattern.template, "/api/recordings/own/videos")
+        XCTAssertEqual(b.route(method: "GET", path: "/api/recordings/own/video")?.pattern.template, "/api/recordings/own/video")
+        XCTAssertEqual(b.route(method: "POST", path: "/api/recordings/own/vocabulary")?.pattern.template, "/api/recordings/own/vocabulary")
         await XCTAssertEqualAsync(await status(b, "PUT", "/api/recordings/own"), 405)
     }
 }
