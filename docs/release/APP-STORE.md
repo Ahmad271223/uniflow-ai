@@ -362,7 +362,8 @@ Frage „Erfassen Sie oder Ihre Drittanbieter Daten aus dieser App?“ → **Ja*
 | Käufe → Kaufverlauf | ja | ja | nein | App-Funktionalität | die von Apple signierte Transaktion (Produkt, Laufzeit, Transaktionskennung) geht an `/api/billing/apple/verify` bzw. bei Credit-Paketen (ab 1.0.6) an `/api/billing/credits/apple`, damit Tarif und Credits am Konto stimmen; keine Zahlungsdaten |
 | Nutzerinhalte → Andere Nutzerinhalte | ja | ja | nein | App-Funktionalität | Community (Lösungen verschlüsselt, Fragen, Antworten, Kommentare, Meldungen; CloudKit bzw. mit Konto im Dienst); KI-Anfragen (Seitentext bzw. Bild eines Bereichs, Frage, Kurs- und Dateiname) an den Dienst und weiter an den KI-Anbieter; Geräteabgleich mit dem Konto (Module, Termine, Lernpakete, Karteikarten, Einstellungen; Notizen ab Pro AI) |
 | Nutzungsdaten → Produktinteraktion | ja | ja | nein | App-Funktionalität | je KI-Anfrage Zeitpunkt, Art der Aufgabe und verbrauchte Credits (Abrechnung der Credits, Monatsgrenze) |
-| Gesundheit und Fitness, Finanzinformationen, Standort, sensible Daten, Kontakte, Browserverlauf, Suchverlauf, Diagnose, Name, sonstige Daten | nein | – | – | – | – |
+| Diagnose → Absturzdaten | ja | nein | nein | App-Funktionalität | Absturz, Hänger und die Tageszählung von iOS („App beendet“) gehen ohne Konto an den StudiNow-Dienst: App-Version, Gerätemodell, Systemversion, Zeitpunkt, Signal, oberste Aufrufkette (`CrashReporting.swift`, `app/crash_reports.py`); keine Nutzerkennung, keine dauerhafte Gerätekennung, Schalter in den Einstellungen. **Neu seit 25.11.2026 (Zweig `app/absturzmeldung`), gilt erst ab dem Build, der die Absturzmeldung enthält; dann in App Store Connect vom Inhaber nachzutragen** (`docs/ABSTURZMELDUNG-2026-11-25.md`) |
+| Gesundheit und Fitness, Finanzinformationen, Standort, sensible Daten, Kontakte, Browserverlauf, Suchverlauf, Diagnose außer Absturzdaten (Leistungsdaten, andere Diagnosedaten), Name, sonstige Daten | nein | – | – | – | – |
 
 Warum so:
 
@@ -387,12 +388,15 @@ Warum so:
   der LUH, Google Maps bekommt erst etwas, wenn man „Route“ antippt – kein Standort, keine Erfassung durch uns.
 - **Verknüpft ja:** Konto- und CloudKit-Datensätze tragen eine Nutzerkennung; Apple nennt Daten nur dann „nicht
   verknüpft“, wenn Kennungen vor der Erfassung entfernt werden. Die vorsichtige Angabe kostet nichts.
-- **Diagnose:** keine Absturz- oder Analyse-SDKs; Absturzberichte über Apple (TestFlight, Xcode Organizer) sind Apples
-  eigene Erfassung. Zugriffsprotokolle des Servers (IP-Adresse, 14 Tage, nur Sicherheit) werden nicht ausgewertet und
+- **Diagnose:** keine Absturz- oder Analyse-SDKs von Dritten; Absturzberichte über Apple (TestFlight, Xcode Organizer)
+  sind Apples eigene Erfassung. Seit 25.11.2026 (ab dem Build mit der Absturzmeldung) schickt die App selbst eine kurze
+  Absturzmeldung an den StudiNow-Dienst (Apples MetricKit, ohne Konto, nicht mit der Identität verknüpft, abschaltbar:
+  Einstellungen → Hilfe & Rechtliches) – daher „Absturzdaten: ja, nicht verknüpft“. Zugriffsprotokolle des Servers (IP-Adresse, 14 Tage, nur Sicherheit) werden nicht ausgewertet und
   keiner Person zugeordnet.
 - **Datenschutz-Manifest:** `apps/apple/UniFlow/PrivacyInfo.xcprivacy` nennt dieselben Datenarten wie die Tabelle
   (verknüpft, kein Tracking, App-Funktionalität; seit 06.11.2026 fünf, seit 08.11.2026 sechs mit der Geräte-ID,
-  Audit P46-04, Build 25 trägt noch die fünf) und die Gründe der genutzten APIs (UserDefaults CA92.1,
+  Audit P46-04, Build 25 trägt noch die fünf; seit 25.11.2026 im Zweig `app/absturzmeldung` sieben mit den Absturzdaten,
+  diese als einzige nicht verknüpft) und die Gründe der genutzten APIs (UserDefaults CA92.1,
   Datei-Zeitstempel C617.1 und 3B52.1, freier Speicher E174.1, seit Build 16 Systemstartzeit 35F9.1 für verstrichene
   Zeit in der App: `DispatchTime.uptimeNanoseconds`, `CLOCK_MONOTONIC`); geprüft in `tests/test_ai_consent.py` und
   `AIConsentAppTests`. Gilt ab Build 11.

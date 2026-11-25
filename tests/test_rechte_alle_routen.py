@@ -40,7 +40,8 @@ FILE_KEY_A = hashlib.sha256(b"rechte-erklaerung-a").hexdigest()
 
 # ---------------------------------------------------------------- 1. Inventar
 
-# Ohne Anmeldung erreichbar (hosted_guard: account_api.PUBLIC_PATHS, billing_api.PUBLIC, app_login_api.PUBLIC).
+# Ohne Anmeldung erreichbar (hosted_guard: account_api.PUBLIC_PATHS, billing_api.PUBLIC, app_login_api.PUBLIC,
+# crash_reports.PUBLIC).
 # Jeder Eintrag ist eine bewusste Entscheidung; die Endpunkte pruefen selbst (Passwort, Signatur, Token, Code).
 PUBLIC_API = {
     ("POST", "/api/account/register"): "Konto anlegen",
@@ -56,6 +57,7 @@ PUBLIC_API = {
     ("POST", "/api/billing/apple/notifications"): "App Store Server Notifications (signiert, app/apple_store.py)",
     ("POST", "/api/billing/stripe/webhook"): "Stripe-Webhook (Signatur, app/stripe_billing.py)",
     ("POST", "/api/app-login/token"): "Windows-App tauscht Code + PKCE-Verifier gegen Sitzung",
+    ("POST", "/api/diagnose/crashes"): "Absturzmeldung der Apple-Apps ohne Konto (nur schreiben, Grenzen je Geraet/IP/Tag, app/crash_reports.py)",
 }
 # Oberflaeche und Rechtstexte (keine /api-Pfade); `/`, `/index.html` leiten ohne Sitzung zur Anmeldung um
 PUBLIC_PAGES = {"/login", "/abo-fertig", "/datenschutz", "/nutzungsbedingungen", "/impressum", "/konto-loeschen", "/konto/rueckkehr"}
@@ -91,10 +93,10 @@ def _matching(app, method: str, path: str) -> list[tuple[str, str]]:
 
 
 def test_route_inventory_has_no_unreviewed_public_route(app):
-    from app import account_api, app_login_api, billing_api
+    from app import account_api, app_login_api, billing_api, crash_reports
     routes = all_routes(app)
     assert len(routes) > 350, len(routes)
-    bypass = account_api.PUBLIC_PATHS | billing_api.PUBLIC | app_login_api.PUBLIC
+    bypass = account_api.PUBLIC_PATHS | billing_api.PUBLIC | app_login_api.PUBLIC | crash_reports.PUBLIC
     assert bypass == {p for _, p in PUBLIC_API}, "oeffentliche Pfade in hosted_guard und PUBLIC_API muessen gleich sein"
     # jede Methode auf einem oeffentlichen Pfad ist eingetragen (hosted_guard prueft nur den Pfad, nicht die Methode)
     for p in bypass:

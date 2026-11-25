@@ -1,0 +1,149 @@
+{
+  "timeStampBegin": "2026-11-24 08:15:00",
+  "timeStampEnd": "2026-11-24 08:15:00",
+  "crashDiagnostics": [
+    {
+      "version": "1.0.0",
+      "diagnosticMetaData": {
+        "appBuildVersion": "45",
+        "appVersion": "1.0.6",
+        "regionFormat": "DE",
+        "osVersion": "iPhone OS 27.1 (24B83)",
+        "deviceType": "iPad14,3",
+        "bundleIdentifier": "de.uniflow.ai",
+        "platformArchitecture": "arm64e",
+        "isTestFlightApp": false,
+        "lowPowerModeEnabled": false,
+        "pid": 4711,
+        "exceptionType": 1,
+        "exceptionCode": 0,
+        "signal": 11,
+        "terminationReason": "Namespace SIGNAL, Code 11 Segmentation fault: 11",
+        "virtualMemoryRegionInfo": "0 is not in any region.  Bytes before following region: 4000000000 REGION TYPE START - END"
+      },
+      "callStackTree": {
+        "callStackPerThread": true,
+        "callStacks": [
+          {
+            "threadAttributed": false,
+            "callStackRootFrames": [
+              {"binaryUUID": "11111111-2222-3333-4444-555555555555", "offsetIntoBinaryTextSegment": 7000, "sampleCount": 1,
+               "binaryName": "libsystem_kernel.dylib", "address": 7170766264}
+            ]
+          },
+          {
+            "threadAttributed": true,
+            "callStackRootFrames": [
+              {"binaryUUID": "70B89F27-1634-3580-A695-57CDB41D7743", "offsetIntoBinaryTextSegment": 165304, "sampleCount": 1,
+               "binaryName": "UniFlow", "address": 4374642104,
+               "subFrames": [
+                 {"binaryUUID": "70B89F27-1634-3580-A695-57CDB41D7743", "offsetIntoBinaryTextSegment": 81234, "sampleCount": 1,
+                  "binaryName": "UniFlow", "address": 4374558034,
+                  "subFrames": [
+                    {"binaryUUID": "AAAAAAAA-BBBB-CCCC-DDDD-EEEEEEEEEEEE", "offsetIntoBinaryTextSegment": 99000, "sampleCount": 1,
+                     "binaryName": "SwiftUI", "address": 6900000000,
+                     "subFrames": [
+                       {"binaryUUID": "99999999-8888-7777-6666-555555555555", "offsetIntoBinaryTextSegment": 5120, "sampleCount": 1,
+                        "binaryName": "UIKitCore", "address": 6800000000,
+                        "subFrames": [
+                          {"binaryUUID": "12121212-3434-5656-7878-909090909090", "offsetIntoBinaryTextSegment": 24000, "sampleCount": 1,
+                           "binaryName": "dyld", "address": 6700000000}
+                        ]}
+                     ]}
+                  ]}
+               ]}
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "version": "1.0.0",
+      "diagnosticMetaData": {
+        "appBuildVersion": "44",
+        "appVersion": "1.0.5",
+        "regionFormat": "DE",
+        "osVersion": "iPhone OS 26.2 (23C52)",
+        "deviceType": "iPad13,18",
+        "bundleIdentifier": "de.uniflow.ai",
+        "platformArchitecture": "arm64e",
+        "isTestFlightApp": true,
+        "pid": 815,
+        "exceptionType": 1,
+        "exceptionCode": 0,
+        "signal": 6,
+        "terminationReason": "Namespace SIGNAL, Code 6 Abort trap: 6",
+        "objectiveCexceptionReason": {
+          "composedMessage": "Datei „Klausur Mathe Müller.pdf“ nicht gefunden",
+          "formatString": "Datei „%@“ nicht gefunden",
+          "arguments": ["Klausur Mathe Müller.pdf"],
+          "exceptionType": "NSException",
+          "className": "NSException",
+          "exceptionName": "NSInvalidArgumentException"
+        }
+      },
+      "callStackTree": {
+        "callStackPerThread": true,
+        "callStacks": [
+          {
+            "threadAttributed": true,
+            "callStackRootFrames": [
+              {"binaryUUID": "11111111-2222-3333-4444-555555555555", "offsetIntoBinaryTextSegment": 34000, "sampleCount": 1,
+               "binaryName": "libsystem_kernel.dylib", "address": 7170766264,
+               "subFrames": [
+                 {"binaryUUID": "22222222-3333-4444-5555-666666666666", "offsetIntoBinaryTextSegment": 480000, "sampleCount": 1,
+                  "binaryName": "libsystem_c.dylib", "address": 7170000000,
+                  "subFrames": [
+                    {"binaryUUID": "33333333-4444-5555-6666-777777777777", "offsetIntoBinaryTextSegment": 1200000, "sampleCount": 1,
+                     "binaryName": "CoreFoundation", "address": 6600000000,
+                     "subFrames": [
+                       {"binaryUUID": "5E0F1A2B-3C4D-5E6F-7A8B-9C0D1E2F3A4B", "offsetIntoBinaryTextSegment": 204800, "sampleCount": 1,
+                        "binaryName": "UniFlow", "address": 4374681600}
+                     ]}
+                  ]}
+               ]}
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "hangDiagnostics": [
+    {
+      "version": "1.0.0",
+      "diagnosticMetaData": {
+        "appBuildVersion": "45",
+        "appVersion": "1.0.6",
+        "regionFormat": "DE",
+        "osVersion": "iPhone OS 27.1 (24B83)",
+        "deviceType": "iPad14,3",
+        "bundleIdentifier": "de.uniflow.ai",
+        "platformArchitecture": "arm64e",
+        "isTestFlightApp": false,
+        "hangDuration": "3 sec"
+      },
+      "callStackTree": {
+        "callStackPerThread": false,
+        "callStacks": [
+          {
+            "threadAttributed": true,
+            "callStackRootFrames": [
+              {"binaryUUID": "70B89F27-1634-3580-A695-57CDB41D7743", "offsetIntoBinaryTextSegment": 4096, "sampleCount": 7,
+               "binaryName": "UniFlow", "address": 4374480896,
+               "subFrames": [
+                 {"binaryUUID": "70B89F27-1634-3580-A695-57CDB41D7743", "offsetIntoBinaryTextSegment": 12288, "sampleCount": 2,
+                  "binaryName": "UniFlow", "address": 4374489088},
+                 {"binaryUUID": "70B89F27-1634-3580-A695-57CDB41D7743", "offsetIntoBinaryTextSegment": 8192, "sampleCount": 5,
+                  "binaryName": "UniFlow", "address": 4374484992,
+                  "subFrames": [
+                    {"binaryUUID": "44444444-5555-6666-7777-888888888888", "offsetIntoBinaryTextSegment": 777000, "sampleCount": 5,
+                     "binaryName": "PDFKit", "address": 6500000000}
+                  ]}
+               ]}
+            ]
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -61,9 +61,17 @@ def test_privacy_manifest_declares_the_device_id_the_service_receives():
     m = plistlib.loads((APPLE / "UniFlow" / "PrivacyInfo.xcprivacy").read_bytes())
     kinds = {t["NSPrivacyCollectedDataType"] for t in m["NSPrivacyCollectedDataTypes"]}
     assert "NSPrivacyCollectedDataTypeDeviceID" in kinds
-    # kein Standort, keine Kontakte, keine Diagnose-SDKs im Code, also auch nicht im Manifest
+    # kein Standort, keine Kontakte im Code, also auch nicht im Manifest
     assert not kinds & {"NSPrivacyCollectedDataTypePreciseLocation", "NSPrivacyCollectedDataTypeCoarseLocation",
-                        "NSPrivacyCollectedDataTypeContacts", "NSPrivacyCollectedDataTypeCrashData"}
+                        "NSPrivacyCollectedDataTypeContacts"}
+    # Absturzdaten seit 25.11.2026 (eigene Absturzmeldung ueber Apples MetricKit, kein fremdes SDK; CrashReporting.swift):
+    # im Manifest genau dann, wenn der Code sie schickt - und nie mit der Identitaet verknuepft
+    sends = "MXMetricManager.shared.add" in CODE["UniFlow/Services/CrashReporting.swift"]
+    crash = [t for t in m["NSPrivacyCollectedDataTypes"] if t["NSPrivacyCollectedDataType"] == "NSPrivacyCollectedDataTypeCrashData"]
+    assert sends and len(crash) == 1 and crash[0]["NSPrivacyCollectedDataTypeLinked"] is False
+    for t in CODE.values():
+        for sdk in ("import Sentry", "import FirebaseCrashlytics", "import Bugsnag"):
+            assert sdk not in t, sdk
 
 
 def test_background_tasks_and_audio_match_the_code():

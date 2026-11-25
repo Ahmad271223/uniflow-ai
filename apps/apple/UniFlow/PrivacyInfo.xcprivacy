@@ -6,7 +6,7 @@
   tests/test_release_texts.py. Kein Tracking, keine Tracking-Domains, keine Werbung, keine Analyse-SDKs.
   Fremd-Pakete gibt es keine; UniFlowCore (eigenes Paket, statisch in die App gebaut) ist hier mit erfasst.
 
-  Erfasste Daten (alle mit der Identitaet verknuepft, nie Tracking, nur App-Funktionalitaet):
+  Erfasste Daten (mit der Identitaet verknuepft bis auf die Absturzdaten, nie Tracking, nur App-Funktionalitaet):
   - E-Mail-Adresse: nur mit StudiNow-Konto (Mit Apple anmelden bzw. Registrierung), StudoraAccountLink.swift
   - Nutzer-ID: Konto-ID und Apple-Kennung beim StudiNow-Dienst; CloudKit-Nutzerkennung in Community-, Wochentest- und
     Bibliotheks-Datensaetzen
@@ -21,7 +21,10 @@
     OpenAIKeyCard.swift, Haken der Einwilligung vor dem Speichern) dieselben Inhalte direkt vom iPad an OpenAI ueber
     das Konto des Nutzers; Geraeteabgleich mit Konto
   - Produktinteraktion: je KI-Anfrage Zeitpunkt, Art der Aufgabe und verbrauchte Credits
-  Nie: Name, Hochschul-Zugangsdaten (nur im Schluesselbund dieses Geraets), Standort, Kontakte, Diagnose.
+  Absturzdaten (seit 25.11.2026, CrashReporting.swift, docs/ABSTURZMELDUNG-2026-11-25.md) - als einzige Datenart NICHT
+  mit der Identitaet verknuepft: Absturz, Haenger und die Tageszaehlung von iOS gehen ohne Konto an den StudiNow-Dienst
+  (App-Version, Geraetemodell, Systemversion, Zeitpunkt, Signal, oberste Aufrufkette). Schalter in den Einstellungen.
+  Nie: Name, Hochschul-Zugangsdaten (nur im Schluesselbund dieses Geraets), Standort, Kontakte.
 
   Genutzte APIs mit Begruendungspflicht (aus dem Code, grep in UniFlow/ und Packages/UniFlowCore/Sources):
   - UserDefaults (CA92.1): nur eigene Einstellungen der App, je Container eine eigene Suite (keine App Group)
@@ -106,6 +109,18 @@
 			<string>NSPrivacyCollectedDataTypeProductInteraction</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
 			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeCrashData</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<false/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>

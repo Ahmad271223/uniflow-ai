@@ -234,6 +234,10 @@ def purge_account_db(now: datetime, days: int = SYNC_DAYS, dry_run: bool = False
             if n and not dry_run:
                 conn.execute(f"DELETE FROM {table} WHERE {where}", params)
             out[key] = n
+        # Absturzmeldungen der Apps (app/crash_reports.py): nach KEEP_DAYS (90 Tage) weg; ohne Tabelle kein Eintrag
+        from . import crash_reports
+        if accounts._has_table(conn, crash_reports.TABLE):
+            out["crash_reports"] = crash_reports.purge_old(conn, now, dry_run)
     if dry_run:
         with accounts.cursor() as conn:
             out["accounts_purged"] = conn.execute("SELECT COUNT(*) FROM users WHERE status='deleted' AND deleted_at<=?",

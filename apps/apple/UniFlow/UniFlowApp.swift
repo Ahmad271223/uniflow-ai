@@ -88,6 +88,9 @@ struct UniFlowApp: App {
         // abgleichen" aus nimmt das Token am Server zurueck
         WakePush.shared.attach(account: c.account)
         HaengerSpur.shared.start()                                        // nur mit Ablauf-Protokoll (Fehlersuche per Kabel)
+        // Absturzmeldung (25.11.2026, CrashReporting.swift): bei MetricKit anmelden und wartende Meldungen schicken; nie im
+        // Debug-Build und nie unter XCTest, aus mit dem Schalter in Einstellungen -> Hilfe & Rechtliches
+        CrashReporter.shared.refresh()
         WakePush.shared.onWake = { [weak b] in await b?.performWake() ?? .noData }
         b.onEnabledChange = { _ in WakePush.shared.refresh() }
         _scenes = State(initialValue: registry)
