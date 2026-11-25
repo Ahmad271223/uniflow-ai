@@ -82,9 +82,11 @@ extension ObjectEditing {
         c.pdfView.addGestureRecognizer(hold)
     }
 
-    /// Textobjekt (Block, Textfeld, Haftnotiz) unter einem Punkt der Seite
+    /// Was sich mit langem Druecken greifen laesst: Textobjekt (Block, Textfeld, Haftnotiz) oder Klappkarte unter dem Punkt
     func textObject(on overlay: PageInkView, at p: CGPoint) -> String? {
         let list = overlay.objectsView.shownObjects
+        // Klappkarten liegen ueber allem: sie zuerst
+        if let cover = FlipCover.hit(list, x: Double(p.x), y: Double(p.y)) { return cover }
         guard let id = PageObjectEdit.hit(list, x: Double(p.x), y: Double(p.y), textHeight: Self.textHeight),
               list.first(where: { $0["id"]?.string == id })?["type"]?.string == "text" else { return nil }
         return id

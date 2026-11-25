@@ -48,6 +48,8 @@ final class PageInkView: UIView {
     let geometry: PageGeometry
     let content = UIView()
     let objectsView: PageObjectsView
+    /// Klappkarten (`FlipCover`): eigene Schicht ueber der Zeichenflaeche, sie verdecken auch die Handschrift
+    let coversView: PageObjectsView
     let canvas = InkCanvasView()
     /// Rohpunkte des Pencil fuer die einstellbare Glaettung (`PencilSmoothing`)
     let rawRecorder = RawPencilRecorder()
@@ -107,6 +109,8 @@ final class PageInkView: UIView {
         self.geometry = geometry
         let rect = CGRect(origin: .zero, size: geometry.pageSize)
         objectsView = PageObjectsView(frame: rect)
+        coversView = PageObjectsView(frame: rect, kind: .covers)
+        objectsView.top = coversView
         super.init(frame: rect)
         backgroundColor = .clear
         isOpaque = false
@@ -130,6 +134,7 @@ final class PageInkView: UIView {
         content.addSubview(foreignView)
         content.addSubview(objectsView)
         content.addSubview(canvas)
+        content.addSubview(coversView)
         canvas.addGestureRecognizer(rawRecorder)
         canvas.addGestureRecognizer(touchTracker)
         addSubview(content)
@@ -1207,6 +1212,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var editUndo: UndoManager { documentUndo }
     /// Objekt-Werkzeuge (Editor-Schritt 6); eingeschaltet nimmt die Canvas keine Eingabe an
     private(set) lazy var objects = ObjectEditing(controller: self)
+    /// Klappkarten auf- und zudecken (`FlipCovers.swift`)
+    let coverTapper = CoverTapper()
     /// Rechtsklick-Menue, Ziehen und Ablegen, Mauszeiger (10.11.2026)
     private(set) lazy var mouseSupport = EditorMouseSupport(controller: self)
     /// "Bild einfügen …" aus Kontextmenue oder Menueleiste: die Dokumentansicht zeigt die Auswahl (Fotos oder Dateien)
@@ -1321,6 +1328,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         mouseSupport.install(on: pdfView)
         // langes Druecken auf einen Textblock greift ihn (`TextBlockEditing.swift`)
         objects.installHold()
+        // Klappkarten: Antippen deckt auf und verdeckt wieder - beim Schreiben und Lesen; mit einem Objektwerkzeug
+        // waehlt Antippen die Karte aus
+        coverTapper.isEnabled = { [weak self] in self.map { !$0.objects.isActive && $0.freezeMode == .off } ?? false }
+        coverTapper.install(on: pdfView)
         // geteilte Ansicht: Bilder und "Einfügen" gehen in den Editor, in dem zuletzt gearbeitet wurde (`ActiveEditor.swift`)
         installActiveEditorMarker()
     }
@@ -2925,6 +2936,12 @@ extension PDFEditorController: UIPencilInteractionDelegate {
         setPaletteObjectToolActive(true)
         guard ownsToolPicker else { sideObjectTool(tool); return }
         guard writable || tool == .area else {
+            DispatchQueue.main.async { [weak self] in self?.tools.selectLastInk() }
+            return
+        }
+        // Klappkarten anlegen: ab Pro AI (`UFRichNotes`); aufklappen kann sie jeder
+        if tool == .cover, !richNotes {
+            onHint?(ObjectEditing.coverLockedHint)
             DispatchQueue.main.async { [weak self] in self?.tools.selectLastInk() }
             return
         }

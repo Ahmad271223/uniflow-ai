@@ -123,6 +123,10 @@ public enum PageObjectEdit {
                 obj["width"] = .number(r2(max(20, (o["width"]?.double ?? 220) * factorX)))
                 // Notizzettel (`StickyNote`): bleibt in seiner Form
                 if let h = o["minHeight"]?.double, h.isFinite { obj["minHeight"] = .number(r2(max(20, h * factorY))) }
+            } else if o["cover"]?.object != nil, let w = o["width"]?.double, let h = o["height"]?.double {
+                // Klappkarte (`FlipCover`): Breite und Hoehe statt Massstab, das Muster bleibt gleich fein
+                obj["width"] = .number(r2(max(FlipCover.minimum.width, w * factorX)))
+                obj["height"] = .number(r2(max(FlipCover.minimum.height, h * factorY)))
             } else {
                 obj["scaleX"] = .number(((o["scaleX"]?.double ?? 1) * factorX * 1000).rounded() / 1000)
                 obj["scaleY"] = .number(((o["scaleY"]?.double ?? 1) * factorY * 1000).rounded() / 1000)

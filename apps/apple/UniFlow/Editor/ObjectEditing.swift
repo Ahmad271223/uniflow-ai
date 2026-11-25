@@ -19,6 +19,8 @@ import UniFlowCore
 final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDelegate {
     enum Tool: String, CaseIterable {
         case select, text, sticky, rect, ellipse, line, arrow, lasso, markup
+        /// Klappkarte zum Abfragen (25.11.2026): ueber etwas ziehen verdeckt es, Antippen legt eine in fester Groesse an
+        case cover
         /// "Bereich an KI" (05.11.2026): Rahmen ziehen oder Bereich einkreisen, der Ausschnitt geht als Bild an die KI-Hilfe
         case area
 
@@ -34,6 +36,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .lasso: return "Lasso"
             case .markup: return "Text markieren"
             case .area: return "Bereich an KI"
+            case .cover: return "Klappkarte"
             }
         }
         var systemImage: String {
@@ -49,9 +52,11 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .lasso: return "lasso"
             case .markup: return "highlighter"
             case .area: return "rectangle.dashed"
+            case .cover: return "eye.slash"
             }
         }
-        var shapeKind: String? { [.rect: "rect", .ellipse: "ellipse", .line: "line", .arrow: "arrow"][self] }
+        /// Form, die beim Ziehen entsteht (Klappkarte: ein Rechteck ueber der Stelle)
+        var shapeKind: String? { [.rect: "rect", .ellipse: "ellipse", .line: "line", .arrow: "arrow", .cover: "rect"][self] }
     }
 
     private(set) weak var controller: PDFEditorController?
@@ -323,6 +328,11 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         switch tool {
         case .area:
             controller?.onHint?(Self.areaHint)                // Antippen allein waehlt keinen Bereich
+        case .cover:
+            // Antippen: Karte in der gewaehlten Groesse um den Punkt (das Werkzeug bleibt, fuer die naechste)
+            guard controller?.richNotes == true else { controller?.onHint?(Self.coverLockedHint); return }
+            let o = newCover(id: PageOrder.uid(), on: v, at: p)
+            Task { await commit(key) { $0 + [o] } }
         case .text, .sticky:
             let kind = tool
             Task {
@@ -381,7 +391,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 beginGrab(kind, on: overlay)
                 return
             }
-            guard let (v, p) = locate(g) else { g.state = .cancelled; return }
+            guard let (v, now) = locate(g) else { g.state = .cancelled; return }
+            var p = now
+            if tool == .cover {
+                // Klappkarte: genau ab der Stelle, an der aufgesetzt wurde (die Geste erkennt erst nach ein paar Punkten Weg)
+                let t = g.translation(in: v.content)
+                p = CGPoint(x: now.x - t.x, y: now.y - t.y)
+            }
             panStart = (v, p)
             lassoPoints = [p]
             v.content.layer.addSublayer(draftLayer)
@@ -436,7 +452,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             draftLayer.path = nil
             let key = start.overlay.pageKey
             let p = g.location(in: start.overlay.content)
-            if let kind = tool.shapeKind {
+            if tool == .cover {
+                // Klappkarte ueber der gezogenen Stelle (auf der Seite)
+                let area = rect(start.point, p).intersection(start.overlay.content.bounds)
+                guard controller?.richNotes == true, !area.isNull, hypot(p.x - start.point.x, p.y - start.point.y) > 4 else { return }
+                let o = newCover(id: PageOrder.uid(), on: start.overlay, rect: area, at: p)
+                Task { await commit(key) { $0 + [o] } }
+            } else if let kind = tool.shapeKind {
                 guard hypot(p.x - start.point.x, p.y - start.point.y) > 4,
                       let o = PageObjectEdit.shape(id: PageOrder.uid(), kind: kind, from: (Double(start.point.x), Double(start.point.y)),
                                                    to: (Double(p.x), Double(p.y)), color: color, width: lineWidth) else { return }
@@ -825,8 +847,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     func recolorSelection(_ hex: String) {
         color = hex
         guard let sel = selection else { return }
-        Task {
-            await commit(sel.key) { list in
+        inOrder {
+            await $0.commit(sel.key) { list in
                 list.map { o in
                     guard let id = o["id"]?.string, sel.ids.contains(id), var obj = o.object else { return o }
                     if o["type"]?.string == "text" {
@@ -835,7 +857,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                         if key == "fill", TextBlock.isBlock(o) { return TextBlock.applying(.fill(hex), to: o) }
                         obj[key] = .string(hex)
                     }
-                    else if o["type"]?.string == "shape" { obj[o["markup"]?.string == "highlight" ? "fill" : "stroke"] = .string(hex) }
+                    else if o["type"]?.string == "shape" { obj[o["markup"]?.string == "highlight" || FlipCover.isCover(o) ? "fill" : "stroke"] = .string(hex) }
                     return .object(obj)
                 }
             }
@@ -845,8 +867,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// Schrift der ausgewaehlten Textfelder groesser/kleiner
     func resizeText(by delta: Double) {
         guard let sel = selection else { return }
-        Task {
-            await commit(sel.key) { list in
+        inOrder {
+            await $0.commit(sel.key) { list in
                 list.map { o in
                     guard let id = o["id"]?.string, sel.ids.contains(id), o["type"]?.string == "text", var obj = o.object else { return o }
                     if TextBlock.isBlock(o) { return TextBlock.applying(.sizeDelta(delta), to: o) }

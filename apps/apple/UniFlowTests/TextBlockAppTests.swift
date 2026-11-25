@@ -672,6 +672,198 @@ final class TextBlockAppTests: XCTestCase {
         XCTAssertEqual(same, saved, "nicht umgestaltet")
     }
 
+    // MARK: Klappkarten
+
+    private func covers(_ page: PageInkView) -> [CoverView] { page.coversView.subviews.compactMap { $0 as? CoverView } }
+
+    private func strokeDrawing(y: CGFloat) -> PKDrawing {
+        let pts = (0..<20).map { i in
+            PKStrokePoint(location: CGPoint(x: 90 + CGFloat(i) * 8, y: y), timeOffset: Double(i) * 0.01, size: CGSize(width: 4, height: 4),
+                          opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
+        }
+        return PKDrawing(strokes: [PKStroke(ink: PKInk(.pen, color: .black), path: PKStrokePath(controlPoints: pts, creationDate: Date()))])
+    }
+
+    /// Die Karte liegt in einer eigenen Schicht UEBER der Zeichenflaeche (sie verdeckt auch Handschrift). Antippen deckt
+    /// auf, noch einmal antippen verdeckt wieder - dabei entsteht kein Strich, nichts wird gespeichert, nichts ausgewaehlt.
+    /// Daneben getippt passiert nichts.
+    func testKlappkarteLiegtUeberDerHandschriftUndKlapptBeimAntippen() async throws {
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        let text = TextBlock.setting([TextBlock.Run(text: "Antwort: 42", style: TextBlock.Style(fontSize: 14))],
+                                     in: TextBlock.block(id: "t", x: 80, y: 190, template: "blank", pageWidth: 400))
+        let card = FlipCover.cover(id: "k", x: 70, y: 180, width: 240, height: 50, choice: FlipCover.Choice(pattern: "stripes"))
+        await s.store.editObjects(pageKey: s.blank) { $0 + [text, card] }
+        s.store.canvasChanged(pageKey: s.blank, drawing: strokeDrawing(y: 215))
+        await s.store.flush()
+        try await BildProbe.wait("Karte und Strich gezeigt") { self.covers(page).count == 1 && page.canvas.drawing.strokes.count == 1 }
+        // Schichten: Objekte, Zeichenflaeche, Karten
+        let order = page.content.subviews
+        let iObjects = try XCTUnwrap(order.firstIndex { $0 === page.objectsView })
+        let iCanvas = try XCTUnwrap(order.firstIndex { $0 === page.canvas })
+        let iCovers = try XCTUnwrap(order.firstIndex { $0 === page.coversView })
+        XCTAssertTrue(iObjects < iCanvas && iCanvas < iCovers, "Karten ueber der Handschrift")
+        XCTAssertFalse(page.objectsView.subviews.contains { $0 is CoverView }, "nicht noch einmal unter der Zeichenflaeche")
+        XCTAssertTrue(page.objectsView.subviews.contains { $0 is TextBlockView })
+        XCTAssertEqual(page.objectsView.shownObjects.count, 2, "Treffer und Auswahl kennen die Karte")
+        XCTAssertTrue(page.coversView.point(inside: CGPoint(x: 100, y: 200), with: nil), "auf der Karte nimmt die Schicht die Beruehrung")
+        XCTAssertFalse(page.coversView.point(inside: CGPoint(x: 100, y: 300), with: nil), "daneben geht sie an die Zeichenflaeche")
+
+        let card0 = try XCTUnwrap(covers(page).first)
+        XCTAssertFalse(card0.revealed, "anfangs verdeckt")
+        var toggles: [Bool] = []
+        s.editor.coverTapper.onToggle = { _, on in toggles.append(on) }
+        let before = await s.store.objects(forPageKey: s.blank)
+        let strokes = page.canvas.drawing.strokes.count
+
+        try await BildProbe.tap(CGPoint(x: 150, y: 205), on: page, in: s.window)
+        XCTAssertEqual(toggles, [true])
+        XCTAssertEqual(covers(page).first?.revealed, true, "aufgedeckt")
+        XCTAssertEqual(page.coversView.revealed, ["k"])
+        try await BildProbe.tap(CGPoint(x: 150, y: 205), on: page, in: s.window)
+        XCTAssertEqual(toggles, [true, false])
+        XCTAssertEqual(covers(page).first?.revealed, false, "wieder verdeckt")
+        try await BildProbe.tap(CGPoint(x: 150, y: 320), on: page, in: s.window)         // daneben
+        XCTAssertEqual(toggles.count, 2)
+
+        XCTAssertEqual(page.canvas.drawing.strokes.count, strokes, "kein Strich durch das Antippen")
+        XCTAssertFalse(s.editor.objects.hasSelection)
+        let after = await s.store.objects(forPageKey: s.blank)
+        XCTAssertEqual(after, before, "Auf- und Zudecken speichert nichts")
+        // aufgedeckt bleibt ueber einen Neuaufbau der Seite hinweg (z. B. Abgleich), eine geloeschte Karte nicht
+        page.coversView.toggleCover("k", animated: false)
+        await s.store.editObjects(pageKey: s.blank) { $0 + [FlipCover.cover(id: "k2", x: 70, y: 260, width: 100, height: 30)] }
+        try await BildProbe.wait("zweite Karte") { self.covers(page).count == 2 }
+        XCTAssertEqual(covers(page).first { $0.object["id"] == "k" }?.revealed, true)
+        XCTAssertEqual(covers(page).first { $0.object["id"] == "k2" }?.revealed, false)
+    }
+
+    /// Werkzeug "Klappkarte": ueber eine Stelle ziehen verdeckt genau sie, Antippen legt eine Karte in der gewaehlten
+    /// Groesse an. Mit "Auswählen" laesst sie sich waehlen (Antippen klappt dann nicht), verschieben, in der Groesse
+    /// aendern und umgestalten; ein Rueckgaengig je Schritt.
+    func testKlappkarteAnlegenWaehlenUmgestalten() async throws {
+        try ContainerTestBed.requireEventGroupedUndo()
+        let before = UserDefaults.standard.string(forKey: EditorPalette.coverKey)
+        addTeardownBlock { UserDefaults.standard.set(before, forKey: EditorPalette.coverKey) }
+        EditorPalette.coverChoice = FlipCover.Choice(color: "#2e9e5b", pattern: "dots", size: "s")
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        s.editor.choose(.select)
+        s.editor.tools.select(.cover)
+        XCTAssertTrue(s.editor.objects.isActive)
+        XCTAssertEqual(s.editor.objects.tool, .cover)
+
+        try await BildProbe.drag(from: CGPoint(x: 100, y: 150), to: CGPoint(x: 300, y: 200), on: page, in: s.window)
+        try await BildProbe.wait("gezogene Karte") { await s.store.objects(forPageKey: s.blank).count == 1 }
+        let found1 = await s.store.objects(forPageKey: s.blank).first
+        let dragged = try XCTUnwrap(found1)
+        XCTAssertTrue(FlipCover.isCover(dragged))
+        XCTAssertEqual(dragged["fill"], "#2e9e5b")
+        XCTAssertEqual(FlipCover.pattern(dragged), "dots")
+        XCTAssertEqual(dragged["x"]?.double ?? 0, 100, accuracy: 8)
+        XCTAssertEqual(dragged["y"]?.double ?? 0, 150, accuracy: 8)
+        XCTAssertEqual(dragged["width"]?.double ?? 0, 200, accuracy: 12)
+        XCTAssertEqual(dragged["height"]?.double ?? 0, 50, accuracy: 12)
+        XCTAssertEqual(s.editor.objects.tool, .cover, "das Werkzeug bleibt fuer die naechste Karte")
+
+        try await BildProbe.tap(CGPoint(x: 200, y: 320), on: page, in: s.window)
+        try await BildProbe.wait("getippte Karte") { await s.store.objects(forPageKey: s.blank).count == 2 }
+        let found2 = await s.store.objects(forPageKey: s.blank).last
+        let tapped = try XCTUnwrap(found2)
+        XCTAssertEqual(tapped["width"], 110, "Groesse \"Wort\"")
+        XCTAssertEqual(tapped["x"]?.double ?? 0, 200 - 55, accuracy: 0.011)
+        try await BildProbe.wait("beide gezeigt") { self.covers(page).count == 2 }
+
+        // Auswaehlen: Antippen waehlt (klappt nicht auf)
+        let id = try XCTUnwrap(dragged["id"]?.string)
+        s.editor.choose(.select)
+        var toggled = false
+        s.editor.coverTapper.onToggle = { _, _ in toggled = true }
+        try await BildProbe.tap(CGPoint(x: 150, y: 170), on: page, in: s.window)
+        try await BildProbe.wait("Karte gewaehlt") { s.editor.objects.selection?.ids == [id] }
+        XCTAssertFalse(toggled)
+        XCTAssertEqual(covers(page).first { $0.object["id"]?.string == id }?.revealed, false)
+        XCTAssertEqual(s.editor.objects.selectedCovers?.pattern, "dots")
+        XCTAssertNil(s.editor.objects.textFormat, "keine Text-Leiste fuer Karten")
+
+        s.editor.objects.restyleCovers { $0.pattern = "question" }
+        s.editor.objects.recolorSelection("#e0568a")
+        try await BildProbe.wait("umgestaltet") { await self.object(s, s.blank, id)?["fill"] == "#e0568a" }
+        var now = await object(s, s.blank, id)
+        XCTAssertEqual(now.map(FlipCover.pattern), "question")
+        XCTAssertEqual(now?["stroke"], "", "Farbe der Karte ist die Fuellung")
+        let w = try XCTUnwrap(now?["width"]?.double)
+        s.editor.objects.scaleSelection(by: 0.5)
+        try await BildProbe.wait("kleiner") { (await self.object(s, s.blank, id)?["width"]?.double ?? w) < w - 1 }
+        now = await object(s, s.blank, id)
+        XCTAssertEqual(now?["width"]?.double ?? 0, w / 2, accuracy: 0.6)
+        XCTAssertEqual(now?["scaleX"], 1, "Breite statt Massstab")
+        try await BildProbe.wait("kleiner gezeigt") { abs((self.covers(page).first { $0.object["id"]?.string == id }?.bounds.width ?? 0) - w / 2) < 0.7 }
+        s.editor.editUndo.undo()
+        try await BildProbe.wait("Rueckgaengig") { abs((await self.object(s, s.blank, id)?["width"]?.double ?? 0) - w) < 0.6 }
+        await s.editor.objects.selectForTesting(key: s.blank, ids: [id])
+        s.editor.objects.deleteSelection()
+        try await BildProbe.wait("geloescht") { await s.store.objects(forPageKey: s.blank).count == 1 }
+    }
+
+    /// Plus (ohne Pro AI) legt keine Klappkarten an - aufklappen kann sie jeder, auch ohne Schreiben im Tarif
+    func testKlappkartenAnlegenAbProAIAufklappenImmer() async throws {
+        let s = try await open(proAI: false)
+        let page = try await overlay(s, key: s.blank)
+        await s.store.editObjects(pageKey: s.blank) { $0 + [FlipCover.cover(id: "k", x: 70, y: 180, width: 240, height: 50)] }
+        try await BildProbe.wait("Karte gezeigt") { self.covers(page).count == 1 }
+        var hints: [String] = []
+        s.editor.onHint = { hints.append($0) }
+        s.editor.tools.select(.cover)
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(hints, [ObjectEditing.coverLockedHint])
+        XCTAssertFalse(s.editor.objects.isActive, "zurueck beim Stift")
+        // aufklappen: Plus und auch ganz ohne Schreiben (Free, Lesen)
+        try await BildProbe.tap(CGPoint(x: 150, y: 205), on: page, in: s.window)
+        XCTAssertEqual(covers(page).first?.revealed, true)
+        s.editor.canEdit = false
+        try await BildProbe.tap(CGPoint(x: 150, y: 205), on: page, in: s.window)
+        XCTAssertEqual(covers(page).first?.revealed, false)
+        let count = await s.store.objects(forPageKey: s.blank).count
+        XCTAssertEqual(count, 1)
+    }
+
+    /// Export und Drucken: die Karte liegt ueber Text und Handschrift (verdeckt). Geteilte Loesungen: die Karte geht
+    /// mit, liegt beim Empfaenger ueber der Handschrift und klappt dort beim Antippen.
+    func testKlappkarteImExportUndInDerCommunity() throws {
+        let text = TextBlock.setting([TextBlock.Run(text: "Antwort: 42", style: TextBlock.Style(fontSize: 14))],
+                                     in: TextBlock.block(id: "t", x: 80, y: 190, template: "blank", pageWidth: 400))
+        let stroke: JSONValue = ["id": "s", "type": "stroke", "tool": "pen", "color": "#000000", "width": 6, "opacity": 1,
+                                 "points": [80, 215, 300, 215], "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1]
+        let card = FlipCover.cover(id: "k", x: 70, y: 180, width: 240, height: 50, choice: FlipCover.Choice(color: "#2e9e5b", pattern: "plain"))
+        // die Karte steht in der Liste VOR dem Strich: trotzdem oben
+        let objects = [text, card, stroke]
+        let size = CGSize(width: 595, height: 842)
+        let image = UIGraphicsImageRenderer(size: size).image { r in
+            UIColor.white.setFill()
+            r.fill(CGRect(origin: .zero, size: size))
+            PageRenderer.drawObjects(objects, images: [:], in: r.cgContext)
+        }
+        let on = try XCTUnwrap(image.pixel(at: CGPoint(x: 150, y: 215)))
+        XCTAssertTrue(on.g > 0.45 && on.r < 0.4, "auf der Karte gruen, nicht der schwarze Strich: \(on)")
+        let off = try XCTUnwrap(image.pixel(at: CGPoint(x: 150, y: 300)))
+        XCTAssertTrue(off.r > 0.95, "daneben Papier")
+
+        // Community: Pruefung, Vorschau, Ebene beim Empfaenger
+        for o in objects { XCTAssertNoThrow(try SolutionValidator.validateObject(o)) }
+        let page = SolutionPage(key: "b1", kind: .blank, pdfIndex: nil, width: 595, height: 842, rotation: 0, template: "blank", objects: objects)
+        let preview = SolutionPreview.image(page, images: [:], width: 595, scale: 1)
+        let p = try XCTUnwrap(preview.pixel(at: CGPoint(x: 150, y: 215)))
+        XCTAssertTrue(p.g > 0.45 && p.r < 0.4, "Vorschau: Karte ueber der Handschrift: \(p)")
+        let layer = ForeignLayerView(solutionID: "s", page: page, images: [:], targetRotation: 0, label: "Lösung")
+        XCTAssertEqual(layer.coversView.subviews.compactMap { $0 as? CoverView }.count, 1)
+        XCTAssertEqual(layer.coversView.cover(at: CGPoint(x: 150, y: 205)), "k")
+        XCTAssertNil(layer.coversView.cover(at: CGPoint(x: 150, y: 300)))
+        XCTAssertTrue(layer.coversView.toggleCover("k", animated: false))
+        XCTAssertEqual(layer.coversView.subviews.compactMap { $0 as? CoverView }.first?.revealed, true)
+        XCTAssertFalse(layer.coversView.toggleCover("k", animated: false))
+    }
+
     // MARK: Tarif
 
     /// Tarif-Regel (Inhaber 25.11.2026: "das alles ab Pro AI"): Free und Plus nicht, Pro AI ja

@@ -391,6 +391,8 @@ struct ReaderPDFView: UIViewRepresentable {
         private var shownVersion = -1
         private var live: [Int: PageInkView] = [:]
         private var observers: [NSObjectProtocol] = []
+        /// Klappkarten vom iPad: Antippen deckt auf und verdeckt wieder (nichts wird gespeichert)
+        let coverTapper = CoverTapper()
 
         init(store: DocumentStore, reader: ReaderController) {
             self.store = store
@@ -400,6 +402,7 @@ struct ReaderPDFView: UIViewRepresentable {
         func attach(_ v: PDFView) {
             pdfView = v
             reader.pdfView = v
+            coverTapper.install(on: v)
             let center = NotificationCenter.default
             observers.append(center.addObserver(forName: .PDFViewPageChanged, object: v, queue: .main) { [weak self] _ in
                 MainActor.assumeIsolated { self?.pageChanged() }

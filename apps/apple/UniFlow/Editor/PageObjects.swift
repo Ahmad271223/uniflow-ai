@@ -191,7 +191,10 @@ enum ObjectGeometry {
             ctx.saveGState()
             ctx.concatenate(transform(o))
             ctx.setAlpha(CGFloat(opacity(o)))
-            if let s = shapePath(o) {
+            if FlipCover.isCover(o) {
+                // Klappkarte: exportiert und gedruckt wird sie verdeckt (so sieht die Seite aus)
+                CoverRender.draw(o, size: CGSize(width: coordinate(o["width"], 0), height: coordinate(o["height"], 0)), in: ctx)
+            } else if let s = shapePath(o) {
                 let sw = CGFloat(lineWidth(o["strokeWidth"], 2))
                 if s.closed, let fill = color(o["fill"]) { ctx.addPath(s.path); ctx.setFillColor(fill.cgColor); ctx.fillPath() }
                 if let stroke = color(o["stroke"]) {
@@ -227,6 +230,15 @@ enum ObjectGeometry {
 /// Vorlage und Formen sind Vektor-Ebenen und bleiben beim Zoomen scharf. Immer im hellen Erscheinungsbild
 /// (siehe `PageInkView`), damit Farben auf dem weissen Papier wie im Web aussehen.
 final class PageObjectsView: UIView {
+    /// `.page`: Vorlage, Text, Formen, Bilder unter der Zeichenflaeche. `.covers`: nur die Klappkarten (`FlipCover`), in
+    /// einer zweiten Schicht UEBER der Zeichenflaeche - sie verdecken auch die Handschrift.
+    enum Kind { case page, covers }
+    let kind: Kind
+    /// Schicht mit den Klappkarten derselben Seite: bekommt denselben Inhalt und dieselben Vorschauen
+    weak var top: PageObjectsView?
+    /// Aufgedeckte Klappkarten (nur `.covers`); bleibt ueber einen Neuaufbau hinweg, wird nicht gespeichert
+    private(set) var revealed: Set<String> = []
+
     private struct Placed {
         let view: UIView?
         let layer: CALayer?
@@ -247,11 +259,41 @@ final class PageObjectsView: UIView {
     /// Zuletzt gezeigte Objekte (Treffer fuer das Kontextmenue, das nicht warten kann)
     var shownObjects: [JSONValue] { shown?.objects ?? [] }
 
-    override init(frame: CGRect) {
+    init(frame: CGRect, kind: Kind = .page) {
+        self.kind = kind
         super.init(frame: frame)
         backgroundColor = .clear
         isOpaque = false
-        isUserInteractionEnabled = false
+        // Karten nehmen die Beruehrung an (`point(inside:)`): Wer eine Karte antippt, schreibt nicht darunter
+        isUserInteractionEnabled = kind == .covers
+    }
+
+    override convenience init(frame: CGRect) { self.init(frame: frame, kind: .page) }
+
+    /// Nur auf einer Klappkarte "trifft" die Schicht; ueberall sonst geht die Beruehrung an die Zeichenflaeche darunter
+    override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
+        kind == .covers && cover(at: point) != nil
+    }
+
+    /// Klappkarte unter einem Punkt der Seite (oberste zuerst)
+    func cover(at point: CGPoint) -> String? {
+        guard kind == .covers else { return nil }
+        return FlipCover.hit(shownObjects, x: Double(point.x), y: Double(point.y))
+    }
+
+    /// Karte auf- bzw. zudecken; Rueckgabe: jetzt aufgedeckt
+    @discardableResult
+    func toggleCover(_ id: String, animated: Bool = true) -> Bool {
+        let on = !revealed.contains(id)
+        if on { revealed.insert(id) } else { revealed.remove(id) }
+        for p in placed[id] ?? [] { (p.view as? CoverView)?.setRevealed(on, animated: animated) }
+        return on
+    }
+
+    /// Alle Karten wieder verdecken
+    func coverAll() {
+        for id in revealed { for p in placed[id] ?? [] { (p.view as? CoverView)?.setRevealed(false, animated: false) } }
+        revealed = []
     }
 
     @available(*, unavailable)
@@ -262,7 +304,11 @@ final class PageObjectsView: UIView {
     /// demselben Schluessel ersetztes Bild wird gezeigt (Pruefbericht 501); Bilder anderer Seiten zaehlen nicht.
     func show(template: String?, placeholder: String?, objects: [JSONValue], images: [String: UIImage]) {
         shown = (template, placeholder, objects)
-        let others = objects.filter { $0["type"]?.string != "stroke" }
+        // Klappkarten zeigt die Schicht ueber der Zeichenflaeche, alles andere die Schicht darunter
+        top?.show(template: nil, placeholder: nil, objects: objects, images: images)
+        let template = kind == .page ? template : nil, placeholder = kind == .page ? placeholder : nil
+        let others = objects.filter { $0["type"]?.string != "stroke" && FlipCover.isCover($0) == (kind == .covers) }
+        if kind == .covers { revealed.formIntersection(Set(others.compactMap { $0["id"]?.string })) }
         let sources = Set(others.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil }).sorted()
         let pictures = sources.map { src in images[src].map { "\(src)#\(ObjectIdentifier($0).hashValue)" } ?? src + "#-" }
         let sig = (template ?? "") + "|" + (placeholder ?? "") + "|" + JSONValue.array(others).jsonString(sortedKeys: true) + "|" + pictures.joined(separator: ",")
@@ -301,6 +347,7 @@ final class PageObjectsView: UIView {
 
     /// Formen und Text in der Aufloesung der Anzeige zeichnen, sonst werden sie beim Vergroessern unscharf
     func setRenderScale(_ scale: CGFloat) {
+        top?.setRenderScale(scale)
         guard scale != renderScale else { return }
         renderScale = scale
         applyRenderScale()
@@ -319,6 +366,7 @@ final class PageObjectsView: UIView {
 
     /// Vorschau beim Ziehen: Die gewaehlten Objekte folgen dem Finger, ohne dass das Modell geaendert wird
     func previewMove(ids: Set<String>, by d: CGPoint) {
+        top?.previewMove(ids: ids, by: d)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for id in ids {
@@ -334,6 +382,7 @@ final class PageObjectsView: UIView {
     /// Massstab und - bei Text - Breite aus `objects`, ohne dass das Modell geaendert wird. Vorher zeigte nur der Rahmen
     /// die neue Groesse, das Bild sprang erst beim Loslassen. `nil` zeigt wieder den gespeicherten Stand.
     func preview(_ objects: [JSONValue]?) {
+        top?.preview(objects)
         let list = objects ?? shownObjects.filter { ($0["id"]?.string).map(previewed.contains) == true }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -342,7 +391,11 @@ final class PageObjectsView: UIView {
             let t = ObjectGeometry.transform(o)
             for p in parts {
                 guard let v = p.view else { p.layer?.setAffineTransform(t); continue }
-                if let block = v as? TextBlockView {
+                if let cover = v as? CoverView {
+                    // Klappkarte: Breite und Hoehe, das Muster bleibt gleich fein
+                    cover.bounds = CGRect(x: 0, y: 0, width: ObjectGeometry.coordinate(o["width"], 0), height: ObjectGeometry.coordinate(o["height"], 0))
+                    cover.setNeedsDisplay()
+                } else if let block = v as? TextBlockView {
                     block.show(o)                              // Textblock: neu umbrechen im eigenen Satz
                 } else if o["type"]?.string == "text", let label = v.subviews.first as? UILabel {
                     // Text aendert die Breite, nicht den Massstab: neu umbrechen
@@ -359,6 +412,7 @@ final class PageObjectsView: UIView {
     /// Objekte ausblenden, solange ihr Text bearbeitet wird (die Textansicht zeigt denselben Satz an derselben Stelle),
     /// bzw. wieder zeigen. Bleibt ueber einen Neuaufbau hinweg bestehen (z. B. Abgleich waehrend des Tippens).
     func setHidden(_ ids: Set<String>, _ hidden: Bool) {
+        top?.setHidden(ids, hidden)
         if hidden { hiddenIDs.formUnion(ids) } else { hiddenIDs.subtract(ids) }
         for id in ids {
             for p in placed[id] ?? [] {
@@ -371,6 +425,7 @@ final class PageObjectsView: UIView {
     /// Objekte blass zeigen (ein Bild ist auf dem Weg ins andere Dokument, `ObjectTransfer.swift`) bzw. wieder wie
     /// gespeichert
     func setDimmed(_ ids: Set<String>, _ dimmed: Bool) {
+        top?.setDimmed(ids, dimmed)
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         for o in shownObjects {
@@ -388,6 +443,18 @@ final class PageObjectsView: UIView {
         let t = ObjectGeometry.transform(o)
         let id = o["id"]?.string ?? ""
         let alpha = Float(ObjectGeometry.opacity(o))
+        if FlipCover.isCover(o) {
+            let w = ObjectGeometry.coordinate(o["width"], 0), h = ObjectGeometry.coordinate(o["height"], 0)
+            let view = CoverView(object: o, revealed: revealed.contains(id), frame: CGRect(x: 0, y: 0, width: w, height: h))
+            view.layer.anchorPoint = .zero
+            view.contentScaleFactor = UIScreen.main.scale * 2
+            view.alpha = CGFloat(alpha)
+            addSubview(view)
+            view.frame = CGRect(x: 0, y: 0, width: w, height: h)
+            view.transform = t
+            placed[id, default: []].append(Placed(view: view, layer: nil, base: t))
+            return
+        }
         if let s = ObjectGeometry.shapePath(o) {
             let l = CAShapeLayer()
             l.path = s.path

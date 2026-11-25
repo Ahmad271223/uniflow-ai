@@ -23,6 +23,8 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
     /// Datei der eigenen Original-PDF (nil: Notizbuch ohne PDF; PDF-Seiten bleiben dann weiss in ihrer Groesse)
     let pdfURL: URL?
     let pdfView = PDFView()
+    /// Klappkarten der geteilten Loesung: Antippen deckt auf und verdeckt wieder, wie beim Absender
+    let coverTapper = CoverTapper()
     /// eigene Instanz der Original-PDF; die Seiten der Spalte sind Kopien daraus und brauchen sie, solange sie leben
     private var source: PDFDocument?
     /// eigene Instanz der aufbewahrten Fassung des Absenders (Loesung zu einer anderen Fassung, `layer.oldVersionURL`)
@@ -150,6 +152,7 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
         view.backgroundColor = .secondarySystemBackground
         pdfView.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(pdfView)
+        coverTapper.install(on: pdfView)
         NSLayoutConstraint.activate([
             pdfView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             pdfView.trailingAnchor.constraint(equalTo: view.trailingAnchor),

@@ -176,6 +176,55 @@ Zweig `editor/notizzettel` (auf Teil 1).
   `testNotizzettelAnlegenUndUmgestalten`, `testPlusBehaeltDieGelbeHaftnotiz`. Bilder 10–13 in
   `~/Studora-Builds/textbloecke/bilder/`.
 
+## 5. Teil 3: Klappkarten zum Abfragen
+
+Zweig `editor/klappkarten` (auf Teil 2).
+
+### Was geht
+
+- Neues Werkzeug **„Klappkarte“** (Auge mit Strich, bei den Objektwerkzeugen): **über eine Stelle ziehen** verdeckt
+  genau sie; **antippen** legt eine Karte in fester Größe an (Wort, Zeile, Absatz). Das Werkzeug bleibt gewählt, damit
+  man mehrere Stellen nacheinander verdeckt.
+- Die Karte liegt **über allem**: PDF, getipptem Text **und Handschrift** (eigene Schicht über der Zeichenfläche).
+- **Antippen deckt auf, noch einmal antippen verdeckt wieder** (kurzes Umklappen). Aufgedeckt bleibt ein gestrichelter
+  Rahmen, damit man sieht, wo man zum Verdecken tippt. Beim Antippen entsteht kein Strich.
+  Der Zustand wird **nicht gespeichert**: beim nächsten Öffnen ist alles wieder verdeckt.
+- **Auswahl** (zweites Tippen auf das Werkzeug, je Gerät gemerkt): **6 Farben**, **5 Muster** (einfarbig, gestreift,
+  gepunktet, kariert, Fragezeichen), **3 Größen** fürs Antippen; gezogen wird jede Größe.
+- Mit **„Auswählen“** antippen wählt die Karte (statt aufzuklappen): verschieben, Größe an den Ecken (das Muster
+  bleibt gleich fein), Farbe, Muster, Größe im Menü „Klappkarte“, löschen. Langes Drücken greift auch Karten.
+  Rückgängig je Schritt.
+- **Community:** Karten gehen beim Teilen automatisch mit (Objekte der Seite). Beim Empfänger liegen sie über der
+  Handschrift und klappen beim Antippen auf – in der Ansicht „Lösung daneben“ und in der Vorschau verdeckt.
+- **iPhone:** In der Leseansicht klappen die Karten beim Antippen auf und zu.
+- **Export, Drucken:** Karten werden verdeckt gezeichnet (so sieht die Seite aus).
+- **Tarif:** Anlegen und Gestalten ab Pro AI. **Aufklappen kann jeder** (Free, Plus, Empfänger in der Community).
+
+### Was nicht geht bzw. anders ist
+
+- **Ältere Apps (bis 1.0.7), Web, Windows:** zeigen ein farbiges Rechteck. Es verdeckt dort getippten Text und die PDF,
+  liegt aber **unter** der Handschrift und lässt sich **nicht aufklappen** (nur verschieben/löschen). Wer Karten in der
+  Community teilt, sollte wissen: Empfänger mit alter App sehen an der Stelle nur das Rechteck.
+- Auf einer Karte kann man nicht schreiben (die Berührung gehört der Karte); zum Schreiben darunter Karte verschieben.
+- „Alle aufdecken / alle verdecken“ gibt es noch nicht als Knopf (Code dafür ist da: `coverAll`).
+- Karten ohne Text darauf (kein „Frage vorn, Antwort hinten“ – dafür gibt es die Karteikarten).
+- Gedruckt bleibt verdeckt; ein Druck „mit Lösungen“ fehlt.
+
+### Technik
+
+- Format (Kern `FlipCover.swift`): `type: "shape"`, `shape: "rect"`, deckende `fill`, Zusatzfeld `cover: {pattern}`.
+  Größe ändert `width`/`height` (nicht den Maßstab).
+- Anzeige: zweite `PageObjectsView` der Art `.covers` über der Zeichenfläche (`PageInkView.coversView`,
+  `ForeignLayerView.coversView`); die Schicht darunter reicht Inhalt und Vorschauen weiter (`top`). `CoverView`,
+  `CoverRender`.
+- Antippen: `CoverTapper` (ein Erkenner an der PDF-Ansicht; nimmt nur Berührungen auf einer Karte) im Editor
+  (aus mit Objektwerkzeug), in der iPhone-Leseansicht und in `SolutionSideController`.
+- Export: `PageRenderer.drawObjects` zeichnet Karten zuletzt (`FlipCover.coversLast`), ebenso `SolutionPreview.image`.
+- Werkzeug: `ObjectEditing.Tool.cover`, `EditorToolState.Tool.cover`, `CoverOptions`, `EditorPalette.coverChoice`.
+- Tests: Kern `FlipCoverTests` (5); App in `TextBlockAppTests`: `testKlappkarteLiegtUeberDerHandschriftUndKlapptBeimAntippen`,
+  `testKlappkarteAnlegenWaehlenUmgestalten`, `testKlappkartenAnlegenAbProAIAufklappenImmer`,
+  `testKlappkarteImExportUndInDerCommunity`. Bilder 14–19.
+
 ## 6. Teil 4: Tabelle – offene Fragen an den Inhaber
 
 Vor dem Bauen zu klären (siehe Fragen im Bericht der Sitzung):

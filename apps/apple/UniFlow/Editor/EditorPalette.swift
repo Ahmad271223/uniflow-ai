@@ -24,7 +24,19 @@ enum EditorPalette {
     static let areaID = "de.studinow.palette.area"
     /// Reihenfolge der Objektwerkzeuge: "Bereich an KI" vorn (Wunsch des Inhabers), dann Form und Text (am haeufigsten),
     /// Haftnotiz, Auswaehlen, Text markieren
-    static let customIDs = [areaID, shapeID, textID, stickyID, selectID, markupID]
+    static let coverID = "de.studinow.palette.cover"
+    static let customIDs = [areaID, shapeID, textID, stickyID, coverID, selectID, markupID]
+
+    /// Klappkarte, die das Werkzeug als Naechstes anlegt (Farbe, Muster, Groesse beim Antippen), je Geraet gemerkt
+    static let coverKey = "UFEditorCoverChoice"
+    static var coverChoice: FlipCover.Choice {
+        get {
+            let parts = (UserDefaults.standard.string(forKey: coverKey) ?? "").components(separatedBy: "|")
+            guard parts.count == 3 else { return FlipCover.Choice() }
+            return FlipCover.Choice(color: parts[0], pattern: parts[1], size: parts[2])
+        }
+        set { UserDefaults.standard.set([newValue.color, newValue.pattern, newValue.size].joined(separator: "|"), forKey: coverKey) }
+    }
 
     static let areaTitle = "Bereich an KI"
 
@@ -79,6 +91,7 @@ enum EditorPalette {
         case selectID: return select
         case textID: return .text
         case stickyID: return .sticky
+        case coverID: return .cover
         case shapeID: return shape
         case markupID: return .markup
         case areaID: return .area
@@ -92,6 +105,7 @@ enum EditorPalette {
         case .select, .lasso: return selectID
         case .text: return textID
         case .sticky: return stickyID
+        case .cover: return coverID
         case .rect, .ellipse, .line, .arrow: return shapeID
         case .markup: return markupID
         case .area: return areaID

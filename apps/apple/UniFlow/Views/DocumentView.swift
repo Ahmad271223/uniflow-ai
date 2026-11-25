@@ -3393,6 +3393,30 @@ struct ObjectToolbar: View {
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
             Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+            if let cover = bridge.selectionObjects?.selectedCovers {
+                // Klappkarten gewaehlt: Farbe, Muster, Groesse
+                Menu {
+                    Menu("Farbe") {
+                        ForEach(FlipCover.colors, id: \.hex) { c in
+                            Button { bridge.selectionObjects?.restyleCovers { $0.color = c.hex } } label: { Label { Text(c.title) } icon: { TextFormatBar.dot(c.hex) } }
+                        }
+                    }
+                    Menu("Muster") {
+                        ForEach(FlipCover.patterns, id: \.id) { p in
+                            Button { bridge.selectionObjects?.restyleCovers { $0.pattern = p.id } } label: {
+                                if cover.pattern == p.id { Label(p.title, systemImage: "checkmark") } else { Text(p.title) }
+                            }
+                        }
+                    }
+                    Menu("Größe") {
+                        ForEach(FlipCover.sizes, id: \.id) { s in
+                            Button(s.title) { bridge.selectionObjects?.restyleCovers { $0.size = s.id } }
+                        }
+                    }
+                } label: { Image(systemName: "eye.slash").frame(width: 30, height: 30) }
+                    .accessibilityLabel("Klappkarte gestalten")
+                    .accessibilityIdentifier("objects.cover")
+            }
             Button(role: .destructive) { bridge.selectionObjects?.deleteSelection() } label: {
                 Image(systemName: "trash").frame(width: 30, height: 30)
             }

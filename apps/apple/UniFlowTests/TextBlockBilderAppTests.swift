@@ -119,6 +119,56 @@ final class TextBlockBilderAppTests: XCTestCase {
         ]
     }
 
+    /// Lernseite zum Abfragen (vierte Seite, liniert): Fragen mit Antworten, die Antworten unter Klappkarten
+    private func quiz() -> [JSONValue] {
+        func block(_ id: String, y: Double, _ runs: [TextBlock.Run]) -> JSONValue {
+            TextBlock.saving(runs, in: TextBlock.block(id: id, x: 48, y: y, template: "lined", pageWidth: 560))
+        }
+        let cols = FlipCover.colors.map(\.hex)
+        // Zeilen bei 84, 132, 180, 228 (Grundlinien); Antworten jeweils rechts
+        return [
+            block("q0", y: 70, [run("Abfragen: Mitose") { $0.bold = true; $0.fontSize = 20 }]),
+            block("q1", y: 118, [run("Wie viele Tochterzellen entstehen?   "), run("Zwei, genetisch gleich") { $0.bold = true }]),
+            block("q2", y: 166, [run("In welcher Phase wird die DNA verdoppelt?   "), run("Interphase") { $0.bold = true }]),
+            block("q3", y: 214, [run("Reihenfolge der Phasen?   "), run("Pro-, Meta-, Ana-, Telophase") { $0.bold = true }]),
+            block("q4", y: 262, [run("Skizze der Metaphase (Handschrift):")]),
+            FlipCover.cover(id: "k1", x: 300, y: 116, width: 190, height: 26, choice: FlipCover.Choice(color: cols[0], pattern: "stripes")),
+            FlipCover.cover(id: "k2", x: 356, y: 164, width: 100, height: 26, choice: FlipCover.Choice(color: cols[1], pattern: "question")),
+            FlipCover.cover(id: "k3", x: 232, y: 212, width: 250, height: 26, choice: FlipCover.Choice(color: cols[4], pattern: "dots")),
+            FlipCover.cover(id: "k4", x: 60, y: 300, width: 300, height: 110, choice: FlipCover.Choice(color: cols[2], pattern: "grid")),
+            FlipCover.cover(id: "k5", x: 400, y: 320, width: 130, height: 60, choice: FlipCover.Choice(color: cols[5], pattern: "plain")),
+        ]
+    }
+
+    private func sketch() -> PKDrawing {
+        func stroke(_ pts: [CGPoint], _ color: UIColor) -> PKStroke {
+            PKStroke(ink: PKInk(.pen, color: color), path: PKStrokePath(controlPoints: pts.enumerated().map { i, p in
+                PKStrokePoint(location: p, timeOffset: Double(i) * 0.01, size: CGSize(width: 3, height: 3), opacity: 1, force: 1, azimuth: 0, altitude: .pi / 2)
+            }, creationDate: Date()))
+        }
+        var circle: [CGPoint] = []
+        for i in 0...40 {
+            let a = CGFloat(i) / 40 * 2 * CGFloat.pi
+            circle.append(CGPoint(x: 210 + cos(a) * 120, y: 355 + sin(a) * 42))
+        }
+        var line: [CGPoint] = []
+        for i in 0...10 { line.append(CGPoint(x: 210, y: 320 + CGFloat(i) * 7)) }
+        var upper: [CGPoint] = [], lower: [CGPoint] = []
+        for i in 0...6 {
+            let x: CGFloat = 195 + CGFloat(i) * 5, wobble: CGFloat = CGFloat(i % 2) * 6
+            upper.append(CGPoint(x: x, y: 340 + wobble))
+            lower.append(CGPoint(x: x, y: 362 + wobble))
+        }
+        var note: [CGPoint] = []
+        for i in 0...30 {
+            let t = CGFloat(i)
+            note.append(CGPoint(x: 410 + t * 3.6, y: 350 + sin(t / 2.2) * 12))
+        }
+        let strokes: [PKStroke] = [stroke(circle, .black), stroke(line, .systemBlue), stroke(upper, .systemRed), stroke(lower, .systemRed),
+                                   stroke(note, .systemPurple)]
+        return PKDrawing(strokes: strokes)
+    }
+
     /// Notizbuch (liniert) mit einer zweiten, leeren Seite und den Bloecken; dazu etwas Handschrift
     private func scene() async throws -> (api: APIClient, file: LibFile, lined: String, blank: String) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("textblock-bilder-\(UUID().uuidString)", isDirectory: true)
@@ -140,7 +190,14 @@ final class TextBlockBilderAppTests: XCTestCase {
         await store.editObjects(pageKey: lined) { $0 + self.linedBlocks() }
         await store.editObjects(pageKey: blank) { $0 + self.blankBlocks() }
         await store.addBlankPage(afterKey: blank, template: "blank")
-        if let third = store.pageKey(forPageIndex: 2) { await store.editObjects(pageKey: third) { $0 + self.notes() } }
+        if let third = store.pageKey(forPageIndex: 2) {
+            await store.editObjects(pageKey: third) { $0 + self.notes() }
+            await store.addBlankPage(afterKey: third, template: "lined")
+            if let fourth = store.pageKey(forPageIndex: 3) {
+                await store.editObjects(pageKey: fourth) { $0 + self.quiz() }
+                store.canvasChanged(pageKey: fourth, drawing: sketch())
+            }
+        }
         let pts = (0..<40).map { i -> PKStrokePoint in
             let t = CGFloat(i)
             return PKStrokePoint(location: CGPoint(x: 380 + t * 4, y: 392 + sin(t / 3) * 6), timeOffset: Double(i) * 0.01,
@@ -322,6 +379,47 @@ final class TextBlockBilderAppTests: XCTestCase {
         shot(host.view, "12-notizzettel-auswahl")
     }
 
+    /// iPad: Klappkarten ueber Text und Handschrift - alle verdeckt, zwei durch Antippen aufgedeckt, eine gewaehlt
+    func test6IPadKlappkarten() throws {
+        let s = try run { try await self.scene() }
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: s.file, api: s.api) }, api: s.api, size: CGSize(width: 1180, height: 820))
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        var found: PDFEditorController?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            found = self.editor(in: env)
+            return found?.allOverlays.contains { $0.loaded && $0.window != nil } == true
+        })
+        let editor = try XCTUnwrap(found)
+        editor.goToPage(3)
+        var page: PageInkView?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            page = editor.allOverlays.first { $0.pageIndex == 3 && $0.loaded && $0.window != nil }
+            return (page?.coversView.subviews.filter { $0 is CoverView }.count ?? 0) == 5 && (page?.canvas.drawing.strokes.count ?? 0) > 0
+        }, "fuenf Klappkarten und die Skizze")
+        let overlay = try XCTUnwrap(page)
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        shot(env.window, "14-ipad-klappkarten-verdeckt")
+        // echtes Antippen: zwei Karten klappen auf
+        for p in [CGPoint(x: 400, y: 177), CGPoint(x: 200, y: 350)] {
+            let finger = TestFinger(at: overlay.content.convert(p, to: nil), in: env.window)
+            env.pump(0.06)
+            finger.lift()
+            env.pump(0.6)
+        }
+        XCTAssertEqual(overlay.coversView.revealed, ["k2", "k4"], "zwei Karten aufgedeckt")
+        shot(env.window, "15-ipad-klappkarten-zwei-aufgedeckt")
+        editor.choose(.select)
+        try run { await editor.objects.selectForTesting(key: overlay.pageKey, ids: ["k3"]) }
+        XCTAssertTrue(env.wait(timeout: 10) { self.button("Klappkarte gestalten", in: env.window) }, "Menue \"Klappkarte\" in der Objektleiste")
+        env.pump(0.5)
+        shot(env.window, "16-ipad-klappkarte-gewaehlt")
+        let host = try hostWithEnvironment(CoverOptions().padding(16).background(UF.surface), api: s.api, size: CGSize(width: 360, height: 300))
+        host.pump(0.6)
+        shot(host.view, "17-klappkarten-auswahl")
+    }
+
     /// iPhone: Leseansicht zeigt die Bloecke vom iPad (dort wird nicht geschrieben)
     func test3IPhoneLesen() throws {
         let s = try run { try await self.scene() }
@@ -336,7 +434,7 @@ final class TextBlockBilderAppTests: XCTestCase {
         var pdf: PDFView?
         XCTAssertTrue(env.wait(timeout: 20) {
             pdf = self.find(PDFView.self, in: env.window)
-            return (pdf?.document?.pageCount ?? 0) == 3
+            return (pdf?.document?.pageCount ?? 0) == 4
         }, "Leseansicht geladen")
         let pdfView = try XCTUnwrap(pdf)
         var overlay: PageInkView?
@@ -351,6 +449,30 @@ final class TextBlockBilderAppTests: XCTestCase {
         XCTAssertEqual(overlay?.isUserInteractionEnabled, false, "am iPhone wird nicht geschrieben")
         env.pump(1.0)
         shot(env.window, "5-iphone-lesen-textbloecke")
+
+        // Klappkarten in der Leseansicht: Seite 4, eine Karte per Antippen aufdecken und wieder verdecken
+        guard let quizPage = pdfView.document?.page(at: 3) else { return XCTFail("Seite 4 fehlt") }
+        pdfView.go(to: quizPage)
+        var quiz: PageInkView?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            quiz = pdfView.pageOverlayViewProvider?.pdfView(pdfView, overlayViewFor: quizPage) as? PageInkView
+            return quiz?.loaded == true && quiz?.window != nil && (quiz?.coversView.subviews.filter { $0 is CoverView }.count ?? 0) == 5
+        }, "Klappkarten in der Leseansicht")
+        let q = try XCTUnwrap(quiz)
+        env.pump(1.0)
+        let spot = q.content.convert(CGPoint(x: 395, y: 129), to: nil)
+        XCTAssertTrue(env.window.bounds.contains(spot), "Karte im Bild: \(spot)")
+        var finger = TestFinger(at: spot, in: env.window)
+        env.pump(0.06)
+        finger.lift()
+        env.pump(0.6)
+        XCTAssertEqual(q.coversView.revealed, ["k1"], "am iPhone klappt die Karte beim Antippen auf")
+        shot(env.window, "18-iphone-klappkarte-aufgedeckt")
+        finger = TestFinger(at: spot, in: env.window)
+        env.pump(0.06)
+        finger.lift()
+        env.pump(0.6)
+        XCTAssertTrue(q.coversView.revealed.isEmpty, "und wieder zu")
     }
 
     /// Exportierte Seiten (wie PDF-Export und Drucken) als Bild
@@ -360,7 +482,7 @@ final class TextBlockBilderAppTests: XCTestCase {
         try run { await store.load() }
         let layout = try XCTUnwrap(store.layout)
         let doc = try run { await store.pageStructureDocument() }
-        for (i, name) in [(0, "6-export-liniert"), (1, "7-export-blanko"), (2, "13-export-notizzettel")] {
+        for (i, name) in [(0, "6-export-liniert"), (1, "7-export-blanko"), (2, "13-export-notizzettel"), (3, "19-export-klappkarten")] {
             let page = try XCTUnwrap(layout.pdf.page(at: i)), entry = try XCTUnwrap(layout.entry(at: i))
             let image = PageRenderer.thumbnail(page: page, entry: entry, objects: doc.objects(page: entry.key), images: [:], width: 595, scale: 2)
             try image.pngData()?.write(to: dir.appendingPathComponent(name + ".png"))
