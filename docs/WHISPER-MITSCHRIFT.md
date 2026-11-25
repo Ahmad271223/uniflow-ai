@@ -20,6 +20,8 @@ das Gerät kühlt ab“; „Anhalten“ geht weiter. Gerechnet wird schon mit de
 Vorgabe von WhisperKit). Ob das am iPad des Inhabers spürbar hilft und wie viel länger es dauert, ist **nicht
 gemessen** – im Simulator gibt es keine Wärme.
 
+Diese Fassung (`7e82f6ed`) liegt seit 25.11. 16:02 auf dem iPad des Inhabers.
+
 **Simulator:** Die Tests dieses Zweigs laufen seit 25.11. auf dem eigenen Simulator „Whisper iPad“
 (`1E6C68AF-127B-4E89-8D8A-5EC8763AE44E`). Der bisherige (`4495AA80-…`) gehört der Editor-Sitzung; zwei Sitzungen auf
 einem Simulator überschreiben sich die App (Absturz „Symbol not found … TextBlock“ am 25.11. 15:48).
