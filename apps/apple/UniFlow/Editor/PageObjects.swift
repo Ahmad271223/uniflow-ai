@@ -277,16 +277,20 @@ final class PageObjectsView: UIView {
         kind == .covers && topObject(at: point) != nil
     }
 
-    /// Klappkarte oder Verweis unter einem Punkt der Seite (oberstes zuerst)
+    /// Klappkarte oder Verweis unter einem Punkt der Seite (oberstes zuerst). Geprueft wird nur die kurze Liste dieser
+    /// Objekte (`tops`), nicht alle Objekte der Seite: die Frage kommt bei jeder Beruehrung, auch bei jedem Strich.
     func topObject(at point: CGPoint) -> JSONValue? {
-        guard kind == .covers else { return nil }
-        return TopObjects.hit(shownObjects, x: Double(point.x), y: Double(point.y))
+        guard kind == .covers, !tops.isEmpty else { return nil }
+        return TopObjects.hit(tops, x: Double(point.x), y: Double(point.y))
     }
+
+    /// Klappkarten und Verweise dieser Schicht (nur `.covers`)
+    private(set) var tops: [JSONValue] = []
 
     /// Klappkarte unter einem Punkt der Seite (oberste zuerst)
     func cover(at point: CGPoint) -> String? {
-        guard kind == .covers else { return nil }
-        return FlipCover.hit(shownObjects, x: Double(point.x), y: Double(point.y))
+        guard kind == .covers, !tops.isEmpty else { return nil }
+        return FlipCover.hit(tops, x: Double(point.x), y: Double(point.y))
     }
 
     /// Karte auf- bzw. zudecken; Rueckgabe: jetzt aufgedeckt
@@ -316,7 +320,10 @@ final class PageObjectsView: UIView {
         top?.show(template: nil, placeholder: nil, objects: objects, images: images)
         let template = kind == .page ? template : nil, placeholder = kind == .page ? placeholder : nil
         let others = objects.filter { $0["type"]?.string != "stroke" && TopObjects.isTop($0) == (kind == .covers) }
-        if kind == .covers { revealed.formIntersection(Set(others.compactMap { $0["id"]?.string })) }
+        if kind == .covers {
+            tops = others
+            revealed.formIntersection(Set(others.compactMap { $0["id"]?.string }))
+        }
         let sources = Set(others.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil }).sorted()
         let pictures = sources.map { src in images[src].map { "\(src)#\(ObjectIdentifier($0).hashValue)" } ?? src + "#-" }
         let sig = (template ?? "") + "|" + (placeholder ?? "") + "|" + JSONValue.array(others).jsonString(sortedKeys: true) + "|" + pictures.joined(separator: ",")

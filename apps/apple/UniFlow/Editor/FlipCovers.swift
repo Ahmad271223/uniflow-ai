@@ -158,6 +158,9 @@ final class CoverTapper: NSObject, UIGestureRecognizerDelegate {
     }()
     /// Darf gerade aufgeklappt werden? (Editor: nicht mit einem Objektwerkzeug - dort waehlt Antippen die Karte aus)
     var isEnabled: () -> Bool = { true }
+    /// Schichten der gezeigten Seiten, wenn der Besitzer sie kennt (Editor, Leseansicht): spart das Durchsuchen aller
+    /// Ansichten bei jeder Beruehrung. Ohne Angabe wird gesucht (`layers(in:)`).
+    var layersProvider: (() -> [PageObjectsView])?
     /// Karte wurde auf- oder zugedeckt (fuer Tests und Hinweise)
     var onToggle: ((String, Bool) -> Void)?
     /// Ein Verweis wurde angetippt (`PageLinks.swift`)
@@ -184,7 +187,8 @@ final class CoverTapper: NSObject, UIGestureRecognizerDelegate {
 
     /// Klappkarte oder Verweis unter einem Punkt der Ansicht (oberste Schicht zuerst)
     func object(at point: CGPoint, in root: UIView) -> (layer: PageObjectsView, object: JSONValue)? {
-        for layer in Self.layers(in: root).reversed() {
+        let layers = layersProvider?().filter { $0.window != nil && !$0.isHidden } ?? Self.layers(in: root)
+        for layer in layers.reversed() where !layer.tops.isEmpty {
             let p = root.convert(point, to: layer)
             if let o = layer.topObject(at: p) { return (layer, o) }
         }

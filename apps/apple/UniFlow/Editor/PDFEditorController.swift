@@ -1335,6 +1335,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Klappkarten: Antippen deckt auf und verdeckt wieder - beim Schreiben und Lesen; mit einem Objektwerkzeug
         // waehlt Antippen die Karte aus
         coverTapper.isEnabled = { [weak self] in self.map { !$0.objects.isActive && $0.freezeMode == .off } ?? false }
+        coverTapper.layersProvider = { [weak self] in
+            guard let self else { return [] }
+            // eigene Seiten, darueber die Schichten eingeblendeter Loesungen
+            return self.allOverlays.flatMap { [$0.coversView] + $0.foreignLayerViews.map(\.coversView) }
+        }
         coverTapper.onLink = { [weak self] t in self?.followLink(t) }
         coverTapper.install(on: pdfView)
         // Verweis anlegen: das Ziel wird in diesem Dokument angetippt (auch wenn es das Dokument daneben ist)

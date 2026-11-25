@@ -404,6 +404,7 @@ struct ReaderPDFView: UIViewRepresentable {
             reader.pdfView = v
             // Verweise: im selben Dokument blaettert die Leseansicht zur Seite (ein anderes Dokument daneben gibt es
             // am iPhone nicht)
+            coverTapper.layersProvider = { [weak self] in self.map { $0.live.values.map(\.coversView) } ?? [] }
             coverTapper.onLink = { [weak self, weak v] t in
                 guard let self, let v, t.file == self.store.file.id, let layout = self.store.layout else { return }
                 let index = layout.index(ofKey: t.pageKey) ?? t.pdfPage.flatMap { p in layout.entries.firstIndex { $0.pdfIndex == p } }
