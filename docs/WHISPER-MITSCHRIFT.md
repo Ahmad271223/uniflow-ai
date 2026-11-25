@@ -10,8 +10,8 @@ Seit 25.11. 15:24 liegt die Fassung mit Suche und Sprung ins Video (`4a89ef7b`) 
 Nicht bei Apple, kein TestFlight. Der Inhaber prüft dort Dauer, Wärme und Textgüte; sein Ergebnis steht noch aus.
 
 **Rückmeldung des Inhabers vom iPad (iPad A16, 25.11.2026):** Der Sprung ins Uni-Video landet an der richtigen
-Stelle. Ein ganzes Video braucht 5 bis 10 Minuten, je nach Länge. Noch offen: welches Modell er geladen hat („Genau“
-oder „Kompakt“ – die Frage hat er nicht verstanden), ob das iPad warm wird, ob die Fachwörter stimmen.
+Stelle. Ein ganzes Video braucht 5 bis 10 Minuten, je nach Länge. Beide Modelle werden auf dem iPad A16 angeboten („kann auswählen“). Noch offen: mit welchem Modell die 5 bis 10
+Minuten gemessen sind, ob das iPad warm wird, ob die Fachwörter stimmen.
 
 ## Was es tut
 
