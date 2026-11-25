@@ -228,4 +228,10 @@ final class WhisperTranscriptTests: XCTestCase {
         XCTAssertTrue(WhisperGlossary(pages: []).isEmpty)
         XCTAssertEqual(WhisperGlossary(pages: []).terms(after: said), [])
     }
+
+    func testPacingPausesMoreTheHotterTheDevice() {
+        XCTAssertEqual([-1, 0, 1, 2, 3, 4].map(WhisperPacing.pause), [0, 0, 4, 20, 30, 30])
+        XCTAssertEqual([0, 1, 2, 3].map(WhisperPacing.mustCool), [false, false, false, true])
+        XCTAssertGreaterThan(WhisperPacing.maxWait, WhisperPacing.checkEvery)
+    }
 }

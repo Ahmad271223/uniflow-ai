@@ -10,8 +10,19 @@ Seit 25.11. 15:24 liegt die Fassung mit Suche und Sprung ins Video (`4a89ef7b`) 
 Nicht bei Apple, kein TestFlight. Der Inhaber prüft dort Dauer, Wärme und Textgüte; sein Ergebnis steht noch aus.
 
 **Rückmeldung des Inhabers vom iPad (iPad A16, 25.11.2026):** Der Sprung ins Uni-Video landet an der richtigen
-Stelle. Ein ganzes Video braucht 5 bis 10 Minuten, je nach Länge. Beide Modelle werden auf dem iPad A16 angeboten („kann auswählen“). Noch offen: mit welchem Modell die 5 bis 10
-Minuten gemessen sind, ob das iPad warm wird, ob die Fachwörter stimmen.
+Stelle. Ein ganzes Video braucht 5 bis 10 Minuten, je nach Länge. Beide Modelle werden auf dem iPad A16 angeboten („kann auswählen“). **Das iPad wird dabei heiß.** Noch offen: mit
+welchem Modell die 5 bis 10 Minuten gemessen sind und ob die Fachwörter stimmen.
+
+**Schonung bei Wärme (25.11., nach dieser Rückmeldung):** vor jedem Stück von 3 Minuten fragt die App die Wärmestufe
+des Geräts ab (`ProcessInfo.thermalState`) und wartet: warm 4 s, heiß 20 s, kritisch so lange, bis es kühler ist
+(höchstens 10 Minuten), dann 20 bis 30 s (`WhisperPacing`, `WhisperJobs.coolDown`). Die Anzeige sagt dann „kurze Pause,
+das Gerät kühlt ab“; „Anhalten“ geht weiter. Gerechnet wird schon mit dem sparsamsten Rechenwerk (Neural Engine,
+Vorgabe von WhisperKit). Ob das am iPad des Inhabers spürbar hilft und wie viel länger es dauert, ist **nicht
+gemessen** – im Simulator gibt es keine Wärme.
+
+**Simulator:** Die Tests dieses Zweigs laufen seit 25.11. auf dem eigenen Simulator „Whisper iPad“
+(`1E6C68AF-127B-4E89-8D8A-5EC8763AE44E`). Der bisherige (`4495AA80-…`) gehört der Editor-Sitzung; zwei Sitzungen auf
+einem Simulator überschreiben sich die App (Absturz „Symbol not found … TextBlock“ am 25.11. 15:48).
 
 ## Was es tut
 
@@ -164,6 +175,8 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
   20 Tests, 0 rot. Die echte Erkennung mit einem Modell ist am Mac nicht gelaufen (nur die Ansichten und der Stand
   der Modelle).
 - Schneller Lauf nach Suche und Sprung (25.11. nachmittags): pytest 4082 grün, 0 rot; node 472 grün. Kern 1833 grün.
+- Schonung bei Wärme (25.11.): Kern `WhisperTranscriptTests` 16; App `WhisperViewsAppTests` 19 (Pausen je Wärmestufe,
+  Anzeige); mit echter Erkennung und Sprung auf „Whisper iPad“ 27 Tests, 0 rot.
 - Suche und Sprung (25.11.): Kern `TranscriptSearchTests` (7); App `WhisperViewsAppTests` jetzt 17 (Treffer statt
   ganzer Mitschrift, „Leeren“, Video erscheint beim Antippen einer Zeitmarke, Player entsteht erst bei Bedarf) – iPad
   35, iPhone 23, Mac 23 Tests, 0 rot. Sprung mit echter Datei (`WhisperLiveTests/testJumpLandsAtTheRightPlaceAndPlays`):

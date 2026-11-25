@@ -364,6 +364,8 @@ final class WhisperJobs: ObservableObject {
         case loadingModel
         /// laeuft; Anteil 0 ... 1
         case running(Double)
+        /// kurze Pause, weil das Geraet warm ist (`WhisperPacing`); Anteil 0 ... 1
+        case cooling(Double)
         case failed(String)
     }
 
@@ -381,7 +383,7 @@ final class WhisperJobs: ObservableObject {
 
     func isActive(_ id: String) -> Bool {
         switch states[id] {
-        case .waiting, .loadingModel, .running: return true
+        case .waiting, .loadingModel, .running, .cooling: return true
         default: return false
         }
     }
@@ -429,7 +431,16 @@ final class WhisperJobs: ObservableObject {
             let vocabulary: Vocabulary = { said in
                 await Self.terms { try await api.value("/api/recordings/own/vocabulary", method: "POST", body: ["id": .string(id), "text": .string(said)]) }
             }
-            sections = try await Self.transcribe(url: url, language: language, store: store, vocabulary: vocabulary, resume: resume) { [weak self] fraction, duration, done in
+            let cooling: @MainActor (Bool) -> Void = { [weak self] on in
+                guard let self else { return }
+                switch (on, self.states[id]) {
+                case (true, .running(let f)): self.states[id] = .cooling(f)
+                case (true, .loadingModel): self.states[id] = .cooling(0)
+                case (false, .cooling(let f)): self.states[id] = .running(f)
+                default: break
+                }
+            }
+            sections = try await Self.transcribe(url: url, language: language, store: store, vocabulary: vocabulary, resume: resume, cooling: cooling) { [weak self] fraction, duration, done in
                 self?.states[id] = .running(fraction)
                 var body: [String: JSONValue] = ["transcript_status": .string(done.isEmpty ? "running" : "partial"), "transcript_engine": "whisper",
                                                  "duration": .number(duration)]
@@ -463,7 +474,30 @@ final class WhisperJobs: ObservableObject {
     /// frueheren Laufs (es geht an ihrem Ende weiter). `step` kommt vor dem ersten und nach jedem Stueck mit Anteil,
     /// Laenge der Datei und dem Stand der Abschnitte. `vocabulary`: Fachwoerter je Stueck als Vorgabe fuer das Modell
     /// (nil = ohne). Wirft bei Abbruch `CancellationError`.
+    /// Waermestufe des Geraets (0 normal ... 3 kritisch) und das Warten – in Tests austauschbar
+    static var thermalLevel: @MainActor () -> Int = { ProcessInfo.processInfo.thermalState.rawValue }
+    static var pause: (Double) async -> Void = { try? await Task.sleep(nanoseconds: UInt64(max(0, $0) * 1_000_000_000)) }
+
+    /// Pause vor einem Stueck, wenn das Geraet warm ist; bei "kritisch" erst weiter, wenn es kuehler ist (hoechstens
+    /// zehn Minuten). `cooling` meldet Anfang und Ende der Pause fuer die Anzeige.
+    static func coolDown(_ cooling: (@MainActor (Bool) -> Void)? = nil) async {
+        var level = thermalLevel()
+        guard WhisperPacing.pause(level: level) > 0 else { return }
+        cooling?(true)
+        defer { cooling?(false) }
+        var waited = 0.0
+        while WhisperPacing.mustCool(level: level), waited < WhisperPacing.maxWait, !Task.isCancelled {
+            await pause(WhisperPacing.checkEvery)
+            waited += WhisperPacing.checkEvery
+            level = thermalLevel()
+        }
+        let rest = WhisperPacing.pause(level: level)
+        if rest > 0, !Task.isCancelled { await pause(rest) }
+    }
+
+    /// `cooling`: meldet Pausen zum Abkuehlen (true = beginnt, false = vorbei).
     static func transcribe(url: URL, language: String, store: WhisperModelStore, vocabulary: Vocabulary? = nil, resume: [TranscriptSection] = [],
+                           cooling: (@MainActor (Bool) -> Void)? = nil,
                            step: @MainActor (_ fraction: Double, _ duration: Double, _ sections: [TranscriptSection]) async -> Void) async throws -> [TranscriptSection] {
         guard let choice = store.active else { throw WhisperFailure("Kein Sprachmodell geladen.") }
         try await WhisperEngine.shared.load(variant: choice.variant, folder: store.folder(choice), base: store.base)
@@ -477,6 +511,8 @@ final class WhisperJobs: ObservableObject {
         while let slice = WhisperSlices.slice(from: position, duration: duration) {
             try Task.checkCancellation()
             await waitUntilActive()
+            await coolDown(cooling)
+            try Task.checkCancellation()
             let terms = await vocabulary?(said) ?? []
             let samples = try await WhisperAudio.samples(url: url, start: slice.start, length: slice.length)
             let raw: [WhisperRawSegment]

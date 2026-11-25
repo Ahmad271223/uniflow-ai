@@ -462,4 +462,45 @@ final class WhisperViewsAppTests: XCTestCase {
         p.stop()
         XCTAssertNil(p.player)
     }
+
+    // MARK: Schonung bei Waerme
+
+    /// Je waermer das Geraet, desto laenger die Pause vor dem naechsten Stueck; bei "kritisch" wird gewartet, bis es
+    /// kuehler ist. Die Anzeige bekommt Anfang und Ende der Pause.
+    func testCoolDownPausesByHeat() async {
+        let oldLevel = WhisperJobs.thermalLevel, oldPause = WhisperJobs.pause
+        defer { WhisperJobs.thermalLevel = oldLevel; WhisperJobs.pause = oldPause }
+        final class Log: @unchecked Sendable { var pauses: [Double] = []; var shown: [Bool] = []; var levels: [Int] = [] }
+        let log = Log()
+        WhisperJobs.pause = { log.pauses.append($0) }
+        WhisperJobs.thermalLevel = { log.levels.isEmpty ? 0 : log.levels.removeFirst() }
+        func run(_ levels: [Int]) async -> ([Double], [Bool]) {
+            log.pauses = []; log.shown = []; log.levels = levels
+            await WhisperJobs.coolDown { log.shown.append($0) }
+            return (log.pauses, log.shown)
+        }
+        var r = await run([0])
+        XCTAssertTrue(r.0.isEmpty && r.1.isEmpty, "normal: keine Pause, keine Anzeige")
+        r = await run([1])
+        XCTAssertEqual(r.0, [4]); XCTAssertEqual(r.1, [true, false])
+        r = await run([2])
+        XCTAssertEqual(r.0, [20]); XCTAssertEqual(r.1, [true, false])
+        // kritisch, kritisch, dann heiss: zweimal nachsehen, dann die Pause fuer "heiss"
+        r = await run([3, 3, 2])
+        XCTAssertEqual(r.0, [5, 5, 20]); XCTAssertEqual(r.1, [true, false])
+        // kritisch und gleich wieder normal: nur einmal nachsehen
+        r = await run([3, 0])
+        XCTAssertEqual(r.0, [5])
+    }
+
+    func testCoolingStateShowsProgressAndCanBeStopped() throws {
+        var stopped = false
+        let env = try hostWithEnvironment(WhisperJobStatus(state: .cooling(0.37)) { stopped = true }.padding(), size: CGSize(width: 700, height: 160))
+        XCTAssertTrue(env.wait { env.labels().contains("37 % · kurze Pause, das Gerät kühlt ab") }, "\(env.labels())")
+        XCTAssertTrue(tap("Anhalten", in: env), "\(env.labels())")
+        XCTAssertTrue(stopped)
+        let jobs = WhisperJobs(store: WhisperModelStore.shared)
+        XCTAssertFalse(jobs.isActive("x"))
+        XCTAssertTrue(WhisperText.duration.contains("Das Gerät wird dabei warm"))
+    }
 }

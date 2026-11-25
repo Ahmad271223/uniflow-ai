@@ -181,6 +181,28 @@ public enum WhisperSlices {
     }
 }
 
+/// Schonung des Geraets (1.0.8, Rueckmeldung des Inhabers vom iPad 25.11.2026: "iPad wird heiß"): die Erkennung rechnet
+/// minutenlang mit voller Kraft. Zwischen zwei Stuecken legt die App je nach Waerme des Geraets eine Pause ein; bei
+/// "kritisch" wartet sie, bis es kuehler ist. Stufen wie `ProcessInfo.ThermalState`: 0 normal, 1 warm, 2 heiss, 3 kritisch.
+public enum WhisperPacing {
+    /// Pause vor dem naechsten Stueck in Sekunden
+    public static func pause(level: Int) -> Double {
+        switch level {
+        case ..<1: return 0
+        case 1: return 4
+        case 2: return 20
+        default: return 30
+        }
+    }
+
+    /// Erst weitermachen, wenn das Geraet wieder kuehler ist?
+    public static func mustCool(level: Int) -> Bool { level >= 3 }
+
+    /// So oft wird beim Warten nachgesehen (Sekunden) und so lange hoechstens gewartet
+    public static let checkEvery = 5.0
+    public static let maxWait = 600.0
+}
+
 /// Fachwoerter-Hilfe (1.0.8): Whisper schreibt Namen und Fachbegriffe eher richtig ("Taylor-Polynom" statt
 /// "Teilor-Polynom"), wenn es sie vorher als Text gesehen hat. Die Woerter kommen aus den Vorlesungen und Skripten des
 /// Moduls (Seitentexte der Skriptsuche, `page_texts`) – ohne KI, auf dem Geraet. Hier nur das Auswaehlen; die App macht

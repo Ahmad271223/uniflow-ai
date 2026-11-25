@@ -9,7 +9,8 @@ enum WhisperText {
     static let title = "Bessere Mitschrift"
     static let short = "Genauere Mitschrift für Aufnahmen und Uni-Videos. Läuft nur auf diesem Gerät."
     static let long = "StudiNow lädt dafür einmal ein Sprachmodell (Whisper) auf dieses iPad. Danach wandelt es deine Aufnahmen, Audio-Dateien und geladene Uni-Aufzeichnungen auf dem Gerät in Text um. Ton und Text verlassen das Gerät dabei nicht. Fachbegriffe aus den Vorlesungen und Skripten des Moduls, die auf dem Gerät liegen, helfen bei der Erkennung. Geladen wird das Modell vom Modell-Verzeichnis Hugging Face; wie bei jedem Download sieht der Anbieter dabei deine IP-Adresse. Eine Mitschrift kann Fehler enthalten, vor allem bei Namen und Formeln."
-    static let duration = "Eine Vorlesung von 90 Minuten braucht je nach Gerät einige Minuten bis über eine halbe Stunde. StudiNow muss dabei geöffnet bleiben; wird es unterbrochen, geht es später an derselben Stelle weiter."
+    static let duration = "Eine Vorlesung von 90 Minuten braucht je nach Gerät einige Minuten bis über eine halbe Stunde. Das Gerät wird dabei warm; wird es heiß, legt StudiNow kurze Pausen ein. StudiNow muss dabei geöffnet bleiben; wird es unterbrochen, geht es später an derselben Stelle weiter."
+    static func cooling(_ fraction: Double) -> String { "\(percent(fraction)) · kurze Pause, das Gerät kühlt ab" }
     static let noModel = "Für die genauere Mitschrift lädst du einmal ein Sprachmodell."
 
     static func size(_ megabytes: Int) -> String {
@@ -211,6 +212,14 @@ struct WhisperJobStatus: View {
                     .accessibilityHint("Hält die Erkennung an; was fertig ist, bleibt")
             }
             .accessibilityIdentifier("whisper.job.running")
+        case .cooling(let f):
+            HStack(spacing: 8) {
+                UFProgress(value: f).frame(maxWidth: 220)
+                Text(WhisperText.cooling(f)).ufFont(12.48).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                UFButton("Anhalten", icon: "square", kind: .ghost, size: .small, action: cancel)
+                    .accessibilityHint("Hält die Erkennung an; was fertig ist, bleibt")
+            }
+            .accessibilityIdentifier("whisper.job.cooling")
         case .failed(let message):
             Text("Mitschrift nicht möglich: \(message)").ufFont(12.8).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
         }
