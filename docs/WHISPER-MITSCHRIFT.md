@@ -6,7 +6,9 @@ StudiNow etwas bringt. Zweig `app/whisper-mitschrift` (Worktree `~/Studora-Build
 
 **Auf dem iPad des Inhabers** (Kabel/WLAN, `devicectl`, mit seinem Okay vom 24.11.): Testfassung 1.0.7 (49), Release,
 aus diesem Zweig – zuerst `871264cd` (24.11. abends), seit 25.11. 09:05 `9da803b9` mit Fachwörter-Hilfe und Lizenzen.
-Nicht bei Apple, kein TestFlight. Der Inhaber prüft dort Dauer, Wärme und Textgüte; sein Ergebnis steht noch aus.
+Die Fassung mit Suche und Sprung ins Video (`4a89ef7b`) ist gebaut
+(`~/Studora-Builds/dd-whisper-geraet/Build/Products/Release-iphoneos/UniFlow.app`), aber **noch nicht aufgespielt**:
+das iPad war am 25.11. nachmittags nicht erreichbar. Nicht bei Apple, kein TestFlight. Der Inhaber prüft dort Dauer, Wärme und Textgüte; sein Ergebnis steht noch aus.
 
 ## Was es tut
 
@@ -158,6 +160,7 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
 - Mac („Designed for iPad“, `tools/mac-test.sh`, 25.11. 14:18): `WhisperViewsAppTests` und `OwnRecordingsAppTests`
   20 Tests, 0 rot. Die echte Erkennung mit einem Modell ist am Mac nicht gelaufen (nur die Ansichten und der Stand
   der Modelle).
+- Schneller Lauf nach Suche und Sprung (25.11. nachmittags): pytest 4082 grün, 0 rot; node 472 grün. Kern 1833 grün.
 - Suche und Sprung (25.11.): Kern `TranscriptSearchTests` (7); App `WhisperViewsAppTests` jetzt 17 (Treffer statt
   ganzer Mitschrift, „Leeren“, Video erscheint beim Antippen einer Zeitmarke, Player entsteht erst bei Bedarf) – iPad
   35, iPhone 23, Mac 23 Tests, 0 rot. Sprung mit echter Datei (`WhisperLiveTests/testJumpLandsAtTheRightPlaceAndPlays`):
