@@ -347,3 +347,22 @@ Arbeitsordner `~/Studora-Builds/wt-kombi`, Bau `~/Studora-Builds/dd-kombi-geraet
 
 Sein Ergebnis steht aus (Punkte in Abschnitt 8). Spielt jemand danach eine reine Whisper-Fassung auf, sind die
 Editor-Neuheiten wieder weg vom iPad.
+
+## 11. Erste Rückmeldung vom iPad (25.11.2026 abends) und Korrektur
+
+Inhaber: „man kann Notizzettel nicht verschieben … der blaue Kasten zum Verschieben drumherum verzögert stark und
+Notizzettel geht nicht mit“.
+
+- **Nachgestellt** (`TextBlockAppTests.testNotizzettelLaesstSichBeimTippenVerschieben`): Wird am Zettel gezogen,
+  **während noch getippt wird** (Tastatur offen), bewegte sich nur der Auswahlrahmen und der ruhende, unsichtbare
+  Zettel darunter – der sichtbare Zettel ist beim Tippen die Textansicht, und die blieb stehen. Ein gerade neu
+  angelegter Zettel (noch nicht gespeichert, nicht ausgewählt) ließ sich gar nicht greifen.
+  Ein **ausgewählter** Zettel ohne Tippen folgte dem Finger im Simulator sauber
+  (`testNotizzettelFolgtDemFingerBeimVerschieben`).
+- **Behoben:** Der Text, in dem getippt wird, folgt dem Finger (Zettel und Textblöcke): `ObjectEditing.editorGrip`
+  (greift die Textansicht auch ohne Auswahl), `placeEditor(like:)` (Vorschau und gespeicherter Stand), Abgleich nach
+  jedem Speichern in `commit`. Das Tippen geht dabei weiter; ein neuer Zettel merkt sich die Stelle und wird mit dem
+  Text dort gespeichert. Auf linierten Seiten weiter zeilenweise.
+- **Nicht nachstellbar:** das starke Nachlaufen des Rahmens selbst. Vermutung: die Textansicht hat die Berührung
+  zuerst bekommen. Nach der Korrektur am iPad erneut prüfen; bleibt es, am Gerät messen.
+- Tests danach: `TextBlockAppTests` 26 grün (iPad und iPhone), dazu 84 weitere Editor-Tests am iPad grün.

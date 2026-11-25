@@ -284,11 +284,11 @@ extension ObjectEditing {
     }
 
     /// Hoehe der Textansicht nach dem Satz (waechst und schrumpft mit dem Text; auf Linien in ganzen Zeilen)
-    private func fitEditor(_ e: TextEdit) {
+    func fitEditor(_ e: TextEdit, minHeight: CGFloat? = nil) {
         var h = e.layout.height
         if e.layout.storage.length == 0, e.layout.step == nil { h = ceil(TextBlockRender.font(TextBlock.baseStyle(e.object)).lineHeight) }
         let inset = TextBlockRender.insets(e.object)
-        let size = CGSize(width: e.view.bounds.width, height: max(h + inset.top + inset.bottom, CGFloat(StickyNote.minHeight(e.object))))
+        let size = CGSize(width: e.view.bounds.width, height: max(h + inset.top + inset.bottom, minHeight ?? CGFloat(StickyNote.minHeight(e.object))))
         if abs(e.view.bounds.height - size.height) > 0.01 { e.view.bounds = CGRect(origin: .zero, size: size) }
     }
 

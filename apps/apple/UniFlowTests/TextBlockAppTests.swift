@@ -644,6 +644,130 @@ final class TextBlockAppTests: XCTestCase {
         try await BildProbe.wait("fett") { await self.object(s, s.blank, id)?["bold"] == true }
     }
 
+    /// Meldung des Inhabers am iPad (25.11.2026): "man kann Notizzettel nicht verschieben … der blaue Kasten zum
+    /// Verschieben drumherum verzögert stark und Notizzettel geht nicht mit". Ein gewaehlter Zettel folgt dem Finger in
+    /// jedem Schritt zusammen mit seinem Rahmen und steht nach dem Loslassen an der neuen Stelle.
+    func testNotizzettelFolgtDemFingerBeimVerschieben() async throws {
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        let o = StickyNote.note(id: "z", x: 250, y: 150, choice: StickyNote.Choice(color: "#ffd3e0", look: "tape", paper: "lined", size: "m"), page: (595, 842))
+        let note = TextBlock.saving([TextBlock.Run(text: "Bis Freitag:\n• Blatt 7 abgeben", style: TextBlock.baseStyle(o))], in: o)
+        await s.store.editObjects(pageKey: s.blank) { $0 + [note] }
+        try await BildProbe.wait("Zettel gezeigt") { page.objectsView.subviews.contains { $0 is TextBlockView } }
+        let x0 = try XCTUnwrap(note["x"]?.double), y0 = try XCTUnwrap(note["y"]?.double)
+        func shownFrame() -> CGRect? {
+            page.objectsView.subviews.compactMap { $0 as? TextBlockView }.first.map { ($0.layer.presentation() ?? $0.layer).frame }
+        }
+        // 1. mit "Auswählen": antippen waehlt, ziehen verschiebt
+        s.editor.choose(.select)
+        try await BildProbe.tap(CGPoint(x: x0 + 80, y: y0 + 80), on: page, in: s.window)
+        try await BildProbe.wait("Zettel gewaehlt") { s.editor.objects.selection?.ids == ["z"] }
+        var gaps: [CGFloat] = [], seen: [CGFloat] = [], times: [Double] = []
+        var last = CACurrentMediaTime()
+        try await BildProbe.drag(from: CGPoint(x: x0 + 80, y: y0 + 80), to: CGPoint(x: x0 + 80 + 90, y: y0 + 80 + 110), on: page, in: s.window) {
+            let now = CACurrentMediaTime()
+            times.append(now - last)
+            last = now
+            if let f = shownFrame(), let frame = BildProbe.frameShown(page) {
+                seen.append(f.minY)
+                gaps.append(max(abs(frame.minX - f.minX), abs(frame.minY - f.minY)))
+            }
+        }
+        XCTAssertGreaterThan(seen.count, 8)
+        XCTAssertGreaterThan((seen.last ?? 0) - CGFloat(y0), 80, "der Zettel selbst folgt dem Finger: \(seen)")
+        XCTAssertLessThan(gaps.max() ?? 99, 1.5, "Rahmen und Zettel liegen in jedem Schritt aufeinander: \(gaps)")
+        XCTAssertLessThan(times.max() ?? 9, 0.25, "kein Schritt haengt: \(times)")
+        try await BildProbe.wait("verschoben gespeichert") { (await self.object(s, s.blank, "z")?["y"]?.double ?? 0) > y0 + 80 }
+        var now = await object(s, s.blank, "z")
+        XCTAssertEqual(now?["x"]?.double ?? 0, x0 + 90, accuracy: 12)
+        try await BildProbe.wait("Zettel steht an der neuen Stelle") { abs((shownFrame()?.minY ?? 0) - CGFloat(now?["y"]?.double ?? -99)) < 0.6 }
+
+        // 2. beim Schreiben: gedrueckt halten greift den Zettel, derselbe Finger zieht ihn mit
+        s.editor.finishObjectTools()
+        s.editor.objects.hold.minimumPressDuration = 0.5
+        let x1 = try XCTUnwrap(now?["x"]?.double), y1 = try XCTUnwrap(now?["y"]?.double)
+        func w(_ p: CGPoint) -> CGPoint { page.content.convert(p, to: nil) }
+        let start = CGPoint(x: x1 + 60, y: y1 + 70)
+        let finger = TestFinger(at: w(start), in: s.window)
+        try await BildProbe.wait("gegriffen") { s.editor.objects.selection?.ids == ["z"] && s.editor.objects.grabForTesting != nil }
+        var held: [CGFloat] = []
+        for i in 1...10 {
+            try await Task.sleep(nanoseconds: 24_000_000)
+            finger.move(to: w(CGPoint(x: start.x - CGFloat(i) * 6, y: start.y + CGFloat(i) * 5)))
+            try await Task.sleep(nanoseconds: 24_000_000)
+            if let f = shownFrame() { held.append(f.minX) }
+        }
+        finger.lift()
+        XCTAssertLessThan((held.last ?? 999) - CGFloat(x1), -40, "der Zettel folgt dem Finger schon beim Ziehen: \(held)")
+        try await BildProbe.wait("gespeichert") { (await self.object(s, s.blank, "z")?["x"]?.double ?? 999) < x1 - 40 }
+        now = await object(s, s.blank, "z")
+        XCTAssertEqual(now?["y"]?.double ?? 0, y1 + 50, accuracy: 2)
+    }
+
+    /// Derselbe Fehler, der eigentliche Fall: Am Zettel wird gezogen, WAEHREND noch getippt wird (Tastatur offen).
+    /// Vorher bewegte sich nur der blaue Rahmen (und der unsichtbare, ruhende Zettel darunter); der sichtbare Zettel -
+    /// die Textansicht - blieb stehen. Jetzt folgt der Zettel beim Tippen dem Finger: ein gerade neu angelegter (noch
+    /// nicht gespeicherter) ebenso wie ein vorhandener, der zum Tippen geoeffnet ist. Das Tippen geht danach weiter.
+    func testNotizzettelLaesstSichBeimTippenVerschieben() async throws {
+        let before = UserDefaults.standard.string(forKey: EditorPalette.stickyKey)
+        addTeardownBlock { UserDefaults.standard.set(before, forKey: EditorPalette.stickyKey) }
+        EditorPalette.stickyChoice = StickyNote.Choice(color: "#ffd3e0", look: "tape", paper: "plain", size: "m")
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        func editorFrame() -> CGRect? { s.editor.objects.editingTextView.map { ($0.layer.presentation() ?? $0.layer).frame } }
+
+        // 1. neuer Zettel: anlegen, tippen, gleich am Zettel ziehen
+        s.editor.choose(.sticky)
+        try await BildProbe.tap(CGPoint(x: 300, y: 160), on: page, in: s.window)
+        try await BildProbe.wait("Zettel offen") { s.editor.objects.editingTextView != nil }
+        var view = try XCTUnwrap(s.editor.objects.editingTextView)
+        view.insertText("Abgabe")
+        s.editor.objects.textViewDidChange(view)
+        let f0 = try XCTUnwrap(editorFrame())
+        var seen: [CGFloat] = []
+        try await BildProbe.drag(from: CGPoint(x: f0.midX, y: f0.midY + 30), to: CGPoint(x: f0.midX - 120, y: f0.midY + 30 + 100), on: page, in: s.window) {
+            if let f = editorFrame() { seen.append(f.minX) }
+        }
+        let f1 = try XCTUnwrap(editorFrame())
+        XCTAssertNotNil(s.editor.objects.editingTextView, "das Tippen geht weiter")
+        XCTAssertTrue(view.isFirstResponder)
+        XCTAssertEqual(f1.minX, f0.minX - 120, accuracy: 14, "der Zettel ist dem Finger gefolgt: \(seen)")
+        XCTAssertEqual(f1.minY, f0.minY + 100, accuracy: 14)
+        XCTAssertGreaterThan(Set(seen.map { Int($0) }).count, 5, "schon beim Ziehen, Schritt fuer Schritt: \(seen)")
+        view.insertText(" Freitag")
+        s.editor.objects.endTextEditing()
+        try await BildProbe.wait("gespeichert") { await s.store.objects(forPageKey: s.blank).count == 1 }
+        let found = await s.store.objects(forPageKey: s.blank).first
+        let saved = try XCTUnwrap(found)
+        let id = try XCTUnwrap(saved["id"]?.string)
+        XCTAssertEqual(saved["text"], "Abgabe Freitag")
+        XCTAssertEqual(saved["x"]?.double ?? 0, Double(f1.minX), accuracy: 0.6, "gespeichert an der Stelle, an die er gezogen wurde")
+        XCTAssertEqual(saved["y"]?.double ?? 0, Double(f1.minY), accuracy: 0.6)
+        try await BildProbe.wait("Zettel gezeigt") { page.objectsView.subviews.contains { $0 is TextBlockView && !$0.isHidden } }
+
+        // 2. vorhandener Zettel: mit "Haftnotiz" antippen oeffnet ihn zum Tippen (und waehlt ihn aus), dann ziehen
+        s.editor.choose(.sticky)
+        try await BildProbe.tap(CGPoint(x: f1.midX, y: f1.midY + 30), on: page, in: s.window)
+        try await BildProbe.wait("wieder offen") { s.editor.objects.editing?.id == id }
+        view = try XCTUnwrap(s.editor.objects.editingTextView)
+        let g0 = try XCTUnwrap(editorFrame())
+        try await BildProbe.drag(from: CGPoint(x: g0.midX, y: g0.midY + 30), to: CGPoint(x: g0.midX + 80, y: g0.midY + 30 + 60), on: page, in: s.window)
+        try await BildProbe.wait("verschoben gespeichert") { abs((await self.object(s, s.blank, id)?["x"]?.double ?? 0) - Double(g0.minX + 80)) < 14 }
+        let moved = await object(s, s.blank, id)
+        XCTAssertEqual(s.editor.objects.editing?.id, id, "bleibt zum Tippen offen")
+        try await BildProbe.wait("Textansicht an der neuen Stelle") { abs((editorFrame()?.minX ?? 0) - CGFloat(moved?["x"]?.double ?? -99)) < 0.6 }
+        XCTAssertEqual(Double(editorFrame()?.minY ?? 0), moved?["y"]?.double ?? -99, accuracy: 0.6)
+        if let frame = BildProbe.frameShown(page), let f = editorFrame() {
+            XCTAssertLessThan(max(abs(frame.minX - f.minX), abs(frame.minY - f.minY)), 1.5, "Rahmen liegt auf dem Zettel")
+        }
+        view.insertText("!")
+        s.editor.objects.endTextEditing()
+        try await BildProbe.wait("Text gespeichert") { await self.object(s, s.blank, id)?["text"] == "Abgabe Freitag!" }
+        let end = await object(s, s.blank, id)
+        XCTAssertEqual(end?["x"], moved?["x"], "Text speichern verschiebt nichts zurueck")
+        XCTAssertEqual(end?["y"], moved?["y"])
+    }
+
     /// Plus (ohne Pro AI): "Haftnotiz" legt die gelbe Haftnotiz wie in 1.0.7 an; Umgestalten greift nicht
     func testPlusBehaeltDieGelbeHaftnotiz() async throws {
         let before = UserDefaults.standard.string(forKey: EditorPalette.stickyKey)
