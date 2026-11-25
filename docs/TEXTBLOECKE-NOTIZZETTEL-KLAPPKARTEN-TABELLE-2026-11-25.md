@@ -318,3 +318,20 @@ Nichts ist gepusht, nichts eingereicht, kein Server, keine Website. Arbeitsordne
 - Text für die Tarifkarten (das Neue steht dort noch nicht).
 - Teil 4 (Tabelle): Antworten auf die Fragen in Abschnitt 6.
 - Web-Editor/Windows zeigen alles nur in einfacher Form – soll das dort auch gebaut werden?
+
+## 9. Prüfläufe am 25.11.2026 (Stand `editor/verweise`)
+
+| Lauf | Ergebnis |
+|---|---|
+| Kern (`swift test`, alles) | 1837 Tests, 0 Fehler (16 übersprungen); davon neu: `TextBlockTests` 14, `StickyNoteTests` 6, `FlipCoverTests` 5, `PageLinkTests` 4 |
+| Python + Web (`tools/tests-schnell.sh`) | 4081 bestanden, **1 rot unter Last**: `tests/test_web_overview.py::test_overview_answers_what_to_do_today` – einzeln grün, auch auf `release/1.0.7-b47`; hat mit dem Editor nichts zu tun. Node: 472 bestanden |
+| App, iPad-Simulator (52 Testdateien rund um Editor, Tarife, Community, Export, Leseansicht) | 511 Tests, 29 übersprungen (Bilder-/Messläufe ohne Schalter), **1 rot unter Last**: `EditorScaleTests/testTinteSpringtNichtBeimWechselAufDenAusschnitt` (zählt Messbilder in 1,6 s; 10 statt > 10). Einzeln wiederholt: 4 von 5 grün, das eine Rot bei Rechnerlast 53 |
+| App, iPhone-Simulator (`TextBlockAppTests`, `StickyNoteAppTests`, `TextBlockBilderAppTests`, `IPhoneReaderTests`, `EditorStep6Tests`, `EditorPaletteTests`, `PlusWritingLockTests`, `SolutionSharingTests`) | 93 Tests, 0 Fehler |
+
+Neue App-Tests: `TextBlockAppTests` 24 (Textblöcke, Notizzettel, Klappkarten, Verweise, Tarif), `StickyNoteAppTests` 4,
+`TextBlockBilderAppTests` 7 (nur mit `TEST_RUNNER_UF_SCREENSHOT_DIR`; prüfen den Weg in der echten Dokumentansicht).
+
+**Nicht gelaufen:** die ganze App-Testsammlung (nur die betroffenen Dateien), Mac-Tests (`tools/mac-test.sh`),
+kein Build fürs Gerät, kein Test am echten iPad.
+
+Bilder: `~/Studora-Builds/textbloecke/bilder/` (1–22, iPad und iPhone-Ansicht), `…/bilder-iphone/` (im iPhone-Simulator erzeugt).
