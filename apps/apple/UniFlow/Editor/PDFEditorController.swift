@@ -195,7 +195,7 @@ final class PageInkView: UIView {
         let center = CGPoint(x: w.midX, y: w.midY)
         let zoomChanges = abs(z - c.zoomScale) > 0.001
         guard zoomChanges || c.bounds.size != boundsSize || c.center != center
-              || abs(c.contentOffset.x - offset.x) > 0.01 || abs(c.contentOffset.y - offset.y) > 0.01 else { return }
+              || abs(c.contentOffset.x - offset.x) > offsetRounding || abs(c.contentOffset.y - offset.y) > offsetRounding else { return }
         c.transform = .identity
         if zoomChanges {
             c.minimumZoomScale = min(z, c.zoomScale)
@@ -335,10 +335,10 @@ final class PageInkView: UIView {
         inkLayout = l
         let z = min(max(1, l.zoom), Self.maxCanvasZoom)
         let zoomChanges = !isDrawing && abs(z - canvas.zoomScale) > 0.001
-        let moves = !isDrawing && !zoomChanges && !Self.same(l.window, inkWindow)
+        let moves = !isDrawing && !zoomChanges && !Self.same(l.window, inkWindow, zoom: z)
         func changes(_ c: PKCanvasView) -> (zoom: Bool, move: Bool) {
             let zoom = abs(z - c.zoomScale) > 0.001
-            return (zoom, !zoom && !Self.same(l.window, Self.window(of: c)))
+            return (zoom, !zoom && !Self.same(l.window, Self.window(of: c), zoom: z))
         }
         var zoomed: [PKCanvasView] = zoomChanges ? [canvas] : [], moved: [PKCanvasView] = moves ? [canvas] : []
         for c in [foreignInk, correctionView?.ink].compactMap({ $0 }) {
@@ -364,9 +364,21 @@ final class PageInkView: UIView {
         Self.place(canvas, pageSize: geometry.pageSize, layout: l)
     }
 
-    private static func same(_ a: CGRect, _ b: CGRect) -> Bool {
-        abs(a.minX - b.minX) < 0.01 && abs(a.minY - b.minY) < 0.01 && abs(a.width - b.width) < 0.01 && abs(a.height - b.height) < 0.01
+    /// Zeigt die Zeichenflaeche schon diesen Ausschnitt? Die LAGE darf um die Rundung der Zeichenflaeche abweichen:
+    /// UIScrollView legt `contentOffset` auf ganze Bildpunkte (halbe Punkte am 2x-Bildschirm). Bei einem Zoom, der kein
+    /// rundes Vielfaches ist (mit zwei Fingern gewaehlt, z. B. 5,37), liest sich der Ausschnitt darum um bis zu
+    /// 0,25 / Zoom Seitenpunkte versetzt zurueck. Bis 25.11.2026 galt nur 0,01 als gleich: Nach JEDEM Strich wurde die
+    /// Zeichenflaeche unter einem Deckbild neu eingehaengt, obwohl die Seite still stand (Meldung des Inhabers
+    /// "Schreiben zittert etwas"; Zaehler seines iPads: 47-mal bei 44 Strichen; `EditorAusschnittRundungTests`).
+    /// Ein echter Wechsel verschiebt den Ausschnitt um mindestens einen ganzen Punkt (`window(around:in:margin:keeping:)`).
+    private static func same(_ a: CGRect, _ b: CGRect, zoom z: CGFloat) -> Bool {
+        let slack = max(0.01, offsetRounding / max(z, 1))
+        return abs(a.minX - b.minX) < slack && abs(a.minY - b.minY) < slack && abs(a.width - b.width) < 0.01 && abs(a.height - b.height) < 0.01
     }
+
+    /// So weit (Punkte der Zeichenflaeche) rundet UIScrollView `contentOffset` hoechstens: ein halber Bildpunkt am
+    /// 1x-Bildschirm, mit etwas Luft
+    private static let offsetRounding: CGFloat = 0.55
 
     /// Text und Bilder der Objekte hoechstens so fein wie bis 1.0.7 (eine Textansicht kostet Bildpunkte im Quadrat
     /// des Faktors; Formen und Vorlage sind Vektor-Ebenen und bleiben ohnehin scharf)
