@@ -366,3 +366,5 @@ Notizzettel geht nicht mit“.
 - **Nicht nachstellbar:** das starke Nachlaufen des Rahmens selbst. Vermutung: die Textansicht hat die Berührung
   zuerst bekommen. Nach der Korrektur am iPad erneut prüfen; bleibt es, am Gerät messen.
 - Tests danach: `TextBlockAppTests` 26 grün (iPad und iPhone), dazu 84 weitere Editor-Tests am iPad grün.
+- Die korrigierte gemeinsame Fassung (`test/ipad-editor-whisper` @ `7c658ec5`) liegt seit 25.11.2026, 18:28 auf dem
+  iPad des Inhabers (sein Okay „Ja, aufspielen“). Seine Antwort zum Nachlaufen steht aus.
