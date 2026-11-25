@@ -15,10 +15,12 @@ final class EditorHandballenTests: XCTestCase {
     override func setUp() {
         super.setUp()
         PencilTuning.palmRejection = true
+        PencilTuning.palmByRadius = false
     }
 
     override func tearDown() {
         PencilTuning.palmRejection = true
+        PencilTuning.palmByRadius = false
         super.tearDown()
     }
 
@@ -60,6 +62,18 @@ final class EditorHandballenTests: XCTestCase {
         XCTAssertFalse(PalmRejection.isPalm(radius: PalmRejection.palmRadius - 0.1))
         XCTAssertTrue(PalmRejection.isPalm(radius: PalmRejection.palmRadius))
         XCTAssertTrue(PalmRejection.isPalm(radius: 90))
+    }
+
+    /// Meldung des Inhabers nach dem ersten Aufspielen (25.11.2026): "Zoomen geht nicht mehr". Zwei Finger beim Zoomen
+    /// liegen auf seinem iPad mit bis zu 63 pt auf - die Auflage allein sperrt darum nichts mehr.
+    func testGrosseAuflageAlleinSperrtNichtMehr() {
+        XCTAssertFalse(PencilTuning.palmByRadius, "ausgeliefert: aus")
+        for r: CGFloat in [21, 31, 42, 52, 63, 90] {
+            XCTAssertFalse(PalmRejection.countsAsPalm(radius: r), "\(r) pt: Finger beim Zoomen und Wischen bleiben Finger")
+        }
+        PencilTuning.palmByRadius = true                     // nur zum Messen
+        XCTAssertFalse(PalmRejection.countsAsPalm(radius: 42))
+        XCTAssertTrue(PalmRejection.countsAsPalm(radius: 52))
     }
 
     func testSeiteGehtNurNachKurzemAuflegenZurueck() {
