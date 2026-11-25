@@ -8,6 +8,10 @@ enum PencilTuning {
     /// Jetzt einmal beim Absetzen (`canvasViewDidEndUsingTool`), wie beim Stift. Die Sicherung sofort beim Absetzen
     /// (Audit P60/P61: Strich uebersteht einen Abbruch 0 ms danach) bleibt unveraendert.
     static var saveOnLift = true
+    /// Handballen-Abwehr (Meldung des Inhabers 25.11.2026, `PalmRejection.swift`): Solange der Stift aufliegt und kurz
+    /// danach, und solange eine sehr grosse Auflageflaeche aufliegt, scrollt und zoomt die Hand nicht. `false`: wie
+    /// bis 1.0.7 - jede Beruehrung der Hand scrollt und zoomt.
+    static var palmRejection = true
     /// Nach einem Zoom nur die sichtbaren Seiten in der neuen Schaerfe anlegen. Vorher auch die geparkten (bis 6
     /// unsichtbare Seiten, gezoomt bis ~130 MB je Seite); sie bekommen den Zoom ohnehin beim Wiederanzeigen.
     static var rescaleVisibleOnly = true
