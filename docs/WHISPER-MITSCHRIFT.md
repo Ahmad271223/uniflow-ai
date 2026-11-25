@@ -4,6 +4,10 @@ Auftrag des Inhabers 24.11.2026: „baue das schon mal komplett fertig für 1.0.
 StudiNow etwas bringt. Zweig `app/whisper-mitschrift` (Worktree `~/Studora-Builds/wt-whisper`), aufgesetzt auf
 `release/1.0.7-b47` @ `9a5983d8`. Nicht in 1.0.7, nichts hochgeladen, nichts gepusht.
 
+**Auf dem iPad des Inhabers** (Kabel/WLAN, `devicectl`, mit seinem Okay vom 24.11.): Testfassung 1.0.7 (49), Release,
+aus diesem Zweig – zuerst `871264cd` (24.11. abends), seit 25.11. 09:05 `9da803b9` mit Fachwörter-Hilfe und Lizenzen.
+Nicht bei Apple, kein TestFlight. Der Inhaber prüft dort Dauer, Wärme und Textgüte; sein Ergebnis steht noch aus.
+
 ## Was es tut
 
 Die Erkennung von Apple bleibt, wie sie ist (docs/VORLESUNG-AUFNEHMEN.md, docs/DATEIARTEN.md): live beim Aufnehmen und
@@ -130,8 +134,19 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
   Mitschrift zu einem Video, Antwort der Wortlisten-Route, Lizenz-Dialog; mit `OwnRecordingsAppTests` und
   `EinstellungenKlarAppTests` 32 Tests, 0 rot.
 - Ganze iPad-Reihe 24.11. (2217 Tests): 134 rot, alle außerhalb der Mitschrift (Editor, Bilder, Abnahmen) mit dem
-  bekannten Bild unter Last (`InvalidTransition`, „Zeit abgelaufen“). Wiederholung der betroffenen Klassen: siehe
-  unten „Wiederholung der roten Klassen“.
+  bekannten Bild unter Last (`InvalidTransition`, „Zeit abgelaufen“).
+- Wiederholung der 37 betroffenen Klassen allein (25.11., Stand mit Fachwörter-Hilfe): 402 Tests, 1 rot –
+  `StoreScreenshotTests/test01Uebersicht` („Diese Prüfungen solltest du anmelden“ fehlt). Derselbe Test ist auf dem
+  unveränderten `release/1.0.7-b47` @ `9a5983d8` genauso rot: er rechnet mit dem heutigen Datum (Meldezeitraum) und hat
+  mit der Mitschrift nichts zu tun. Gehört vor dem nächsten Store-Bild-Lauf angesehen.
+- iPhone-Simulator (25.11.): `WhisperViewsAppTests`, `OwnRecordingsAppTests`, `EinstellungenKlarAppTests` 32 Tests,
+  0 rot; Bilder in iPhone-Breite unter `~/Studora-Builds/whisper-probe/bilder-iphone/`.
+- Schneller Lauf (`tools/tests-schnell.sh`, 25.11.): pytest 4081 grün, 1 rot
+  (`tests/test_web_overview.py::test_overview_answers_what_to_do_today`, am 24.11. schon auf `server/probe-vorab` rot,
+  Web-Übersicht des Dienstes, nicht Teil dieses Zweigs); node 472 grün.
+- **Mac („Designed for iPad“): noch nicht gelaufen** – `tools/mac-test.sh` brach am 25.11. ab, weil der Mac gesperrt
+  war. Nachholen: `tools/mac-test.sh -only-testing:UniFlowTests/WhisperViewsAppTests
+  -only-testing:UniFlowTests/OwnRecordingsAppTests`.
 - **Echte Erkennung** (`WhisperLiveTests`, nur auf Wunsch, siehe Kopf der Datei): lädt ein Modell und wandelt eine
   deutsche Probe-Vorlesung um (5:17 min, vom Mac gesprochen, `~/Studora-Builds/whisper-probe/vorlesung.m4a`), prüft
   Zeiten, Fortschritt, erwartete Wörter und das Weitermachen. Mit `UF_WHISPER_SCRIPT` (Seiten eines Skripts als
