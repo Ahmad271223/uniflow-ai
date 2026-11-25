@@ -31,7 +31,8 @@ final class TextBlockAppTests: XCTestCase {
     }
 
     /// Dokument (1 PDF-Seite, danach eine linierte und eine leere Seite) im Fenster, Tarif mit Schreiben
-    private func open(canEdit: Bool = true, proAI: Bool = true, size: CGSize = CGSize(width: 1080, height: 810)) async throws -> Shown {
+    private func open(canEdit: Bool = true, proAI: Bool = true, size: CGSize = CGSize(width: 1080, height: 810),
+                      sharing tools: EditorToolState? = nil, at origin: CGPoint = .zero) async throws -> Shown {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-textblock-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
@@ -67,17 +68,19 @@ final class TextBlockAppTests: XCTestCase {
 
         let suite = "uniflow.tests.textblock.\(UUID().uuidString)"
         let toolDefaults = UserDefaults(suiteName: suite) ?? .standard
-        let editor = PDFEditorController(store: store, tools: EditorToolState(defaults: toolDefaults))
+        // `tools` gegeben: Dokument daneben in der geteilten Ansicht (teilt Leiste und Werkzeugstand mit dem Hauptdokument)
+        let editor = tools.map { PDFEditorController(store: store, tools: $0, ownsToolPicker: false) }
+            ?? PDFEditorController(store: store, tools: EditorToolState(defaults: toolDefaults))
         editor.pencilOnly = true
         editor.ownNotesVisible = true
         editor.canEdit = canEdit
         editor.richNotesOverride = proAI
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
-        let frame = CGRect(origin: .zero, size: size)
+        let frame = CGRect(origin: origin, size: size)
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
         window.frame = frame
         window.rootViewController = editor
-        window.makeKeyAndVisible()
+        if tools == nil { window.makeKeyAndVisible() } else { window.isHidden = false }
         addTeardownBlock { @MainActor in
             toolDefaults.removePersistentDomain(forName: suite)
             editor.objects.endTextEditing()
@@ -760,10 +763,10 @@ final class TextBlockAppTests: XCTestCase {
         XCTAssertTrue(FlipCover.isCover(dragged))
         XCTAssertEqual(dragged["fill"], "#2e9e5b")
         XCTAssertEqual(FlipCover.pattern(dragged), "dots")
-        XCTAssertEqual(dragged["x"]?.double ?? 0, 100, accuracy: 8)
-        XCTAssertEqual(dragged["y"]?.double ?? 0, 150, accuracy: 8)
-        XCTAssertEqual(dragged["width"]?.double ?? 0, 200, accuracy: 12)
-        XCTAssertEqual(dragged["height"]?.double ?? 0, 50, accuracy: 12)
+        XCTAssertEqual(dragged["x"]?.double ?? 0, 100, accuracy: 1, "genau ab der Stelle, an der aufgesetzt wurde")
+        XCTAssertEqual(dragged["y"]?.double ?? 0, 150, accuracy: 1)
+        XCTAssertEqual(dragged["width"]?.double ?? 0, 200, accuracy: 2)
+        XCTAssertEqual(dragged["height"]?.double ?? 0, 50, accuracy: 2)
         XCTAssertEqual(s.editor.objects.tool, .cover, "das Werkzeug bleibt fuer die naechste Karte")
 
         try await BildProbe.tap(CGPoint(x: 200, y: 320), on: page, in: s.window)
@@ -862,6 +865,165 @@ final class TextBlockAppTests: XCTestCase {
         XCTAssertTrue(layer.coversView.toggleCover("k", animated: false))
         XCTAssertEqual(layer.coversView.subviews.compactMap { $0 as? CoverView }.first?.revealed, true)
         XCTAssertFalse(layer.coversView.toggleCover("k", animated: false))
+    }
+
+    // MARK: Verweise
+
+    private func links(_ page: PageInkView) -> [LinkView] { page.coversView.subviews.compactMap { $0 as? LinkView } }
+
+    /// Verweis innerhalb des Dokuments: Stelle antippen, zur Zielseite blaettern, Ziel antippen. Der Verweis steht als
+    /// Punkt auf der ersten Seite; Antippen (beim Schreiben, ohne Objektwerkzeug) blaettert zur Zielseite und laesst die
+    /// Stelle aufleuchten. Dieselbe Seite ist kein Ziel; ein anderes Werkzeug bricht das Anlegen ab.
+    func testVerweisImSelbenDokumentAnlegenUndFolgen() async throws {
+        try ContainerTestBed.requireEventGroupedUndo()
+        let s = try await open()
+        var page = try await overlay(s, key: s.lined)
+        var hints: [String] = []
+        s.editor.onHint = { hints.append($0) }
+        s.editor.tools.select(.link)
+        XCTAssertEqual(s.editor.objects.tool, .link)
+        XCTAssertFalse(s.editor.objects.linkPending)
+
+        try await BildProbe.tap(CGPoint(x: 120, y: 150), on: page, in: s.window)
+        XCTAssertTrue(s.editor.objects.linkPending, "Stelle steht, das Ziel fehlt noch")
+        XCTAssertEqual(hints.last, ObjectEditing.linkTargetHint)
+        try await BildProbe.tap(CGPoint(x: 200, y: 300), on: page, in: s.window)           // dieselbe Seite: kein Ziel
+        XCTAssertTrue(s.editor.objects.linkPending)
+        XCTAssertEqual(hints.last, ObjectEditing.linkSameSpotHint)
+        var count = await s.store.objects(forPageKey: s.lined).count
+        XCTAssertEqual(count, 0)
+        // anderes Werkzeug: abgebrochen
+        s.editor.choose(.select)
+        XCTAssertFalse(s.editor.objects.linkPending)
+        XCTAssertNil(s.editor.tools.linkPick)
+
+        // neu: Stelle, zur leeren Seite blaettern, Ziel
+        s.editor.tools.select(.link)
+        try await BildProbe.tap(CGPoint(x: 120, y: 150), on: page, in: s.window)
+        XCTAssertTrue(s.editor.objects.linkPending)
+        let target = try await overlay(s, key: s.blank)
+        try await BildProbe.tap(CGPoint(x: 210, y: 260), on: target, in: s.window)
+        try await BildProbe.wait("Verweis angelegt") { await s.store.objects(forPageKey: s.lined).count == 1 }
+        XCTAssertFalse(s.editor.objects.linkPending)
+        let found = await s.store.objects(forPageKey: s.lined).first
+        let link = try XCTUnwrap(found)
+        XCTAssertEqual(link["type"], "shape")
+        XCTAssertTrue(PageLink.isPoint(link))
+        XCTAssertEqual((link["x"]?.double ?? 0) + PageLink.pointSide / 2, 120, accuracy: 0.6)
+        let t = try XCTUnwrap(PageLink.target(link))
+        XCTAssertEqual(t.file, s.store.file.id)
+        XCTAssertEqual(t.pageKey, s.blank)
+        XCTAssertEqual(t.pageNumber, 3)
+        XCTAssertNil(t.pdfPage, "Notizseite: keine PDF-Seite")
+        XCTAssertEqual(t.x, 210, accuracy: 0.6)
+        XCTAssertEqual(t.y, 260, accuracy: 0.6)
+        count = await s.store.objects(forPageKey: s.blank).count
+        XCTAssertEqual(count, 0, "auf der Zielseite entsteht nichts")
+
+        // folgen: beim Schreiben (Stift) den Verweis antippen
+        s.editor.finishObjectTools()
+        XCTAssertFalse(s.editor.objects.isActive)
+        page = try await overlay(s, key: s.lined)
+        try await BildProbe.wait("Verweis gezeigt") { self.links(page).count == 1 }
+        XCTAssertEqual(links(page).first?.accessibilityLabel, "Verweis auf Skript, Seite 3")
+        XCTAssertEqual(s.editor.currentPageIndex, 1)
+        let strokes = page.canvas.drawing.strokes.count
+        try await BildProbe.tap(CGPoint(x: 120, y: 150), on: page, in: s.window)
+        try await BildProbe.wait("zur Zielseite geblaettert") { s.editor.currentPageIndex == 2 }
+        XCTAssertEqual(page.canvas.drawing.strokes.count, strokes, "kein Strich durch das Antippen")
+        // mit "Auswählen" waehlt Antippen den Verweis (statt ihm zu folgen): verschieben, loeschen
+        page = try await overlay(s, key: s.lined)
+        s.editor.choose(.select)
+        try await BildProbe.tap(CGPoint(x: 120, y: 150), on: page, in: s.window)
+        try await BildProbe.wait("Verweis gewaehlt") { s.editor.objects.selection?.ids.count == 1 }
+        XCTAssertEqual(s.editor.currentPageIndex, 1, "nicht gefolgt")
+        s.editor.objects.deleteSelection()
+        try await BildProbe.wait("geloescht") { await s.store.objects(forPageKey: s.lined).isEmpty }
+        s.editor.editUndo.undo()
+        try await BildProbe.wait("Rueckgaengig: wieder da") { await s.store.objects(forPageKey: s.lined).count == 1 }
+    }
+
+    /// Geteilte Ansicht: Im Hauptdokument ueber ein Wort ziehen, dann im Dokument daneben auf die Stelle tippen - der
+    /// Verweis zeigt auf das andere Dokument (Datei, Seite, Punkt). Folgen: Das Hauptdokument bittet darum, das Dokument
+    /// daneben zu oeffnen; ist es offen, springt es zur Seite.
+    func testVerweisInsDokumentDaneben() async throws {
+        let main = try await open(size: CGSize(width: 560, height: 810))
+        let side = try await open(size: CGSize(width: 520, height: 810), sharing: main.editor.tools, at: CGPoint(x: 560, y: 0))
+        XCTAssertFalse(side.editor.ownsToolPicker)
+        let page = try await overlay(main, key: main.blank)
+        let sidePage = try await overlay(side, key: side.lined)
+        XCTAssertTrue(main.editor.tools.otherEditor(than: main.editor) === side.editor)
+
+        main.editor.tools.select(.link)
+        XCTAssertFalse(side.editor.objects.isActive, "im Dokument daneben ist kein Objektwerkzeug aktiv")
+        try await BildProbe.drag(from: CGPoint(x: 100, y: 200), to: CGPoint(x: 220, y: 222), on: page, in: main.window)
+        XCTAssertTrue(main.editor.objects.linkPending, "Bereich gezogen, das Ziel fehlt noch")
+        XCTAssertTrue(main.editor.tools.linkPick?.isArea == true)
+        try await BildProbe.tap(CGPoint(x: 150, y: 180), on: sidePage, in: side.window)
+        try await BildProbe.wait("Verweis im Hauptdokument angelegt") { await main.store.objects(forPageKey: main.blank).count == 1 }
+        XCTAssertNil(main.editor.tools.linkPick)
+        let found = await main.store.objects(forPageKey: main.blank).first
+        let link = try XCTUnwrap(found)
+        XCTAssertFalse(PageLink.isPoint(link), "Bereich ueber dem Wort")
+        XCTAssertEqual(link["x"]?.double ?? 0, 100, accuracy: 1)
+        XCTAssertEqual(link["width"]?.double ?? 0, 120, accuracy: 2)
+        let t = try XCTUnwrap(PageLink.target(link))
+        XCTAssertEqual(t.file, side.store.file.id, "zeigt auf das Dokument daneben")
+        XCTAssertEqual(t.pageKey, side.lined)
+        XCTAssertEqual(t.pageNumber, 2)
+        XCTAssertEqual(t.x, 150, accuracy: 0.6)
+        XCTAssertEqual(t.title, "Skript")
+        let sideCount = await side.store.objects(forPageKey: side.lined).count
+        XCTAssertEqual(sideCount, 0, "im Zieldokument entsteht nichts")
+
+        // folgen: anderes Dokument -> die Dokumentansicht soll es daneben oeffnen; ist es offen, springt es zur Stelle
+        var asked: PageLink.Target?
+        main.editor.onOpenLink = { asked = $0 }
+        main.editor.finishObjectTools()
+        side.editor.goToPage(0)
+        try await BildProbe.wait("daneben auf Seite 1") { side.editor.currentPageIndex == 0 }
+        try await BildProbe.wait("Verweis gezeigt") { self.links(page).count == 1 }
+        try await BildProbe.tap(CGPoint(x: 150, y: 210), on: page, in: main.window)
+        XCTAssertEqual(asked, t, "bittet um das Dokument daneben")
+        XCTAssertTrue(side.editor.showLinkTarget(t))
+        try await BildProbe.wait("daneben zur Zielseite") { side.editor.currentPageIndex == 1 }
+        try await BildProbe.wait("Stelle leuchtet auf") { (sidePage.content.layer.sublayers ?? []).contains { $0.name == "link.flash" } }
+        // ein Ziel, das es nicht mehr gibt: Seite von damals als Ersatz, unbekanntes Dokument: nein
+        var gone = t
+        gone.pageKey = "weg"
+        XCTAssertEqual(side.editor.pageIndex(for: gone), 1, "Seitenzahl von damals")
+        // Verweis im Dokument daneben, der ins Hauptdokument zeigt: das Hauptdokument blaettert
+        let back = PageLink.Target(file: main.store.file.id, title: "Skript", pageKey: main.lined, pdfPage: nil, pageNumber: 2, x: 100, y: 100)
+        side.editor.followLink(back)
+        try await BildProbe.wait("Hauptdokument blaettert") { main.editor.currentPageIndex == 1 }
+    }
+
+    /// Plus (ohne Pro AI) legt keine Verweise an; folgen kann jeder. Export zeichnet den Verweis.
+    func testVerweiseAnlegenAbProAIFolgenImmerUndExport() async throws {
+        let s = try await open(proAI: false)
+        let page = try await overlay(s, key: s.lined)
+        var hints: [String] = []
+        s.editor.onHint = { hints.append($0) }
+        s.editor.tools.select(.link)
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(hints, [ObjectEditing.linkLockedHint])
+        XCTAssertFalse(s.editor.objects.isActive)
+        let t = PageLink.Target(file: s.store.file.id, title: "Skript", pageKey: s.blank, pdfPage: nil, pageNumber: 3, x: 100, y: 100)
+        let link = PageLink.point(id: "v", x: 120, y: 150, target: t)
+        await s.store.editObjects(pageKey: s.lined) { $0 + [link] }
+        try await BildProbe.wait("Verweis gezeigt") { self.links(page).count == 1 }
+        s.editor.canEdit = false                                                         // sogar ohne Schreiben
+        try await BildProbe.tap(CGPoint(x: 120, y: 150), on: page, in: s.window)
+        try await BildProbe.wait("gefolgt") { s.editor.currentPageIndex == 2 }
+
+        let size = CGSize(width: 595, height: 842)
+        let image = UIGraphicsImageRenderer(size: size).image { r in
+            UIColor.white.setFill()
+            r.fill(CGRect(origin: .zero, size: size))
+            PageRenderer.drawObjects([link], images: [:], in: r.cgContext)
+        }
+        let px = try XCTUnwrap(image.pixel(at: CGPoint(x: 114, y: 150)))
+        XCTAssertTrue(px.b > 0.6 && px.r < 0.5, "blauer Punkt im Export: \(px)")
     }
 
     // MARK: Tarif

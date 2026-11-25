@@ -21,6 +21,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         case select, text, sticky, rect, ellipse, line, arrow, lasso, markup
         /// Klappkarte zum Abfragen (25.11.2026): ueber etwas ziehen verdeckt es, Antippen legt eine in fester Groesse an
         case cover
+        /// Verweis auf Dokument + Seite (25.11.2026): Stelle antippen oder ueber ein Wort ziehen, dann das Ziel antippen
+        case link
         /// "Bereich an KI" (05.11.2026): Rahmen ziehen oder Bereich einkreisen, der Ausschnitt geht als Bild an die KI-Hilfe
         case area
 
@@ -37,6 +39,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .markup: return "Text markieren"
             case .area: return "Bereich an KI"
             case .cover: return "Klappkarte"
+            case .link: return "Verweis"
             }
         }
         var systemImage: String {
@@ -53,10 +56,11 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .markup: return "highlighter"
             case .area: return "rectangle.dashed"
             case .cover: return "eye.slash"
+            case .link: return "link"
             }
         }
         /// Form, die beim Ziehen entsteht (Klappkarte: ein Rechteck ueber der Stelle)
-        var shapeKind: String? { [.rect: "rect", .ellipse: "ellipse", .line: "line", .arrow: "arrow", .cover: "rect"][self] }
+        var shapeKind: String? { [.rect: "rect", .ellipse: "ellipse", .line: "line", .arrow: "arrow", .cover: "rect", .link: "rect"][self] }
     }
 
     private(set) weak var controller: PDFEditorController?
@@ -64,6 +68,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     var tool: Tool = .select {
         didSet {
             if tool != .select { clearSelection() }
+            if tool != .link, oldValue == .link { cancelLink() }
             if tool == .area, oldValue != .area { controller?.onHint?(Self.areaHint) }
             // Text markieren: die PDF-Ansicht waehlt Text selbst aus (Overlays lassen die Beruehrung durch); im
             // Markup-Modus nimmt sie keine Auswahl an
@@ -100,7 +105,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         g.numberOfTapsRequired = 2
         return g
     }()
-    private lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(panned(_:)))
+    private(set) lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(panned(_:)))
+    /// Wo der Finger fuer das laufende Ziehen aufgesetzt hat (Punkte des Fensters): Die Geste selbst meldet sich erst
+    /// nach rund 10 Punkten Weg, Klappkarten und Verweise sollen aber genau an der Stelle beginnen
+    var panDown: CGPoint?
     private lazy var pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
     private let selectionLayer = CAShapeLayer()
     private let draftLayer = CAShapeLayer()
@@ -136,6 +144,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     var holdStart: CGPoint?
     /// Aenderungen der Leiste "Text" laufen nacheinander (`inOrder`)
     var formatQueue: Task<Void, Never>?
+    /// Verweis anlegen: gestrichelte Markierung der Stelle, solange das Ziel fehlt; Meldung an die Leiste
+    let linkDraft = CAShapeLayer()
+    var onLinkPending: ((Bool) -> Void)?
 
     init(controller: PDFEditorController) {
         self.controller = controller
@@ -169,6 +180,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         if on && !c.writable && tool != .area { return }
         isActive = on
         endTextEditing()
+        if !on { cancelLink() }
         clearSelection()
         for v in c.allOverlays { v.canvas.isUserInteractionEnabled = !on && c.writable }
         for g in [tap, doubleTap, pan, pinch] {
@@ -328,6 +340,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         switch tool {
         case .area:
             controller?.onHint?(Self.areaHint)                // Antippen allein waehlt keinen Bereich
+        case .link:
+            // erster Tipp: Stelle des Verweises (Punkt); zweiter Tipp: das Ziel
+            if linkPending { finishLink(targetOn: v, at: p) }
+            else { beginLink(on: v, rect: CGRect(x: p.x, y: p.y, width: 0, height: 0), isArea: false) }
         case .cover:
             // Antippen: Karte in der gewaehlten Groesse um den Punkt (das Werkzeug bleibt, fuer die naechste)
             guard controller?.richNotes == true else { controller?.onHint?(Self.coverLockedHint); return }
@@ -393,10 +409,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             }
             guard let (v, now) = locate(g) else { g.state = .cancelled; return }
             var p = now
-            if tool == .cover {
-                // Klappkarte: genau ab der Stelle, an der aufgesetzt wurde (die Geste erkennt erst nach ein paar Punkten Weg)
-                let t = g.translation(in: v.content)
-                p = CGPoint(x: now.x - t.x, y: now.y - t.y)
+            if tool == .cover || tool == .link, let down = panDown {
+                // Klappkarte, Verweis: genau ab der Stelle, an der aufgesetzt wurde (die Geste erkennt erst nach ein paar Punkten Weg)
+                let start = v.content.convert(down, from: nil)
+                if v.content.bounds.contains(start) { p = start }
             }
             panStart = (v, p)
             lassoPoints = [p]
@@ -452,7 +468,12 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             draftLayer.path = nil
             let key = start.overlay.pageKey
             let p = g.location(in: start.overlay.content)
-            if tool == .cover {
+            if tool == .link {
+                // Verweis als Bereich ueber dem Wort; danach wird das Ziel angetippt
+                let area = rect(start.point, p).intersection(start.overlay.content.bounds)
+                guard !area.isNull, hypot(p.x - start.point.x, p.y - start.point.y) > 4 else { return }
+                beginLink(on: start.overlay, rect: area, isArea: true)
+            } else if tool == .cover {
                 // Klappkarte ueber der gezogenen Stelle (auf der Seite)
                 let area = rect(start.point, p).intersection(start.overlay.content.bounds)
                 guard controller?.richNotes == true, !area.isNull, hypot(p.x - start.point.x, p.y - start.point.y) > 4 else { return }

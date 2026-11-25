@@ -127,9 +127,9 @@ enum SolutionPreview {
             // Canvas des Absenders und in der Spalte daneben. Bis 22.11.2026 kam sie aus der Vektor-Routine des
             // PDF-Exports in der gespeicherten Breite: ein 3-pt-Stift ist bei PencilKit rund 2 pt breit, die Schrift
             // sah in der Vorschau (Kommentare der Community) darum fetter aus als im Dokument (Meldung des Inhabers).
-            PageRenderer.drawObjects(page.objects.filter { $0["type"]?.string != "stroke" && !FlipCover.isCover($0) }, images: images, in: ctx.cgContext)
+            PageRenderer.drawObjects(page.objects.filter { $0["type"]?.string != "stroke" && !TopObjects.isTop($0) }, images: images, in: ctx.cgContext)
             // Klappkarten liegen ueber der Handschrift (unten, nach den Strichen)
-            let covers = page.objects.filter(FlipCover.isCover)
+            let covers = page.objects.filter(TopObjects.isTop)
             defer { if !covers.isEmpty { PageRenderer.drawObjects(covers, images: images, in: ctx.cgContext) } }
             let ink = Self.ink(page.objects)
             if !ink.strokes.isEmpty {

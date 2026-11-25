@@ -186,7 +186,7 @@ final class EditorMouseSupport: NSObject, UIContextMenuInteractionDelegate, UIDr
         if c.objects.isActive {
             switch c.objects.tool {
             case .text, .sticky: return .beam
-            case .rect, .ellipse, .line, .arrow, .lasso, .area, .cover: return .cross
+            case .rect, .ellipse, .line, .arrow, .lasso, .area, .cover, .link: return .cross
             default: return nil
             }
         }

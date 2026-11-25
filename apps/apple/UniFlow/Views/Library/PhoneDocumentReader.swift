@@ -402,6 +402,13 @@ struct ReaderPDFView: UIViewRepresentable {
         func attach(_ v: PDFView) {
             pdfView = v
             reader.pdfView = v
+            // Verweise: im selben Dokument blaettert die Leseansicht zur Seite (ein anderes Dokument daneben gibt es
+            // am iPhone nicht)
+            coverTapper.onLink = { [weak self, weak v] t in
+                guard let self, let v, t.file == self.store.file.id, let layout = self.store.layout else { return }
+                let index = layout.index(ofKey: t.pageKey) ?? t.pdfPage.flatMap { p in layout.entries.firstIndex { $0.pdfIndex == p } }
+                if let index, let page = v.document?.page(at: index) { v.go(to: page) }
+            }
             coverTapper.install(on: v)
             let center = NotificationCenter.default
             observers.append(center.addObserver(forName: .PDFViewPageChanged, object: v, queue: .main) { [weak self] _ in

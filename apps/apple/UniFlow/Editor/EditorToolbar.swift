@@ -38,13 +38,15 @@ final class EditorToolState: ObservableObject {
         case select, text, sticky, shape, markup, area
         /// Klappkarte zum Abfragen (25.11.2026, ab Pro AI)
         case cover
+        /// Verweis auf Dokument + Seite (25.11.2026, ab Pro AI)
+        case link
 
         var id: String { rawValue }
 
         /// Werkzeuge der Zeichenflaeche (PencilKit) in der Reihenfolge der Leiste
         static let canvasTools: [Tool] = [.pen, .fineliner, .fountain, .marker, .eraser, .lasso]
         /// Objektwerkzeuge in der Reihenfolge der Leiste ("Bereich an KI" vorn wie in der Palette, Wunsch des Inhabers)
-        static let objectTools: [Tool] = [.area, .select, .text, .sticky, .cover, .shape, .markup]
+        static let objectTools: [Tool] = [.area, .select, .text, .sticky, .cover, .link, .shape, .markup]
 
         var isInk: Bool { self == .pen || self == .fineliner || self == .fountain || self == .marker }
         /// Schreibstift (ohne Textmarker): seine Farbe und Staerke gelten auch fuer Objekte (`lastPen`)
@@ -102,6 +104,7 @@ final class EditorToolState: ObservableObject {
             case .text: return "Text"
             case .sticky: return "Haftnotiz"
             case .cover: return "Klappkarte"
+            case .link: return "Verweis"
             case .shape: return "Form"
             case .markup: return "Text markieren"
             case .area: return EditorPalette.areaTitle
@@ -121,6 +124,7 @@ final class EditorToolState: ObservableObject {
             case .text: return "textformat"
             case .sticky: return "note.text"
             case .cover: return ObjectEditing.Tool.cover.systemImage
+            case .link: return ObjectEditing.Tool.link.systemImage
             case .shape: return EditorPalette.shapeTool.systemImage
             case .markup: return "underline"
             case .area: return ObjectEditing.Tool.area.systemImage
@@ -134,6 +138,7 @@ final class EditorToolState: ObservableObject {
             case .text: return EditorPalette.textID
             case .sticky: return EditorPalette.stickyID
             case .cover: return EditorPalette.coverID
+            case .link: return EditorPalette.linkID
             case .shape: return EditorPalette.shapeID
             case .markup: return EditorPalette.markupID
             case .area: return EditorPalette.areaID
@@ -153,6 +158,7 @@ final class EditorToolState: ObservableObject {
             case .text: return .text
             case .sticky: return .sticky
             case .cover: return .cover
+            case .link: return .link
             case .rect, .ellipse, .line, .arrow: return .shape
             case .markup: return .markup
             case .area: return .area
@@ -415,6 +421,9 @@ final class EditorToolState: ObservableObject {
         guard activeEditor === editor || (activeEditor == nil && editor.ownsToolPicker) else { return }
         onActiveSelection?(count)
     }
+
+    /// Ein neuer Verweis wartet auf sein Ziel (`LinkPick`): beide Haelften der geteilten Ansicht sehen ihn
+    var linkPick: LinkPick?
 
     /// Formatierung des gewaehlten bzw. gerade getippten Texts im Editor, in dem gearbeitet wird (Leiste "Text")
     var onActiveTextFormat: ((TextFormat?) -> Void)?

@@ -160,6 +160,8 @@ final class CoverTapper: NSObject, UIGestureRecognizerDelegate {
     var isEnabled: () -> Bool = { true }
     /// Karte wurde auf- oder zugedeckt (fuer Tests und Hinweise)
     var onToggle: ((String, Bool) -> Void)?
+    /// Ein Verweis wurde angetippt (`PageLinks.swift`)
+    var onLink: ((PageLink.Target) -> Void)?
 
     func install(on view: UIView) {
         guard tap.view == nil else { return }
@@ -180,26 +182,30 @@ final class CoverTapper: NSObject, UIGestureRecognizerDelegate {
         return out
     }
 
-    /// Karte unter einem Punkt der Ansicht (oberste Schicht zuerst)
-    func cover(at point: CGPoint, in root: UIView) -> (layer: PageObjectsView, id: String)? {
+    /// Klappkarte oder Verweis unter einem Punkt der Ansicht (oberste Schicht zuerst)
+    func object(at point: CGPoint, in root: UIView) -> (layer: PageObjectsView, object: JSONValue)? {
         for layer in Self.layers(in: root).reversed() {
             let p = root.convert(point, to: layer)
-            if let id = layer.cover(at: p) { return (layer, id) }
+            if let o = layer.topObject(at: p) { return (layer, o) }
         }
         return nil
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard isEnabled(), let root = g.view else { return false }
-        return cover(at: touch.location(in: root), in: root) != nil
+        return object(at: touch.location(in: root), in: root) != nil
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
 
     @objc private func tapped(_ g: UITapGestureRecognizer) {
-        guard isEnabled(), let root = g.view, let hit = cover(at: g.location(in: root), in: root) else { return }
-        let now = hit.layer.toggleCover(hit.id)
-        onToggle?(hit.id, now)
+        guard isEnabled(), let root = g.view, let hit = object(at: g.location(in: root), in: root) else { return }
+        if let target = PageLink.target(hit.object) {
+            onLink?(target)
+        } else if let id = hit.object["id"]?.string {
+            let now = hit.layer.toggleCover(id)
+            onToggle?(id, now)
+        }
     }
 }
 

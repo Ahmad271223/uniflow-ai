@@ -86,7 +86,7 @@ extension ObjectEditing {
     func textObject(on overlay: PageInkView, at p: CGPoint) -> String? {
         let list = overlay.objectsView.shownObjects
         // Klappkarten liegen ueber allem: sie zuerst
-        if let cover = FlipCover.hit(list, x: Double(p.x), y: Double(p.y)) { return cover }
+        if let top = TopObjects.hit(list, x: Double(p.x), y: Double(p.y))?["id"]?.string { return top }
         guard let id = PageObjectEdit.hit(list, x: Double(p.x), y: Double(p.y), textHeight: Self.textHeight),
               list.first(where: { $0["id"]?.string == id })?["type"]?.string == "text" else { return nil }
         return id
@@ -102,6 +102,7 @@ extension ObjectEditing {
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        if g === pan { panDown = touch.location(in: nil) }
         guard g === hold else { return true }
         guard holdAccepts(touchType: touch.type) else { return false }
         // im Text, der gerade getippt wird, gehoert das lange Druecken der Textauswahl

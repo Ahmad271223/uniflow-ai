@@ -13,6 +13,8 @@ import XCTest
 final class TextBlockBilderAppTests: XCTestCase {
 
     private var dir: URL!
+    /// Mitte des Verweises ueber dem Wort "Mitose" (Seitenpunkte), in `test7IPadVerweise` berechnet
+    private var wordSpot = CGPoint(x: 100, y: 147)
 
     override func setUpWithError() throws {
         guard let d = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !d.isEmpty else {
@@ -418,6 +420,122 @@ final class TextBlockBilderAppTests: XCTestCase {
         let host = try hostWithEnvironment(CoverOptions().padding(16).background(UF.surface), api: s.api, size: CGSize(width: 360, height: 300))
         host.pump(0.6)
         shot(host.view, "17-klappkarten-auswahl")
+    }
+
+    /// Skript (PDF, 6 Seiten) als Ziel der Verweise
+    private func skript() -> Data {
+        UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: 595, height: 842)).pdfData { ctx in
+            for i in 1...6 {
+                ctx.beginPage()
+                ("Skript Zellbiologie – Seite \(i)" as NSString).draw(at: CGPoint(x: 60, y: 60), withAttributes: [.font: UIFont.boldSystemFont(ofSize: 22)])
+                let body = i == 4 ? "4.2 Mitose\nDie Mitose verläuft in vier Phasen: Prophase, Metaphase, Anaphase, Telophase.\nIn der Metaphase ordnen sich die Chromosomen in der Äquatorialebene an."
+                                  : "Kapitel \(i): Text des Skripts auf Seite \(i)."
+                (body as NSString).draw(in: CGRect(x: 60, y: 130, width: 470, height: 300), withAttributes: [.font: UIFont.systemFont(ofSize: 15)])
+            }
+        }
+    }
+
+    private func editors(in env: HostedEnvironment) -> [PDFEditorController] {
+        var out: [PDFEditorController] = []
+        func walk(_ v: UIView) {
+            if let pdf = v as? PDFView {
+                var r: UIResponder? = pdf
+                while let x = r { if let e = x as? PDFEditorController { if !out.contains(where: { $0 === e }) { out.append(e) }; break }; r = x.next }
+                return
+            }
+            v.subviews.forEach(walk)
+        }
+        walk(env.window)
+        return out
+    }
+
+    /// iPad: Verweise - ein Punkt und ein Wort auf der Mitschrift zeigen auf Seite 4 des Skripts. Antippen oeffnet das
+    /// Skript daneben auf der Seite; ein zweiter Verweis (Seite 2) schickt das offene Skript dorthin.
+    func test7IPadVerweise() throws {
+        let s = try run { try await self.scene() }
+        let skriptID = try run { () -> String in
+            let dir = FileManager.default.temporaryDirectory.appendingPathComponent("skript-\(UUID().uuidString)", isDirectory: true)
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let src = dir.appendingPathComponent("Skript Zellbiologie.pdf")
+            try self.skript().write(to: src)
+            return try await ExternalFileImport.create(try ExternalFileImport.stage(src, container: nil), api: s.api)
+        }
+        // Verweise auf der linierten Seite: Bereich ueber "Mitose" (Seite 4, Stelle der Ueberschrift), Punkt (Seite 2)
+        let t4 = PageLink.Target(file: skriptID, title: "Skript Zellbiologie", pageKey: "p4", pdfPage: 4, pageNumber: 4, x: 100, y: 140)
+        let t2 = PageLink.Target(file: skriptID, title: "Skript Zellbiologie", pageKey: "p2", pdfPage: 2, pageNumber: 2, x: 100, y: 70)
+        try run {
+            let store = DocumentStore(file: s.file, api: s.api)
+            await store.load()
+            // Bereich genau ueber dem Wort "Mitose" im Absatz (Zeichen 4 bis 9)
+            let absatz = await store.objects(forPageKey: s.lined).first { $0["id"]?.string == "absatz" }
+            var word = CGRect(x: 79, y: 136, width: 52, height: 22)
+            if let absatz {
+                let l = TextBlockRender.layout(absatz)
+                let glyphs = l.manager.glyphRange(forCharacterRange: NSRange(location: 4, length: 6), actualCharacterRange: nil)
+                let r = l.manager.boundingRect(forGlyphRange: glyphs, in: l.container)
+                word = CGRect(x: (absatz["x"]?.double ?? 0) + 4 + Double(r.minX) - 1, y: (absatz["y"]?.double ?? 0) + 4 + Double(r.minY) + 2,
+                              width: Double(r.width) + 2, height: Double(r.height) - 2)
+            }
+            await store.editObjects(pageKey: s.lined) {
+                $0 + [PageLink.area(id: "v-wort", x: Double(word.minX), y: Double(word.minY), width: Double(word.width), height: Double(word.height), target: t4),
+                      PageLink.point(id: "v-punkt", x: 330, y: 276, target: t2)]
+            }
+            self.wordSpot = CGPoint(x: word.midX, y: word.midY)
+            await store.flush()
+            await store.close()
+        }
+        let previous = UserDefaults.standard.object(forKey: "UFDocPanel")
+        addTeardownBlock { @MainActor in UserDefaults.standard.set(previous, forKey: "UFDocPanel") }
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: s.file, api: s.api) }, api: s.api, size: CGSize(width: 1180, height: 820))
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        var main: PDFEditorController?
+        var page: PageInkView?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            main = self.editors(in: env).first
+            page = main?.allOverlays.first { $0.pageKey == s.lined && $0.loaded && $0.window != nil }
+            return (page?.coversView.subviews.filter { $0 is LinkView }.count ?? 0) == 2
+        }, "zwei Verweise auf der Seite")
+        let overlay = try XCTUnwrap(page)
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        shot(env.window, "20-ipad-verweise-auf-der-seite")
+
+        // Verweis ueber dem Wort antippen: das Skript oeffnet sich daneben auf Seite 4
+        func tap(_ p: CGPoint, on overlay: PageInkView) {
+            let finger = TestFinger(at: overlay.content.convert(p, to: nil), in: env.window)
+            env.pump(0.06)
+            finger.lift()
+            env.pump(0.5)
+        }
+        XCTAssertEqual(editors(in: env).count, 1, "noch nichts daneben")
+        tap(wordSpot, on: overlay)
+        var side: PDFEditorController?
+        XCTAssertTrue(env.wait(timeout: 25) {
+            side = self.editors(in: env).first { $0.store.file.id == skriptID }
+            return side?.currentPageIndex == 3
+        }, "Skript daneben auf Seite 4: \(self.editors(in: env).map { $0.store.file.id }) Seite \(String(describing: side?.currentPageIndex))")
+        Entitlements.shared.setPlanForTesting(.proAI)
+        env.pump(0.5)
+        shot(env.window, "21-ipad-verweis-oeffnet-skript-daneben")
+
+        // zweiter Verweis (Punkt): das offene Skript springt auf Seite 2 (kein neues Laden)
+        let sideBefore = try XCTUnwrap(side)
+        // das Hauptdokument ist jetzt schmaler (geteilte Ansicht): seine Seite neu suchen
+        var again: PageInkView?
+        XCTAssertTrue(env.wait(timeout: 10) {
+            again = self.editors(in: env).first { $0.store.file.id == s.file.id }?
+                .allOverlays.first { $0.pageKey == s.lined && $0.loaded && $0.window != nil }
+            return again != nil
+        }, "Seite des Hauptdokuments")
+        let mainPage = try XCTUnwrap(again)
+        let punkt = mainPage.content.convert(CGPoint(x: 330, y: 276), to: nil)
+        XCTAssertTrue(env.window.bounds.contains(punkt), "Punkt-Verweis im Bild: \(punkt)")
+        tap(CGPoint(x: 330, y: 276), on: mainPage)
+        XCTAssertTrue(env.wait(timeout: 15) { sideBefore.currentPageIndex == 1 }, "offenes Skript springt auf Seite 2: \(sideBefore.currentPageIndex)")
+        XCTAssertTrue(editors(in: env).contains { $0 === sideBefore }, "dasselbe Dokument daneben, nicht neu geoeffnet")
+        env.pump(0.4)
+        shot(env.window, "22-ipad-verweis-springt-im-offenen-skript")
     }
 
     /// iPhone: Leseansicht zeigt die Bloecke vom iPad (dort wird nicht geschrieben)

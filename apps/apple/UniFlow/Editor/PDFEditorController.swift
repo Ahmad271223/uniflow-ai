@@ -1214,6 +1214,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private(set) lazy var objects = ObjectEditing(controller: self)
     /// Klappkarten auf- und zudecken (`FlipCovers.swift`)
     let coverTapper = CoverTapper()
+    /// Ziel eines neuen Verweises antippen (`PageLinks.swift`)
+    private(set) lazy var linkTargetPicker = LinkTargetPicker(controller: self)
+    /// Verweis auf ein anderes Dokument angetippt: daneben oeffnen bzw. dorthin springen (Hauptdokument)
+    var onOpenLink: ((PageLink.Target) -> Void)?
     /// Rechtsklick-Menue, Ziehen und Ablegen, Mauszeiger (10.11.2026)
     private(set) lazy var mouseSupport = EditorMouseSupport(controller: self)
     /// "Bild einfügen …" aus Kontextmenue oder Menueleiste: die Dokumentansicht zeigt die Auswahl (Fotos oder Dateien)
@@ -1331,7 +1335,10 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Klappkarten: Antippen deckt auf und verdeckt wieder - beim Schreiben und Lesen; mit einem Objektwerkzeug
         // waehlt Antippen die Karte aus
         coverTapper.isEnabled = { [weak self] in self.map { !$0.objects.isActive && $0.freezeMode == .off } ?? false }
+        coverTapper.onLink = { [weak self] t in self?.followLink(t) }
         coverTapper.install(on: pdfView)
+        // Verweis anlegen: das Ziel wird in diesem Dokument angetippt (auch wenn es das Dokument daneben ist)
+        linkTargetPicker.install(on: pdfView)
         // geteilte Ansicht: Bilder und "Einfügen" gehen in den Editor, in dem zuletzt gearbeitet wurde (`ActiveEditor.swift`)
         installActiveEditorMarker()
     }
@@ -2940,8 +2947,8 @@ extension PDFEditorController: UIPencilInteractionDelegate {
             return
         }
         // Klappkarten anlegen: ab Pro AI (`UFRichNotes`); aufklappen kann sie jeder
-        if tool == .cover, !richNotes {
-            onHint?(ObjectEditing.coverLockedHint)
+        if tool == .cover || tool == .link, !richNotes {
+            onHint?(tool == .link ? ObjectEditing.linkLockedHint : ObjectEditing.coverLockedHint)
             DispatchQueue.main.async { [weak self] in self?.tools.selectLastInk() }
             return
         }

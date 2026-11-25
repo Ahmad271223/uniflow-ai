@@ -25,7 +25,8 @@ enum EditorPalette {
     /// Reihenfolge der Objektwerkzeuge: "Bereich an KI" vorn (Wunsch des Inhabers), dann Form und Text (am haeufigsten),
     /// Haftnotiz, Auswaehlen, Text markieren
     static let coverID = "de.studinow.palette.cover"
-    static let customIDs = [areaID, shapeID, textID, stickyID, coverID, selectID, markupID]
+    static let linkID = "de.studinow.palette.link"
+    static let customIDs = [areaID, shapeID, textID, stickyID, coverID, linkID, selectID, markupID]
 
     /// Klappkarte, die das Werkzeug als Naechstes anlegt (Farbe, Muster, Groesse beim Antippen), je Geraet gemerkt
     static let coverKey = "UFEditorCoverChoice"
@@ -92,6 +93,7 @@ enum EditorPalette {
         case textID: return .text
         case stickyID: return .sticky
         case coverID: return .cover
+        case linkID: return .link
         case shapeID: return shape
         case markupID: return .markup
         case areaID: return .area
@@ -106,6 +108,7 @@ enum EditorPalette {
         case .text: return textID
         case .sticky: return stickyID
         case .cover: return coverID
+        case .link: return linkID
         case .rect, .ellipse, .line, .arrow: return shapeID
         case .markup: return markupID
         case .area: return areaID

@@ -143,7 +143,7 @@ enum PageRenderer {
         let group = objects.contains { InkRenderer.isMarker($0) }
         if group { cg.beginTransparencyLayer(auxiliaryInfo: nil) }
         // Klappkarten zuletzt: sie liegen ueber allem, auch ueber der Handschrift
-        for o in FlipCover.coversLast(objects) {
+        for o in TopObjects.last(objects) {
             if o["type"]?.string == "stroke" {
                 InkRenderer.draw(o, in: cg)
             } else {

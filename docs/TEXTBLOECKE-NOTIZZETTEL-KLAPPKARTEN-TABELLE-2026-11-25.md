@@ -236,3 +236,85 @@ Vor dem Bauen zu klären (siehe Fragen im Bericht der Sitzung):
 4. **Community:** Soll eine Tabelle auf einer Seite beim Teilen mitgehen (als Bild der Tabelle bei älteren Apps)?
 5. **Fremdbaustein erlaubt?** Für Formeln/xlsx gibt es Bausteine mit MIT/Apache-Lizenz; sie müssten geprüft und im
    Lizenz-Dialog (kommt mit `app/whisper-mitschrift`) eingetragen werden.
+
+## 7. Teil 5: Verweise auf Dokument + Seite
+
+Zweig `editor/verweise` (auf Teil 3). Nachtrag des Inhabers vom 25.11.2026.
+
+### Was geht
+
+- Neues Werkzeug **„Verweis“** (Kettenglied, bei den Objektwerkzeugen), zwei Schritte:
+  1. **Stelle festlegen:** antippen (ein blauer **Punkt**) oder **über ein Wort ziehen** (zart blau hinterlegt und
+     unterstrichen wie ein Link) – egal ob das Wort getippt oder mit dem Stift geschrieben ist.
+  2. **Ziel antippen:** genau die Stelle, auf die der Verweis zeigen soll – im **Dokument daneben** (geteilte
+     Ansicht) oder auf einer **anderen Seite desselben Dokuments** (hinblättern, antippen).
+  Unten steht, was gerade dran ist („Stelle antippen …“ / „Jetzt das Ziel antippen …“), mit „Abbrechen“ und „Fertig“.
+- **Folgen:** Verweis antippen (beim Schreiben oder Lesen, ohne Objektwerkzeug):
+  - anderes Dokument, **noch nicht offen** → es öffnet sich **daneben** auf der Seite, die Stelle leuchtet kurz auf;
+  - anderes Dokument, **schon daneben offen** → es **springt** zur Seite (ohne neu zu laden), die Stelle leuchtet auf;
+  - selbes Dokument → blättert zur Seite, die Stelle leuchtet auf;
+  - Verweis im Dokument daneben, der ins Hauptdokument zeigt → das Hauptdokument blättert.
+- Gemerkt wird: Dokument, Seite (fest über den Seitenschlüssel – bleibt richtig, wenn Seiten eingefügt oder
+  umsortiert werden), genaue Stelle auf der Seite, Titel und Seitenzahl für die Beschriftung
+  („Verweis auf Skript Zellbiologie, Seite 4“).
+- Verweise liegen **über der Handschrift** (wie Klappkarten). Mit „Auswählen“ wählt Antippen den Verweis (statt ihm
+  zu folgen): verschieben, Größe, löschen; langes Drücken greift ihn. Rückgängig je Schritt.
+- Export/Drucken zeichnen Punkt bzw. Unterstreichung mit. Geräteabgleich und Community: gehen als Objekte der
+  Seite mit.
+- **iPhone:** Verweise im selben Dokument blättern in der Leseansicht zur Seite.
+- **Tarif:** Anlegen ab Pro AI. **Folgen kann jeder**; das Öffnen daneben braucht wie bisher die geteilte Ansicht
+  (ab Plus) – ohne sie erscheint die Tarifwahl.
+
+### Was nicht geht bzw. anders ist
+
+- **Ziel in einem anderen Dokument nur über „daneben“:** Zum Anlegen muss das Zieldokument daneben offen sein.
+  Eine Auswahl „Dokument aus der Bibliothek + Seitenzahl eintippen“ gibt es nicht (ließe sich nachziehen).
+- **Kein Verweis am einzelnen getippten Wort im Text selbst:** Der Verweis ist ein eigener Bereich über dem Wort.
+  Bricht der Textblock später anders um, bleibt der Bereich an seiner Stelle und muss nachgeschoben werden.
+- **iPhone:** Verweise auf **andere** Dokumente tun in der Leseansicht nichts (dort gibt es kein „daneben“).
+- **Community:** Der Verweis geht mit, aber das Ziel ist ein Dokument aus der eigenen Bibliothek. Beim Empfänger
+  klappt er nur, wenn er dasselbe Dokument hat (gleiche Datei aus demselben Stud.IP-Kurs); sonst erscheint „… ist
+  auf diesem Gerät nicht vorhanden“. In der Ansicht „Lösung daneben“ wird Verweisen nicht gefolgt.
+- **Ältere Apps, Web, Windows:** zeigen einen dünnen blauen Rahmen, ohne Funktion.
+- In der exportierten PDF ist der Verweis ein Bild, kein anklickbarer Link.
+- Wird das Zieldokument gelöscht, zeigt der Verweis ins Leere (Hinweis beim Antippen).
+
+### Technik
+
+- Format (Kern `PageLink.swift`): `type: "shape"`, `shape: "rect"` (blauer Rahmen ohne Füllung) mit
+  `link: {file, title, page, pdfPage?, pageNumber, x, y, shape: point|area}`. `TopObjects` = Klappkarten + Verweise
+  (Schicht über der Handschrift, zuletzt gezeichnet).
+- Editor (`PageLinks.swift`): `LinkRender`/`LinkView`, Anlegen über `LinkPick` am gemeinsamen Werkzeugstand
+  (`EditorToolState.linkPick` – beide Hälften der geteilten Ansicht sehen ihn), `LinkTargetPicker` (Tipp im Dokument
+  daneben), `ObjectEditing.beginLink/finishLink/cancelLink`, Folgen `PDFEditorController.followLink/showLinkTarget/flash`.
+- Dokumentansicht: `EditorBridge.linkRequest` → `DocumentView.openLink` (öffnet `Companion` bzw. findet den Editor
+  daneben über `EditorToolState.otherEditor` und ruft `showLinkTarget`).
+- Antippen: derselbe `CoverTapper` wie bei den Klappkarten (`onLink`).
+- Genauer Startpunkt beim Ziehen (Klappkarte, Verweis): `ObjectEditing.panDown`.
+- Tests: Kern `PageLinkTests` (4); App in `TextBlockAppTests`: `testVerweisImSelbenDokumentAnlegenUndFolgen`,
+  `testVerweisInsDokumentDaneben`, `testVerweiseAnlegenAbProAIFolgenImmerUndExport`; der ganze Weg in der echten
+  Dokumentansicht in `TextBlockBilderAppTests.test7IPadVerweise` (Bilder 20–22).
+
+## 8. Gesamtstand und was der Inhaber prüfen sollte
+
+| Zweig (lokal, gestapelt) | Inhalt |
+|---|---|
+| `editor/textbloecke` | Teil 1 + Tarif-Regel `UFRichNotes` |
+| `editor/notizzettel` | + Teil 2 |
+| `editor/klappkarten` | + Teil 3 |
+| `editor/verweise` | + Teil 5 (enthält alles) |
+
+Nichts ist gepusht, nichts eingereicht, kein Server, keine Website. Arbeitsordner `~/Studora-Builds/wt-textbloecke`.
+
+**Am iPad ausprobieren, bevor es ausgeliefert wird** (im Simulator mit echten Berührungen getestet, aber nicht am Gerät):
+1. Tippen mit der Bildschirmtastatur: Sitzt die Leiste „Text“ über der Tastatur? Fühlt sich das Tippen auf den
+   Linien richtig an?
+2. Langes Drücken: Sind 3 Sekunden richtig oder zu lang? (eine Zeile: `ObjectEditing.holdSeconds`)
+3. Schreiben mit dem Stift neben/auf Blöcken, Zetteln, Klappkarten: bleibt der Editor flüssig?
+4. Klappkarten mit Finger und Stift antippen; Verweis antippen mit Dokument daneben.
+5. Scribble (mit dem Pencil in einen Block schreiben).
+
+**Offen für den Inhaber:**
+- Text für die Tarifkarten (das Neue steht dort noch nicht).
+- Teil 4 (Tabelle): Antworten auf die Fragen in Abschnitt 6.
+- Web-Editor/Windows zeigen alles nur in einfacher Form – soll das dort auch gebaut werden?

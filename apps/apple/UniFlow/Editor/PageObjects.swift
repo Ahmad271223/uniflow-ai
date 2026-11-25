@@ -194,6 +194,8 @@ enum ObjectGeometry {
             if FlipCover.isCover(o) {
                 // Klappkarte: exportiert und gedruckt wird sie verdeckt (so sieht die Seite aus)
                 CoverRender.draw(o, size: CGSize(width: coordinate(o["width"], 0), height: coordinate(o["height"], 0)), in: ctx)
+            } else if PageLink.isLink(o) {
+                LinkRender.draw(o, size: CGSize(width: coordinate(o["width"], 0), height: coordinate(o["height"], 0)), in: ctx)
             } else if let s = shapePath(o) {
                 let sw = CGFloat(lineWidth(o["strokeWidth"], 2))
                 if s.closed, let fill = color(o["fill"]) { ctx.addPath(s.path); ctx.setFillColor(fill.cgColor); ctx.fillPath() }
@@ -272,7 +274,13 @@ final class PageObjectsView: UIView {
 
     /// Nur auf einer Klappkarte "trifft" die Schicht; ueberall sonst geht die Beruehrung an die Zeichenflaeche darunter
     override func point(inside point: CGPoint, with event: UIEvent?) -> Bool {
-        kind == .covers && cover(at: point) != nil
+        kind == .covers && topObject(at: point) != nil
+    }
+
+    /// Klappkarte oder Verweis unter einem Punkt der Seite (oberstes zuerst)
+    func topObject(at point: CGPoint) -> JSONValue? {
+        guard kind == .covers else { return nil }
+        return TopObjects.hit(shownObjects, x: Double(point.x), y: Double(point.y))
     }
 
     /// Klappkarte unter einem Punkt der Seite (oberste zuerst)
@@ -307,7 +315,7 @@ final class PageObjectsView: UIView {
         // Klappkarten zeigt die Schicht ueber der Zeichenflaeche, alles andere die Schicht darunter
         top?.show(template: nil, placeholder: nil, objects: objects, images: images)
         let template = kind == .page ? template : nil, placeholder = kind == .page ? placeholder : nil
-        let others = objects.filter { $0["type"]?.string != "stroke" && FlipCover.isCover($0) == (kind == .covers) }
+        let others = objects.filter { $0["type"]?.string != "stroke" && TopObjects.isTop($0) == (kind == .covers) }
         if kind == .covers { revealed.formIntersection(Set(others.compactMap { $0["id"]?.string })) }
         let sources = Set(others.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil }).sorted()
         let pictures = sources.map { src in images[src].map { "\(src)#\(ObjectIdentifier($0).hashValue)" } ?? src + "#-" }
@@ -395,6 +403,9 @@ final class PageObjectsView: UIView {
                     // Klappkarte: Breite und Hoehe, das Muster bleibt gleich fein
                     cover.bounds = CGRect(x: 0, y: 0, width: ObjectGeometry.coordinate(o["width"], 0), height: ObjectGeometry.coordinate(o["height"], 0))
                     cover.setNeedsDisplay()
+                } else if let link = v as? LinkView {
+                    link.bounds = CGRect(x: 0, y: 0, width: ObjectGeometry.coordinate(o["width"], 0), height: ObjectGeometry.coordinate(o["height"], 0))
+                    link.setNeedsDisplay()
                 } else if let block = v as? TextBlockView {
                     block.show(o)                              // Textblock: neu umbrechen im eigenen Satz
                 } else if o["type"]?.string == "text", let label = v.subviews.first as? UILabel {
@@ -446,6 +457,18 @@ final class PageObjectsView: UIView {
         if FlipCover.isCover(o) {
             let w = ObjectGeometry.coordinate(o["width"], 0), h = ObjectGeometry.coordinate(o["height"], 0)
             let view = CoverView(object: o, revealed: revealed.contains(id), frame: CGRect(x: 0, y: 0, width: w, height: h))
+            view.layer.anchorPoint = .zero
+            view.contentScaleFactor = UIScreen.main.scale * 2
+            view.alpha = CGFloat(alpha)
+            addSubview(view)
+            view.frame = CGRect(x: 0, y: 0, width: w, height: h)
+            view.transform = t
+            placed[id, default: []].append(Placed(view: view, layer: nil, base: t))
+            return
+        }
+        if PageLink.isLink(o) {
+            let w = ObjectGeometry.coordinate(o["width"], 0), h = ObjectGeometry.coordinate(o["height"], 0)
+            let view = LinkView(object: o, frame: CGRect(x: 0, y: 0, width: w, height: h))
             view.layer.anchorPoint = .zero
             view.contentScaleFactor = UIScreen.main.scale * 2
             view.alpha = CGFloat(alpha)

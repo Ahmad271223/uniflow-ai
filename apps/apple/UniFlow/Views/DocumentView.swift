@@ -20,6 +20,15 @@ final class EditorBridge: ObservableObject {
     @Published var objectSelection = 0
     /// Formatierung des gewaehlten bzw. gerade getippten Texts (Leiste "Text", `TextFormatBar`); nil = kein Text
     @Published var textFormat: TextFormat?
+    /// Ein neuer Verweis wartet auf sein Ziel (Leiste: "Jetzt das Ziel antippen", "Abbrechen")
+    @Published var linkPending = false
+    /// Verweis auf ein anderes Dokument angetippt: daneben oeffnen bzw. dorthin springen
+    @Published var linkRequest: LinkRequest?
+
+    struct LinkRequest: Equatable {
+        let id = UUID()
+        let target: PageLink.Target
+    }
     @Published var textSelected = false
     /// Markierter PDF-Text soll an die KI-Hilfe (Leiste "Text markieren": "KI erklärt", "KI löst")
     @Published var tutorRequest: TutorRequest?
@@ -946,6 +955,7 @@ struct DocumentView: View {
             Task { await reloadSolutionLayers() }
         }
         .onChange(of: entitlements.plan) { _, _ in Task { await reloadSolutionLayers() } }
+        .onChange(of: bridge.linkRequest) { _, r in if let r { openLink(r.target) } }
         .ufSheet(item: Binding(get: { exportFile?.purpose == .save ? exportFile : nil }, set: { exportFile = $0 })) { f in
             // Sichern: Ordner waehlen (iPad: Dateien, Mac: Fenster "Sichern"), die PDF wird dorthin kopiert
             ExportToFolderView(url: f.url) { exportFile = nil }
@@ -1283,6 +1293,30 @@ struct DocumentView: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             .padding(.top, 8)
             .help("Gemeinsame Begriffe: \(s.terms.joined(separator: ", "))")
+        }
+    }
+
+    /// Verweis auf ein anderes Dokument: daneben oeffnen (geteilte Ansicht, ab Plus) und zur Stelle springen. Ist es
+    /// schon daneben offen, nur springen.
+    private func openLink(_ t: PageLink.Target) {
+        guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
+        if companion?.file.id != t.file {
+            solutionSide = nil
+            webSide = nil
+            companion = Companion(file: libFile(id: t.file, title: t.title), pdfPage: t.pdfPage, request: UUID().uuidString)
+        }
+        Task { @MainActor in
+            // das Dokument daneben braucht einen Moment (laden, Seiten aufbauen): dann zur Stelle
+            for _ in 0..<120 {
+                if let main = bridge.controller, let side = tools.tools.otherEditor(than: main), side.store.file.id == t.file,
+                   side.store.layout != nil, side.showLinkTarget(t) { return }
+                if companion?.file.id != t.file { return }                // inzwischen etwas anderes geoeffnet
+                if companionStore?.file.id == t.file, companionStore?.errorMessage != nil {
+                    bridge.hint = .init(text: ObjectEditing.linkMissingHint(t))
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
         }
     }
 
@@ -3340,6 +3374,26 @@ struct ObjectToolbar: View {
                 .padding(8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
+            if bridge.objectTool == .link {
+                // Verweis: zwei Schritte, und der Weg zurueck
+                HStack(spacing: 10) {
+                    Image(systemName: "link").accessibilityHidden(true)
+                    Text(bridge.linkPending ? "Jetzt das Ziel antippen – im Dokument daneben oder auf einer anderen Seite"
+                                            : "Stelle antippen oder über ein Wort ziehen")
+                        .font(.callout)
+                    if bridge.linkPending {
+                        Button("Abbrechen") { bridge.controller?.objects.cancelLink() }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("objects.link.cancel")
+                    }
+                    Button("Fertig") { bridge.finishObjectTools() }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("objects.link.done")
+                }
+                .padding(8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityIdentifier("objects.link.bar")
+            }
             if bridge.objectTool == .markup {
                 HStack(spacing: 8) {
                     if bridge.textSelected {
@@ -3668,6 +3722,8 @@ struct PDFEditorView: UIViewControllerRepresentable {
         if ownsToolPicker {
             vc.tools.onActiveTextFormat = { [weak bridge] f in if let bridge, bridge.textFormat != f { bridge.textFormat = f } }
         }
+        vc.objects.onLinkPending = { [weak bridge] on in if bridge?.linkPending != on { bridge?.linkPending = on } }
+        if ownsToolPicker { vc.onOpenLink = { [weak bridge] t in bridge?.linkRequest = .init(target: t) } }
         vc.objects.onToolChange = { [weak bridge] t in bridge?.objectTool = t }
         vc.onObjectModeChange = { [weak bridge] on, t in
             if bridge?.objectMode != on { bridge?.objectMode = on }
