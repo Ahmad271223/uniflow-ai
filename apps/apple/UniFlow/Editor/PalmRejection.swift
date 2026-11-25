@@ -10,6 +10,8 @@ import UIKit
 ///
 /// 1. Solange der Stift aufliegt und `quietAfterPencil` danach, scrollt und zoomt keine Beruehrung der Hand.
 /// 2. Eine Beruehrung mit sehr grosser Auflageflaeche (`palmRadius`) ist nie ein Finger: solange sie aufliegt, ebenso.
+///    ABGESCHALTET seit dem ersten Test am Geraet (`PencilTuning.palmByRadius`): Die Auflage trennt Finger und
+///    Handballen auf dem iPad A16 nicht, Zoomen mit zwei Fingern wurde gesperrt.
 /// 3. Hat die Hand die Seite kurz vorher (`slipWindow`) schon bewegt - die Hand liegt meist einen Moment vor dem Stift
 ///    auf -, geht die Seite an die Stelle und in den Zoom zurueck, die sie beim Auflegen der Hand hatte.
 ///
@@ -21,9 +23,9 @@ enum PalmRejection {
     /// So lange nach dem Absetzen des Stifts bleiben Scrollen und Zoomen mit der Hand gesperrt (zwischen zwei
     /// Strichen liegt der Stift oft nur 0,1-0,3 s nicht auf, die Hand bleibt liegen)
     static let quietAfterPencil: CFTimeInterval = 0.5
-    /// Ab diesem Radius der Auflageflaeche (pt, `UITouch.majorRadius`) ist eine Beruehrung kein Finger. Schaetzung
-    /// (Fingerkuppe rund 20-30 pt), am Geraet noch nicht gemessen: bewusst hoch, damit ein flacher Daumen weiter
-    /// scrollt. Auflagen ab `radiusWorthLogging` stehen im Ablauf-Protokoll (`StiftSpur`), zum Nachstellen.
+    /// Ab diesem Radius der Auflageflaeche (pt, `UITouch.majorRadius`) waere eine Beruehrung kein Finger (Regel 2, aus:
+    /// `PencilTuning.palmByRadius`). Die Schaetzung 45 pt war am Geraet falsch (Finger bis 63 pt gemessen). Auflagen ab
+    /// `radiusWorthLogging` stehen im Ablauf-Protokoll (`StiftSpur`).
     static let palmRadius: CGFloat = 45
     static let radiusWorthLogging: CGFloat = 30
     /// Hat die Hand hoechstens so lange vor der Sperre aufgesetzt, geht die Seite zurueck (Regel 3). Laenger: Die Geste
@@ -62,6 +64,8 @@ enum PalmRejection {
     }
 
     static func isPalm(radius: CGFloat) -> Bool { radius >= palmRadius }
+    /// Regel 2 nur, wenn sie eingeschaltet ist (`PencilTuning.palmByRadius`)
+    static func countsAsPalm(radius: CGFloat) -> Bool { PencilTuning.palmByRadius && isPalm(radius: radius) }
 
     /// Regel 3: Seite zurueck an die Stelle beim Auflegen der Hand?
     static func restoresSlip(handDownAt: CFTimeInterval?, lockedAt now: CFTimeInterval) -> Bool {
@@ -140,7 +144,7 @@ final class HandWatcher: UIGestureRecognizer {
     private func note(_ t: UITouch) -> Bool {
         let r = t.majorRadius
         if r > largestRadius { largestRadius = r }
-        guard PalmRejection.isPalm(radius: r), !palms.contains(t) else { return false }
+        guard PalmRejection.countsAsPalm(radius: r), !palms.contains(t) else { return false }
         palms.insert(t)
         return true
     }
@@ -152,8 +156,8 @@ final class HandWatcher: UIGestureRecognizer {
         if relevant { onChange?() }
         guard touches.isEmpty else { return }
         if largestRadius >= PalmRejection.radiusWorthLogging {
-            StiftSpur.log(String(format: "Hand: groesste Auflage %.0f pt, Handballen %@", largestRadius,
-                                 PalmRejection.isPalm(radius: largestRadius) ? "ja" : "nein"))
+            StiftSpur.log(String(format: "Hand: groesste Auflage %.0f pt, gesperrt %@", largestRadius,
+                                 PalmRejection.countsAsPalm(radius: largestRadius) ? "ja" : "nein"))
         }
         largestRadius = 0
         state = .failed
