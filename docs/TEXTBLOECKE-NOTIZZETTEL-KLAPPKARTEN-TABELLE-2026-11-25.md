@@ -335,3 +335,15 @@ Neue App-Tests: `TextBlockAppTests` 24 (Textblöcke, Notizzettel, Klappkarten, V
 kein Build fürs Gerät, kein Test am echten iPad.
 
 Bilder: `~/Studora-Builds/textbloecke/bilder/` (1–22, iPad und iPhone-Ansicht), `…/bilder-iphone/` (im iPhone-Simulator erzeugt).
+
+## 10. Testfassung auf dem iPad des Inhabers
+
+Seit **25.11.2026, 18:07** liegt auf dem iPad des Inhabers („StudiNow“, iPad A16) eine gemeinsame Testfassung 1.0.7 (49),
+Release, per `devicectl`, mit seinem Okay („Ja, Testfassung“, „Ja, aufspielen“): Zweig `test/ipad-editor-whisper`
+@ `a03251fe` = `editor/verweise` (alles aus dieser Unterlage) + `app/whisper-mitschrift` (die Whisper-Fassung, die er
+gerade prüft – sie sollte nicht verschwinden). Zusammenführen ohne Konflikte; im Simulator 55 Tests grün
+(`TextBlockAppTests`, `StickyNoteAppTests`, `WhisperViewsAppTests`, `EditorStep6Tests`, `PlusWritingLockTests`).
+Arbeitsordner `~/Studora-Builds/wt-kombi`, Bau `~/Studora-Builds/dd-kombi-geraet`. Nicht bei Apple, kein TestFlight.
+
+Sein Ergebnis steht aus (Punkte in Abschnitt 8). Spielt jemand danach eine reine Whisper-Fassung auf, sind die
+Editor-Neuheiten wieder weg vom iPad.
