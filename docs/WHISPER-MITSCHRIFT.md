@@ -6,9 +6,8 @@ StudiNow etwas bringt. Zweig `app/whisper-mitschrift` (Worktree `~/Studora-Build
 
 **Auf dem iPad des Inhabers** (Kabel/WLAN, `devicectl`, mit seinem Okay vom 24.11.): Testfassung 1.0.7 (49), Release,
 aus diesem Zweig – zuerst `871264cd` (24.11. abends), seit 25.11. 09:05 `9da803b9` mit Fachwörter-Hilfe und Lizenzen.
-Die Fassung mit Suche und Sprung ins Video (`4a89ef7b`) ist gebaut
-(`~/Studora-Builds/dd-whisper-geraet/Build/Products/Release-iphoneos/UniFlow.app`), aber **noch nicht aufgespielt**:
-das iPad war am 25.11. nachmittags nicht erreichbar. Nicht bei Apple, kein TestFlight. Der Inhaber prüft dort Dauer, Wärme und Textgüte; sein Ergebnis steht noch aus.
+Seit 25.11. 15:24 liegt die Fassung mit Suche und Sprung ins Video (`4a89ef7b`) auf dem iPad.
+Nicht bei Apple, kein TestFlight. Der Inhaber prüft dort Dauer, Wärme und Textgüte; sein Ergebnis steht noch aus.
 
 ## Was es tut
 
