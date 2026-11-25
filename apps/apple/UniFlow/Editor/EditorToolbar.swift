@@ -410,6 +410,14 @@ final class EditorToolState: ObservableObject {
         onActiveSelection?(count)
     }
 
+    /// Formatierung des gewaehlten bzw. gerade getippten Texts im Editor, in dem gearbeitet wird (Leiste "Text")
+    var onActiveTextFormat: ((TextFormat?) -> Void)?
+
+    func textFormatChanged(_ format: TextFormat?, in editor: PDFEditorController) {
+        guard activeEditor === editor || (activeEditor == nil && editor.ownsToolPicker) else { return }
+        onActiveTextFormat?(format)
+    }
+
     /// Zurueck zum letzten Stift (aus Objektwerkzeugen, "Fertig")
     func selectLastInk() { select(lastInk) }
 

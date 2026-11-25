@@ -105,7 +105,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// Rechteck um die Auswahl in Seitenpunkten (Objekte und Handschrift); der Rahmen liegt `frameGap` weiter aussen
     private(set) var selectionBox = CGRect.null
     /// Laufendes Ziehen an der Auswahl
-    private var grab: Grab?
+    private(set) var grab: Grab?
     /// Waehrend eine Aenderung gespeichert wird (erst Objekte, dann Handschrift), bleibt der Rahmen der Vorschau stehen
     var holdsFrame = false
     /// Bild ins andere Dokument ziehen (`ObjectTransfer.swift`): schwebendes Bild im Fenster, Rahmen auf der Zielseite,
@@ -115,7 +115,22 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     var transferring = false
     private var panStart: (overlay: PageInkView, point: CGPoint)?
     private var lassoPoints: [CGPoint] = []
-    private var editing: (key: String, id: String, view: UITextView, isNew: Bool)?
+    /// Laufendes Bearbeiten eines Texts (`TextBlockEditing.swift`)
+    var editing: TextEdit?
+    /// Formatierung der Auswahl bzw. des Texts, der gerade bearbeitet wird (Leiste "Text"); nil = kein Text gewaehlt
+    var onTextFormat: ((TextFormat?) -> Void)?
+    private(set) var textFormat: TextFormat?
+    /// Langes Druecken auf einen Textblock greift ihn (`TextBlockEditing.swift`)
+    lazy var hold: UILongPressGestureRecognizer = {
+        let g = UILongPressGestureRecognizer(target: self, action: #selector(held(_:)))
+        g.minimumPressDuration = Self.holdSeconds
+        g.allowableMovement = 12
+        g.delegate = self
+        return g
+    }()
+    var holdStart: CGPoint?
+    /// Aenderungen der Leiste "Text" laufen nacheinander (`inOrder`)
+    var formatQueue: Task<Void, Never>?
 
     init(controller: PDFEditorController) {
         self.controller = controller
@@ -230,7 +245,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     /// Overlay unter einem Punkt der PDF-Ansicht und der Punkt in Seitenpunkten
-    private func locate(_ g: UIGestureRecognizer) -> (PageInkView, CGPoint)? {
+    func locate(_ g: UIGestureRecognizer) -> (PageInkView, CGPoint)? {
         guard let c = controller else { return nil }
         for v in c.allOverlays where v.window != nil && !v.pageKey.isEmpty {
             // Objekte stehen in Seitenpunkten: `content` rechnet die Skalierung der Seite heraus
@@ -264,6 +279,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     static let areaMinimum: CGFloat = 12
 
     func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+        if g === hold { return holdShouldBegin() }
         guard isActive, tool != .markup else { return false }
         if g === pan {
             // Ziehen mit Form-, Lasso- oder Bereichswerkzeug, oder auf der Auswahl bzw. an einem ihrer Anfasser; sonst
@@ -281,7 +297,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
-        g === tap || g === doubleTap
+        // langes Druecken: neben anderen langen Druecken (PDFKit) ja; hat es gegriffen, scrollt und zoomt nichts mehr
+        if g === hold { return other is UILongPressGestureRecognizer }
+        if other === hold { return false }
+        return g === tap || g === doubleTap
     }
 
     /// Ziehen und die Zwei-Finger-Geste AUF der Auswahl gehoeren der Auswahl: Scrollen und Zoomen der Seite warten, bis
@@ -317,12 +336,12 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                     return
                 }
                 let id = PageOrder.uid()
-                let o = kind == .text ? PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y))
+                let o = kind == .text ? newBlock(id: id, on: v, at: p)
                                       : PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y))
-                await commit(key) { $0 + [o] }
                 // danach auswaehlen: Antippen trifft den Text, der Papierkorb loescht ihn
                 setTool(.select)
-                beginTextEditing(key: key, id: id, isNew: true)
+                // gespeichert wird erst mit dem ersten Text (ein Rueckgaengig-Schritt; kein leeres Feld auf der Seite)
+                beginNewText(o, key: key)
             }
         default:
             Task {
@@ -373,7 +392,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 let t = g.translation(in: gr.overlay.content)
                 switch gr.kind {
                 case .move:
-                    preview(.move(Self.clampedOffset(gr.box, by: t, in: Self.page(of: gr.overlay))))
+                    preview(.move(moveOffset(gr, t)))
                     hoverTransfer(g, gr)                    // geteilte Ansicht: ein Bild kann ins andere Dokument
                 case .corner(let anchor, let corner):
                     let wanted = Self.cornerFactor(anchor: anchor, corner: corner, translation: t)
@@ -484,6 +503,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         /// Rechteck um die ausgewaehlte Handschrift (`.null` ohne) und um die ganze Auswahl
         let inkBox: CGRect
         let box: CGRect
+        /// die Auswahl enthaelt einen Textblock, der auf den Linien sitzt: senkrecht nur in ganzen Zeilen
+        var snapsToLines = false
         var change = Change.none
     }
 
@@ -592,7 +613,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             let dx = ((o["x"]?.double ?? 0) - Double(anchor.x)) * (f - 1), dy = ((o["y"]?.double ?? 0) - Double(anchor.y)) * (f - 1)
             if abs(dx) > 0.004 || abs(dy) > 0.004 { out = PageObjectEdit.move(out, ids: [id], dx: dx, dy: dy) }
         }
-        return out
+        return TextBlock.resnapped(out, ids: ids)
     }
 
     /// Ergebnis einer Groessenaenderung: Faktor in den Grenzen, geaenderte Objekte, Rechteck danach und dieselbe
@@ -629,17 +650,25 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                        inkTransform: scale.concatenating(CGAffineTransform(translationX: d.x, y: d.y)))
     }
 
-    private func beginGrab(_ kind: Grab.Kind, on overlay: PageInkView) {
+    func beginGrab(_ kind: Grab.Kind, on overlay: PageInkView) {
         beginInkDrag(on: overlay)                           // ausgewaehlte Handschrift geht als Bild mit
         let list = overlay.objectsView.shownObjects, ids = selection?.ids ?? []
         let inkBox = inkDrag?.view.frame ?? .null
         let box = Self.box(of: list, ids: ids).union(inkBox)
-        grab = Grab(kind: kind, overlay: overlay, list: list, ids: ids, inkBox: inkBox, box: box.isNull ? selectionBox : box)
+        grab = Grab(kind: kind, overlay: overlay, list: list, ids: ids, inkBox: inkBox, box: box.isNull ? selectionBox : box,
+                    snapsToLines: TextBlock.containsSnapped(list, ids: ids))
+    }
+
+    /// Versatz beim Verschieben: eingerastete Textbloecke in ganzen Zeilen, alles bleibt auf der Seite
+    func moveOffset(_ gr: Grab, _ t: CGPoint) -> CGPoint {
+        var d = t
+        if gr.snapsToLines { d.y = CGFloat(TextBlock.snappedDelta(Double(t.y))) }
+        return Self.clampedOffset(gr.box, by: d, in: Self.page(of: gr.overlay))
     }
 
     /// Aenderung zeigen, ohne zu speichern: Objekte, Handschrift und Rahmen mit Anfassern im selben Schritt, ohne
     /// Animation - der Rahmen liegt in jedem Bild auf der Auswahl.
-    private func preview(_ change: Change) {
+    func preview(_ change: Change) {
         guard var g = grab else { return }
         g.change = change
         grab = g
@@ -670,7 +699,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     }
 
     /// Loslassen: die zuletzt gezeigte Aenderung speichern (ein Rueckgaengig-Schritt)
-    private func finishGrab() {
+    func finishGrab() {
         guard let g = grab else { return }
         grab = nil
         endTransferHover(g)
@@ -722,6 +751,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         inkSelection = ink.isEmpty ? nil : (key, ink)
         drawSelection(list)
         onSelectionChange?(ids.count + ink.count)
+        publishFormat(list)
     }
 
     func clearSelection() {
@@ -730,6 +760,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         inkSelection = nil
         hideFrame()
         onSelectionChange?(0)
+        publishFormat(nil)
     }
 
     func drawSelection(_ list: [JSONValue]) {
@@ -799,7 +830,12 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             await commit(sel.key) { list in
                 list.map { o in
                     guard let id = o["id"]?.string, sel.ids.contains(id), var obj = o.object else { return o }
-                    if o["type"]?.string == "text" { obj[(o["bg"]?.string ?? "").isEmpty ? "fill" : "bg"] = .string(hex) }
+                    if o["type"]?.string == "text" {
+                        let key = (o["bg"]?.string ?? "").isEmpty ? "fill" : "bg"
+                        // Textblock: die Schriftfarbe gilt fuer alle Abschnitte
+                        if key == "fill", TextBlock.isBlock(o) { return TextBlock.applying(.fill(hex), to: o) }
+                        obj[key] = .string(hex)
+                    }
                     else if o["type"]?.string == "shape" { obj[o["markup"]?.string == "highlight" ? "fill" : "stroke"] = .string(hex) }
                     return .object(obj)
                 }
@@ -814,58 +850,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             await commit(sel.key) { list in
                 list.map { o in
                     guard let id = o["id"]?.string, sel.ids.contains(id), o["type"]?.string == "text", var obj = o.object else { return o }
+                    if TextBlock.isBlock(o) { return TextBlock.applying(.sizeDelta(delta), to: o) }
                     obj["fontSize"] = .number(min(200, max(6, (o["fontSize"]?.double ?? 14) + delta)))
                     return .object(obj)
                 }
-            }
-        }
-    }
-
-    // MARK: Text bearbeiten (UITextView: Tastatur oder Scribble mit dem Pencil)
-
-    func beginTextEditing(key: String, id: String, isNew: Bool) {
-        guard let overlay = controller?.boundOverlay(forKey: key) else { return }
-        Task {
-            guard let o = await objects(key).first(where: { $0["id"]?.string == id }) else { return }
-            let size = ObjectGeometry.textSize(o, ObjectGeometry.attributedText(o))
-            let view = UITextView(frame: CGRect(x: o["x"]?.double ?? 0, y: o["y"]?.double ?? 0, width: size.width, height: max(size.height, 28)))
-            view.attributedText = ObjectGeometry.attributedText(o)
-            view.typingAttributes = ObjectGeometry.attributedText(PageObjectEdit.set([o], ids: [id], "text", "x").first ?? o)
-                .attributes(at: 0, effectiveRange: nil)
-            view.backgroundColor = (o["bg"]?.string).flatMap { UIColor(hex: $0) } ?? UIColor.white.withAlphaComponent(0.9)
-            view.textContainerInset = UIEdgeInsets(top: 4, left: 4, bottom: 4, right: 4)
-            view.textContainer.lineFragmentPadding = 0
-            view.layer.borderColor = UIColor.systemBlue.cgColor
-            view.layer.borderWidth = 1
-            view.transform = CGAffineTransform(rotationAngle: CGFloat((o["rotation"]?.double ?? 0) * .pi / 180))
-            view.delegate = self
-            view.accessibilityIdentifier = "objects.textEditor"
-            overlay.content.addSubview(view)
-            editing = (key, id, view, isNew)
-            view.becomeFirstResponder()
-        }
-    }
-
-    func textViewDidEndEditing(_ textView: UITextView) { endTextEditing() }
-
-    func textViewDidChange(_ textView: UITextView) {
-        let fit = textView.sizeThatFits(CGSize(width: textView.bounds.width, height: .greatestFiniteMagnitude))
-        textView.frame.size.height = max(28, fit.height)
-    }
-
-    /// Bearbeiten beenden: Text speichern; ein leeres Feld wird entfernt (sonst bliebe es unsichtbar auf der Seite)
-    func endTextEditing() {
-        guard let e = editing else { return }
-        editing = nil
-        let text = e.view.text ?? ""
-        e.view.delegate = nil
-        e.view.removeFromSuperview()
-        Task {
-            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                if selection?.ids.contains(e.id) == true { clearSelection() }
-                await commit(e.key, undoable: !e.isNew) { PageObjectEdit.delete($0, ids: [e.id]) }
-            } else {
-                await commit(e.key) { PageObjectEdit.set($0, ids: [e.id], "text", .string(text)) }
             }
         }
     }
@@ -876,11 +864,30 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     @discardableResult
     func commit(_ key: String, undoable: Bool = true, _ change: @escaping ([JSONValue]) -> [JSONValue]) async -> Bool {
         guard let c = controller, c.writable else { return false }
-        guard let before = await c.store.editObjects(pageKey: key, change) else { return false }
+        guard let before = await c.store.editObjects(pageKey: key, { Self.resnappingChanged($0, change($0)) }) else { return false }
         let after = await objects(key)
         if undoable { registerUndo(key: key, restore: before, then: after) }
-        if let sel = selection, sel.key == key { drawSelection(after) }
+        if let sel = selection, sel.key == key {
+            drawSelection(after)
+            publishFormat(after)
+        }
         return true
+    }
+
+    /// Textbloecke auf Linien: was sich in diesem Schritt geaendert hat oder neu ist (verschoben, eingefuegt, dupliziert,
+    /// Groesse), rastet wieder ein. Unveraenderte Objekte bleiben, wie sie sind.
+    nonisolated static func resnappingChanged(_ before: [JSONValue], _ after: [JSONValue]) -> [JSONValue] {
+        let old = Set(before)
+        let changed = Set(after.filter { !old.contains($0) && TextBlock.isSnapped($0) }.compactMap { $0["id"]?.string })
+        return changed.isEmpty ? after : TextBlock.resnapped(after, ids: changed)
+    }
+
+    /// Formatierung der Auswahl an die Leiste melden (`list`: Objekte der Seite; nil = nichts gewaehlt)
+    func publishFormat(_ list: [JSONValue]?) {
+        let f = editing != nil ? editingFormat() : list.flatMap { selectionFormat($0) }
+        guard f != textFormat else { return }
+        textFormat = f
+        onTextFormat?(f)
     }
 
     /// Rueckgaengig stellt `restore` her. Der Gegenschritt (Wiederholen: `then`) wird sofort im Handler angemeldet:
@@ -899,5 +906,6 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     // MARK: Fuer Tests
 
     var editingTextView: UITextView? { editing?.view }
+    var grabForTesting: Grab? { grab }
     func selectForTesting(key: String, ids: Set<String>) async { select(key: key, ids: ids, in: await objects(key)) }
 }

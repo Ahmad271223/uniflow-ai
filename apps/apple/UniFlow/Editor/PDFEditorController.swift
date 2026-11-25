@@ -1314,6 +1314,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         store.imagesInUse = { [weak self] in self?.imageSourcesInUse ?? [] }
         // Rechtsklick (Mac), Ziehen von Bildern hinein, Mauszeiger je Werkzeug (`EditorMouseSupport.swift`)
         mouseSupport.install(on: pdfView)
+        // langes Druecken auf einen Textblock greift ihn (`TextBlockEditing.swift`)
+        objects.installHold()
         // geteilte Ansicht: Bilder und "Einfügen" gehen in den Editor, in dem zuletzt gearbeitet wurde (`ActiveEditor.swift`)
         installActiveEditorMarker()
     }

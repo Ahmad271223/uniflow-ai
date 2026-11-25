@@ -18,6 +18,8 @@ final class EditorBridge: ObservableObject {
     @Published var objectMode = false
     @Published var objectTool: ObjectEditing.Tool = .select
     @Published var objectSelection = 0
+    /// Formatierung des gewaehlten bzw. gerade getippten Texts (Leiste "Text", `TextFormatBar`); nil = kein Text
+    @Published var textFormat: TextFormat?
     @Published var textSelected = false
     /// Markierter PDF-Text soll an die KI-Hilfe (Leiste "Text markieren": "KI erklärt", "KI löst")
     @Published var tutorRequest: TutorRequest?
@@ -3361,7 +3363,13 @@ struct ObjectToolbar: View {
                 .padding(8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            if bridge.objectSelection > 0 { selectionActions }
+            if let format = bridge.textFormat {
+                // Text gewaehlt oder wird getippt: Leiste wie in Word (fett, Schrift, Groesse, markieren ...)
+                TextFormatBar(format: format, canDelete: bridge.objectSelection > 0 && !format.editing,
+                              objects: { [weak bridge] in bridge?.selectionObjects })
+            } else if bridge.objectSelection > 0 {
+                selectionActions
+            }
         }
     }
 
@@ -3623,6 +3631,10 @@ struct PDFEditorView: UIViewControllerRepresentable {
                 if let bridge, bridge.objectSelection != n { bridge.objectSelection = n }
                 if let vc { vc.tools.selectionChanged(n, in: vc) }
             }
+        }
+        vc.objects.onTextFormat = { [weak vc] f in if let vc { vc.tools.textFormatChanged(f, in: vc) } }
+        if ownsToolPicker {
+            vc.tools.onActiveTextFormat = { [weak bridge] f in if let bridge, bridge.textFormat != f { bridge.textFormat = f } }
         }
         vc.objects.onToolChange = { [weak bridge] t in bridge?.objectTool = t }
         vc.onObjectModeChange = { [weak bridge] on, t in

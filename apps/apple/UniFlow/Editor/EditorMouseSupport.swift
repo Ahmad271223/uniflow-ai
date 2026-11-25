@@ -208,11 +208,11 @@ extension PDFEditorController {
         guard writable else { return }
         choose(.select)
         let id = PageOrder.uid()
-        let o = sticky ? PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y)) : PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y))
-        Task {
-            await objects.commit(key) { $0 + [o] }
-            objects.beginTextEditing(key: key, id: id, isNew: true)
-        }
+        let o: JSONValue
+        if sticky { o = PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y)) }
+        else if let overlay = boundOverlay(forKey: key) { o = objects.newBlock(id: id, on: overlay, at: p) }
+        else { o = TextBlock.block(id: id, x: Double(p.x), y: Double(p.y), template: objects.template(forKey: key)) }
+        objects.beginNewText(o, key: key)
     }
 
     // MARK: Bearbeiten-Menue (Cmd-C/X/V/D, Entf) auf der Auswahl

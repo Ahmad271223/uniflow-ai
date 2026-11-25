@@ -113,6 +113,8 @@ enum ObjectGeometry {
 
     /// Text wie Konva.Text: Breite inklusive 4 pt Innenabstand, Zeilenumbruch nach Woertern.
     static func attributedText(_ o: JSONValue) -> NSAttributedString {
+        // Textbloecke (25.11.2026): gemischte Formatierung, eigener Zeilensatz (`TextBlockRender`)
+        if TextBlock.isBlock(o) { return TextBlockRender.attributed(o) }
         let size = CGFloat(number(o["fontSize"], 14, in: fontSizeRange))
         var font = UIFont(name: o["fontFamily"]?.string ?? "Arial", size: size) ?? .systemFont(ofSize: size)
         var traits: UIFontDescriptor.SymbolicTraits = []
@@ -138,6 +140,7 @@ enum ObjectGeometry {
 
     /// Groesse eines Textobjekts (Breite aus dem Objekt, Hoehe aus dem Inhalt), immer endlich.
     static func textSize(_ o: JSONValue, _ text: NSAttributedString) -> CGSize {
+        if TextBlock.isBlock(o) { return TextBlockRender.size(o) }
         let width = CGFloat(number(o["width"], 200, in: 0...maxCoordinate))
         let inner = max(1, width - 2 * textPadding)
         let r = text.boundingRect(with: CGSize(width: inner, height: .greatestFiniteMagnitude),
@@ -196,6 +199,8 @@ enum ObjectGeometry {
                     ctx.setLineJoin(.round); ctx.setLineCap(.round); ctx.strokePath()
                     if let head = s.arrowHead { ctx.addPath(head); ctx.setFillColor(stroke.cgColor); ctx.fillPath() }
                 }
+            } else if type == "text", TextBlock.isBlock(o) {
+                TextBlockRender.draw(o, in: ctx)
             } else if type == "text" {
                 let text = attributedText(o)
                 let size = textSize(o, text)
@@ -233,6 +238,8 @@ final class PageObjectsView: UIView {
     private var placed: [String: [Placed]] = [:]
     /// Objekte, die gerade eine Vorschau mit anderer Groesse zeigen (`preview`)
     private var previewed: Set<String> = []
+    /// Objekte, die gerade nicht gezeigt werden: ihr Text wird in einer Textansicht darueber bearbeitet (`setHidden`)
+    private var hiddenIDs: Set<String> = []
     /// Aufloesung fuer Formen und Text (`PageInkView.setRenderScale`)
     private var renderScale: CGFloat = 0
     /// Zuletzt gezeigter Inhalt (fuer `update(images:)`)
@@ -281,6 +288,7 @@ final class PageObjectsView: UIView {
             addSubview(label)
         }
         for o in others { add(o, images: images) }
+        for id in hiddenIDs { placed[id]?.forEach { $0.view?.isHidden = true; $0.layer?.isHidden = true } }
         applyRenderScale()
     }
 
@@ -334,7 +342,9 @@ final class PageObjectsView: UIView {
             let t = ObjectGeometry.transform(o)
             for p in parts {
                 guard let v = p.view else { p.layer?.setAffineTransform(t); continue }
-                if o["type"]?.string == "text", let label = v.subviews.first as? UILabel {
+                if let block = v as? TextBlockView {
+                    block.show(o)                              // Textblock: neu umbrechen im eigenen Satz
+                } else if o["type"]?.string == "text", let label = v.subviews.first as? UILabel {
                     // Text aendert die Breite, nicht den Massstab: neu umbrechen
                     v.bounds = CGRect(origin: .zero, size: ObjectGeometry.textSize(o, label.attributedText ?? NSAttributedString()))
                     label.frame = v.bounds.insetBy(dx: ObjectGeometry.textPadding, dy: ObjectGeometry.textPadding)
@@ -344,6 +354,18 @@ final class PageObjectsView: UIView {
         }
         CATransaction.commit()
         previewed = objects == nil ? [] : previewed.union(list.compactMap { $0["id"]?.string })
+    }
+
+    /// Objekte ausblenden, solange ihr Text bearbeitet wird (die Textansicht zeigt denselben Satz an derselben Stelle),
+    /// bzw. wieder zeigen. Bleibt ueber einen Neuaufbau hinweg bestehen (z. B. Abgleich waehrend des Tippens).
+    func setHidden(_ ids: Set<String>, _ hidden: Bool) {
+        if hidden { hiddenIDs.formUnion(ids) } else { hiddenIDs.subtract(ids) }
+        for id in ids {
+            for p in placed[id] ?? [] {
+                p.view?.isHidden = hidden
+                p.layer?.isHidden = hidden
+            }
+        }
     }
 
     /// Objekte blass zeigen (ein Bild ist auf dem Weg ins andere Dokument, `ObjectTransfer.swift`) bzw. wieder wie
@@ -394,6 +416,16 @@ final class PageObjectsView: UIView {
             return
         }
         switch o["type"]?.string {
+        case "text" where TextBlock.isBlock(o):
+            let box = TextBlockView(object: o)
+            let size = box.bounds.size
+            box.layer.anchorPoint = .zero
+            box.contentScaleFactor = UIScreen.main.scale * 2      // bleibt beim Zoomen lesbar
+            box.alpha = CGFloat(alpha)
+            addSubview(box)
+            box.frame = CGRect(origin: .zero, size: size)
+            box.transform = t
+            placed[id, default: []].append(Placed(view: box, layer: nil, base: t))
         case "text":
             let text = ObjectGeometry.attributedText(o)
             let size = ObjectGeometry.textSize(o, text)
