@@ -1167,6 +1167,18 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schreibt der Finger (am Mac: die Maus) gerade nicht, sondern blaettert?
     var effectivePencilOnly: Bool { pointerConfig.panMinimumTouches == 1 }
 
+    // Handballen-Abwehr beim Scrollen und Zoomen (`PalmRejection.swift`)
+    /// Sieht Stift und Hand auf der PDF-Ansicht
+    let handWatcher = HandWatcher()
+    /// Was gerade aufliegt
+    var palmState = PalmRejection.State()
+    /// Stelle und Zoom beim Auflegen der Hand
+    var handStart: HandStart?
+    /// Bestellte Pruefung, ob die Sperre enden kann
+    var handUnlockCheck: DispatchWorkItem?
+    /// Scrollen und Zoomen mit der Hand sind gerade gesperrt
+    var handGesturesLocked = false
+
     /// Verlauf fuer den Ansichtsmodus: leer und ohne Eintraege, damit Rueckgaengig ueber das System (Cmd-Z,
     /// Wischen mit drei Fingern, Leiste) nichts zuruecknimmt und nichts schreibt.
     private let viewOnlyUndo: UndoManager = {
@@ -1537,6 +1549,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             trackpadPageSwipe = swipe
         }
         scroll.delaysContentTouches = false
+        installPalmRejection()
         applyFreezeGestures()
     }
 

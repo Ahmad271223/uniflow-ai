@@ -154,7 +154,7 @@ extension PDFEditorController {
         }
         if let scroll = firstScrollView(in: pdfView) {
             scroll.isScrollEnabled = !locked
-            scroll.pinchGestureRecognizer?.isEnabled = !locked
+            applyHandGestureLock(to: scroll)             // Scroll- und Zoom-Geste: auch die Handballen-Abwehr sperrt sie
             if locked {
                 scroll.scrollsToTop = false                  // Tippen auf die Statusleiste
                 if #available(iOS 17.0, *) { scroll.allowsKeyboardScrolling = false }
