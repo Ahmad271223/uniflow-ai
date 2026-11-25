@@ -107,4 +107,34 @@ final class WhisperLiveTests: XCTestCase {
         XCTAssertEqual(Array(resumed.prefix(half.count)), half)
         XCTAssertGreaterThan(resumed.last?.end ?? 0, duration * 0.85)
     }
+
+    /// Sprung an eine Stelle in einer echten Datei (nur mit UF_WHISPER_SAMPLE): der Player steht danach dort und laeuft
+    @MainActor
+    func testJumpLandsAtTheRightPlaceAndPlays() async throws {
+        guard let sample = ProcessInfo.processInfo.environment["UF_WHISPER_SAMPLE"] else { throw XCTSkip("nur mit UF_WHISPER_SAMPLE") }
+        let url = URL(fileURLWithPath: sample)
+        let video = TranscriptVideoPlayer()
+        defer { video.stop() }
+        video.seek(url, to: 61)
+        let player = try XCTUnwrap(video.player)
+        var landed = false
+        for _ in 0..<100 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            let t = player.currentTime().seconds
+            if t >= 59.5, t < 66, player.rate > 0 { landed = true; break }
+        }
+        let at = player.currentTime().seconds
+        XCTAssertTrue(landed, "Stelle \(at), Tempo \(player.rate)")
+        print("WHISPER-LIVE Sprung auf 61 s: steht bei \(at) s, Tempo \(player.rate)")
+        // zweiter Sprung zurueck in derselben Datei
+        video.seek(url, to: 12)
+        XCTAssertTrue(video.player === player)
+        var back = false
+        for _ in 0..<100 {
+            try await Task.sleep(nanoseconds: 100_000_000)
+            let t = player.currentTime().seconds
+            if t >= 10.5, t < 17, player.rate > 0 { back = true; break }
+        }
+        XCTAssertTrue(back, "Stelle \(player.currentTime().seconds)")
+    }
 }

@@ -39,7 +39,14 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
   rund zehn Begriffe in die Vorgabe passen, liest die App im Skript mit: zu dem, was zuletzt gesagt wurde, sucht sie
   die passende Seite und nimmt deren Begriffe und die der Seite danach; ohne Treffer die wichtigsten des Moduls.
   Für alle Tarife, kostet keine Credits. Schalter `WhisperFeature.usesVocabulary`.
-- **Suche und KI-Hilfe** unverändert: die Mitschrift liegt in derselben Tabelle (`own_recordings`) und Textdatei wie
+- **Suche in der Mitschrift und Sprung ins Video** (Auftrag des Inhabers 25.11.: „Ja, einbauen“): in der Ansicht einer
+  Mitschrift steht ein Suchfeld. Wort oder Wortfolge eintippen → Treffer mit Ausschnitt und Zeitmarke statt der ganzen
+  Mitschrift (Groß-/Kleinschreibung und Umlaute egal). Zeitmarke antippen → die eigene Aufnahme springt dorthin; bei
+  einer geladenen Uni-Aufzeichnung läuft das **Video in derselben Ansicht** an dieser Stelle (bleibt oben stehen,
+  während die Mitschrift darunter scrollt). Die Stelle eines Treffers ist geschätzt (anteilig im Abschnitt, 4 Sekunden
+  Vorlauf), weil eine Mitschrift nur Anfang und Ende eines Abschnitts kennt. Vorher gab es weder Suche noch Sprung ins
+  Video. Ohne Netz, ohne KI, alle Tarife.
+- **KI-Hilfe** unverändert: die Mitschrift liegt in derselben Tabelle (`own_recordings`) und Textdatei wie
   bisher; „Zusammenfassen“, „Kernpunkte“, „Karteikarten“ schicken wie bisher nur den Text eines Teils, nur nach Antippen.
 
 ## Entscheidungen, die ich für den Bau getroffen habe (vom Inhaber noch zu bestätigen)
@@ -89,6 +96,7 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
     Aufräumen, Weitermachen), `WhisperRawSegment`.
   - ebenda `WhisperVocabulary` (Wörter eines Seitentexts, Gewicht als Fachbegriff, Vorgabe-Satz, Erkennen einer
     nachgesprochenen Vorgabe) und `WhisperGlossary` (Begriffe je Seite, „welche Seite passt zum Gesagten“).
+  - `Opencast/TranscriptSearch.swift`: Treffer einer Suche in den Abschnitten (Ausschnitt, geschätzte Stelle).
   - `Opencast/OwnRecording.swift`: Spalten `transcript_engine` (`apple` | `whisper`) und `source_video_id`
     (`Kurs|Video` wie `OpencastEntry.id`), per `ALTER TABLE` nachgetragen; Mitschriften zu Uni-Aufzeichnungen stehen
     nicht unter „Eigene Aufnahmen“.
@@ -104,6 +112,9 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
     Fachwörter: `WhisperEngine.prompt` macht aus der Liste Wortteile und kürzt auf `maxPromptTokens` (40);
     `WhisperJobs.Vocabulary` fragt vor jedem Stück mit dem zuletzt Erkannten nach.
   - `UniFlow/Views/Recordings/WhisperViews.swift`: Karte, Dialog, Zeile je Modell, Fortschritt, Knopf am Video.
+  - `LectureRecorderViews.swift`: `OwnRecordingDetail` mit Suchfeld, `TranscriptHitRow`, `TranscriptVideoPlayer`
+    (AVPlayer erst beim ersten Sprung, über `UFAVPlayer`); Knöpfe unten auf dem iPhone ohne Symbole (vorher
+    abgeschnitten: „Umb…“, „Lös…“).
   - Eingehängt in `LectureRecorderViews.swift` (Ansicht einer Aufnahme), `RecordingsViews.swift` (Zeile eines Videos),
     `AudioTranscriber.swift` (Audio-Dateien), `SettingsPage.swift` (Bereich „Module“).
 - Fremdpaket: `https://github.com/argmaxinc/WhisperKit`, fest auf **1.1.1** (`project.yml`), gebunden wird nur das
@@ -147,6 +158,10 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
 - Mac („Designed for iPad“, `tools/mac-test.sh`, 25.11. 14:18): `WhisperViewsAppTests` und `OwnRecordingsAppTests`
   20 Tests, 0 rot. Die echte Erkennung mit einem Modell ist am Mac nicht gelaufen (nur die Ansichten und der Stand
   der Modelle).
+- Suche und Sprung (25.11.): Kern `TranscriptSearchTests` (7); App `WhisperViewsAppTests` jetzt 17 (Treffer statt
+  ganzer Mitschrift, „Leeren“, Video erscheint beim Antippen einer Zeitmarke, Player entsteht erst bei Bedarf) – iPad
+  35, iPhone 23, Mac 23 Tests, 0 rot. Sprung mit echter Datei (`WhisperLiveTests/testJumpLandsAtTheRightPlaceAndPlays`):
+  Ziel 61 s, steht bei 61,0 s und läuft. Mit einem echten Uni-Video (mp4) ist der Sprung nur am Gerät zu prüfen.
 - **Echte Erkennung** (`WhisperLiveTests`, nur auf Wunsch, siehe Kopf der Datei): lädt ein Modell und wandelt eine
   deutsche Probe-Vorlesung um (5:17 min, vom Mac gesprochen, `~/Studora-Builds/whisper-probe/vorlesung.m4a`), prüft
   Zeiten, Fortschritt, erwartete Wörter und das Weitermachen. Mit `UF_WHISPER_SCRIPT` (Seiten eines Skripts als
