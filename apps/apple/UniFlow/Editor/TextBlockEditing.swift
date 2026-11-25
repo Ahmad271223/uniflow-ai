@@ -33,6 +33,8 @@ struct TextFormat: Equatable {
     var editing: Bool
     /// der Block sitzt auf den Linien der Seite
     var lined: Bool
+    /// die Auswahl besteht aus Haftnotizen/Zetteln: ihr Aussehen (Leiste: Menue "Zettel")
+    var note: StickyNote.Choice?
 }
 
 extension ObjectEditing {
@@ -50,6 +52,20 @@ extension ObjectEditing {
 
     /// Tarif erlaubt Textbloecke "wie Word" (ab Pro AI, `UFRichNotes`)
     var richAllowed: Bool { controller?.richNotes == true }
+
+    /// Neue Haftnotiz am Tippunkt: mit Pro AI der Zettel aus den Einstellungen des Werkzeugs (Farbe, Aussehen, Papier,
+    /// Groesse), sonst die gelbe Haftnotiz wie in 1.0.7
+    func newSticky(id: String, on overlay: PageInkView?, at p: CGPoint) -> JSONValue {
+        guard richAllowed else { return PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y)) }
+        let page = overlay.map { (width: Double($0.geometry.pageSize.width), height: Double($0.geometry.pageSize.height)) }
+        return StickyNote.note(id: id, x: Double(p.x), y: Double(p.y), choice: EditorPalette.stickyChoice, page: page)
+    }
+
+    /// Gewaehlte Zettel umgestalten (Farbe, Aussehen, Papier, Groesse); ein Rueckgaengig-Schritt
+    func restyleNotes(_ change: @escaping (inout StickyNote.Choice) -> Void) {
+        guard richAllowed, editing == nil, let sel = selection else { return }
+        inOrder { await $0.commit(sel.key) { StickyNote.restyling($0, ids: sel.ids, change) } }
+    }
 
     /// Neuer Textblock am Tippunkt: auf Seiten mit Linien sitzt er auf der Linie, die Breite reicht bis zum rechten Rand.
     /// Ohne Pro AI: das einfache Textfeld wie in 1.0.7.
@@ -151,20 +167,23 @@ extension ObjectEditing {
     }
 
     private func startTextEditing(_ o: JSONValue, key: String, id: String, on overlay: PageInkView, isNew: Bool) {
-        let pad = ObjectGeometry.textPadding
         let layout = TextBlockRender.layout(o)
         layout.container.widthTracksTextView = true
         let size = TextBlockRender.size(o)
         let view = UITextView(frame: CGRect(origin: .zero, size: size), textContainer: layout.container)
-        view.textContainerInset = UIEdgeInsets(top: pad, left: pad, bottom: pad, right: pad)
+        view.textContainerInset = TextBlockRender.insets(o)
         view.isScrollEnabled = false
         view.clipsToBounds = false
         // durchsichtig: die Linien der Seite bleiben beim Tippen zu sehen (die Anzeige des Blocks ruht solange)
-        view.backgroundColor = ObjectGeometry.color(o["bg"]) ?? .clear
+        view.backgroundColor = StickyNote.isNote(o) ? .clear : (ObjectGeometry.color(o["bg"]) ?? .clear)
+        if StickyNote.isNote(o) {
+            // Notizzettel: derselbe Zettel liegt beim Tippen unter dem Text und waechst mit
+            view.insertSubview(StickyNoteBackdrop(object: o, frame: CGRect(origin: .zero, size: size)), at: 0)
+        }
         view.overrideUserInterfaceStyle = .light
         view.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.8).cgColor
         // ist der Block gewaehlt, zeigt schon der Auswahlrahmen, wo getippt wird
-        view.layer.borderWidth = selection?.ids.contains(id) == true ? 0 : 1 / max(0.5, Self.screenScale(of: overlay))
+        view.layer.borderWidth = selection?.ids.contains(id) == true || StickyNote.isNote(o) ? 0 : 1 / max(0.5, Self.screenScale(of: overlay))
         view.layer.cornerRadius = 3
         view.layer.anchorPoint = .zero
         view.frame = CGRect(x: ObjectGeometry.coordinate(o["x"], 0), y: ObjectGeometry.coordinate(o["y"], 0), width: size.width, height: size.height)
@@ -265,7 +284,8 @@ extension ObjectEditing {
     private func fitEditor(_ e: TextEdit) {
         var h = e.layout.height
         if e.layout.storage.length == 0, e.layout.step == nil { h = ceil(TextBlockRender.font(TextBlock.baseStyle(e.object)).lineHeight) }
-        let size = CGSize(width: e.view.bounds.width, height: h + 2 * ObjectGeometry.textPadding)
+        let inset = TextBlockRender.insets(e.object)
+        let size = CGSize(width: e.view.bounds.width, height: max(h + inset.top + inset.bottom, CGFloat(StickyNote.minHeight(e.object))))
         if abs(e.view.bounds.height - size.height) > 0.01 { e.view.bounds = CGRect(origin: .zero, size: size) }
     }
 
@@ -325,7 +345,8 @@ extension ObjectEditing {
             style = (e.view.typingAttributes[TextBlockRender.styleKey] as? TextBlockRender.StyleBox)?.style
                 ?? TextBlockRender.style(in: e.view.textStorage, at: range.location - 1, fallback: base)
         }
-        return TextFormat(style: style, align: e.object["align"]?.string ?? "left", editing: true, lined: TextBlock.isSnapped(e.object))
+        return TextFormat(style: style, align: e.object["align"]?.string ?? "left", editing: true, lined: TextBlock.isSnapped(e.object),
+                          note: StickyNote.isSticky(e.object) ? StickyNote.choice(e.object) : nil)
     }
 
     /// Formatierung gewaehlter Bloecke (nur wenn die Auswahl aus Text besteht)
@@ -334,7 +355,8 @@ extension ObjectEditing {
         let chosen = list.filter { ($0["id"]?.string).map(sel.ids.contains) == true }
         guard let first = chosen.first, chosen.count == sel.ids.count, chosen.allSatisfy({ $0["type"]?.string == "text" }) else { return nil }
         let style = TextBlock.commonStyle(chosen.flatMap(TextBlock.runs), fallback: TextBlock.baseStyle(first))
-        return TextFormat(style: style, align: first["align"]?.string ?? "left", editing: false, lined: TextBlock.isSnapped(first))
+        return TextFormat(style: style, align: first["align"]?.string ?? "left", editing: false, lined: TextBlock.isSnapped(first),
+                          note: chosen.allSatisfy(StickyNote.isSticky) ? StickyNote.choice(first) : nil)
     }
 
     /// Formatierung aendern: beim Tippen die Auswahl im Text (ohne Auswahl das naechste Zeichen), sonst die gewaehlten Bloecke

@@ -137,6 +137,45 @@ nichts geht beim Abgleich verloren, und die Community überträgt sie ohne Ände
   (iPad liniert, Block gewählt mit Leiste, Tippen, blanko, iPhone-Leseansicht, Export als Bild und PDF, Plus mit
   Schloss); im iPhone-Simulator erzeugt: `~/Studora-Builds/textbloecke/bilder-iphone/`.
 
+## 4. Teil 2: Notizzettel wie echte Klebezettel
+
+Zweig `editor/notizzettel` (auf Teil 1).
+
+### Was geht
+
+- Werkzeug **„Haftnotiz“** legt einen Zettel an, der wie ein echter Klebezettel aussieht: Papier mit leichtem Verlauf
+  und Schatten, Schrift „Handschrift“.
+- **Auswahl** (zweites Tippen auf das Werkzeug, je Gerät gemerkt): **6 Farben** (Gelb, Rosa, Grün, Blau, Orange,
+  Lila), **4 Aussehen** (Klebezettel, mit Klebestreifen, mit Pinnnadel, Ecke geknickt), **4 Papiere** (blanko,
+  liniert, kariert, gepunktet), **3 Größen** (klein 120, mittel 165, groß 230 pt; etwa quadratisch, wächst mit dem
+  Text).
+- Auf **liniertem Zettelpapier** sitzt der Text auf den Linien des Zettels.
+- **Vorhandene Zettel umgestalten:** Zettel wählen → Leiste „Text“ → Knopf „Zettel“ (Farbe, Aussehen, Papier,
+  Größe). Das geht auch mit den alten gelben Haftnotizen. Ein Rückgängig-Schritt je Änderung.
+- Der Text auf dem Zettel ist ein Textblock: fett, markieren, Farbe, Schriftart, Größe, Listen wie in Teil 1.
+- Verschieben, Größe (Anfasser: bleibt in seiner Form), langes Drücken, Lasso, Kopieren, Duplizieren, Rückgängig,
+  Export/Drucken, Geräteabgleich, Community, iPhone-Leseansicht: wie Textblöcke.
+- **Tarif:** ab Pro AI. Plus: die gelbe Haftnotiz wie in 1.0.7; die Auswahl zeigt ein Schloss.
+
+### Was nicht geht bzw. anders ist
+
+- **Ältere Apps, Web, Windows:** zeigen ein farbiges Rechteck mit dem Text (ohne Klebestreifen, Papier, Schatten;
+  so hoch wie der Text). Nichts geht verloren.
+- Zettel liegen wie alle Objekte **unter der Handschrift** (man kann darauf schreiben; sie verdecken keine Striche).
+- Kein schräges Aufkleben und keine eigenen Fotos/Bilder als Muster (ließe sich nachziehen).
+- Kariert/gepunktet: der Text richtet sich dort nicht am Raster aus (nur liniert).
+
+### Technik
+
+- Format (Kern `StickyNote.swift`): Haftnotiz des gemeinsamen Formats (`type: "text"` mit `bg`) plus
+  `note: {look, paper}`, `minHeight`, `block: 1`. Anfasser skalieren `width` und `minHeight` (`PageObjectEdit.scale`).
+- Aussehen: `StickyNoteRender.draw` (eine Routine für Anzeige, Tippen – `StickyNoteBackdrop` unter der Textansicht –
+  und Export); Innenabstand und Zeilenraster je Objekt in `TextBlockRender.insets`/`step`.
+- Auswahl: `StickyNoteOptions` (Werkzeug), `EditorPalette.stickyChoice`, Menü in `TextFormatBar`.
+- Tests: Kern `StickyNoteTests` (6), App `StickyNoteAppTests` (4), dazu in `TextBlockAppTests`
+  `testNotizzettelAnlegenUndUmgestalten`, `testPlusBehaeltDieGelbeHaftnotiz`. Bilder 10–13 in
+  `~/Studora-Builds/textbloecke/bilder/`.
+
 ## 6. Teil 4: Tabelle – offene Fragen an den Inhaber
 
 Vor dem Bauen zu klären (siehe Fragen im Bericht der Sitzung):

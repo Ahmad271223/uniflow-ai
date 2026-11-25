@@ -92,6 +92,33 @@ final class TextBlockBilderAppTests: XCTestCase {
         ]
     }
 
+    /// Notizzettel fuer die dritte Seite: alle Farben, Aussehen, Papiere und Groessen
+    private func notes() -> [JSONValue] {
+        func note(_ id: String, x: Double, y: Double, _ c: StickyNote.Choice, _ runs: [TextBlock.Run]) -> JSONValue {
+            let o = StickyNote.note(id: id, x: x, y: y, choice: c, page: (595, 842))
+            let base = TextBlock.baseStyle(o)
+            return TextBlock.saving(runs.map { r in
+                var s = r.style
+                s.fontFamily = base.fontFamily
+                if s.fontSize == 16 { s.fontSize = base.fontSize }
+                return TextBlock.Run(text: r.text, style: s)
+            }, in: o)
+        }
+        let col = StickyNote.colors.map(\.hex)
+        return [
+            note("z1", x: 110, y: 60, StickyNote.Choice(color: col[0], look: "glue", paper: "plain", size: "m"),
+                 [run("Klausur\n") { $0.bold = true }, run("12.02., 9 Uhr\nRaum F102")]),
+            note("z2", x: 300, y: 60, StickyNote.Choice(color: col[1], look: "tape", paper: "lined", size: "m"),
+                 [run("Bis Freitag:\n") { $0.bold = true }, run("• Blatt 7 abgeben\n• Kap. 4 lesen")]),
+            note("z3", x: 490, y: 60, StickyNote.Choice(color: col[3], look: "pin", paper: "grid", size: "m"),
+                 [run("det(A − λE) = 0") { $0.mark = "#f5d90a" }, run("\nnicht vergessen!")]),
+            note("z4", x: 80, y: 270, StickyNote.Choice(color: col[2], look: "fold", paper: "dots", size: "s"), [run("Frag Tim")]),
+            note("z5", x: 215, y: 270, StickyNote.Choice(color: col[4], look: "tape", paper: "plain", size: "s"), [run("Seite 48!") { $0.fill = "#e5322d"; $0.bold = true }]),
+            note("z6", x: 420, y: 270, StickyNote.Choice(color: col[5], look: "fold", paper: "lined", size: "l"),
+                 [run("Lernplan\n") { $0.bold = true; $0.fontSize = 22 }, run("Mo  Analysis\nDi  Lineare Algebra\nMi  Übung + Karteikarten\nDo  frei")]),
+        ]
+    }
+
     /// Notizbuch (liniert) mit einer zweiten, leeren Seite und den Bloecken; dazu etwas Handschrift
     private func scene() async throws -> (api: APIClient, file: LibFile, lined: String, blank: String) {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("textblock-bilder-\(UUID().uuidString)", isDirectory: true)
@@ -112,6 +139,8 @@ final class TextBlockBilderAppTests: XCTestCase {
         let blank = try XCTUnwrap(store.pageKey(forPageIndex: 1))
         await store.editObjects(pageKey: lined) { $0 + self.linedBlocks() }
         await store.editObjects(pageKey: blank) { $0 + self.blankBlocks() }
+        await store.addBlankPage(afterKey: blank, template: "blank")
+        if let third = store.pageKey(forPageIndex: 2) { await store.editObjects(pageKey: third) { $0 + self.notes() } }
         let pts = (0..<40).map { i -> PKStrokePoint in
             let t = CGFloat(i)
             return PKStrokePoint(location: CGPoint(x: 380 + t * 4, y: 392 + sin(t / 3) * 6), timeOffset: Double(i) * 0.01,
@@ -259,6 +288,40 @@ final class TextBlockBilderAppTests: XCTestCase {
         shot(env.window, "4-ipad-blanko-textbloecke")
     }
 
+    /// iPad: Notizzettel (Farben, Klebestreifen, Pinnnadel, geknickte Ecke, Papiere, Groessen), einer gewaehlt
+    func test5IPadNotizzettel() throws {
+        let s = try run { try await self.scene() }
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: s.file, api: s.api) }, api: s.api, size: CGSize(width: 1180, height: 820))
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        var found: PDFEditorController?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            found = self.editor(in: env)
+            return found?.allOverlays.contains { $0.loaded && $0.window != nil } == true
+        })
+        let editor = try XCTUnwrap(found)
+        editor.goToPage(2)
+        var page: PageInkView?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            page = editor.allOverlays.first { $0.pageIndex == 2 && $0.loaded && $0.window != nil }
+            return (page?.objectsView.subviews.filter { $0 is TextBlockView }.count ?? 0) == 6
+        }, "sechs Zettel gezeigt")
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        shot(env.window, "10-ipad-notizzettel")
+        editor.choose(.select)
+        let key = try XCTUnwrap(page?.pageKey)
+        try run { await editor.objects.selectForTesting(key: key, ids: ["z2"]) }
+        XCTAssertTrue(env.wait(timeout: 10) { self.button("Zettel gestalten", in: env.window) }, "Menue \"Zettel\" in der Leiste")
+        env.pump(0.6)
+        shot(env.window, "11-ipad-notizzettel-gewaehlt")
+        // Einstellungen des Werkzeugs (Auswahl fuer neue Zettel)
+        let options = StickyNoteOptions().padding(16).background(UF.surface)
+        let host = try hostWithEnvironment(options, api: s.api, size: CGSize(width: 360, height: 330))
+        host.pump(0.6)
+        shot(host.view, "12-notizzettel-auswahl")
+    }
+
     /// iPhone: Leseansicht zeigt die Bloecke vom iPad (dort wird nicht geschrieben)
     func test3IPhoneLesen() throws {
         let s = try run { try await self.scene() }
@@ -273,7 +336,7 @@ final class TextBlockBilderAppTests: XCTestCase {
         var pdf: PDFView?
         XCTAssertTrue(env.wait(timeout: 20) {
             pdf = self.find(PDFView.self, in: env.window)
-            return (pdf?.document?.pageCount ?? 0) == 2
+            return (pdf?.document?.pageCount ?? 0) == 3
         }, "Leseansicht geladen")
         let pdfView = try XCTUnwrap(pdf)
         var overlay: PageInkView?
@@ -297,7 +360,7 @@ final class TextBlockBilderAppTests: XCTestCase {
         try run { await store.load() }
         let layout = try XCTUnwrap(store.layout)
         let doc = try run { await store.pageStructureDocument() }
-        for (i, name) in [(0, "6-export-liniert"), (1, "7-export-blanko")] {
+        for (i, name) in [(0, "6-export-liniert"), (1, "7-export-blanko"), (2, "13-export-notizzettel")] {
             let page = try XCTUnwrap(layout.pdf.page(at: i)), entry = try XCTUnwrap(layout.entry(at: i))
             let image = PageRenderer.thumbnail(page: page, entry: entry, objects: doc.objects(page: entry.key), images: [:], width: 595, scale: 2)
             try image.pngData()?.write(to: dir.appendingPathComponent(name + ".png"))

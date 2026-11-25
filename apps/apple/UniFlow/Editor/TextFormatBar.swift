@@ -63,6 +63,10 @@ struct TextFormatBar: View {
                 .buttonStyle(EditorToolButtonStyle(selected: false))
                 .accessibilityLabel("Nummerierung")
                 .accessibilityIdentifier("textformat.numbers")
+            if let note = format.note, !format.editing {
+                divider
+                noteMenu(note)
+            }
             if canDelete {
                 divider
                 Button(role: .destructive) { objects()?.deleteSelection() } label: { icon("trash") }
@@ -195,6 +199,41 @@ struct TextFormatBar: View {
         .accessibilityLabel("Ausrichtung: \(current.title)")
         .accessibilityIdentifier("textformat.align")
         .help("Ausrichtung")
+    }
+
+    /// Aussehen gewaehlter Notizzettel: Farbe, Aussehen, Papier, Groesse
+    private func noteMenu(_ note: StickyNote.Choice) -> some View {
+        Menu {
+            Menu("Farbe") {
+                ForEach(StickyNote.colors, id: \.hex) { c in
+                    Button { objects()?.restyleNotes { $0.color = c.hex } } label: { Label { Text(c.title) } icon: { Self.dot(c.hex) } }
+                }
+            }
+            Menu("Aussehen") {
+                ForEach(StickyNote.looks, id: \.id) { l in
+                    Button { objects()?.restyleNotes { $0.look = l.id } } label: { check(l.title, note.look == l.id) }
+                }
+            }
+            Menu("Papier") {
+                ForEach(StickyNote.papers, id: \.id) { p in
+                    Button { objects()?.restyleNotes { $0.paper = p.id } } label: { check(p.title, note.paper == p.id) }
+                }
+            }
+            Menu("Größe") {
+                ForEach(StickyNote.sizes, id: \.id) { s in
+                    Button { objects()?.restyleNotes { $0.size = s.id } } label: { check(s.title, note.size == s.id) }
+                }
+            }
+        } label: {
+            icon("note.text").foregroundStyle(UF.text).contentShape(Rectangle())
+        }
+        .accessibilityLabel("Zettel gestalten")
+        .accessibilityIdentifier("textformat.note")
+        .help("Zettel: Farbe, Aussehen, Papier, Größe")
+    }
+
+    @ViewBuilder private func check(_ title: String, _ on: Bool) -> some View {
+        if on { Label(title, systemImage: "checkmark") } else { Text(title) }
     }
 
     static func fontTitle(_ family: String) -> String { TextBlock.fonts.first { $0.family == family }?.title ?? family }

@@ -587,6 +587,91 @@ final class TextBlockAppTests: XCTestCase {
         XCTAssertFalse(o.holdAccepts(touchType: .direct), "beim Zeichnen von Formen nicht")
     }
 
+    // MARK: Notizzettel im Editor
+
+    /// Werkzeug "Haftnotiz": legt den Zettel aus den Einstellungen des Werkzeugs an (Farbe, Aussehen, Papier, Groesse),
+    /// beim Tippen liegt derselbe Zettel unter dem Text. Gewaehlte Zettel lassen sich umgestalten (ein Rueckgaengig).
+    func testNotizzettelAnlegenUndUmgestalten() async throws {
+        try ContainerTestBed.requireEventGroupedUndo()
+        let before = UserDefaults.standard.string(forKey: EditorPalette.stickyKey)
+        addTeardownBlock { UserDefaults.standard.set(before, forKey: EditorPalette.stickyKey) }
+        EditorPalette.stickyChoice = StickyNote.Choice(color: "#ffd3e0", look: "tape", paper: "lined", size: "m")
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        s.editor.choose(.sticky)
+        XCTAssertEqual(s.editor.objects.tool, .sticky)
+        try await BildProbe.tap(CGPoint(x: 300, y: 200), on: page, in: s.window)
+        try await BildProbe.wait("Zettel offen") { s.editor.objects.editingTextView != nil }
+        let view = try XCTUnwrap(s.editor.objects.editingTextView)
+        XCTAssertTrue(view.subviews.first is StickyNoteBackdrop, "derselbe Zettel liegt beim Tippen unter dem Text")
+        XCTAssertEqual(Double(view.bounds.width), 165)
+        XCTAssertEqual(Double(view.bounds.height), 165, accuracy: 0.01)
+        XCTAssertNotNil(s.editor.objects.textFormat?.note)
+        view.insertText("Abgabe Freitag")
+        s.editor.objects.textViewDidChange(view)
+        s.editor.objects.endTextEditing()
+        try await BildProbe.wait("Zettel gespeichert") { await s.store.objects(forPageKey: s.blank).count == 1 }
+        let found = await s.store.objects(forPageKey: s.blank).first
+        let saved = try XCTUnwrap(found)
+        let id = try XCTUnwrap(saved["id"]?.string)
+        XCTAssertEqual(saved["text"], "Abgabe Freitag")
+        XCTAssertEqual(saved["bg"], "#ffd3e0")
+        XCTAssertEqual(saved["note"], ["look": "tape", "paper": "lined"])
+        XCTAssertEqual(saved["x"]?.double ?? 0, 300 - 82.5, accuracy: 0.011)
+        try await BildProbe.wait("Zettel gezeigt") { page.objectsView.subviews.contains { $0 is TextBlockView } }
+
+        // umgestalten: Farbe, Aussehen, Groesse
+        s.editor.choose(.select)
+        await s.editor.objects.selectForTesting(key: s.blank, ids: [id])
+        XCTAssertEqual(s.editor.objects.textFormat?.note, StickyNote.Choice(color: "#ffd3e0", look: "tape", paper: "lined", size: "m"))
+        s.editor.objects.restyleNotes { $0.color = "#cfe8ff" }
+        s.editor.objects.restyleNotes { $0.look = "pin" }
+        s.editor.objects.restyleNotes { $0.size = "l" }
+        try await BildProbe.wait("gross") { await self.object(s, s.blank, id)?["width"] == 230 }
+        let now = await object(s, s.blank, id)
+        XCTAssertEqual(now?["bg"], "#cfe8ff")
+        XCTAssertEqual(now.map(StickyNote.look), "pin")
+        XCTAssertEqual(now?["text"], "Abgabe Freitag")
+        XCTAssertEqual(s.editor.objects.textFormat?.note?.size, "l", "die Leiste zeigt den neuen Stand")
+        s.editor.editUndo.undo()
+        try await BildProbe.wait("Rueckgaengig: wieder mittel") { await self.object(s, s.blank, id)?["width"] == 165 }
+        // Text des Zettels ist formatierbar wie ein Block (Rueckgaengig hebt die Auswahl auf: neu waehlen)
+        await s.editor.objects.selectForTesting(key: s.blank, ids: [id])
+        s.editor.objects.format(.bold(true))
+        try await BildProbe.wait("fett") { await self.object(s, s.blank, id)?["bold"] == true }
+    }
+
+    /// Plus (ohne Pro AI): "Haftnotiz" legt die gelbe Haftnotiz wie in 1.0.7 an; Umgestalten greift nicht
+    func testPlusBehaeltDieGelbeHaftnotiz() async throws {
+        let before = UserDefaults.standard.string(forKey: EditorPalette.stickyKey)
+        addTeardownBlock { UserDefaults.standard.set(before, forKey: EditorPalette.stickyKey) }
+        EditorPalette.stickyChoice = StickyNote.Choice(color: "#ffd3e0", look: "tape", paper: "lined", size: "l")
+        let s = try await open(proAI: false)
+        let page = try await overlay(s, key: s.blank)
+        s.editor.choose(.sticky)
+        try await BildProbe.tap(CGPoint(x: 300, y: 200), on: page, in: s.window)
+        try await BildProbe.wait("Haftnotiz offen") { s.editor.objects.editingTextView != nil }
+        let view = try XCTUnwrap(s.editor.objects.editingTextView)
+        XCTAssertFalse(view.subviews.first is StickyNoteBackdrop)
+        view.insertText("gelb")
+        s.editor.objects.endTextEditing()
+        try await BildProbe.wait("gespeichert") { await s.store.objects(forPageKey: s.blank).count == 1 }
+        let found = await s.store.objects(forPageKey: s.blank).first
+        let saved = try XCTUnwrap(found)
+        XCTAssertEqual(saved["bg"]?.string, PageObjectEdit.stickyColor)
+        XCTAssertNil(saved["note"])
+        XCTAssertNil(saved["block"])
+        XCTAssertEqual(saved["width"], 170)
+        XCTAssertEqual(saved["x"]?.double ?? 0, 290, accuracy: 0.011, "wie createSticky im Web")
+        let id = try XCTUnwrap(saved["id"]?.string)
+        s.editor.choose(.select)
+        await s.editor.objects.selectForTesting(key: s.blank, ids: [id])
+        s.editor.objects.restyleNotes { $0.look = "pin" }
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let same = await object(s, s.blank, id)
+        XCTAssertEqual(same, saved, "nicht umgestaltet")
+    }
+
     // MARK: Tarif
 
     /// Tarif-Regel (Inhaber 25.11.2026: "das alles ab Pro AI"): Free und Plus nicht, Pro AI ja

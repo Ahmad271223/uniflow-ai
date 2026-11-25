@@ -209,7 +209,7 @@ extension PDFEditorController {
         choose(.select)
         let id = PageOrder.uid()
         let o: JSONValue
-        if sticky { o = PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y)) }
+        if sticky { o = objects.newSticky(id: id, on: boundOverlay(forKey: key), at: p) }
         else if let overlay = boundOverlay(forKey: key) { o = objects.newBlock(id: id, on: overlay, at: p) }
         else if richNotes { o = TextBlock.block(id: id, x: Double(p.x), y: Double(p.y), template: objects.template(forKey: key)) }
         else { o = PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y)) }

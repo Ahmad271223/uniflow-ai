@@ -336,8 +336,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                     return
                 }
                 let id = PageOrder.uid()
-                let o = kind == .text ? newBlock(id: id, on: v, at: p)
-                                      : PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y))
+                let o = kind == .text ? newBlock(id: id, on: v, at: p) : newSticky(id: id, on: v, at: p)
                 // danach auswaehlen: Antippen trifft den Text, der Papierkorb loescht ihn
                 setTool(.select)
                 // gespeichert wird erst mit dem ersten Text (ein Rueckgaengig-Schritt; kein leeres Feld auf der Seite)

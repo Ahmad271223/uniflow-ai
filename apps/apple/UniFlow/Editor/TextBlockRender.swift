@@ -44,8 +44,8 @@ enum TextBlockRender {
         case "right": p.alignment = .right
         default: p.alignment = .left
         }
-        // eingerastet setzt `Layout` die Zeilenhoehe selbst; sonst das Vielfache aus dem Objekt
-        if !TextBlock.isSnapped(o) {
+        // auf einem Linienraster setzt `Layout` die Zeilenhoehe selbst; sonst das Vielfache aus dem Objekt
+        if step(o) == nil {
             p.lineHeightMultiple = CGFloat(ObjectGeometry.number(o["lineHeight"], 1.3, in: ObjectGeometry.lineHeightRange))
         }
         return p
@@ -69,6 +69,23 @@ enum TextBlockRender {
         init(_ s: TextBlock.Style) { style = s }
         override func isEqual(_ object: Any?) -> Bool { (object as? StyleBox)?.style == style }
         override var hash: Int { style.hashValue }
+    }
+
+    /// Innenabstand: Textbloecke 4 pt rundum (wie Konva), Notizzettel mit Rand und Platz fuer den Klebestreifen
+    static func insets(_ o: JSONValue) -> UIEdgeInsets {
+        guard StickyNote.isNote(o) else {
+            let p = ObjectGeometry.textPadding
+            return UIEdgeInsets(top: p, left: p, bottom: p, right: p)
+        }
+        return UIEdgeInsets(top: CGFloat(StickyNote.padding.top), left: CGFloat(StickyNote.padding.side),
+                            bottom: CGFloat(StickyNote.padding.bottom), right: CGFloat(StickyNote.padding.side))
+    }
+
+    /// Zeilenraster: Linien der Seite (eingerastete Bloecke), Linien des Zettels (liniertes Zettelpapier), sonst keins
+    static func step(_ o: JSONValue) -> CGFloat? {
+        if TextBlock.isSnapped(o) { return CGFloat(TextBlock.lineStep) }
+        if StickyNote.isLined(o) { return CGFloat(StickyNote.lineStep) }
+        return nil
     }
 
     /// Text des Blocks mit allen Abschnitten
@@ -130,11 +147,11 @@ enum TextBlockRender {
         /// Zeilenabstand der Linien; nil = frei gesetzt (blanko, PDF-Seite)
         let step: CGFloat?
 
-        init(text: NSAttributedString, innerWidth: CGFloat, snapped: Bool) {
+        init(text: NSAttributedString, innerWidth: CGFloat, step: CGFloat?) {
             storage = NSTextStorage(attributedString: text)
             container = NSTextContainer(size: CGSize(width: max(1, innerWidth), height: .greatestFiniteMagnitude))
             container.lineFragmentPadding = 0
-            step = snapped ? CGFloat(TextBlock.lineStep) : nil
+            self.step = step
             super.init()
             manager.delegate = self
             manager.usesFontLeading = false
@@ -199,7 +216,8 @@ enum TextBlockRender {
 
     static func layout(_ o: JSONValue, text: NSAttributedString? = nil) -> Layout {
         let width = CGFloat(ObjectGeometry.number(o["width"], 220, in: 0...ObjectGeometry.maxCoordinate))
-        return Layout(text: text ?? attributed(o), innerWidth: width - 2 * ObjectGeometry.textPadding, snapped: TextBlock.isSnapped(o))
+        let inset = insets(o)
+        return Layout(text: text ?? attributed(o), innerWidth: width - inset.left - inset.right, step: step(o))
     }
 
     /// Groesse des Blocks (Breite aus dem Objekt, Hoehe aus dem Satz), mit Innenabstand
@@ -209,20 +227,29 @@ enum TextBlockRender {
         var h = l.height
         // leerer, frei gesetzter Block: eine Zeile in der Grundschrift
         if l.storage.length == 0, l.step == nil { h = ceil(font(TextBlock.baseStyle(o)).lineHeight) }
-        return CGSize(width: width, height: h + 2 * ObjectGeometry.textPadding)
+        let inset = insets(o)
+        // Notizzettel: nie niedriger als seine Mindesthoehe
+        return CGSize(width: width, height: max(h + inset.top + inset.bottom, CGFloat(StickyNote.minHeight(o))))
+    }
+
+    /// Hintergrund des Objekts: Notizzettel mit Papier und Klebestreifen, sonst die Flaeche in `bg` (runde Ecken)
+    static func drawBackground(_ o: JSONValue, size: CGSize, in ctx: CGContext, shadow: Bool) {
+        if StickyNote.isNote(o) {
+            StickyNoteRender.draw(o, size: size, in: ctx, shadow: shadow)
+        } else if let bg = ObjectGeometry.color(o["bg"]) {
+            ctx.addPath(CGPath(roundedRect: CGRect(origin: .zero, size: size), cornerWidth: 3, cornerHeight: 3, transform: nil))
+            ctx.setFillColor(bg.cgColor)
+            ctx.fillPath()
+        }
     }
 
     /// Block in einen Grafikkontext zeichnen (Ursprung = linke obere Ecke des Objekts): PDF-Export, Drucken, Vorschau
     static func draw(_ o: JSONValue, in ctx: CGContext) {
         let l = layout(o)
-        let size = CGSize(width: l.container.size.width + 2 * ObjectGeometry.textPadding, height: l.height + 2 * ObjectGeometry.textPadding)
-        if let bg = ObjectGeometry.color(o["bg"]) {
-            ctx.addPath(CGPath(roundedRect: CGRect(origin: .zero, size: size), cornerWidth: 3, cornerHeight: 3, transform: nil))
-            ctx.setFillColor(bg.cgColor)
-            ctx.fillPath()
-        }
+        let inset = insets(o)
+        drawBackground(o, size: size(o), in: ctx, shadow: true)
         UIGraphicsPushContext(ctx)
-        l.draw(at: CGPoint(x: ObjectGeometry.textPadding, y: ObjectGeometry.textPadding))
+        l.draw(at: CGPoint(x: inset.left, y: inset.top))
         UIGraphicsPopContext()
     }
 }
@@ -244,6 +271,12 @@ final class TextBlockView: UIView {
         isAccessibilityElement = true
         accessibilityLabel = object["text"]?.string
         accessibilityTraits = .staticText
+        applyShadow()
+    }
+
+    /// Notizzettel werfen einen Schatten (ueber die Ebene: in `draw` wuerde er am Rand der Ansicht abgeschnitten)
+    private func applyShadow() {
+        if StickyNote.isNote(object) { StickyNoteBackdrop.shadow(layer, object, size: bounds.size) } else { layer.shadowOpacity = 0 }
     }
 
     @available(*, unavailable)
@@ -254,12 +287,13 @@ final class TextBlockView: UIView {
         object = o
         layout = TextBlockRender.layout(o)
         bounds = CGRect(origin: .zero, size: TextBlockRender.size(o))
+        applyShadow()
         setNeedsDisplay()
     }
 
     /// Grundlinien der Zeilen in Seitenpunkten (ohne Drehung), fuer Tests
     var baselinesOnPage: [CGFloat] {
-        let y = CGFloat(object["y"]?.double ?? 0) + ObjectGeometry.textPadding
+        let y = CGFloat(object["y"]?.double ?? 0) + TextBlockRender.insets(object).top
         return layout.baselines.map { y + $0 }
     }
 
@@ -269,14 +303,11 @@ final class TextBlockView: UIView {
 
     override func draw(_ rect: CGRect) {
         guard let ctx = UIGraphicsGetCurrentContext() else { return }
-        if let bg = ObjectGeometry.color(object["bg"]) {
-            ctx.addPath(CGPath(roundedRect: bounds, cornerWidth: 3, cornerHeight: 3, transform: nil))
-            ctx.setFillColor(bg.cgColor)
-            ctx.fillPath()
-        }
+        TextBlockRender.drawBackground(object, size: bounds.size, in: ctx, shadow: false)
+        let inset = TextBlockRender.insets(object)
         // immer wie auf weissem Papier (helle Darstellung, wie die uebrigen Objekte der Seite)
         UITraitCollection(userInterfaceStyle: .light).performAsCurrent {
-            layout.draw(at: CGPoint(x: ObjectGeometry.textPadding, y: ObjectGeometry.textPadding))
+            layout.draw(at: CGPoint(x: inset.left, y: inset.top))
         }
     }
 }

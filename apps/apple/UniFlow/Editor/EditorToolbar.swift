@@ -867,7 +867,7 @@ struct EditorToolbar: View {
         .help(t.title)
     }
 
-    private func hasOptions(_ t: EditorToolState.Tool) -> Bool { t == .eraser || t == .shape || t == .select }
+    private func hasOptions(_ t: EditorToolState.Tool) -> Bool { t == .eraser || t == .shape || t == .select || t == .sticky }
 
     @ViewBuilder private func optionMenu(_ t: EditorToolState.Tool) -> some View {
         switch t {
@@ -1214,6 +1214,9 @@ struct EditorToolOptions: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("toolbar.selectKind")
+            case .sticky:
+                // Notizzettel: Farbe, Aussehen, Papier, Groesse des naechsten Zettels (ab Pro AI, sonst Schloss)
+                StickyNoteOptions()
             default:
                 EmptyView()
             }

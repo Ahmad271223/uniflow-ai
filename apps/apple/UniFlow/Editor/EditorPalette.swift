@@ -56,6 +56,17 @@ enum EditorPalette {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: shapeKey) }
     }
 
+    /// Zettel, den das Werkzeug "Haftnotiz" als Naechstes anlegt (Farbe, Aussehen, Papier, Groesse), je Geraet gemerkt
+    static let stickyKey = "UFEditorStickyChoice"
+    static var stickyChoice: StickyNote.Choice {
+        get {
+            let parts = (UserDefaults.standard.string(forKey: stickyKey) ?? "").components(separatedBy: "|")
+            guard parts.count == 4 else { return StickyNote.Choice() }
+            return StickyNote.Choice(color: parts[0], look: parts[1], paper: parts[2], size: parts[3])
+        }
+        set { UserDefaults.standard.set([newValue.color, newValue.look, newValue.paper, newValue.size].joined(separator: "|"), forKey: stickyKey) }
+    }
+
     static var selectTool: ObjectEditing.Tool {
         get { UserDefaults.standard.string(forKey: selectKey).flatMap(ObjectEditing.Tool.init(rawValue:)).flatMap { selectChoices.contains($0) ? $0 : nil } ?? .select }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: selectKey) }
