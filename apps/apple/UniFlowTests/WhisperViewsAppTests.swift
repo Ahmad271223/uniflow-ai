@@ -302,4 +302,45 @@ final class WhisperViewsAppTests: XCTestCase {
         let broken = await OwnRecordingDetail.videoFile("ohne-trenner", host: host)
         XCTAssertNil(broken)
     }
+
+    // MARK: Fachwoerter-Hilfe und Lizenzen
+
+    /// Antwort der Route zu einer Wortliste; Fehler, leere Antwort und der Schalter ergeben "ohne Vorgabe"
+    func testVocabularyAnswerBecomesAWordList() async {
+        let terms = await WhisperJobs.terms { ["terms": ["Taylor-Polynom", "Mittelwertsatz", 7], "files": 2] }
+        XCTAssertEqual(terms, ["Taylor-Polynom", "Mittelwertsatz"])
+        let none = await WhisperJobs.terms { nil }
+        XCTAssertEqual(none, [])
+        let failed = await WhisperJobs.terms { throw WhisperFailure("kein Netz") }
+        XCTAssertEqual(failed, [])
+        WhisperFeature.usesVocabulary = false
+        defer { WhisperFeature.usesVocabulary = true }
+        let off = await WhisperJobs.terms { ["terms": ["Taylor-Polynom"]] }
+        XCTAssertEqual(off, [])
+    }
+
+    /// Ohne geladenes Modell gibt es keine Vorgabe (und keinen Absturz); die Grenze laesst dem Text genug Platz
+    func testPromptWithoutAModelIsEmptyAndTheLimitIsSmall() async {
+        await WhisperEngine.shared.unload()
+        let tokens = await WhisperEngine.shared.prompt(terms: ["Taylor-Polynom"], language: "de")
+        XCTAssertEqual(tokens, [])
+        XCTAssertLessThanOrEqual(WhisperEngine.maxPromptTokens, 48, "die Vorgabe teilt sich 224 Wortteile mit dem erkannten Text")
+        XCTAssertTrue(WhisperText.long.contains("Fachbegriffe aus den Vorlesungen und Skripten"))
+    }
+
+    /// "Lizenzen" unter Hilfe & Rechtliches: Urheberhinweise und der Wortlaut der MIT-Lizenz (Pflicht der Lizenz)
+    func testLicensesDialogNamesWhisperKitAndTheModel() throws {
+        XCTAssertEqual(UFOpenSource.notices.map(\.name), ["WhisperKit", "Whisper"])
+        XCTAssertTrue(UFOpenSource.notices.allSatisfy { $0.copyright.hasPrefix("Copyright (c) 20") && $0.license == "MIT-Lizenz" })
+        XCTAssertTrue(UFOpenSource.mit.contains("The above copyright notice and this permission notice shall be included"))
+        XCTAssertTrue(UFOpenSource.mit.contains("THE SOFTWARE IS PROVIDED \"AS IS\""))
+        let env = try hostWithEnvironment(OpenSourceDialog(), size: CGSize(width: 620, height: 760))
+        XCTAssertTrue(env.wait { env.labels().contains("Lizenzen") }, "\(env.labels())")
+        let l = env.labels().joined(separator: "\n")
+        for expected in ["WhisperKit", "Copyright (c) 2024 argmax, inc.", "Copyright (c) 2022 OpenAI", "MIT-Lizenz", "Permission is hereby granted", "Fertig"] {
+            XCTAssertTrue(l.contains(expected), "\(expected) fehlt:\n\(l)")
+        }
+        let card = try hostWithEnvironment(LegalSupportCard().padding(), size: CGSize(width: 700, height: 360))
+        XCTAssertTrue(card.wait { card.labels().contains("Lizenzen") && card.labels().contains("Impressum") }, "\(card.labels())")
+    }
 }

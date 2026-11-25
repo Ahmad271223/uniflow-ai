@@ -901,6 +901,7 @@ private struct AppAccountCards: View {
 /// unveraendert, nur der Ort (vorher zwischen "Hochschule" und "Freunde einladen").
 struct LegalSupportCard: View {
     @Environment(\.openURL) private var openURL
+    @EnvironmentObject private var overlay: UFOverlay
 
     var body: some View {
         UFCard {
@@ -912,8 +913,77 @@ struct LegalSupportCard: View {
                 UFButton("Nutzungsbedingungen", size: .small) { openURL(UFLegalLinks.terms) }
                 UFButton("Datenschutzerklärung", size: .small) { openURL(UFLegalLinks.privacy) }
                 UFButton("Impressum", size: .small) { openURL(UFLegalLinks.imprint) }
+                UFButton("Lizenzen", size: .small) { _ = overlay.modal { OpenSourceDialog() } }
+                    .accessibilityIdentifier("settings.licenses")
             }
             .padding(.top, 9.6)
+        }
+    }
+}
+
+/// Freie Software in der App und ihre Lizenzen (1.0.8: WhisperKit fuer die "Bessere Mitschrift" ist das erste und
+/// einzige Fremdpaket). Die MIT-Lizenz verlangt, dass Urheberhinweis und Lizenztext mit der App ausgeliefert werden.
+enum UFOpenSource {
+    struct Notice: Equatable, Identifiable {
+        let name: String
+        let use: String
+        let copyright: String
+        let license: String
+        var id: String { name }
+    }
+
+    static let intro = "StudiNow verwendet freie Software. Hier stehen die Hinweise, die deren Lizenzen verlangen."
+
+    static let notices = [
+        Notice(name: "WhisperKit", use: "Spracherkennung auf dem Gerät („Bessere Mitschrift“)",
+               copyright: "Copyright (c) 2024 argmax, inc.", license: "MIT-Lizenz"),
+        Notice(name: "Whisper", use: "Sprachmodelle für die Mitschrift (werden auf Wunsch geladen)",
+               copyright: "Copyright (c) 2022 OpenAI", license: "MIT-Lizenz"),
+    ]
+
+    /// Wortlaut der MIT-Lizenz (gilt fuer alle Eintraege oben)
+    static let mit = """
+        Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated \
+        documentation files (the "Software"), to deal in the Software without restriction, including without limitation \
+        the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and \
+        to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+        The above copyright notice and this permission notice shall be included in all copies or substantial portions of \
+        the Software.
+
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO \
+        THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE \
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF \
+        CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS \
+        IN THE SOFTWARE.
+        """
+}
+
+struct OpenSourceDialog: View {
+    @Environment(\.ufClose) private var close
+
+    var body: some View {
+        UFDialog("Lizenzen", icon: "file-text") {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(UFOpenSource.intro).ufFont(13.1, lh: 1.45).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    ForEach(UFOpenSource.notices) { n in
+                        VStack(alignment: .leading, spacing: 2.4) {
+                            Text(n.name).ufFont(14.4, 600).foregroundStyle(UF.text)
+                            Text(n.use).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                            Text(n.copyright + " · " + n.license).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                        }
+                        .accessibilityElement(children: .combine)
+                    }
+                    Text("MIT-Lizenz").ufFont(13.6, 600).foregroundStyle(UF.text).padding(.top, 4)
+                    Text(UFOpenSource.mit).ufFont(12, lh: 1.45).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                        .textSelection(.enabled)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 520)
+        } foot: {
+            UFButton("Fertig", kind: .primary) { close() }
         }
     }
 }

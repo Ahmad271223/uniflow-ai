@@ -6,6 +6,7 @@ import XCTest
 /// Probe-Vorlesung um. Braucht Internet und Minuten, laeuft deshalb nur auf Wunsch:
 ///   TEST_RUNNER_UF_WHISPER_LIVE=1 TEST_RUNNER_UF_WHISPER_SAMPLE=<m4a/mp4> TEST_RUNNER_UF_WHISPER_BASE=<Ordner fuer Modelle>
 ///   [TEST_RUNNER_UF_WHISPER_MODEL=klein|gross] [TEST_RUNNER_UF_WHISPER_OUT=<Textdatei>] [TEST_RUNNER_UF_WHISPER_WORDS=wort1,wort2]
+///   [TEST_RUNNER_UF_WHISPER_TERMS=Begriff1,Begriff2  Fachwoerter als Vorgabe | TEST_RUNNER_UF_WHISPER_SCRIPT=<Textdatei mit Seiten>]
 ///   xcodebuild test … -only-testing:UniFlowTests/WhisperLiveTests
 /// Der Modell-Ordner darf auf dem Mac liegen (der Simulator liest ihn); beim zweiten Lauf wird nichts mehr geladen.
 @MainActor
@@ -48,7 +49,29 @@ final class WhisperLiveTests: XCTestCase {
         let duration = try XCTUnwrap(measured)
         var fractions: [Double] = []
         let start = Date()
-        let sections = try await WhisperJobs.transcribe(url: url, language: "de", store: store) { f, _, _ in fractions.append(f) }
+        // Fachwoerter-Hilfe: mit UF_WHISPER_TERMS geht die Liste als Vorgabe an das Modell (Vergleich mit und ohne)
+        // oder UF_WHISPER_SCRIPT=<Textdatei, Seiten durch eine Zeile "---" getrennt>: die App liest im Skript mit
+        // (`WhisperGlossary`) und waehlt die Begriffe je Stueck selbst
+        let fixed = (env["UF_WHISPER_TERMS"] ?? "").split(separator: ",").map(String.init)
+        var glossary: WhisperGlossary?
+        if let path = env["UF_WHISPER_SCRIPT"] {
+            let pages = try String(contentsOfFile: path, encoding: .utf8).components(separatedBy: "\n---\n")
+            glossary = WhisperGlossary(pages: pages)
+            XCTAssertFalse(try XCTUnwrap(glossary).isEmpty, "Skript ohne Begriffe")
+        }
+        var asked: [[String]] = []
+        let vocabulary: WhisperJobs.Vocabulary? = fixed.isEmpty && glossary == nil ? nil : { said in
+            let terms = glossary?.terms(after: said) ?? fixed
+            asked.append(terms)
+            return terms
+        }
+        let sections = try await WhisperJobs.transcribe(url: url, language: "de", store: store, vocabulary: vocabulary) { f, _, _ in fractions.append(f) }
+        for (i, terms) in asked.enumerated() {
+            let tokens = await WhisperEngine.shared.prompt(terms: terms, language: "de")
+            XCTAssertFalse(tokens.isEmpty, "Vorgabe leer")
+            XCTAssertLessThanOrEqual(tokens.count, WhisperEngine.maxPromptTokens)
+            print("WHISPER-LIVE Vorgabe Stück \(i + 1): \(tokens.count) Wortteile aus \(terms.joined(separator: ", "))")
+        }
         let took = Date().timeIntervalSince(start)
         let text = TranscriptSections.plainText(sections)
         print("WHISPER-LIVE \(Int(duration)) s Ton in \(Int(took)) s (Faktor \(String(format: "%.1f", duration / max(took, 0.1)))), \(sections.count) Abschnitte, \(text.count) Zeichen")
@@ -77,7 +100,7 @@ final class WhisperLiveTests: XCTestCase {
         // Weitermachen: mit den ersten Abschnitten als Stand beginnt die Erkennung an ihrem Ende, nicht bei null
         let half = Array(sections.prefix(max(1, sections.count / 2)))
         var firstFraction: Double?
-        let resumed = try await WhisperJobs.transcribe(url: url, language: "de", store: store, resume: half) { f, _, _ in
+        let resumed = try await WhisperJobs.transcribe(url: url, language: "de", store: store, vocabulary: vocabulary, resume: half) { f, _, _ in
             if firstFraction == nil { firstFraction = f }
         }
         XCTAssertGreaterThan(firstFraction ?? 0, 0.1)

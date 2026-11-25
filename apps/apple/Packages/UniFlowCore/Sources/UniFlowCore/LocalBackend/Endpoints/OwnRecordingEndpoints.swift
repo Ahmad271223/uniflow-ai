@@ -11,6 +11,7 @@ import Foundation
 ///                                              recorded_at?, duration?, language?, transcript?, transcript_status?}
 /// - GET  /api/recordings/own/suggest?date=&time=  laufender Termin des Stundenplans und die Termine des Tages
 /// - GET  /api/recordings/own/video?id=        Mitschrift zu einer Uni-Aufzeichnung (1.0.8); /own/videos: Stand je Video
+/// - POST /api/recordings/own/vocabulary      {id | file_id, text?}: Fachwoerter aus den Skripten des Moduls fuer Whisper (1.0.8)
 /// - GET  /api/recordings/own/{id}              eine Aufnahme mit Abschnitten
 /// - PATCH /api/recordings/own/{id}             Felder aendern (Titel, Modul, Termin, Dauer, Transkript, Stand)
 /// - DELETE /api/recordings/own/{id}            Aufnahme, Transkript und Zeile entfernen
@@ -194,6 +195,59 @@ public enum OwnRecordingEndpoints: LocalEndpointModule {
             return .json(.object(map.mapValues { JSONValue.string($0) }))
         }
 
+        // Fachwoerter fuer die Erkennung mit Whisper: aus den Vorlesungen und Skripten des Moduls der Aufnahme (`id`)
+        // oder einer Datei der Bibliothek (`file_id`). `text`: was zuletzt erkannt wurde – dann kommen zuerst die
+        // Begriffe der Skriptseiten, die dazu passen (`WhisperGlossary`). Ohne Modul oder lesbare Dateien: leere Liste.
+        router.post("/api/recordings/own/vocabulary") { req, ctx in
+            let body = try req.objectBody()
+            let rec = body["id"]?.string ?? "", file = body["file_id"]?.string ?? ""
+            guard !rec.isEmpty || !file.isEmpty else { throw bad("id oder file_id erwartet") }
+            let text = String((body["text"]?.string ?? "").suffix(6000))
+            let found = try await ctx.database.withConnection { c -> (stamp: String, files: [String])? in
+                var module: SQLiteValue = .null
+                if !rec.isEmpty {
+                    guard let r = try OwnRecordingStore.get(c, id: rec) else { return nil }
+                    if let m = r["module_id"]?.int {
+                        module = .integer(Int64(m))
+                    } else if let course = r["course_id"]?.string {
+                        module = try c.scalar("SELECT module_id FROM courses WHERE id=?", [.text(course)]) ?? .null
+                    }
+                } else {
+                    module = try c.scalar("SELECT c.module_id FROM files f JOIN courses c ON c.id=f.course_id WHERE f.id=?", [.text(file)]) ?? .null
+                }
+                if case .null = module { return ("", []) }
+                var ids: [String] = []
+                // je Datenbank (Konto, Hochschule) ein eigener Eintrag
+                var stamp = "\(ObjectIdentifier(ctx.database).hashValue)\u{1E}" + (module.json?.jsonString() ?? "")
+                for f in try ScriptSearch.sources(c, moduleID: module) {
+                    guard let id = f["id"]?.string else { continue }
+                    let path = try c.scalar("SELECT local_path FROM files WHERE id=?", [.text(id)])?.string ?? ""
+                    ids.append(id)
+                    stamp += "\u{1E}" + [id, f["chdate"]?.jsonString() ?? "0", path].joined(separator: "\u{1F}")
+                }
+                return (stamp, ids)
+            }
+            guard let found else { throw LocalHTTPError.notFound("Aufnahme nicht gefunden") }
+            guard !found.files.isEmpty else { return .json(["terms": [], "files": 0]) }
+            let entry: GlossaryCache.Entry
+            if let cached = GlossaryCache.shared.get(found.stamp) {
+                entry = cached
+            } else {
+                var texts: [String] = []
+                var used = 0
+                // neueste Dateien zuerst (die Quellen kommen aelteste zuerst), jede Datei in ihrer Seitenfolge
+                for id in found.files.reversed() where texts.count < WhisperVocabulary.maxPages {
+                    let pages = try await ScriptSearch.pageTexts(fileID: id, ctx: ctx, ocrScope: .none)
+                    if !pages.isEmpty { used += 1 }
+                    texts.append(contentsOf: pages.prefix(WhisperVocabulary.maxPages - texts.count))
+                }
+                entry = GlossaryCache.Entry(glossary: WhisperGlossary(pages: texts), files: used)
+                GlossaryCache.shared.set(found.stamp, entry)
+            }
+            let terms = entry.glossary.terms(after: text)
+            return .json(["terms": .array(terms.map { JSONValue.string($0) }), "files": .number(Double(entry.files))])
+        }
+
         router.get("/api/recordings/own/{rec_id}") { req, ctx in
             let id = req.param("rec_id")
             guard let r = try await ctx.database.withConnection({ try OwnRecordingStore.get($0, id: id) }) else {
@@ -241,5 +295,32 @@ enum UFDate {
         let p = iso.split(separator: "-")
         guard p.count == 3 else { return iso }
         return "\(p[2]).\(p[1]).\(p[0])"
+    }
+}
+
+/// Glossar je Modul und Stand seiner Dateien: eine Mitschrift fragt je Stueck einmal, die Seitentexte werden dafuer
+/// nur einmal gelesen. Zwei Eintraege reichen (eine Erkennung zur Zeit).
+final class GlossaryCache: @unchecked Sendable {
+    struct Entry: Sendable {
+        let glossary: WhisperGlossary
+        let files: Int
+    }
+
+    static let shared = GlossaryCache()
+    private let lock = NSLock()
+    private var entries: [(key: String, entry: Entry)] = []
+
+    func get(_ key: String) -> Entry? {
+        lock.lock()
+        defer { lock.unlock() }
+        return entries.first { $0.key == key }?.entry
+    }
+
+    func set(_ key: String, _ entry: Entry) {
+        lock.lock()
+        defer { lock.unlock() }
+        entries.removeAll { $0.key == key }
+        entries.insert((key, entry), at: 0)
+        if entries.count > 2 { entries.removeLast() }
     }
 }

@@ -20,6 +20,9 @@ enum WhisperFeature {
     /// Wird "Bessere Mitschrift" angeboten? Aus = keine Karte, keine Knoepfe, kein Download; die Erkennung von Apple
     /// bleibt wie bisher.
     static var isEnabled = true
+    /// Fachwoerter-Hilfe: Begriffe aus den Vorlesungen und Skripten des Moduls gehen als Vorgabe an Whisper
+    /// (`WhisperVocabulary`); aus = Erkennung ohne Vorgabe wie zuerst gebaut.
+    static var usesVocabulary = true
 }
 
 struct WhisperFailure: LocalizedError, Equatable {
@@ -104,14 +107,59 @@ actor WhisperEngine {
         loaded = nil
     }
 
+    /// Vorgabe und erkannter Text teilen sich bei WhisperKit einen Rahmen von 224 Wortteilen je 30 Sekunden Ton
+    /// (`Constants.maxTokenContext`). 30 Sekunden Vorlesung brauchen bis etwa 170; eine lange Vorgabe schneidet den Text
+    /// ab (gemessen 24.11.2026: 179 Wortteile Vorgabe -> doppelte Dauer und 30 Sekunden Text verloren). Darum kurz:
+    /// rund zehn Begriffe.
+    static let maxPromptTokens = 40
+
+    private var promptKey = ""
+    private var promptTokens: [Int] = []
+
+    /// Fachwoerter als Wortteile fuer die Vorgabe, wichtigste zuerst und nur so viele, wie hineinpassen. Je Wortliste
+    /// einmal gebildet.
+    func prompt(terms: [String], language: String) -> [Int] {
+        guard let tokenizer = kit?.tokenizer, !terms.isEmpty else { return [] }
+        let key = (loaded ?? "") + "\u{1F}" + language + "\u{1F}" + terms.joined(separator: "\u{1F}")
+        if key == promptKey { return promptTokens }
+        var used = terms
+        var tokens: [Int] = []
+        while !used.isEmpty {
+            tokens = tokenizer.encode(text: " " + WhisperVocabulary.prompt(terms: used, language: language))
+                .filter { $0 < tokenizer.specialTokens.specialTokenBegin }
+            if tokens.count <= Self.maxPromptTokens { break }
+            used.removeLast(max(1, used.count / 8))
+            tokens = []
+        }
+        promptKey = key
+        promptTokens = tokens
+        return tokens
+    }
+
     /// Ein Stueck Ton (16 kHz mono) zu Segmenten mit Zeiten ab Beginn des Stuecks. `stop` wird waehrend der Erkennung
-    /// gefragt; true bricht das Stueck ab.
-    func transcribe(samples: [Float], language: String, stop: @escaping @Sendable () -> Bool) async throws -> [WhisperRawSegment] {
-        guard let kit else { throw WhisperFailure("Das Sprachmodell ist nicht geladen.") }
+    /// gefragt; true bricht das Stueck ab. `terms`: Fachwoerter als Vorgabe (`WhisperVocabulary`); bleibt ein Stueck
+    /// damit ganz ohne Text, wird es einmal ohne Vorgabe erkannt.
+    func transcribe(samples: [Float], language: String, terms: [String] = [], stop: @escaping @Sendable () -> Bool) async throws -> [WhisperRawSegment] {
+        guard kit != nil else { throw WhisperFailure("Das Sprachmodell ist nicht geladen.") }
         guard !samples.isEmpty else { return [] }
-        let options = DecodingOptions(verbose: false, task: .transcribe, language: language, temperature: 0, usePrefillPrompt: true,
+        let prompt = prompt(terms: terms, language: language)
+        let first = try await decode(samples: samples, language: language, prompt: prompt, stop: stop)
+        guard !prompt.isEmpty, !stop(), first.allSatisfy({ WhisperSlices.clean($0.text).isEmpty }) else { return first }
+        return try await decode(samples: samples, language: language, prompt: [], stop: stop)
+    }
+
+    private func decode(samples: [Float], language: String, prompt: [Int], stop: @escaping @Sendable () -> Bool) async throws -> [WhisperRawSegment] {
+        guard let kit else { throw WhisperFailure("Das Sprachmodell ist nicht geladen.") }
+        var options = DecodingOptions(verbose: false, task: .transcribe, language: language, temperature: 0, usePrefillPrompt: true,
                                       detectLanguage: false, skipSpecialTokens: true, withoutTimestamps: false, wordTimestamps: false,
                                       chunkingStrategy: ChunkingStrategy.none)
+        if !prompt.isEmpty {
+            options.promptTokens = prompt
+            // Mit Vorgabe haelt WhisperKit ein Fenster manchmal faelschlich fuer Stille (das erste Wortteil nach der
+            // Vorgabe ist dem Modell weniger sicher) und laesst 30 Sekunden Ton aus (gemessen 24.11.2026). Die Pruefung
+            // gilt darum nur ohne Vorgabe.
+            options.firstTokenLogProbThreshold = nil
+        }
         let results = try await kit.transcribe(audioArray: samples, decodeOptions: options, callback: { _ in stop() ? false : nil })
         return results.flatMap(\.segments).map {
             WhisperRawSegment(start: Double($0.start), end: Double($0.end), text: $0.text, noSpeech: Double($0.noSpeechProb))
@@ -378,7 +426,10 @@ final class WhisperJobs: ObservableObject {
         }
         do {
             states[id] = .loadingModel
-            sections = try await Self.transcribe(url: url, language: language, store: store, resume: resume) { [weak self] fraction, duration, done in
+            let vocabulary: Vocabulary = { said in
+                await Self.terms { try await api.value("/api/recordings/own/vocabulary", method: "POST", body: ["id": .string(id), "text": .string(said)]) }
+            }
+            sections = try await Self.transcribe(url: url, language: language, store: store, vocabulary: vocabulary, resume: resume) { [weak self] fraction, duration, done in
                 self?.states[id] = .running(fraction)
                 var body: [String: JSONValue] = ["transcript_status": .string(done.isEmpty ? "running" : "partial"), "transcript_engine": "whisper",
                                                  "duration": .number(duration)]
@@ -397,10 +448,22 @@ final class WhisperJobs: ObservableObject {
         }
     }
 
+    /// Fachwoerter fuer das naechste Stueck; bekommt, was zuletzt erkannt wurde ("" am Anfang). Die App liest damit im
+    /// Skript des Moduls mit (`POST /api/recordings/own/vocabulary`, `WhisperGlossary`).
+    typealias Vocabulary = @MainActor (_ said: String) async -> [String]
+
+    /// Antwort der Route zu einer Wortliste; ohne Modul, ohne lesbare Dateien oder bei einem Fehler leer – dann
+    /// erkennt Whisper ohne Vorgabe.
+    static func terms(_ load: () async throws -> JSONValue?) async -> [String] {
+        guard WhisperFeature.usesVocabulary, let answer = try? await load() else { return [] }
+        return answer["terms"]?.array?.compactMap(\.string) ?? []
+    }
+
     /// Eine ganze Audio- oder Videodatei zu Abschnitten, Stueck fuer Stueck. `resume`: fertige Abschnitte eines
     /// frueheren Laufs (es geht an ihrem Ende weiter). `step` kommt vor dem ersten und nach jedem Stueck mit Anteil,
-    /// Laenge der Datei und dem Stand der Abschnitte. Wirft bei Abbruch `CancellationError`.
-    static func transcribe(url: URL, language: String, store: WhisperModelStore, resume: [TranscriptSection] = [],
+    /// Laenge der Datei und dem Stand der Abschnitte. `vocabulary`: Fachwoerter je Stueck als Vorgabe fuer das Modell
+    /// (nil = ohne). Wirft bei Abbruch `CancellationError`.
+    static func transcribe(url: URL, language: String, store: WhisperModelStore, vocabulary: Vocabulary? = nil, resume: [TranscriptSection] = [],
                            step: @MainActor (_ fraction: Double, _ duration: Double, _ sections: [TranscriptSection]) async -> Void) async throws -> [TranscriptSection] {
         guard let choice = store.active else { throw WhisperFailure("Kein Sprachmodell geladen.") }
         try await WhisperEngine.shared.load(variant: choice.variant, folder: store.folder(choice), base: store.base)
@@ -408,23 +471,27 @@ final class WhisperJobs: ObservableObject {
         var sections = resume
         var segments: [TranscriptSegment] = []
         var position = WhisperSlices.resumePosition(resume)
+        // was zuletzt gesagt wurde: beim Weitermachen das Ende der fertigen Abschnitte
+        var said = String(resume.suffix(3).map(\.text).joined(separator: " ").suffix(3000))
         await step(WhisperSlices.progress(position: position, duration: duration), duration, [])
         while let slice = WhisperSlices.slice(from: position, duration: duration) {
             try Task.checkCancellation()
             await waitUntilActive()
+            let terms = await vocabulary?(said) ?? []
             let samples = try await WhisperAudio.samples(url: url, start: slice.start, length: slice.length)
             let raw: [WhisperRawSegment]
             do {
-                raw = try await WhisperEngine.shared.transcribe(samples: samples, language: language, stop: { Task.isCancelled })
+                raw = try await WhisperEngine.shared.transcribe(samples: samples, language: language, terms: terms, stop: { Task.isCancelled })
             } catch {
                 // im Hintergrund darf der Grafikchip nicht rechnen: warten, bis die App wieder vorn ist, einmal neu
                 guard !Task.isCancelled, !isActiveNow() else { throw error }
                 await waitUntilActive()
-                raw = try await WhisperEngine.shared.transcribe(samples: samples, language: language, stop: { Task.isCancelled })
+                raw = try await WhisperEngine.shared.transcribe(samples: samples, language: language, terms: terms, stop: { Task.isCancelled })
             }
             try Task.checkCancellation()
-            let placed = WhisperSlices.place(raw, sliceStart: slice.start, sliceLength: slice.length, isLast: slice.isLast)
+            let placed = WhisperSlices.place(raw, sliceStart: slice.start, sliceLength: slice.length, isLast: slice.isLast, vocabulary: terms)
             segments.append(contentsOf: placed.segments)
+            if !placed.segments.isEmpty { said = String(placed.segments.map(\.text).joined(separator: " ").suffix(3000)) }
             position = max(placed.next, slice.start + 1)
             sections = WhisperSlices.merge(resume, with: segments)
             await step(WhisperSlices.progress(position: position, duration: duration), duration, sections)

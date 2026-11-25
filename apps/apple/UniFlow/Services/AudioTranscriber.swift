@@ -71,7 +71,15 @@ final class AudioTranscriber: ObservableObject {
             }
             guard Self.supports(stored) else { state = .failed("Nur .mp3 und .m4a lassen sich transkribieren."); return }
             if Self.usesWhisper {
-                let lines = try await whisperLines(url: url, locale: locale)
+                // Fachwoerter aus den Skripten des Moduls, zu dem die Datei gehoert (leer ohne Modul)
+                let vocabulary: WhisperJobs.Vocabulary = { said in
+                    await WhisperJobs.terms {
+                        guard let url = URL(string: "uniflow-local://device/api/recordings/own/vocabulary") else { return nil }
+                        let body: JSONValue = ["file_id": .string(fileID), "text": .string(said)]
+                        return await backend.handle(LocalRequest(method: "POST", url: url, headers: ["Content-Type": "application/json"], body: body.serialized())).json
+                    }
+                }
+                let lines = try await whisperLines(url: url, locale: locale, vocabulary: vocabulary)
                 guard !lines.isEmpty else { state = .failed("Es wurde keine Sprache erkannt."); return }
                 _ = try files.write(Data((lines.joined(separator: "\n") + "\n").utf8), to: OfficeText.transcriptPath(for: stored))
                 try await backend.context.database.execute("DELETE FROM page_texts WHERE file_id=?", [.text(fileID)])
@@ -105,9 +113,9 @@ final class AudioTranscriber: ObservableObject {
     }
 
     /// Erkennung mit Whisper: Abschnitte der ganzen Datei, als Zeilen je Satz wie bei der Erkennung von Apple
-    private func whisperLines(url: URL, locale: String) async throws -> [String] {
+    private func whisperLines(url: URL, locale: String, vocabulary: @escaping WhisperJobs.Vocabulary) async throws -> [String] {
         let work = Task { @MainActor [weak self] () throws -> [String] in
-            let sections = try await WhisperJobs.transcribe(url: url, language: WhisperSlices.language(locale), store: .shared) { fraction, _, _ in
+            let sections = try await WhisperJobs.transcribe(url: url, language: WhisperSlices.language(locale), store: .shared, vocabulary: vocabulary) { fraction, _, _ in
                 if case .running = self?.state { self?.state = .running(fraction) }
             }
             return sections.flatMap { Self.paragraphs($0.text) }
