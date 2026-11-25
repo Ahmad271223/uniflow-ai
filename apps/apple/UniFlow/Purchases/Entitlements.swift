@@ -171,6 +171,26 @@ enum UFFeature: String, CaseIterable, Identifiable {
 
 // MARK: - Funktionsmatrix
 
+/// Neue Schreibfunktionen im Editor (Auftrag des Inhabers 25.11.2026): Textbloecke "wie Word" (Formatleiste,
+/// Schriftarten, Einrasten auf den Linien, langes Druecken greift), Notizzettel, Klappkarten, Verweise. Erst "ab Plus"
+/// bestellt, am selben Tag korrigiert: "das alles ab Pro AI". Die Probewoche zaehlt wie Pro AI (sie IST dann der Tarif).
+///
+/// Plus behaelt genau, was es in 1.0.7 hat: einfaches Textfeld und gelbe Haftnotiz. Vorhandene Bloecke (aus der Probe,
+/// vom anderen Geraet, aus der Community) bleiben in jedem Tarif sichtbar; mit Plus lassen sie sich weiter verschieben,
+/// loeschen und ihr Text aendern - nur neu formatieren nicht.
+///
+/// Bewusst (noch) kein `UFFeature`: Das stuende sofort auf den Tarifkarten und im Vertrag mit dem Dienst; den Text
+/// dafuer gibt der Inhaber frei (docs/TEXTBLOECKE-NOTIZZETTEL-KLAPPKARTEN-TABELLE-2026-11-25.md).
+enum UFRichNotes {
+    /// EINE ZEILE ZUM UMSTELLEN: kleinster Tarif fuer die neuen Schreibfunktionen
+    static let minimumPlan: UFPlan = .proAI
+    static let title = "Text wie in Word"
+
+    static func allowed(plan: UFPlan) -> Bool { plan >= minimumPlan }
+    /// Tarif fuer das Schloss; nil = erlaubt
+    static func lockedPlan(plan: UFPlan) -> UFPlan? { allowed(plan: plan) ? nil : minimumPlan }
+}
+
 /// Zugang zu einer Funktion
 enum UFAccess: Equatable {
     case allowed

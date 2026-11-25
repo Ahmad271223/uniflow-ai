@@ -1125,6 +1125,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schreiben gerade moeglich (eigene Notizen eingeblendet und Tarif mit Schreiben)
     var writable: Bool { ownNotesVisible && canEdit }
 
+    /// Tarif erlaubt die neuen Schreibfunktionen (`UFRichNotes`, ab Pro AI): Textbloecke "wie Word" anlegen und
+    /// formatieren, langes Druecken greift. Sonst wie in 1.0.7 (einfaches Textfeld). `richNotesOverride`: fuer Tests.
+    var richNotesOverride: Bool?
+    var richNotes: Bool { writable && (richNotesOverride ?? UFRichNotes.allowed(plan: Entitlements.shared.plan)) }
+
     /// Sichtbarkeit der eigenen Notizen und Eingabe der Canvas fuer ein Overlay
     private func applyOwnNotes(to overlay: PageInkView) {
         overlay.setOwnNotesVisible(ownNotesVisible)

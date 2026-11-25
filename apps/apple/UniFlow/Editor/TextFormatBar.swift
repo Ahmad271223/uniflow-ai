@@ -148,7 +148,7 @@ struct TextFormatBar: View {
             }
         } label: {
             HStack(spacing: 4) {
-                Text(Self.fontTitle(format.style.fontFamily)).ufFont(13.6, 600).lineLimit(1).frame(maxWidth: 112)
+                Text(Self.fontTitle(format.style.fontFamily)).ufFont(13.6, 600).lineLimit(1).frame(width: 104, alignment: .leading)
                 Image(systemName: "chevron.down").font(.system(size: 9, weight: .bold))
             }
             .foregroundStyle(UF.text)
@@ -216,5 +216,27 @@ struct TextFormatBar: View {
             ctx.cgContext.strokeEllipse(in: CGRect(origin: .zero, size: size).insetBy(dx: 1, dy: 1))
         }
         return Image(uiImage: image.withRenderingMode(.alwaysOriginal))
+    }
+}
+
+/// Leiste "Text" ohne Pro AI (Auftrag des Inhabers 25.11.2026: "das alles ab Pro AI"; gesperrt heisst sichtbar mit
+/// Schloss, 12.11.2026): dieselben Zeichen gedimmt, Antippen oeffnet die Tarifwahl mit Pro AI.
+struct TextFormatLockedBar: View {
+    let plan: UFPlan
+
+    static let symbols = ["bold", "italic", "underline", "highlighter", "textformat.size", "list.bullet"]
+
+    var body: some View {
+        UFLockedButton(plan: plan, title: UFRichNotes.title, identifier: "textformat.locked") {
+            HStack(spacing: 10) {
+                ForEach(Self.symbols, id: \.self) { Image(systemName: $0).font(.system(size: 15, weight: .medium)) }
+                Text(UFRichNotes.title).ufFont(13.6, 600).lineLimit(1).fixedSize()
+            }
+            .foregroundStyle(UF.text)
+        }
+        .padding(.horizontal, 12)
+        .frame(height: TextFormatBar.height)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 14))
+        .shadow(radius: 4)
     }
 }

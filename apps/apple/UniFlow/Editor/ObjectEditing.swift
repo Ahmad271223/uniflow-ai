@@ -884,7 +884,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
 
     /// Formatierung der Auswahl an die Leiste melden (`list`: Objekte der Seite; nil = nichts gewaehlt)
     func publishFormat(_ list: [JSONValue]?) {
-        let f = editing != nil ? editingFormat() : list.flatMap { selectionFormat($0) }
+        // ohne Liste (Tippen beendet, nichts gespeichert): der zuletzt gezeigte Stand der Seite der Auswahl
+        let shown = list ?? selection.flatMap { controller?.boundOverlay(forKey: $0.key)?.objectsView.shownObjects }
+        let f = editing != nil ? editingFormat() : shown.flatMap { selectionFormat($0) }
         guard f != textFormat else { return }
         textFormat = f
         onTextFormat?(f)

@@ -3318,6 +3318,8 @@ struct PageTrashSheet: View {
 /// Werkzeugleiste oben (`EditorToolbar`).
 struct ObjectToolbar: View {
     @ObservedObject var bridge: EditorBridge
+    /// Tarif: Textbloecke "wie Word" ab Pro AI (`UFRichNotes`), sonst die Leiste mit Schloss
+    @ObservedObject private var entitlements = Entitlements.shared
     private let colors: [(String, String)] = [("#e5322d", "Rot"), ("#1d2130", "Schwarz"), ("#2f7fd1", "Blau"), ("#2e9e5b", "Grün"),
                                               ("#f5d90a", "Gelb"), ("#fff7a8", "Notizgelb")]
 
@@ -3363,7 +3365,13 @@ struct ObjectToolbar: View {
                 .padding(8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            if let format = bridge.textFormat {
+            if let format = bridge.textFormat, let locked = UFRichNotes.lockedPlan(plan: entitlements.plan) {
+                // ohne Pro AI: sichtbar mit Schloss (Antippen oeffnet die Tarifwahl); daneben die Knoepfe wie bisher
+                HStack(spacing: 8) {
+                    if bridge.objectSelection > 0, !format.editing { selectionActions }
+                    TextFormatLockedBar(plan: locked)
+                }
+            } else if let format = bridge.textFormat {
                 // Text gewaehlt oder wird getippt: Leiste wie in Word (fett, Schrift, Groesse, markieren ...)
                 TextFormatBar(format: format, canDelete: bridge.objectSelection > 0 && !format.editing,
                               objects: { [weak bridge] in bridge?.selectionObjects })

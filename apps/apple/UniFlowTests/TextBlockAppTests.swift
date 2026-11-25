@@ -31,7 +31,7 @@ final class TextBlockAppTests: XCTestCase {
     }
 
     /// Dokument (1 PDF-Seite, danach eine linierte und eine leere Seite) im Fenster, Tarif mit Schreiben
-    private func open(canEdit: Bool = true, size: CGSize = CGSize(width: 1080, height: 810)) async throws -> Shown {
+    private func open(canEdit: Bool = true, proAI: Bool = true, size: CGSize = CGSize(width: 1080, height: 810)) async throws -> Shown {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("uniflow-textblock-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
@@ -71,6 +71,7 @@ final class TextBlockAppTests: XCTestCase {
         editor.pencilOnly = true
         editor.ownNotesVisible = true
         editor.canEdit = canEdit
+        editor.richNotesOverride = proAI
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let frame = CGRect(origin: .zero, size: size)
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
@@ -320,6 +321,17 @@ final class TextBlockAppTests: XCTestCase {
         try await BildProbe.wait("Text gespeichert") { await self.object(s, s.lined, "a")?["text"] == "Erster Block geht weiter" }
         let count = await s.store.objects(forPageKey: s.lined).count
         XCTAssertEqual(count, 2, "kein neuer Block darueber")
+
+        // Block gewaehlt, Tippen ohne Aenderung beendet: die Leiste "Text" bleibt (fuer den ganzen Block)
+        s.editor.choose(.select)
+        await s.editor.objects.selectForTesting(key: s.lined, ids: ["a"])
+        s.editor.objects.beginTextEditing(key: s.lined, id: "a", isNew: false)
+        try await BildProbe.wait("gewaehlter Block offen") { s.editor.objects.editing?.id == "a" }
+        XCTAssertEqual(s.editor.objects.textFormat?.editing, true)
+        s.editor.objects.endTextEditing()
+        XCTAssertEqual(s.editor.objects.textFormat?.editing, false, "Leiste bleibt fuer den gewaehlten Block")
+        s.editor.objects.clearSelection()
+        XCTAssertNil(s.editor.objects.textFormat)
 
         // einfaches Textfeld: Text aendern, nichts formatieren
         s.editor.objects.beginTextEditing(key: s.lined, id: "old", isNew: false)
@@ -577,9 +589,89 @@ final class TextBlockAppTests: XCTestCase {
 
     // MARK: Tarif
 
+    /// Tarif-Regel (Inhaber 25.11.2026: "das alles ab Pro AI"): Free und Plus nicht, Pro AI ja
+    func testTarifRegel() {
+        XCTAssertEqual(UFRichNotes.minimumPlan, .proAI)
+        XCTAssertFalse(UFRichNotes.allowed(plan: .free))
+        XCTAssertFalse(UFRichNotes.allowed(plan: .plus))
+        XCTAssertTrue(UFRichNotes.allowed(plan: .proAI))
+        XCTAssertEqual(UFRichNotes.lockedPlan(plan: .plus), .proAI)
+        XCTAssertNil(UFRichNotes.lockedPlan(plan: .proAI))
+        XCTAssertEqual(UFLocalTrial.plan, .proAI, "die Probewoche zaehlt wie Pro AI")
+    }
+
+    /// Plus (ohne Pro AI) behaelt, was es in 1.0.7 hat: Das Werkzeug "Text" legt das einfache Textfeld an (kein Block,
+    /// kein Einrasten), Formatieren und langes Druecken greifen nicht. Ein vorhandener Block (aus der Probe, vom anderen
+    /// Geraet) bleibt zu sehen, laesst sich verschieben (bleibt auf den Linien) und sein Text aendern - die Formatierung
+    /// der Woerter bleibt dabei erhalten.
+    func testPlusBehaeltDasEinfacheTextfeld() async throws {
+        let s = try await open(proAI: false)
+        let page = try await overlay(s, key: s.lined)
+        XCTAssertTrue(s.editor.writable, "Plus schreibt")
+        XCTAssertFalse(s.editor.richNotes)
+        let a = TextBlock.setting([TextBlock.Run(text: "fett", style: TextBlock.Style(bold: true, fontSize: 16)),
+                                   TextBlock.Run(text: " aus der Probewoche", style: TextBlock.Style(fontSize: 16))],
+                                  in: TextBlock.block(id: "a", x: 80, y: 200, template: "lined", pageWidth: 595))
+        await s.store.editObjects(pageKey: s.lined) { $0 + [a] }
+        try await BildProbe.wait("Block gezeigt") { page.objectsView.subviews.contains { $0 is TextBlockView } }
+
+        // neuer Text: einfaches Textfeld wie bisher
+        s.editor.choose(.text)
+        XCTAssertTrue(s.editor.objects.isActive, "das Text-Werkzeug gibt es in Plus")
+        try await BildProbe.tap(CGPoint(x: 80, y: 330), on: page, in: s.window)
+        try await BildProbe.wait("Textansicht offen") { s.editor.objects.editingTextView != nil }
+        var view = try XCTUnwrap(s.editor.objects.editingTextView)
+        view.insertText("einfach")
+        view.selectedRange = NSRange(location: 0, length: 7)
+        s.editor.objects.format(.bold(true))                                           // gesperrt
+        s.editor.objects.toggleList(.bullet)
+        s.editor.objects.setAlignment("center")
+        s.editor.objects.endTextEditing()
+        try await BildProbe.wait("gespeichert") { await s.store.objects(forPageKey: s.lined).count == 2 }
+        let found = await s.store.objects(forPageKey: s.lined).last
+        let simple = try XCTUnwrap(found)
+        XCTAssertEqual(simple["text"], "einfach")
+        XCTAssertNil(simple["block"], "kein Textblock")
+        XCTAssertNil(simple["snap"])
+        XCTAssertNil(simple["runs"])
+        XCTAssertEqual(simple["bold"], false)
+        XCTAssertEqual(simple["align"], "left")
+        XCTAssertEqual(simple["y"]?.double ?? 0, 330, accuracy: 0.011, "genau am Tippunkt, nicht eingerastet")
+        XCTAssertEqual(simple["width"], 220, "wie in 1.0.7")
+
+        // langes Druecken und Formatieren ganzer Bloecke: nicht in Plus
+        XCTAssertFalse(s.editor.objects.holdAccepts(touchType: .direct))
+        s.editor.choose(.select)
+        XCTAssertFalse(s.editor.objects.holdAccepts(touchType: .direct))
+        await s.editor.objects.selectForTesting(key: s.lined, ids: ["a"])
+        XCTAssertNotNil(s.editor.objects.textFormat, "die Leiste erfaehrt die Auswahl (sie zeigt das Schloss)")
+        s.editor.objects.format(.italic(true))
+        s.editor.objects.setAlignment("right")
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let same = await object(s, s.lined, "a")
+        XCTAssertEqual(same, a, "nichts formatiert")
+
+        // vorhandenen Block: Text aendern geht, die Formatierung bleibt
+        s.editor.objects.beginTextEditing(key: s.lined, id: "a", isNew: false)
+        try await BildProbe.wait("Block offen") { s.editor.objects.editing?.id == "a" }
+        view = try XCTUnwrap(s.editor.objects.editingTextView)
+        view.selectedRange = NSRange(location: view.textStorage.length, length: 0)
+        view.insertText("!")
+        s.editor.objects.endTextEditing()
+        try await BildProbe.wait("Text gespeichert") { await self.object(s, s.lined, "a")?["text"] == "fett aus der Probewoche!" }
+        let edited = await object(s, s.lined, "a")
+        XCTAssertEqual(edited?["runs"], [["text": "fett", "bold": true], ["text": " aus der Probewoche!"]])
+        // verschieben: bleibt auf den Linien
+        await s.editor.objects.selectForTesting(key: s.lined, ids: ["a"])
+        s.editor.objects.finishMove(dx: 0, dy: 30)
+        try await BildProbe.wait("verschoben") { (await self.object(s, s.lined, "a")?["y"]?.double ?? 0) > 201 }
+        let moved = await object(s, s.lined, "a")
+        XCTAssertTrue(onLine(firstBaseline(moved)))
+    }
+
     /// Ohne Schreiben im Tarif (Free, nach dem Herabstufen): kein Text-Werkzeug, kein neuer Block, kein Greifen, keine
-    /// Formatierung - vorhandene Bloecke bleiben sichtbar. Mit Plus geht alles (die uebrigen Tests).
-    func testOhnePlusKeinTippenUndKeinFormatieren() async throws {
+    /// Formatierung - vorhandene Bloecke bleiben sichtbar. Mit Pro AI geht alles (die uebrigen Tests).
+    func testOhneSchreibenKeinTippenUndKeinFormatieren() async throws {
         XCTAssertFalse(UFFeatureMatrix.notes(plan: .free).canEdit, "Free schreibt nicht")
         XCTAssertTrue(UFFeatureMatrix.notes(plan: .plus).canEdit, "ab Plus")
         XCTAssertTrue(UFFeatureMatrix.notes(plan: .proAI).canEdit)

@@ -48,9 +48,14 @@ extension ObjectEditing {
         return layout.entry(at: i)?.template
     }
 
-    /// Neuer Textblock am Tippunkt: auf Seiten mit Linien sitzt er auf der Linie, die Breite reicht bis zum rechten Rand
+    /// Tarif erlaubt Textbloecke "wie Word" (ab Pro AI, `UFRichNotes`)
+    var richAllowed: Bool { controller?.richNotes == true }
+
+    /// Neuer Textblock am Tippunkt: auf Seiten mit Linien sitzt er auf der Linie, die Breite reicht bis zum rechten Rand.
+    /// Ohne Pro AI: das einfache Textfeld wie in 1.0.7.
     func newBlock(id: String, on overlay: PageInkView, at p: CGPoint) -> JSONValue {
-        TextBlock.block(id: id, x: Double(p.x), y: Double(p.y), template: template(forKey: overlay.pageKey),
+        guard richAllowed else { return PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y)) }
+        return TextBlock.block(id: id, x: Double(p.x), y: Double(p.y), template: template(forKey: overlay.pageKey),
                         pageWidth: Double(overlay.geometry.pageSize.width))
     }
 
@@ -73,7 +78,7 @@ extension ObjectEditing {
     /// dann nichts an). Beim Schreiben mit dem Stift nur mit dem Finger, und nur wenn der Finger nicht selbst schreibt -
     /// ein ruhender Stift oder ein schreibender Finger zeichnen, sie greifen keinen Block.
     func holdAccepts(touchType: UITouch.TouchType) -> Bool {
-        guard let c = controller, c.writable, c.correction == nil, c.freezeMode == .off else { return false }
+        guard let c = controller, c.writable, c.richNotes, c.correction == nil, c.freezeMode == .off else { return false }
         if isActive { return tool == .select || tool == .text || tool == .sticky }
         return touchType == .direct && c.pencilOnly && !PDFEditorController.isMac
     }
@@ -158,7 +163,8 @@ extension ObjectEditing {
         view.backgroundColor = ObjectGeometry.color(o["bg"]) ?? .clear
         view.overrideUserInterfaceStyle = .light
         view.layer.borderColor = UIColor.systemBlue.withAlphaComponent(0.8).cgColor
-        view.layer.borderWidth = 1 / max(0.5, Self.screenScale(of: overlay))
+        // ist der Block gewaehlt, zeigt schon der Auswahlrahmen, wo getippt wird
+        view.layer.borderWidth = selection?.ids.contains(id) == true ? 0 : 1 / max(0.5, Self.screenScale(of: overlay))
         view.layer.cornerRadius = 3
         view.layer.anchorPoint = .zero
         view.frame = CGRect(x: ObjectGeometry.coordinate(o["x"], 0), y: ObjectGeometry.coordinate(o["y"], 0), width: size.width, height: size.height)
@@ -172,7 +178,20 @@ extension ObjectEditing {
         view.becomeFirstResponder()
         view.selectedRange = NSRange(location: layout.storage.length, length: 0)
         view.typingAttributes = Self.typingAttributes(at: layout.storage.length, in: layout.storage, object: o)
+        sharpenEditor(view, on: overlay)
         publishFormat(nil)
+    }
+
+    /// Die Seite ist vergroessert (Seitenbreite am iPad rund 1,4- bis 2-fach): die Textansicht zeichnet in der Aufloesung
+    /// der Anzeige, sonst waere der Text beim Tippen unscharf und spraenge beim Beenden auf scharf
+    func sharpenEditor(_ view: UITextView, on overlay: PageInkView) {
+        let scale = UIScreen.main.scale * min(8, max(1, Self.screenScale(of: overlay)))
+        func walk(_ v: UIView) {
+            if abs(v.contentScaleFactor - scale) > 0.01 { v.contentScaleFactor = scale }
+            v.layer.sublayers?.forEach { if $0.delegate == nil { $0.contentsScale = scale } }
+            v.subviews.forEach(walk)
+        }
+        walk(view)
     }
 
     /// Formatierung fuer das naechste getippte Zeichen: wie das Zeichen davor, im leeren Block die Grundformatierung
@@ -190,6 +209,7 @@ extension ObjectEditing {
         guard let e = editing, e.view === textView else { return }
         repairStyles(e)
         fitEditor(e)
+        if let overlay = controller?.boundOverlay(forKey: e.key) { sharpenEditor(textView, on: overlay) }
         publishFormat(nil)
     }
 
@@ -319,6 +339,7 @@ extension ObjectEditing {
 
     /// Formatierung aendern: beim Tippen die Auswahl im Text (ohne Auswahl das naechste Zeichen), sonst die gewaehlten Bloecke
     func format(_ change: TextBlock.Change) {
+        guard richAllowed else { return }
         if let e = editing {
             let view = e.view, range = view.selectedRange
             let para = TextBlockRender.paragraphStyle(e.object), base = TextBlock.baseStyle(e.object)
@@ -351,7 +372,7 @@ extension ObjectEditing {
 
     /// Ausrichtung des ganzen Blocks
     func setAlignment(_ align: String) {
-        guard TextBlock.alignments.contains(align) else { return }
+        guard richAllowed, TextBlock.alignments.contains(align) else { return }
         if var e = editing {
             e.object["align"] = .string(align)
             e.formatted = true
@@ -371,6 +392,7 @@ extension ObjectEditing {
 
     /// Aufzaehlung bzw. Nummerierung an und aus: beim Tippen die Zeilen der Auswahl, sonst alle Zeilen der Bloecke
     func toggleList(_ kind: TextBlock.ListKind) {
+        guard richAllowed else { return }
         if let e = editing {
             let view = e.view
             let typing = view.typingAttributes
