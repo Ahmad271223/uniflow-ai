@@ -144,9 +144,9 @@ ohne Download. Neu ist ein zweiter Weg mit einem Sprachmodell auf dem Gerät (Wh
 - Schneller Lauf (`tools/tests-schnell.sh`, 25.11.): pytest 4081 grün, 1 rot
   (`tests/test_web_overview.py::test_overview_answers_what_to_do_today`, am 24.11. schon auf `server/probe-vorab` rot,
   Web-Übersicht des Dienstes, nicht Teil dieses Zweigs); node 472 grün.
-- **Mac („Designed for iPad“): noch nicht gelaufen** – `tools/mac-test.sh` brach am 25.11. ab, weil der Mac gesperrt
-  war. Nachholen: `tools/mac-test.sh -only-testing:UniFlowTests/WhisperViewsAppTests
-  -only-testing:UniFlowTests/OwnRecordingsAppTests`.
+- Mac („Designed for iPad“, `tools/mac-test.sh`, 25.11. 14:18): `WhisperViewsAppTests` und `OwnRecordingsAppTests`
+  20 Tests, 0 rot. Die echte Erkennung mit einem Modell ist am Mac nicht gelaufen (nur die Ansichten und der Stand
+  der Modelle).
 - **Echte Erkennung** (`WhisperLiveTests`, nur auf Wunsch, siehe Kopf der Datei): lädt ein Modell und wandelt eine
   deutsche Probe-Vorlesung um (5:17 min, vom Mac gesprochen, `~/Studora-Builds/whisper-probe/vorlesung.m4a`), prüft
   Zeiten, Fortschritt, erwartete Wörter und das Weitermachen. Mit `UF_WHISPER_SCRIPT` (Seiten eines Skripts als
