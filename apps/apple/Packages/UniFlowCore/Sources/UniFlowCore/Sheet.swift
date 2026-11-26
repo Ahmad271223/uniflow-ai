@@ -511,18 +511,32 @@ public struct SheetStyle: Equatable, Sendable {
 /// Rechnet eine Tabelle einmal durch und merkt sich die Ergebnisse (eine Instanz je Stand der Tabelle).
 ///
 /// Formeln, die aufeinander aufbauen (laufende Summe ueber 500 Zeilen), werden der Reihe nach gerechnet - nicht eine in
-/// der anderen: Bevor eine Formel dran ist, sind alle Zellen fertig, die sie liest (`settle`, eigener Stapel statt
-/// Aufrufe ineinander; der Stapel des Programms ist am iPad klein). Rechnet eine Formel mit sich selbst, auch ueber
-/// Umwege, zeigt sie `#ZIRKEL!`.
+/// der anderen: Bevor eine Formel dran ist, sind alle Zellen fertig, die sie liest (eigener Stapel statt Aufrufe
+/// ineinander; der Stapel des Programms ist am iPad klein). Kreise findet ein Durchgang ueber die Bezuege (Tarjan):
+/// Jede Formel, die - auch ueber Umwege - mit sich selbst rechnet, zeigt `#ZIRKEL!`, egal welche Zelle zuerst
+/// gefragt wird (vorher hing es davon ab, Fund des Zufallstests vom 26.11.2026). Wie in Excel zaehlt jeder Bezug der
+/// Formel, auch einer im Zweig von WENN, der gerade nicht gerechnet wird.
 public final class SheetCalc {
     private let sheet: Sheet
-    private var memo: [SheetRef: SheetValue] = [:]
-    private var visiting = Set<SheetRef>()
-    /// Wie oft eine Formel beim Rechnen auf eine Zelle traf, die selbst noch in Arbeit ist
-    private var cycleHits = 0
-    private lazy var formulas: Set<SheetRef> = Set(sheet.cells.lazy.filter { SheetFormula.isFormula($0.value) }.map(\.key))
+    /// Ergebnisse je Zelle als einfache Liste (Zeile mal Spalten plus Spalte): Eine Summe ueber 500 Zellen fragt 500 Mal
+    /// nach - im Woerterbuch kostete das bei einer vollen Tabelle fast 2 s, so ein Bruchteil
+    private var memo: [SheetValue?]
+    private let width: Int
+    /// Formel-Zellen (gleiche Lage wie `memo`) und wie viele es sind
+    private lazy var formulaAt: [Bool] = {
+        var a = [Bool](repeating: false, count: memo.count)
+        for (r, raw) in sheet.cells where sheet.contains(r) && SheetFormula.isFormula(raw) { a[r.row * width + r.col] = true }
+        return a
+    }()
+    private lazy var formulaList: [SheetRef] = sheet.cells.keys.filter { sheet.contains($0) && formulaAt[$0.row * width + $0.col] }
 
-    public init(_ sheet: Sheet) { self.sheet = sheet }
+    public init(_ sheet: Sheet) {
+        self.sheet = sheet
+        width = sheet.cols
+        memo = [SheetValue?](repeating: nil, count: sheet.rows * sheet.cols)
+    }
+
+    @inline(__always) private func slot(_ r: SheetRef) -> Int { r.row * width + r.col }
 
     /// Getippter Wert ohne Formel: Zahl, Wahrheitswert oder Text (`'12` bleibt Text)
     public static func literal(_ raw: String, asText: Bool = false) -> SheetValue {
@@ -539,74 +553,97 @@ public final class SheetCalc {
     }
 
     public func value(_ r: SheetRef) -> SheetValue {
-        if let v = memo[r] { return v }
-        guard sheet.contains(r), let raw = sheet.cells[r] else { return .empty }
+        guard sheet.contains(r) else { return .empty }
+        if let v = memo[slot(r)] { return v }
+        guard let raw = sheet.cells[r] else { memo[slot(r)] = .empty; return .empty }
         guard SheetFormula.isFormula(raw) else {
             let v = SheetCalc.literal(raw, asText: sheet.styles[r]?.format == "t")
-            memo[r] = v
+            memo[slot(r)] = v
             return v
         }
-        if visiting.contains(r) { cycleHits += 1; return .error(.cycle) }
-        return settle(r)
+        // waehrend eine Formel gerechnet wird, sind alle Zellen, die sie liest, schon fertig (`settle`); kommt doch
+        // eine ungerechnete Formel, waere das ein Kreis
+        guard !evaluating else { return .error(.cycle) }
+        settle(r)
+        return memo[slot(r)] ?? .error(.cycle)
     }
 
+    private var evaluating = false
+
     private struct Job {
-        let ref: SheetRef
         let node: SheetFormula.Node?
         let error: SheetError?
         /// Formel-Zellen, die diese Formel liest
         let needs: [SheetRef]
-        var next = 0
     }
 
     private func job(_ r: SheetRef) -> Job {
         switch SheetFormula.parse(sheet.cells[r] ?? "") {
-        case .failure(let f): return Job(ref: r, node: nil, error: f.error, needs: [])
+        case .failure(let f): return Job(node: nil, error: f.error, needs: [])
         case .success(let node):
             var needs: [SheetRef] = []
             SheetFormula.ranges(in: node) { range in
                 guard let g = sheet.intersection(range) else { return }
-                if g.count <= formulas.count { for x in g.refs where formulas.contains(x) { needs.append(x) } }
-                else { for x in formulas where g.contains(x) { needs.append(x) } }
+                if g.count <= formulaList.count {
+                    for row in g.rows { for col in g.cols where formulaAt[row * width + col] { needs.append(SheetRef(col: col, row: row)) } }
+                } else {
+                    for x in formulaList where g.contains(x) { needs.append(x) }
+                }
             }
-            return Job(ref: r, node: node, error: nil, needs: needs)
+            return Job(node: node, error: nil, needs: needs)
         }
     }
 
-    /// Eine Formel-Zelle fertig rechnen: erst alles, was sie liest (und was das liest ...), dann sie selbst
-    private func settle(_ start: SheetRef) -> SheetValue {
-        var stack = [job(start)]
-        visiting.insert(start)
-        while var top = stack.last {
-            var waits = false
-            while top.next < top.needs.count {
-                let d = top.needs[top.next]
-                top.next += 1
-                // schon fertig; oder selbst gerade in Arbeit: ein Kreis, die Formel bekommt beim Lesen #ZIRKEL!
-                guard memo[d] == nil, !visiting.contains(d) else { continue }
-                stack[stack.count - 1] = top
-                stack.append(job(d))
-                visiting.insert(d)
-                waits = true
-                break
-            }
-            if waits { continue }
-            var v: SheetValue
-            if let node = top.node {
-                let before = cycleHits
-                let result = SheetFormula.Evaluator(cell: { [unowned self] in self.value($0) }).value(node)
-                // eine Formel, die auf eine leere Zelle zeigt, ergibt 0 (wie in Excel)
-                v = result.isEmpty ? .number(0) : result
-                // auch wenn WENNFEHLER den Kreis abfaengt: Die Formel rechnet mit sich selbst
-                if cycleHits != before { v = .error(.cycle) }
-            } else {
-                v = .error(top.error ?? .syntax)
-            }
-            visiting.remove(top.ref)
-            memo[top.ref] = v
-            stack.removeLast()
+    /// Alle noch ungerechneten Formeln, die `start` (ueber Umwege) liest, und `start` selbst rechnen: Tarjan ueber die
+    /// Bezuege, ohne Aufrufe ineinander. Ein fertiger Kreis (oder eine Formel, die sich selbst liest) bekommt
+    /// `#ZIRKEL!`; jede andere Formel wird gerechnet, sobald alles fertig ist, was sie liest.
+    private func settle(_ start: SheetRef) {
+        var jobs: [SheetRef: Job] = [:]
+        var index: [SheetRef: Int] = [:], low: [SheetRef: Int] = [:]
+        var onStack = Set<SheetRef>(), stack: [SheetRef] = []
+        var work: [(ref: SheetRef, next: Int)] = []
+        var counter = 0
+        func push(_ r: SheetRef) {
+            index[r] = counter; low[r] = counter; counter += 1
+            stack.append(r); onStack.insert(r)
+            jobs[r] = job(r)
+            work.append((r, 0))
         }
-        return memo[start] ?? .error(.cycle)
+        push(start)
+        while let top = work.last {
+            let r = top.ref, needs = jobs[r]?.needs ?? []
+            if top.next < needs.count {
+                work[work.count - 1].next += 1
+                let d = needs[top.next]
+                if memo[slot(d)] != nil { continue }
+                if index[d] == nil { push(d) } else if onStack.contains(d) { low[r] = min(low[r]!, index[d]!) }
+                continue
+            }
+            work.removeLast()
+            if let parent = work.last?.ref { low[parent] = min(low[parent]!, low[r]!) }
+            guard low[r] == index[r] else { continue }
+            var group: [SheetRef] = []
+            while let x = stack.popLast() {
+                onStack.remove(x)
+                group.append(x)
+                if x == r { break }
+            }
+            if group.count > 1 || needs.contains(r) {
+                for x in group { memo[slot(x)] = .error(.cycle) }
+            } else {
+                memo[slot(r)] = evaluate(jobs[r])
+            }
+            for x in group { jobs[x] = nil }
+        }
+    }
+
+    private func evaluate(_ job: Job?) -> SheetValue {
+        guard let job, let node = job.node else { return .error(job?.error ?? .syntax) }
+        evaluating = true
+        defer { evaluating = false }
+        let result = SheetFormula.Evaluator(cell: { [unowned self] in self.value($0) }).value(node)
+        // eine Formel, die auf eine leere Zelle zeigt, ergibt 0 (wie in Excel)
+        return result.isEmpty ? .number(0) : result
     }
 }
 
