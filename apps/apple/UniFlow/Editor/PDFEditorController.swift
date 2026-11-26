@@ -257,6 +257,9 @@ final class PageInkView: UIView {
     /// Notizen selbst aendert sich nichts.
     func setOwnNotesVisible(_ visible: Bool) {
         objectsView.isHidden = !visible
+        // Klappkarten und Verweise gehoeren zu den eigenen Notizen: mit ausblenden (sonst blieben sie stehen und
+        // fingen weiter Beruehrungen ab)
+        coversView.isHidden = !visible
         canvas.isHidden = !visible
         canvas.isUserInteractionEnabled = visible
     }
@@ -1171,6 +1174,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             allOverlays.forEach {
                 $0.canvas.drawingPolicy = drawingPolicy
                 $0.correctionView?.ink.drawingPolicy = drawingPolicy
+                $0.coversView.revealedLetPencilThrough = effectivePencilOnly
             }
             configureScrollGestures()
         }
@@ -1331,6 +1335,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         // Lasso-Auswahl von PencilKit ohne Bildschirmtastatur (Meldung 20.11.2026, `InkSelectionKeyboard`): vorab, und
         // falls die Auswahl in einer neuen iPadOS-Fassung anders heisst, beim ersten Erscheinen der Tastatur
         InkSelectionKeyboard.install()
+        // die App geht in den Hintergrund: Was gerade in einem Textblock getippt wird, kommt als Zwischenstand auf die
+        // Seite (beendet iOS die App dort, war der Text sonst weg)
+        observers.append(center.addObserver(forName: UIApplication.willResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.objects.saveTextDraft() }
+        })
         observers.append(center.addObserver(forName: UIResponder.keyboardWillShowNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated {
                 guard let self, let v = UIResponder.uf_current as? UIView, v.isDescendant(of: self.view) else { return }
@@ -1700,6 +1709,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             overlay = PageInkView(pageIndex: index, pageKey: key, generation: shownLayoutVersion,
                                   geometry: PageGeometry(boxSize: box, rotation: page.rotation))
             configure(overlay)
+            overlay.coversView.revealedLetPencilThrough = effectivePencilOnly
             applyOwnNotes(to: overlay)
             applyForeign(overlay)
             applyCorrection(overlay)
@@ -3391,6 +3401,9 @@ final class InkTouchTracker: UIGestureRecognizer {
     private var down: [UITouch] { touches.filter { $0.phase != .ended && $0.phase != .cancelled } }
     /// Stifte, die gerade aufliegen
     var pencilsDown: Int { down.filter { $0.type == .pencil }.count }
+    private var lastPencil: CFTimeInterval = 0
+    /// Seit so vielen Sekunden hat kein Stift mehr die Seite beruehrt (0, solange einer aufliegt)
+    var sincePencil: CFTimeInterval { pencilsDown > 0 ? 0 : CACurrentMediaTime() - lastPencil }
     /// Finger (und Zeiger), die gerade aufliegen
     var othersDown: Int { down.filter { $0.type != .pencil }.count }
 
@@ -3399,6 +3412,7 @@ final class InkTouchTracker: UIGestureRecognizer {
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent) {
         self.touches.formUnion(touches)
+        if touches.contains(where: { $0.type == .pencil }) { lastPencil = CACurrentMediaTime() }
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent) { finish(touches) }
@@ -3407,6 +3421,7 @@ final class InkTouchTracker: UIGestureRecognizer {
     private func finish(_ ended: Set<UITouch>) {
         touches.subtract(ended)
         lastEnded = CACurrentMediaTime()
+        if ended.contains(where: { $0.type == .pencil }) { lastPencil = lastEnded }
         guard touches.isEmpty else { return }
         state = .failed
         onAllEnded?()

@@ -452,8 +452,26 @@ public actor LSFClient {
         let html = resp.text
         if let n = Self.maintenanceNotice(html: html) { notice = n }
         if !Self.isLoggedIn(html: html, url: resp.finalURL ?? url) { throw HildesheimError.sessionExpired("LSF") }
+        guest = Self.isGuest(html: html)
         return html
     }
+
+    /// Konto in der Rolle "Gast" (zuletzt gelesene angemeldete Seite); nil, solange keine gelesen wurde. Am echten LSF
+    /// gesehen (25.11.2026, Konto "Jungstudentin"): Kopf "… Sie sind angemeldet als: … in der Rolle: Gast", Menue nur
+    /// Vorlesungsverzeichnis, Suche, Liste pro Tag und Ausfall, kein "Meine Funktionen". In dieser Rolle gibt es im
+    /// LSF weder persoenlichen Stundenplan noch Notenspiegel: nichts zu lesen, kein Fehler. Das war eine Stoerung des
+    /// LSF: am 26.11.2026 fuehrte es dasselbe Konto wieder als Studierende mit 30 Terminen ("die Studierenden-Logins
+    /// sind wieder moeglich") - die Rolle gilt also immer nur fuer den gerade gelesenen Stand.
+    public private(set) var guest: Bool?
+
+    private static let roleRE = HText.regex(#"in der Rolle:\s*([\p{L}][\p{L}\-]*)"#, [.caseInsensitive])
+
+    /// Rolle aus dem Kopf einer angemeldeten LSF-Seite ("in der Rolle: Studierende"), nil ohne Angabe
+    public static func role(html: String) -> String? {
+        HText.match(roleRE, Announcements.htmlToText(html))?.groups[1]
+    }
+
+    public static func isGuest(html: String) -> Bool { role(html: html)?.lowercased() == "gast" }
 
     /// Wartungshinweis der zuletzt gelesenen LSF-Seite ("+++ Wegen Wartungsarbeiten steht PLuS/LSF/POS am … +++"), nil ohne
     public private(set) var notice: String?
@@ -490,6 +508,8 @@ public actor LSFClient {
     public func grades() async throws -> [QISGrade] {
         let start = try await page(Self.startURL)
         guard let link = HTMLScanner.scan(start).anchors.first(where: { $0.label.contains("Notenspiegel") }) else {
+            // Rolle "Gast": ohne "Meine Funktionen" gibt es keinen Notenspiegel - nichts zu lesen statt eines Fehlers
+            if guest == true { return [] }
             throw HildesheimError.badResponse("Link zum Notenspiegel fehlt")
         }
         let first = absolute(link.href)
@@ -499,7 +519,10 @@ public actor LSFClient {
             let html = try await page(pages[i])
             let scan = HTMLScanner.scan(html)
             for table in scan.tables where !QISParser.isStammdaten(table) {
-                out += GradeRows.parse(rows: table.rows.map { $0.map(\.text) }, abschluss: "")
+                // eine Zelle je Spalte (colspan aufgefaechert wie am PC und im QIS der LUH); Konto-Zeilen fassen Spalten
+                // zusammen und werden daran erkannt (`GradeRows.lsfCells`); Modulzeilen "Prüfung vorhanden" bleiben
+                // (das Modul der Teilmodule darunter, 26.11.2026)
+                out += GradeRows.parse(rows: table.rows.map(GradeRows.lsfCells), abschluss: "", modules: true)
             }
             if i == 0 {      // Reiter der Studiengaenge auf der ersten Seite
                 for a in scan.anchors where a.href.contains("notenspiegelStudent") && a.href.contains("nodeID=") {
@@ -509,9 +532,12 @@ public actor LSFClient {
             }
             i += 1
         }
+        // Echter Notenspiegel (26.11.2026): Uebersicht (kurz) und Reiter (ausfuehrlich, mit Semester/Versuch/Datum) nennen
+        // dieselbe Leistung - nur die ausfuehrliche Zeile bleibt; Konto-Zeilen (LP-Summe je Fach) sind keine Leistungen
+        let rows = GradeRows.accounts(GradeRows.preferDetailed(out))
         // dieselbe Leistung auf mehreren Reitern nur einmal; mehrere Versuche (gleiche Leistung, anderes Datum) bleiben
         // getrennt (`QISParser.numberAttempts`, 12.11.2026)
-        return QISParser.merge(QISParser.numberAttempts(out))
+        return QISParser.merge(QISParser.numberAttempts(rows))
     }
 
     /// Links aus `HTMLScanner` sind schon dekodiert (`HildesheimCAS.lsfAbsolute`)

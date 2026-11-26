@@ -99,8 +99,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
     /// Der Editor hat das Werkzeug selbst gewechselt (nach dem Anlegen eines Textes, nach dem Lasso)
     var onToolChange: ((Tool) -> Void)?
 
-    private lazy var tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
-    private lazy var doubleTap: UITapGestureRecognizer = {
+    lazy var tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
+    lazy var doubleTap: UITapGestureRecognizer = {
         let g = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
         g.numberOfTapsRequired = 2
         return g
@@ -347,6 +347,13 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         case .cover:
             // Antippen: Karte in der gewaehlten Groesse um den Punkt (das Werkzeug bleibt, fuer die naechste)
             guard controller?.richNotes == true else { controller?.onHint?(Self.coverLockedHint); return }
+            // auf eine vorhandene Karte getippt: sie waehlen, statt eine zweite darueberzulegen (spaeter klappte nur
+            // die obere auf - die Stelle "ging nicht auf")
+            if let hit = TopObjects.hit(v.objectsView.shownObjects, x: Double(p.x), y: Double(p.y)), FlipCover.isCover(hit), let id = hit["id"]?.string {
+                setTool(.select)
+                select(key: key, ids: [id], in: v.objectsView.shownObjects)
+                return
+            }
             let o = newCover(id: PageOrder.uid(), on: v, at: p)
             Task { await commit(key) { $0 + [o] } }
         case .text, .sticky:
@@ -371,7 +378,9 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         default:
             Task {
                 let list = await objects(key)
-                if let id = PageObjectEdit.hit(list, x: Double(p.x), y: Double(p.y), textHeight: Self.textHeight) {
+                // Klappkarten und Verweise liegen ueber allem: Sie trifft der Tipp zuerst - wie man es sieht
+                if let id = TopObjects.hit(list, x: Double(p.x), y: Double(p.y))?["id"]?.string
+                    ?? PageObjectEdit.hit(list, x: Double(p.x), y: Double(p.y), textHeight: Self.textHeight) {
                     select(key: key, ids: [id], in: list)
                 } else {
                     // nichts getroffen (oft Handschrift): sagen, was "Auswählen" greift, statt still nichts zu tun

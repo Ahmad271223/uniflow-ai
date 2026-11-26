@@ -734,6 +734,12 @@ html.ed-inking .script-hint { opacity: .25; pointer-events: none; }
 .ov-exam-day b { font-size: .95rem; font-weight: 700; }
 .ov-exam-src { font-size: .8rem; }
 .badge.ov-exam-in { background: var(--exam-soft); color: var(--exam); }
+/* "und n weitere": klappt die uebrigen Klausuren auf (26.11.2026) */
+.ov-exam-more { margin-top: .35rem; padding: .35rem 0; border: 0; background: none; font: inherit; font-size: .85rem; font-weight: 600; color: var(--exam); cursor: pointer; }
+.ov-exam-more::after { content: ""; display: inline-block; width: .42em; height: .42em; margin-left: .45em; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-.2em) rotate(45deg); }
+.ov-exam-more[aria-expanded="true"]::after { transform: translateY(.08em) rotate(225deg); }
+.ov-exam-more:hover { text-decoration: underline; }
+.ov-exam-more:focus-visible { outline: 2px solid var(--exam); outline-offset: 2px; border-radius: 4px; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .ov-exams { --exam: #c58cf5; --exam-soft: #2f1d42; } }
 :root[data-theme="dark"] .ov-exams { --exam: #c58cf5; --exam-soft: #2f1d42; }
 .ov-mod-bar { height: 5px; margin-top: .4rem; background: color-mix(in srgb, var(--mc, var(--accent)) 16%, var(--surface)); }

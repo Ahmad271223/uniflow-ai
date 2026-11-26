@@ -15,7 +15,7 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-from . import config, db, hildesheim, lsf, universities
+from . import config, db, grades_model, hildesheim, lsf, universities
 from .config import DATA_DIR, LOG_DIR
 
 QIS_BASE = "https://qis.verwaltung.uni-hannover.de"
@@ -150,10 +150,15 @@ def _header_map(cells: list[str]) -> list[str | None]:
     return out
 
 
-def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
+def parse_grade_rows(rows: list[list[str]], abschluss: str = "", modules: bool = False) -> list[dict]:
     """Zeilen einer Notenspiegel-Tabelle (Zellentexte) -> Leistungen. Ohne Browser, daher testbar.
     - Die Kopfzeile darf irgendwo stehen (Hildesheim: davor eine Zeile 'Abschluss: ...'); mehrere Abschnitte je Tabelle.
-    - Modul-Ueberschriften und Summen ohne Note und ohne Status werden uebersprungen."""
+    - Modul-Ueberschriften und Summen ohne Note und ohne Status werden uebersprungen.
+    - `modules` (LSF Hildesheim, 26.11.2026, echtes Konto): Modulzeilen "Prüfung vorhanden" ohne Note bleiben
+      ("25010 | BM 1: Aufbau der Zahlbereiche | SoSe 26 | | Prüfung vorhanden | 14": das Modul ist angefangen, 14 LP
+      sind erreicht). Ohne sie fehlte den Teilmodulen darunter ("TM 1: Arithmetik und Algebra …") ihr Modul: der
+      Studienverlauf zeigte "Basismodul 1" als offen und die Teilmodule als nicht zugeordnet. Bereichszeilen
+      ("Pflichtmodule (mindestens 12 LP)") und Zeilen ohne Nummer bleiben weg."""
     out: list[dict] = []
     mapped: list[str | None] | None = None
     ab = abschluss
@@ -178,9 +183,78 @@ def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
         if not (rec.get("pruefungsnr") or "").strip() and cells[0].isascii() and cells[0].isdigit():
             rec["pruefungsnr"] = cells[0]          # Nummer in der ersten Spalte, Kopf unbekannt (12.11.2026)
         if (rec.get("status") or "").lower() == "prüfung vorhanden" and not rec.get("note"):
-            continue          # Modul-/Kontozeile ("Prüfung vorhanden"), keine eigene Leistung
-        if rec.get("text") and (rec.get("note") or rec.get("status")):
+            nr = (rec.get("pruefungsnr") or "").strip()
+            if not (modules and nr.isascii() and nr.isdigit() and rec.get("text")
+                    and not grades_model.is_bereich_text(rec["text"])):
+                continue      # Bereichs-/Kontozeile ("Prüfung vorhanden"), keine eigene Leistung
+        # Konto-Zeilen des LSF (ACCOUNT_PREFIX aus _ROW_CELLS_LSF_JS) bleiben auch ohne Note und Status: sie trennen die Faecher
+        if rec.get("text") and (rec.get("note") or rec.get("status") or rec["text"].startswith("Gesamtkonto: ")):
             out.append(rec)
+    return out
+
+
+# Echter Notenspiegel des LSF Hildesheim (26.11.2026), dieselben Regeln wie `GradeRows.preferDetailed` und
+# `GradeRows.accounts` im Swift-Kern.
+ACCOUNT_PREFIX = "Gesamtkonto: "
+_NUMBER_RE = re.compile(r"\d+(,\d+)?")
+
+
+def _filled(v) -> bool:
+    return bool((v or "").strip())
+
+
+def is_detailed(g: dict) -> bool:
+    """Ausfuehrliche Zeile (Reiter des Studiengangs): mit Semester, Versuch oder Datum"""
+    return _filled(g.get("semester")) or _filled(g.get("versuch")) or _filled(g.get("datum"))
+
+
+def prefer_detailed(grades: list[dict]) -> list[dict]:
+    """Der Notenspiegel des LSF Hildesheim nennt jede Leistung zweimal: in der Uebersicht kurz (Nr., Bezeichnung, Note,
+    Status, Bonus) und auf dem Reiter des Studiengangs ausfuehrlich (dazu Semester, Pruefungsart, Versuch, Datum). Beide
+    zusammen zaehlten doppelt (die kurze ohne Versuch gilt als Modulzeile; am echten Konto 105 statt 51 LP). Es bleibt
+    die ausfuehrliche Zeile, die kurze nur, wenn es zur selben Leistung (Studiengang, Nummer, Bezeichnung) keine gibt."""
+    def key(g: dict) -> tuple:
+        return (g.get("abschluss") or "", g.get("pruefungsnr") or "", re.sub(r"\s+", " ", g.get("text") or "").strip().lower())
+    detailed = {key(g) for g in grades if is_detailed(g)}
+    return [g for g in grades if is_detailed(g) or key(g) not in detailed]
+
+
+def account_rows(grades: list[dict]) -> list[dict]:
+    """Konto-Zeilen des LSF ("10 | Mathematik | 0,0 | | 17", "8992 | Vorläufige Gesamtnote aller Fächer | 3,45 | | 51"):
+    die LP-Summe eines Fachs bzw. aller Faecher, keine Leistung. Ohne aufgefaecherte Zellen rutschen die Spalten (LP unter
+    "Status", Note unter "Semester"); gerade stehen sie ohne Status mit Note 0,0 oder "Gesamtnote"/"Gesamtkonto" im Text.
+    Felder zurechtruecken, Text mit ACCOUNT_PREFIX (grades_model.is_bereich_text erkennt die Summe). Zeilen mit Versuch
+    oder Datum sind immer Leistungen."""
+    def number(v) -> str | None:
+        t = (v or "").strip()
+        return t if _NUMBER_RE.fullmatch(t) else None
+
+    def named(g: dict, note, credits: str) -> dict:
+        out = dict(g)
+        # ohne Nummer: mehrere Faecher tragen dieselbe Konto-Nummer ("10"); grades_model.model hielte sie sonst fuer
+        # dieselbe Zeile und liesse alle bis auf die erste fallen
+        out.update(note=note, semester=None, status=None, versuch=None, datum=None, credits=credits, pruefungsnr=None)
+        raw = out.get("raw") or ""
+        if raw[:1].isascii() and raw[:1].isdigit():          # grades_model fuellt fehlende Felder aus der Rohzeile
+            out["raw"] = "Konto " + raw
+        if not (out.get("text") or "").lower().startswith("gesamtkonto"):
+            out["text"] = ACCOUNT_PREFIX + (out.get("text") or "")
+        return out
+
+    out = []
+    for g in grades:
+        if _filled(g.get("versuch")) or _filled(g.get("datum")):
+            out.append(g); continue
+        lp = number(g.get("status"))
+        if lp is not None:                                   # verrutscht
+            out.append(named(g, number(g.get("semester")) or (g.get("note") if _filled(g.get("note")) else None), lp)); continue
+        lp = number(g.get("credits"))
+        text = (g.get("text") or "").lower()
+        zero = (g.get("note") or "").strip() == "0,0"
+        if not _filled(g.get("status")) and not _filled(g.get("semester")) and lp is not None \
+                and (zero or "gesamtnote" in text or text.startswith("gesamtkonto")):
+            out.append(named(g, g.get("note") if _filled(g.get("note")) else None, lp)); continue
+        out.append(g)
     return out
 
 
@@ -189,13 +263,24 @@ def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
 _ROW_CELLS_JS = "tr => Array.from(tr.cells).flatMap(c => [c.innerText].concat(Array(Math.max(Math.min(c.colSpan || 1, 20), 1) - 1).fill('')))"
 
 
-def _parse_tables(page: Page, abschluss: str) -> list[dict]:
+# LSF Hildesheim (26.11.2026): wie _ROW_CELLS_JS; eine Konto-Zeile (Nummer, Bezeichnung ueber zwei Spalten) bekommt
+# "Gesamtkonto: " vor die Bezeichnung (`GradeRows.lsfCells` im Swift-Kern) und bleibt so beim Lesen erhalten
+_ROW_CELLS_LSF_JS = """tr => {
+  const c = Array.from(tr.cells);
+  const konto = c.length >= 3 && (c[1].colSpan || 1) >= 2 && (c[0].colSpan || 1) === 1 && c[1].tagName !== 'TH'
+    && /^[0-9]+$/.test(c[0].innerText.trim()) && !c[1].innerText.trim().toLowerCase().startsWith('gesamtkonto');
+  return c.flatMap((x, i) => [(konto && i === 1 ? 'Gesamtkonto: ' : '') + x.innerText]
+    .concat(Array(Math.max(Math.min(x.colSpan || 1, 20), 1) - 1).fill('')));
+}"""
+
+
+def _parse_tables(page: Page, abschluss: str, lsf: bool = False) -> list[dict]:
     rows_out = []
     tables = page.locator("table")
     for ti in range(tables.count()):
         trs = tables.nth(ti).locator("tr")
-        rows = [trs.nth(ri).evaluate(_ROW_CELLS_JS) for ri in range(trs.count())]
-        rows_out += parse_grade_rows(rows, abschluss)
+        rows = [trs.nth(ri).evaluate(_ROW_CELLS_LSF_JS if lsf else _ROW_CELLS_JS) for ri in range(trs.count())]
+        rows_out += parse_grade_rows(rows, abschluss, modules=lsf)
     return rows_out
 
 
@@ -271,17 +356,40 @@ def grade_tables_from_html(html: str) -> list[list[list[str]]]:
     return out
 
 
+def _passed_status(s) -> bool:
+    t = (s or "").strip().lower()
+    return t == "be" or t.startswith(("bestanden", "anerkannt", "angerechnet"))
+
+
+def _sortable_date(d) -> str:
+    p = (d or "").strip().split(".")
+    return p[2] + p[1].zfill(2) + p[0].zfill(2) if len(p) == 3 else ""
+
+
+def merge_grades(grades: list[dict]) -> list[dict]:
+    """Doppelte entfernen: gleiche Pruefungsnr., Text, Semester, Versuch sind eine Zeile (UNIQUE in `grades`). Zwei
+    verschiedene Eintraege unter demselben Schluessel (26.11.2026: erster Termin ohne Wertung "nicht bestanden", zweiter
+    bestanden, beide Versuch 1): es gilt der bestandene, sonst der mit dem spaeteren Datum, an der Stelle des ersten.
+    Vorher blieb immer der erste und die bestandene Pruefung fehlte. Wie `QISParser.merge` im Swift-Kern."""
+    index: dict[tuple, int] = {}
+    out: list[dict] = []
+    for g in grades:
+        key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
+        if key not in index:
+            index[key] = len(out)
+            out.append(g)
+            continue
+        old = out[index[key]]
+        p, q = _passed_status(g.get("status")), _passed_status(old.get("status"))
+        if (p and not q) or (p == q and _sortable_date(g.get("datum")) > _sortable_date(old.get("datum"))):
+            out[index[key]] = g
+    return out
+
+
 def parse_grade_html(html: str, abschluss: str = "") -> list[dict]:
     """Leistungen einer Notenspiegel-Seite (HTML) wie im Browser: jede Tabelle mit parse_grade_rows, Doppelte wie
-    fetch_grades entfernt"""
-    seen, out = set(), []
-    for rows in grade_tables_from_html(html):
-        for g in parse_grade_rows(rows, abschluss):
-            key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
-            if key not in seen:
-                seen.add(key)
-                out.append(g)
-    return out
+    fetch_grades zusammengefuehrt (`merge_grades`)"""
+    return merge_grades([g for rows in grade_tables_from_html(html) for g in parse_grade_rows(rows, abschluss)])
 
 
 # Navigation im Notenspiegel (12.11.2026, wie QISPage.nextLinksTowardGrades im Swift-Kern)
@@ -358,7 +466,7 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
         _collect_offers(page, prof, store)
         if prof.get("documents", True):          # Hildesheim: keine Bescheinigungen/Transcripts speichern
             _click_pdf_links(page, title or "Notenspiegel", prof, store)
-        found = _parse_tables(page, title)
+        found = _parse_tables(page, title, lsf=prof.get("key") == "hildesheim")
         if found:
             grades += found
             stall[0] = 0
@@ -389,14 +497,11 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
             expand(depth + 1, t)
 
     expand(0, "")
-    # Doppelte (gleiche Zeile) entfernen
-    seen, out = set(), []
-    for g in grades:
-        key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
-        if key not in seen:
-            seen.add(key)
-            out.append(g)
-    return out
+    if prof.get("key") == "hildesheim":
+        # echter Notenspiegel (26.11.2026): Uebersicht und Reiter nennen dieselbe Leistung, Konto-Zeilen sind Summen
+        grades = account_rows(prefer_detailed(grades))
+    # Doppelte zusammenfuehren (gleiche Zeile; derselbe Versuch zweimal: der bestandene gilt)
+    return merge_grades(grades)
 
 
 def _collect_offers(page: Page, prof: dict, store: "DocStore") -> None:

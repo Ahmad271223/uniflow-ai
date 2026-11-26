@@ -394,7 +394,8 @@ final class SolutionSideViewerAppTests: XCTestCase {
 
         // Vorschau-Bild (Community) aus der eigenen PDF: die blaue Seite fuellt das quere Bild ganz (vorher lag die
         // ungedrehte Seite hochkant in der Mitte, links und rechts weiss)
-        let image = await OffscreenPDF(url: url).solutionPreview(rotated, images: [:], width: 400, scale: 1)
+        let preview = await OffscreenPDF(url: url).solutionPreview(rotated, images: [:], width: 400, scale: 1)
+        let image = try XCTUnwrap(preview, "PDF-Seite vorhanden (seit 26.11.2026 nil, wenn sie sich nicht oeffnen laesst)")
         XCTAssertGreaterThan(image.size.width, image.size.height)
         let px = Pixels(image)
         for (x, y) in [(5, px.height / 2), (px.width - 6, px.height / 2)] {

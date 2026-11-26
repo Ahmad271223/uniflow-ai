@@ -89,16 +89,18 @@ actor OffscreenPDF {
 
     /// Vorschau einer fremden Loesungsseite mit der eigenen PDF-Seite darunter ("Daneben ansehen", `SolutionPreview`)
     /// `pdfIndex`: Seite dieser PDF, wenn sie nicht die des Absenders ist (Loesung zu einer anderen Fassung, 23.11.2026)
-    func solutionPreview(_ page: SolutionPage, images: [String: UIImage], width: CGFloat, scale: CGFloat, pdfIndex: Int? = nil) -> UIImage {
+    /// nil: Die Seite steht auf der PDF, und die PDF-Seite laesst sich nicht oeffnen (Datei fehlt, nicht lesbar, Seite
+    /// gibt es nicht). Dann gibt es kein Bild – nie die Striche auf einer weissen Seite (Inhaber 26.11.2026: "man soll
+    /// immer den richtigen Hintergrund der PDF oder des Blattes sehen"). Eigene Blaetter des Absenders (liniert,
+    /// kariert ...) brauchen keine PDF und kommen wie bisher auf ihrem Papier.
+    func solutionPreview(_ page: SolutionPage, images: [String: UIImage], width: CGFloat, scale: CGFloat, pdfIndex: Int? = nil) -> UIImage? {
+        guard page.kind == .pdf else { return SolutionPreview.image(page, images: images, width: width, scale: scale) }
         // Kopie mit der Drehung des Absenders (in ihr stehen die Objekte; mit nur `/Rotate` lag eine beim Absender
         // gedrehte Seite quer unter seinen Notizen)
-        let pdfPage: PDFPage? = page.kind == .pdf ? (pdfIndex ?? page.pdfIndex).flatMap { i -> PDFPage? in
-            guard i >= 1, let copy = openIfNeeded()?.page(at: i - 1)?.copy() as? PDFPage else { return nil }
-            copy.rotation = page.rotation
-            return copy
-        } : nil
-        if pdfPage != nil { pdfPagesDrawn += 1 }
-        return SolutionPreview.image(page, images: images, width: width, scale: scale, pdfPage: pdfPage)
+        guard let i = pdfIndex ?? page.pdfIndex, i >= 1, let copy = openIfNeeded()?.page(at: i - 1)?.copy() as? PDFPage else { return nil }
+        copy.rotation = page.rotation
+        pdfPagesDrawn += 1
+        return SolutionPreview.image(page, images: images, width: width, scale: scale, pdfPage: copy)
     }
 
     /// Seite als Bild fuer die Texterkennung (`NoteSearch.pageImage`), nil ohne PDF-Seite

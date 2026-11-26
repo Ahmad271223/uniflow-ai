@@ -188,6 +188,10 @@ public actor HildesheimSync {
         public var announcements: Announcements.StoreResult?
         /// Wartungshinweis des LSF ("+++ … +++"), nil ohne
         public var notice: String?
+        /// Konto im LSF gerade in der Rolle "Gast" (`LSFClient.guest`; auch Studierende waehrend einer LSF-Stoerung):
+        /// in dieser Rolle gibt es dort weder Stundenplan noch Notenspiegel, Vorhandenes bleibt. nil, wenn in diesem
+        /// Lauf keine angemeldete LSF-Seite gelesen wurde (Stand bleibt).
+        public var campusGuest: Bool?
         /// Learnweb-Nachrichten (Unterhaltungen mit einer fremden Nachricht), nil ohne Abruf oder bei einem Fehler
         public var learnwebMessages: Int?
         /// verstaendliche Meldungen fuer die Statusleiste
@@ -363,6 +367,7 @@ public actor HildesheimSync {
             report.notice = n
             report.messages.append("LSF-Hinweis: \(n)")
         }
+        if let campus = lsf as? LSFClient, let g = await campus.guest { report.campusGuest = g }
         // Stand je Teil in fester Reihenfolge (Statusleiste), unabhaengig von der Reihenfolge des Abrufs
         let partOrder = [Report.Part.learnweb, Report.Part.plan, Report.Part.grades]
         report.completed.sort { (partOrder.firstIndex(of: $0) ?? partOrder.count) < (partOrder.firstIndex(of: $1) ?? partOrder.count) }
@@ -861,11 +866,19 @@ public actor HildesheimSync {
         }
     }
 
+    /// Konto im LSF in der Rolle "Gast" (nach der zuletzt gelesenen Seite; andere Campus-Systeme: nie)
+    private func isGuest(_ lsf: any UniCampusClient) async -> Bool {
+        guard let campus = lsf as? LSFClient else { return false }
+        return await campus.guest == true
+    }
+
     private func syncPlan(_ lsf: any UniCampusClient, into report: inout Report) async {
         do {
             guard let entries = try await lsf.planEntries() else {
                 report.completed.append(Report.Part.plan)
-                report.messages.append("\(names.campus)-Stundenplan ist leer")
+                let guest = await isGuest(lsf)
+                report.messages.append(guest ? "\(names.campus): Konto gerade in der Rolle „Gast“ – in dieser Rolle gibt es dort keinen persönlichen Stundenplan"
+                                             : "\(names.campus)-Stundenplan ist leer")
                 return
             }
             let clock = self.clock
@@ -896,6 +909,9 @@ public actor HildesheimSync {
         let started = clock.nowISO
         do {
             let grades = try await lsf.grades()
+            // Rolle "Gast" im LSF: kein Notenspiegel vorhanden - gelesen, nichts da, kein Fehler
+            let guest = grades.isEmpty ? await isGuest(lsf) : false
+            let summary = guest ? "Kein Notenspiegel für die Rolle „Gast“" : "\(grades.count) Leistungen"
             let now = clock.nowISO
             let hildesheim = names.university == .hildesheim
             try await db.transaction { conn in
@@ -903,13 +919,14 @@ public actor HildesheimSync {
                 // verschwinden, ids in Seitenreihenfolge fuer `GradesModel`); eine leere Antwort loescht nie
                 if hildesheim, !grades.isEmpty { try UniStore.replaceGrades(conn, grades, now: now) } else { try UniStore.storeGrades(conn, grades, now: now) }
                 try conn.execute("INSERT INTO qis_runs(started_at, finished_at, ok, message, grades, documents) VALUES (?,?,1,?,?,0)",
-                                 [.text(started), .text(now), .text("\(grades.count) Leistungen"), .integer(Int64(grades.count))])
+                                 [.text(started), .text(now), .text(summary), .integer(Int64(grades.count))])
             }
             report.grades = grades.count
             report.completed.append(Report.Part.grades)
-            report.messages.append("Notenspiegel: \(grades.count) Leistungen")
-            // nur das LSF Hildesheim; die HsH liest angemeldete Pruefungen selbst (`HISinOneClient.registrations`)
-            if names.university == .hildesheim { await syncRegistrations(into: &report) }
+            report.messages.append(guest ? "Notenspiegel: in der Rolle „Gast“ gibt es im \(names.campus) gerade keinen" : "Notenspiegel: \(grades.count) Leistungen")
+            // nur das LSF Hildesheim; die HsH liest angemeldete Pruefungen selbst (`HISinOneClient.registrations`).
+            // Rolle "Gast": auch "Meine POS-Anmeldungen" gibt es dort nicht
+            if names.university == .hildesheim, !guest { await syncRegistrations(into: &report) }
         } catch {
             if Self.isCancellation(error) { report.cancelled = true; return }
             if Self.isLoginError(error), !report.needsLogin.contains(names.campus) { report.needsLogin.append(names.campus) }

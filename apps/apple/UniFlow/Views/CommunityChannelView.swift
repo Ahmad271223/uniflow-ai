@@ -912,7 +912,8 @@ struct CommunityPeopleReader: View {
 }
 
 /// Notizen einer Person: Reiter "Dokument" (Seiten gross) und "Diskussion (N)" (Kommentare mit Eingabe), unten eine
-/// schwebende Leiste (Kommentar, Gefaellt mir, weitere Aktionen, Mehr)
+/// schwebende Leiste (Kommentar, Gefaellt mir, weitere Aktionen, Mehr). Breit (iPad, Mac) und mit eigener PDF steht
+/// oben "Lösung neben deinem Dokument öffnen" (Inhaber 26.11.2026: Loesungen immer neben dem eigenen Dokument).
 struct CommunityPersonPane: View {
     let solution: CommunitySolutionSummary
     let service: CommunityService
@@ -937,6 +938,11 @@ struct CommunityPersonPane: View {
     @State private var ownPDF: OffscreenPDF?
     /// Lage der Seiten bei einer Loesung zu einer anderen Fassung derselben Datei (23.11.2026)
     @State private var version = SolutionVersionView()
+    /// eigene Datei zu dieser Loesung (`CommunityCourses.besideFile`, dieselbe Bedingung wie im Blatt-Leser): die
+    /// Loesung oeffnet sich neben ihr (Inhaber 26.11.2026: "IMMER neben seinem eigenen Dokument")
+    @State private var besideFile: String?
+    /// Datei, die der Abgleich kennt, die aber noch nicht geladen ist: "PDF jetzt laden" (`knownUnloadedFile`)
+    @State private var unloadedFile: String?
     @State private var failure: String?
     @State private var comments: [CommunityComment] = []
     @State private var liked = false
@@ -975,6 +981,11 @@ struct CommunityPersonPane: View {
     private var compact: Bool { UFCompactLearn.isCompact(sizeClass, shell: shellCompact, inherited: learnCompact) }
     /// schmal in der Diskussion: Feld unten statt schwebender Leiste
     private var composerPinned: Bool { compact && discussion && !showsNotes }
+    /// breit mit Editor (iPad, Mac): die Loesung oeffnet sich neben dem eigenen Dokument. Schmal (iPhone) bleibt alles
+    /// wie bisher – was "daneben" dort heisst, ist noch nicht entschieden (26.11.2026).
+    private var offersBeside: Bool { Self.offersBeside(compact: compact) }
+
+    static func offersBeside(compact: Bool, editor: Bool = UFEditorAvailability.available) -> Bool { !compact && editor }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -993,8 +1004,11 @@ struct CommunityPersonPane: View {
                     if let message = error ?? failure { CommunityNotice(text: message) }
                     if showsNotes {
                         if let content {
-                            if ownPDF == nil, SolutionPaper.hasPDFPages(content.pages) {
+                            if let file = besideFile, offersBeside {
+                                besideCard(file)
+                            } else if ownPDF == nil, SolutionPaper.hasPDFPages(content.pages) {
                                 Text(CommunityTexts.noPDFNotice).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                                if let file = unloadedFile, offersBeside { loadPDFButton(file) }
                             } else if version.isOtherVersion {
                                 Text(CommunityTexts.otherVersionNotice).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                             }
@@ -1028,6 +1042,40 @@ struct CommunityPersonPane: View {
             Button("Abbrechen", role: .cancel) {}
         } message: { _ in Text(CommunityTexts.hideCommentMessage) }
         .task { await load() }
+    }
+
+    // MARK: Neben dem eigenen Dokument
+
+    /// Eigenes Dokument vorhanden: oben der eine klare Weg, die Loesung neben dem eigenen Dokument zu oeffnen (dort
+    /// 1 zu 1 wie geschrieben und zoombar, `SolutionSideViewer`). Der Leser bleibt, weil nur er Kommentare (auch an
+    /// einer Stelle der Seite), "Gefällt mir", Korrekturen, Melden, Blockieren und Zurueckziehen hat – die Spalte
+    /// neben dem Dokument kann nur ansehen und schliessen.
+    private func besideCard(_ file: String) -> some View {
+        UFCard {
+            Text(version.isOtherVersion ? CommunityTexts.otherVersionNotice
+                 : ownPDF != nil ? CommunityTexts.ownPDFNotice : CommunityTexts.ownPDFLayerNotice)
+                .ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            UFButton(SolutionOverlay.openBeside, icon: "layers", kind: .primary) { openBeside(file) }
+                .accessibilityIdentifier("community.reader.beside")
+                .padding(.top, 8)
+        }
+    }
+
+    /// Die PDF steht im eigenen Kurs, ist aber noch nicht auf dem Geraet: oeffnen laedt sie auf dem Weg einzelner
+    /// Dateien (`FileLoadPanel`, "Jetzt laden"), danach oeffnet sich das Dokument mit der Loesung daneben. Geladen wird
+    /// nur nach diesem Tipp.
+    private func loadPDFButton(_ file: String) -> some View {
+        UFButton(CommunityTexts.loadPDFNow, icon: "download", kind: .primary) { openBeside(file) }
+            .accessibilityHint(CommunityTexts.loadPDFNowHint)
+            .accessibilityIdentifier("community.reader.loadPDF")
+    }
+
+    /// Wie der Knopf im Blatt-Leser (`CommunityReaderSheet`): Bitte hinterlegen, Leser verlassen, Dokument oeffnen –
+    /// das Dokument holt die Bitte nach dem Laden ab und zeigt die Loesung in der Spalte daneben
+    private func openBeside(_ file: String) {
+        SolutionBesideLaunch.shared.request(solutionID: solution.solutionID, fileID: file)
+        leave?()
+        router.go(.doc(file, task: nil, page: nil))
     }
 
     // MARK: Schwebende Leiste
@@ -1268,6 +1316,10 @@ struct CommunityPersonPane: View {
             if let container = CommunityLocalContext.current {
                 version = await CommunityCourses.view(for: c, family: solution.family, host: container.host, university: container.university)
                 ownPDF = version.own
+                besideFile = await CommunityCourses.besideFile(for: c, version: version, host: container.host)
+                if besideFile == nil, SolutionPaper.hasPDFPages(c.pages) {
+                    unloadedFile = await CommunityCourses.knownUnloadedFile(family: solution.family, host: container.host, university: container.university)
+                }
             }
             content = c
         } catch { failure = CommunityTexts.message(error) }

@@ -287,6 +287,61 @@ final class HildesheimSyncTests: XCTestCase {
         XCTAssertEqual(kept, 3)
     }
 
+    /// Konto im LSF nur in der Rolle "Gast" (am echten LSF gesehen, 25.11.2026: Kopf "… in der Rolle: Gast", Menue ohne
+    /// "Meine Funktionen"): dort gibt es weder persoenlichen Stundenplan noch Notenspiegel. Gelesen und nichts da - kein
+    /// Fehler, klare Meldung, "Meine POS-Anmeldungen" wird nicht gesucht. Seite und Namen erfunden.
+    func testGuestRoleInLSFIsNotAnError() async throws {
+        let guestPage = """
+            <html><body><div class="divloginstatus"><a href="rds?state=user&amp;type=0">Startseite</a> |
+            <a href="rds?state=user&amp;type=4&amp;re=last&amp;category=auth.logout">Abmelden</a> | Jungstudentin |
+            Sie sind angemeldet als: testgast &nbsp;| in der Rolle: <b>Gast</b> |</div>
+            <a href="rds?state=wtree&amp;search=1">Vorlesungsverzeichnis</a>
+            <a href="rds?state=change&amp;type=5">Suche nach Veranstaltungen</a></body></html>
+            """
+        XCTAssertEqual(LSFClient.role(html: guestPage), "Gast")
+        XCTAssertTrue(LSFClient.isGuest(html: guestPage))
+        let studentPage = guestPage.replacingOccurrences(of: "<b>Gast</b>", with: "Studierende")
+        XCTAssertEqual(LSFClient.role(html: studentPage), "Studierende")
+        XCTAssertFalse(LSFClient.isGuest(html: studentPage))
+        XCTAssertNil(LSFClient.role(html: #"<a href="x">Abmelden</a>"#), "ohne Angabe keine Rolle")
+
+        let (db, layout) = try await container()
+        let clock = UniFlowClock.fixed(Date(timeIntervalSince1970: 1_792_900_000))
+        let t = FakeUniTransport()
+        t.on(LSFClient.planURL, ok(guestPage))
+        t.on(LSFClient.startURL, ok(guestPage))
+        let r = await HildesheimSync(db: db, container: layout, learnweb: nil, lsf: LSFClient(transport: t, retry: noWait), transport: t,
+                                     clock: clock, retry: noWait).run()
+        let said = r.messages.joined(separator: "; ")
+        XCTAssertTrue(r.ok, said)
+        XCTAssertEqual(r.completed, ["LSF-Stundenplan", "Notenspiegel"])
+        XCTAssertEqual(r.campusGuest, true)
+        XCTAssertEqual(r.grades, 0)
+        XCTAssertNil(r.registrations)
+        XCTAssertTrue(r.messages.contains("LSF: Konto gerade in der Rolle „Gast“ – in dieser Rolle gibt es dort keinen persönlichen Stundenplan"), said)
+        XCTAssertTrue(r.messages.contains("Notenspiegel: in der Rolle „Gast“ gibt es im LSF gerade keinen"), said)
+        XCTAssertFalse(said.contains("Unerwartete Antwort"), said)
+        XCTAssertFalse(said.contains("Angemeldete Prüfungen"), said)
+        XCTAssertFalse(t.requests.contains { $0.url.absoluteString.contains("type=8") }, "„Meine Funktionen“ wird nicht gesucht")
+        // letzter Abruf gilt als gelungen: unter "Uni & Noten" keine rote Fehlermeldung
+        let lastOK = try await db.scalar("SELECT ok FROM qis_runs ORDER BY rowid DESC LIMIT 1")?.int
+        XCTAssertEqual(lastOK, 1)
+        let named = try await db.scalar("SELECT COUNT(*) FROM qis_runs WHERE message = 'Kein Notenspiegel für die Rolle „Gast“'")?.int
+        XCTAssertEqual(named, 1)
+
+        // Studierende ohne den Link: weiter ein Fehler (unerwartete Seite), keine Gast-Meldung
+        let t2 = FakeUniTransport()
+        t2.on(LSFClient.planURL, ok(studentPage))
+        t2.on(LSFClient.startURL, ok(studentPage))
+        let r2 = await HildesheimSync(db: db, container: layout, learnweb: nil, lsf: LSFClient(transport: t2, retry: noWait), transport: t2,
+                                      clock: clock, retry: noWait).run()
+        let said2 = r2.messages.joined(separator: "; ")
+        XCTAssertEqual(r2.campusGuest, false)
+        XCTAssertTrue(r2.messages.contains("LSF-Stundenplan ist leer"), said2)
+        XCTAssertTrue(said2.contains("Link zum Notenspiegel fehlt"), said2)
+        XCTAssertFalse(r2.completed.contains("Notenspiegel"), said2)
+    }
+
     func testFullSyncStoresEverythingAndIsSafeToRepeat() async throws {
         let (db, layout) = try await container()
         let t = FakeUniTransport()

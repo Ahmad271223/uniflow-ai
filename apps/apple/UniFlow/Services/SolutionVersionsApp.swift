@@ -113,6 +113,29 @@ extension CommunityCourses {
         return nil
     }
 
+    /// Eigene Datei, neben der eine Community-Loesung geoeffnet wird ("Lösung neben deinem Dokument öffnen"): dieselbe
+    /// PDF (Fingerabdruck), sonst die eigene Fassung derselben Datei (`SolutionVersionView.fileID`). Eine Bedingung
+    /// fuer beide Leser der Community (`community.reader.beside`); nil = keine eigene PDF auf dem Geraet.
+    static func besideFile(for c: SolutionContent, version: SolutionVersionView, host: LocalBackendHost) async -> String? {
+        await localFile(fingerprint: c.fingerprint, host: host) ?? version.fileID
+    }
+
+    /// Datei derselben Familie, die der Abgleich kennt, die aber noch nicht auf dem Geraet liegt (gelistet, nicht
+    /// geladen): fuer "PDF jetzt laden" im Leser der Community. nil = die App kennt die Datei nicht (kein eigener
+    /// Kurs) oder sie liegt schon da (dann gilt `besideFile`). Nur lesen, kein Netz.
+    static func knownUnloadedFile(family: String?, host: LocalBackendHost, university: String) async -> String? {
+        guard let family, CommunityKeys.isHex64(family), let backend = try? await host.backend() else { return nil }
+        let rows = (try? await backend.context.database.withConnection { try $0.rows(syncedFiles) }) ?? []
+        for r in rows {
+            guard let id = r["id"]?.string, let course = r["course_id"]?.string,
+                  CommunityKeys.familyKey(university: university, courseID: course, fileID: id) == family else { continue }
+            // liegt schon da (ohne Dateiablage nicht pruefbar: dann gilt der Eintrag)
+            if let path = r["local_path"]?.string, !path.isEmpty, host.files?.exists(stored: path) != false { return nil }
+            return id
+        }
+        return nil
+    }
+
     /// Aufbewahrte alte Fassung (S7, `file_versions`) mit diesem Fingerabdruck, nil wenn keine auf dem Geraet liegt
     static func keptVersion(fingerprint: String, host: LocalBackendHost) async -> URL? {
         guard CommunityKeys.isHex64(fingerprint), let files = host.files, let backend = try? await host.backend() else { return nil }

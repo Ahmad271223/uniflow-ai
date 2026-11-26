@@ -201,7 +201,7 @@ final class CrashReporter: NSObject, MXMetricManagerSubscriber, @unchecked Senda
                                         deviceClass: deviceClass(isMac: ProcessInfo.processInfo.isiOSAppOnMac, idiom: UIDevice.current.userInterfaceIdiom),
                                         channel: channel(debug: debug, receiptName: Bundle.main.appStoreReceiptURL?.lastPathComponent,
                                                          hasProvisioningProfile: hasProfile),
-                                        appBinaries: [Bundle.main.executableURL?.lastPathComponent ?? "UniFlow"])
+                                        appBinaries: [Bundle.main.executableURL?.lastPathComponent ?? ProcessInfo.processInfo.processName])
     }
 
     /// "mac" (Designed for iPad), "ipad" oder "iphone"

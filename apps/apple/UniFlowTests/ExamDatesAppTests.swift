@@ -98,6 +98,38 @@ final class ExamDatesAppTests: XCTestCase {
         XCTAssertLessThan(one.uiImage?.size.height ?? 0, img.size.height, "eine Klausur: kleinere Karte")
     }
 
+    /// "und n weitere" klappt die Karte auf (26.11.2026): zugeklappt vier Zeilen, aufgeklappt alle untereinander, die
+    /// Karte wird hoeher; bis vier Klausuren kein Knopf
+    func testMoreExpandsTheCardToAllExams() throws {
+        let items: [JSONValue] = (1...9).map { i in
+            ["id": .string("exam-m\(i)-2027-02-1\(i)"), "date": .string("2027-02-1\(i)"), "time": "09:00", "end": .null,
+             "title": .string("Klausur Modul \(i)"), "kind_label": "Klausur", "in_days": .string("in \(99 + i) Tagen"),
+             "room": .null, "source_label": "aus QIS (angemeldet)", "module_id": .number(Double(i))]
+        }
+        XCTAssertEqual(UpcomingExamsList.shown(items, expanded: false).count, 4)
+        XCTAssertEqual(UpcomingExamsList.shown(items, expanded: true).compactMap { $0.s("title") },
+                       (1...9).map { "Klausur Modul \($0)" }, "aufgeklappt alle, in der Reihenfolge der Liste")
+        XCTAssertEqual(UpcomingExamsList.moreText(9, expanded: false), "und 5 weitere")
+        XCTAssertEqual(UpcomingExamsList.moreText(9, expanded: true), "Weniger anzeigen")
+        XCTAssertNil(UpcomingExamsList.moreText(4, expanded: false), "genau vier: kein Knopf")
+        XCTAssertNil(UpcomingExamsList.moreText(4, expanded: true))
+        XCTAssertEqual(UpcomingExamsList.shown(Array(items.prefix(3)), expanded: true).count, 3)
+
+        func height(_ expanded: Bool) throws -> CGFloat {
+            let r = ImageRenderer(content: UpcomingExamsList.card(items, expanded: expanded, toggle: {}, open: { _ in }).frame(width: 600))
+            r.scale = 1
+            return try XCTUnwrap(r.uiImage).size.height
+        }
+        let closed = try height(false), opened = try height(true)
+        // fuenf Zeilen mehr, je mindestens 40 pt (Kachel mit Tag und Datum)
+        XCTAssertGreaterThan(opened, closed + 5 * 40, "aufgeklappt ist die Karte um fuenf Zeilen hoeher")
+        // die Liste mit eigenem Zustand: startet zugeklappt, `expanded: true` zeigt gleich alle
+        let listClosed = ImageRenderer(content: UpcomingExamsList(items: items, open: { _ in }).frame(width: 600))
+        let listOpen = ImageRenderer(content: UpcomingExamsList(items: items, expanded: true, open: { _ in }).frame(width: 600))
+        listClosed.scale = 1; listOpen.scale = 1
+        XCTAssertGreaterThan(try XCTUnwrap(listOpen.uiImage).size.height, try XCTUnwrap(listClosed.uiImage).size.height + 5 * 40)
+    }
+
     /// Kalendertag mit vielen Hinweisen: der Klausur-Pin steht immer zuerst, der Hinweis "Prüfung" desselben Moduls
     /// nicht noch einmal, alle anderen bleiben; Tage ohne Klausur unveraendert
     func testCalendarPinIsFirstAndAlwaysShown() throws {

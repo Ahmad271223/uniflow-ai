@@ -144,7 +144,14 @@ public enum StudyPlanAPI {
             out = StudyPlanEngine.compute(catalog: cat, grades: mine + manualRows, settings: settings.json, today: today).plan
             // ehrlich sagen, warum Leistungen fehlen (Wechsel des Studiengangs, 14.11.2026)
             let kept = Set(mine.map { JSONValue.object($0) })
-            let other = grades.filter { !kept.contains(.object($0)) && $0["source"]?.string != "anmeldung" && !StudyPlanEngine.isBereich($0) }
+            // Faecher desselben Mehr-Faecher-Studiengangs sind kein frueheres Studium: sie stehen in `degree_overview`
+            // (eigenes Feld: `degree` ist die Abschlussart des Katalogs, z. B. "B.Sc.", und bleibt, wie es war)
+            let siblings = StudyPlanEngine.combinedDegree(grades)?.labels ?? []
+            let other = grades.filter {
+                !kept.contains(.object($0)) && $0["source"]?.string != "anmeldung" && !StudyPlanEngine.isBereich($0)
+                    && !siblings.contains(PyText.strip(StudyPlanEngine.textOf($0["abschluss"])))
+            }
+            out["degree_overview"] = StudyPlanEngine.degreeOverview(grades, current: mine, lpManual: StudyPlanEngine.num(out["lp_manual"]))
             let earlier = earlierStudies(other)
             out["earlier_studies"] = .array(earlier)
             if !other.isEmpty {
@@ -156,6 +163,7 @@ public enum StudyPlanAPI {
             }
         } else {
             out = StudyPlanEngine.unavailable(picked.reason ?? "no_catalog", po: settings.po)
+            out["degree_overview"] = StudyPlanEngine.degreeOverview(grades, current: [], lpManual: nil)
             out["earlier_studies"] = .array([])
             // gewaehlter Studiengang aus dem Register (auch ohne Katalog): ehrlich mit Namen statt "Verbinde das LSF"
             if ["no_catalog", "no_catalog_po"].contains(picked.reason ?? "no_catalog"), let named = chosenProgramName(settings.po, university: uni) {
@@ -163,6 +171,7 @@ public enum StudyPlanAPI {
                 out["program"] = .string(named)
             }
         }
+        out["passed_terms"] = .array(StudyPlanEngine.passedTerms(grades))
         let suggested = StudyPlanEngine.pickCatalog(catalogs, settings: [:], grades: grades).catalog
         out["suggested_po"] = suggested.map { $0["po"] ?? .null } ?? .null
         out["po_confirmed"] = .bool(settings.po != nil)
@@ -189,7 +198,10 @@ public enum StudyPlanAPI {
                 order.append(label)
             }
             acc[label]!.count += 1
-            if PyText.strip(StudyPlanEngine.textOf(r["status"])).lowercased().hasPrefix("bestanden") {
+            if r["lp_counted"] != nil {
+                // bereinigte Zeilen (GradesModel.model): dieselbe Summe wie Uni & Noten, Modul und Teilleistung nie doppelt
+                acc[label]!.lp += StudyPlanEngine.num(r["lp_counted"]) ?? 0
+            } else if PyText.strip(StudyPlanEngine.textOf(r["status"])).lowercased().hasPrefix("bestanden") {
                 acc[label]!.lp += StudyPlanEngine.creditsOf(r)
             }
             acc[label]!.rows.append(["text": r["text"] ?? .null, "note": r["note"] ?? .null, "status": r["status"] ?? .null,

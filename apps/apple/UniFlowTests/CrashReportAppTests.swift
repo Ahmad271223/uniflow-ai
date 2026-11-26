@@ -200,7 +200,7 @@ final class CrashReportAppTests: XCTestCase {
         XCTAssertEqual(c.appBuild, info["CFBundleVersion"] as? String)
         XCTAssertEqual(c.channel, "test", "Simulator")
         XCTAssertEqual(c.appBinaries, ["UniFlow"], "Name der Programmdatei, wie ihn der Dienst kennt (APP_BINARIES)")
-        XCTAssertTrue(["ipad", "iphone"].contains(c.deviceClass))
+        XCTAssertTrue(["ipad", "iphone", "mac"].contains(c.deviceClass), "am Mac (Designed for iPad) heisst die Klasse mac")
     }
 
     /// Die Verbindung der Meldungen traegt nie ein Cookie: der Dienst setzt bei der Anmeldung des Kontos eins, und mit

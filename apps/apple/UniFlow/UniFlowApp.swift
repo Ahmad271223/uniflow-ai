@@ -142,8 +142,8 @@ struct UniFlowApp: App {
                     .preferredColorScheme((UFThemeMode(rawValue: theme) ?? .standard).scheme)
                     .tint(UF.accent)
                     .onOpenURL { url in
-                        // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; sie erscheint im
-                        // passenden Dokument unter "Ebenen" (docs/LOESUNGEN-TEILEN.md)
+                        // Datei *.uniflowsolution (AirDrop, Dateien, "Öffnen in"): verschluesselt ablegen; im passenden
+                        // Dokument oeffnet sie sich neben dem Dokument (docs/LOESUNGEN-TEILEN.md)
                         if SolutionSharing.isSolutionFile(url) {
                             // Loesungen gehoeren in den Container des Kontos und der Hochschule
                             guard containers.active != nil else {

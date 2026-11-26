@@ -18,6 +18,9 @@ final class EditorBridge: ObservableObject {
     @Published var objectMode = false
     @Published var objectTool: ObjectEditing.Tool = .select
     @Published var objectSelection = 0
+    /// Zaehlt bei jeder neuen Auswahl hoch - auch wenn die Anzahl gleich bleibt (Form gewaehlt, dann eine Klappkarte):
+    /// Die Objektleiste zeigt sonst weiter die Knoepfe der vorigen Auswahl
+    @Published var objectSelectionStamp = 0
     /// Formatierung des gewaehlten bzw. gerade getippten Texts (Leiste "Text", `TextFormatBar`); nil = kein Text
     @Published var textFormat: TextFormat?
     /// Ein neuer Verweis wartet auf sein Ziel (Leiste: "Jetzt das Ziel antippen", "Abbrechen")
@@ -1305,12 +1308,15 @@ struct DocumentView: View {
     /// schon daneben offen, nur springen.
     private func openLink(_ t: PageLink.Target) {
         guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
-        if companion?.file.id != t.file {
-            solutionSide = nil
-            webSide = nil
-            companion = Companion(file: libFile(id: t.file, title: t.title), pdfPage: t.pdfPage, request: UUID().uuidString)
-        }
         Task { @MainActor in
+            if companion?.file.id != t.file {
+                // die echte Datei aus der Bibliothek: Ein Notizbuch oder Whiteboard ist keine PDF (vorher wurde immer
+                // eine PDF angenommen - solche Ziele oeffneten nie). Erst danach raeumt die Spalte daneben
+                let real = try? await api.json("/api/files/\(t.file)", as: LibFile.self)
+                solutionSide = nil
+                webSide = nil
+                companion = Companion(file: real ?? libFile(id: t.file, title: t.title), pdfPage: t.pdfPage, request: UUID().uuidString)
+            }
             // das Dokument daneben braucht einen Moment (laden, Seiten aufbauen): dann zur Stelle
             for _ in 0..<120 {
                 if let main = bridge.controller, let side = tools.tools.otherEditor(than: main), side.store.file.id == t.file,
@@ -3716,10 +3722,13 @@ struct PDFEditorView: UIViewControllerRepresentable {
         // darum dessen Auswahl (`EditorToolState.selectionChanged`), auch die im Dokument daneben
         if ownsToolPicker {
             vc.objects.onSelectionChange = { [weak vc] n in if let vc { vc.tools.selectionChanged(n, in: vc) } }
-            vc.tools.onActiveSelection = { [weak bridge] n in if let bridge, bridge.objectSelection != n { bridge.objectSelection = n } }
+            vc.tools.onActiveSelection = { [weak bridge] n in
+                guard let bridge else { return }
+                if bridge.objectSelection != n { bridge.objectSelection = n } else if n > 0 { bridge.objectSelectionStamp &+= 1 }
+            }
         } else {
             vc.objects.onSelectionChange = { [weak bridge, weak vc] n in
-                if let bridge, bridge.objectSelection != n { bridge.objectSelection = n }
+                if let bridge { if bridge.objectSelection != n { bridge.objectSelection = n } else if n > 0 { bridge.objectSelectionStamp &+= 1 } }
                 if let vc { vc.tools.selectionChanged(n, in: vc) }
             }
         }

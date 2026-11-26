@@ -11,7 +11,7 @@ import { staggerOnce, countUp } from "./motion.js?v=2";
 import { newsCard, bindNews } from "./news.js?v=8";
 import { ofWeek } from "./task-progress.js?v=1";
 import { masteryTile } from "./mastery.js?v=2";
-import { examsCard } from "./exams.js?v=2";
+import { examsCard, bindExamsCard } from "./exams.js?v=3";
 import * as Greeting from "./greeting.js?v=1";                 // "Hallo Ahmad – lass uns gemeinsam lernen." (05.11.2026)
 import { recentCard } from "./recent.js?v=1";                  // "Zuletzt benutzt" (GET /api/recent, app/recent.py)
 
@@ -182,6 +182,7 @@ export async function viewDashboard(_, __, view, hints = () => "") {
     ${installBanner()}${hints()}
     ${rest.length ? `<div class="ov-rest">${rest.join("")}</div>` : ""}</div>`;
   bindInstallBanner(view);
+  bindExamsCard(view);   // "und n weitere" klappt die Karte "Nächste Klausuren" auf
   if (news) bindNews(view, news.items, d.today.date);
   // Pruefungsanmeldung (exam-registration.js): Hinweis, Karte im Meldezeitraum, Abzeichen an "Nächste Klausuren"
   import("./exam-registration.js?v=4").then(X => X.renderDashboard($("#xrHost", view), $(".ov-exams", view))).catch(() => {});

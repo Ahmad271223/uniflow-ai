@@ -98,8 +98,16 @@ struct StudyPlanModule: Identifiable, Equatable {
     let recommended: Int?
     /// bestanden laut selbst eingetragener Leistung (20.11.2026), QIS meldet das Modul nicht
     let manual: Bool
+    /// eigener Eintrag: Arbeitsaufwand in Stunden und Inhalt (26.11.2026), nil ohne Angabe
+    let workloadH: Int?
+    let content: String?
+    /// angefangenes Modul (LSF "Prüfung vorhanden", 26.11.2026): schon erreichte LP der bestandenen Teilmodule
+    let lpPart: Double?
 
     init(_ v: JSONValue) {
+        lpPart = v.n("lp_part").flatMap { $0 > 0 ? $0 : nil }
+        workloadH = v.i("workload_h").flatMap { $0 > 0 ? $0 : nil }
+        content = v.s("content").flatMap { $0.isEmpty ? nil : $0 }
         id = v.s("id") ?? v.i("id").map(String.init) ?? UUID().uuidString
         title = v.s("title") ?? v.s("name") ?? "Modul"
         code = v.s("code")
@@ -353,6 +361,10 @@ struct StudyPlan: Equatable {
     let mismatchChosen: String?
     /// Leistungen anderer Studiengaenge ("Früheres Studium"), zaehlen nicht im aktuellen
     let earlier: [StudyPlanEarlierStudy]
+    /// ganzer Mehr-Faecher-Studiengang (26.11.2026: Zwei-Faecher-Bachelor, das LSF fuehrt jedes Fach einzeln), nil sonst
+    let degreeOverview: StudyPlanDegree?
+    /// bestanden je Semester, alle Faecher, aelteste zuerst (26.11.2026)
+    let passedTerms: [StudyPlanPassedTerm]
     /// alte Ordnung vorschlagen (Studienbeginn vor dem ersten Semester der gewaehlten)
     let orderSuggestion: StudyPlanOrderSuggestion?
     /// Link zum LSF-Wochenraster des Studiengangs (kein Studienverlauf)
@@ -391,6 +403,8 @@ struct StudyPlan: Equatable {
         qisProgram = v.s("qis_program") ?? v.s("qis_abschluss")
         programs = v.list("programs").map(StudyPlanProgramChoice.init).filter { !$0.program.isEmpty }
         earlier = v.list("earlier_studies").map(StudyPlanEarlierStudy.init).filter { $0.count > 0 }
+        degreeOverview = v["degree_overview"].flatMap { $0.isNull ? nil : StudyPlanDegree($0) }
+        passedTerms = v.list("passed_terms").map(StudyPlanPassedTerm.init).filter { !$0.rows.isEmpty }
         orderSuggestion = v["order_suggestion"].flatMap { $0.isNull ? nil : StudyPlanOrderSuggestion($0) }
         lsfPlan = v["lsf_plan"]?.s("url").flatMap(URL.init(string:)).map {
             StudyPlanLSFRef(url: $0, label: v["lsf_plan"]?.s("label") ?? "Veranstaltungen dieses Semesters im LSF")
@@ -816,14 +830,19 @@ enum StudyPlanEdit {
     static func customJSON(_ m: StudyPlanModule, plan: StudyPlan) -> JSONValue {
         let fach = plan.semester(of: m.id)?.fachsemester
         return ["id": .string(m.id), "title": .string(m.title), "lp": .number(m.lp), "area": m.area.map(JSONValue.string) ?? .null,
-                "semester": (m.recommended ?? fach).map { .number(Double($0)) } ?? .null]
+                "semester": (m.recommended ?? fach).map { .number(Double($0)) } ?? .null,
+                "workload_h": m.workloadH.map { .number(Double($0)) } ?? .null, "content": m.content.map(JSONValue.string) ?? .null]
     }
 
-    /// eigenen Eintrag hinzufuegen (Titel, LP, Bereich, Fachsemester)
-    static func addCustom(_ plan: StudyPlan, title: String, lp: Double, area: String?, fachsemester: Int?) -> JSONValue {
+    /// eigenen Eintrag hinzufuegen (Titel, LP, Bereich, Fachsemester; seit 26.11.2026 dazu Arbeitsaufwand in Stunden und Inhalt)
+    static func addCustom(_ plan: StudyPlan, title: String, lp: Double, area: String?, fachsemester: Int?, hours: Int? = nil,
+                          content: String? = nil) -> JSONValue {
+        let text = content?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         let new: JSONValue = ["title": .string(title.trimmingCharacters(in: .whitespacesAndNewlines)), "lp": .number(lp),
                               "area": area.map(JSONValue.string) ?? .null,
-                              "semester": fachsemester.map { .number(Double($0)) } ?? .null]
+                              "semester": fachsemester.map { .number(Double($0)) } ?? .null,
+                              "workload_h": hours.flatMap { $0 > 0 ? JSONValue.number(Double($0)) : nil } ?? .null,
+                              "content": text.isEmpty ? .null : .string(text)]
         return ["custom": .array(plan.customModules.map { customJSON($0, plan: plan) } + [new])]
     }
 
@@ -1256,4 +1275,82 @@ enum StudyPlanFilter: String, CaseIterable, Hashable {
         case .passed: return m.status == .passed
         }
     }
+}
+
+
+// MARK: - Mehr-Faecher-Studiengang und bestanden je Semester (26.11.2026)
+
+/// Ganzer Mehr-Faecher-Studiengang (`degree_overview` des Kerns): das LSF fuehrt jedes Fach eines Zwei-Faecher-Bachelors als
+/// eigenen "Studiengang"; zusammen sind sie ein Studiengang mit 180 LP (Master 120).
+struct StudyPlanDegree: Equatable {
+    struct Subject: Equatable, Identifiable {
+        let id: String
+        let program: String
+        let po: String?
+        let lpDone: Double
+        let passed: Int
+        /// das Fach, dessen Katalog gerade geplant wird
+        let current: Bool
+    }
+
+    let name: String
+    /// LP des ganzen Studiengangs, nil wenn unbekannt
+    let lpTotal: Double?
+    let lpDone: Double
+    /// was das LSF selbst als Gesamtkonto nennt (LP und vorlaeufige Gesamtnote), nil ohne
+    let officialLP: Double?
+    let officialGrade: String?
+    let subjects: [Subject]
+
+    init?(_ v: JSONValue) {
+        guard let name = v.s("name"), !name.isEmpty else { return nil }
+        self.name = name
+        lpTotal = v.n("lp_total").flatMap { $0 > 0 ? $0 : nil }
+        lpDone = v.n("lp_done") ?? 0
+        officialLP = v.n("official_lp")
+        officialGrade = v.s("official_grade").flatMap { $0.isEmpty ? nil : $0 }
+        subjects = v.list("subjects").enumerated().map { i, s in
+            Subject(id: s.s("label") ?? "fach-\(i)", program: s.s("program") ?? "Ohne Angabe", po: s.s("po"), lpDone: s.n("lp_done") ?? 0,
+                    passed: Int(s.n("passed") ?? 0), current: s["current"]?.bool ?? false)
+        }
+    }
+
+    /// "51 von 180 LP" bzw. "51 LP" ohne bekannte Gesamtzahl
+    var progress: String {
+        lpTotal.map { StudyPlanText.progress(lpDone, $0) } ?? "\(StudyPlanText.number(lpDone)) LP"
+    }
+
+    /// "Laut LSF: 51 LP · vorläufige Gesamtnote 3,45"; nil ohne Angabe des LSF
+    func official(source: String) -> String? {
+        let parts = [officialLP.map { "\(StudyPlanText.number($0)) LP" }, officialGrade.map { "vorläufige Gesamtnote \($0)" }].compactMap { $0 }
+        return parts.isEmpty ? nil : "Laut \(source): " + parts.joined(separator: " · ")
+    }
+}
+
+/// Bestanden in einem Semester (`passed_terms` des Kerns): jede zaehlende Leistung des Notenspiegels
+struct StudyPlanPassedTerm: Equatable, Identifiable {
+    struct Row: Equatable {
+        let text: String
+        let lp: Double
+        let note: String?
+        /// Fach im Mehr-Faecher-Studiengang, sonst nil
+        let program: String?
+    }
+
+    let id: String
+    /// "WiSe 25/26"; nil = Semester nicht erkennbar
+    let name: String?
+    let lp: Double
+    let rows: [Row]
+
+    init(_ v: JSONValue) {
+        name = v.s("name").flatMap { $0.isEmpty ? nil : $0 }
+        id = name ?? "ohne-semester"
+        lp = v.n("lp") ?? 0
+        rows = v.list("rows").map { Row(text: $0.s("text") ?? "", lp: $0.n("lp") ?? 0, note: $0.s("note").flatMap { $0.isEmpty ? nil : $0 },
+                                         program: $0.s("program").flatMap { $0.isEmpty ? nil : $0 }) }.filter { !$0.text.isEmpty }
+    }
+
+    var title: String { name ?? "Semester nicht erkennbar" }
+    var summary: String { "\(rows.count) \(rows.count == 1 ? "Leistung" : "Leistungen") · \(StudyPlanText.number(lp)) LP" }
 }

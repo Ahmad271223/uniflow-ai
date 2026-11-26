@@ -89,6 +89,17 @@ App“ unten). Punkt 5 ist offen: Gegen die echten Seiten der Uni wurde nichts a
   Gültige CAS-Sitzung leitet ohne Formular zurück.
 - **Learnweb** `https://www.uni-hildesheim.de/learnweb2026`, Moodle mit aktivem Mobile-Webservice,
   Identitätsanbieter CAS, `typeoflogin` 1.
+  - **25./26.11.2026, am echten Learnweb gesehen:** Mit `typeoflogin` 1 („in der App“) zeigt
+    `admin/tool/mobile/launch.php` ohne frische Anmeldung nur „Das Plugin ist nicht aktiviert oder nicht richtig
+    konfiguriert.“ (HTTP 404, kein Anmeldeformular) – daran blieb der erste Start hängen. Unmittelbar nach einer
+    Anmeldung nimmt launch.php den Aufruf an. Die App öffnet deshalb `login/index.php` (weiter zum CAS, mit gültiger
+    CAS-Anmeldung ohne Formular) und lädt, sobald Moodle zur Prüfseite `login/index.php?testsession=<id>` weiterleiten
+    will, stattdessen launch.php; die Antwort ist `moodlemobile://token=…` (`HildesheimLogin.reroute`,
+    `MoodleSSO.isSessionTest`). Kommt kein Schlüssel, gilt die Sitzung der Webansicht. Bei `typeoflogin` 2/3 bleibt
+    launch.php die Startseite.
+  - **LSF-Rolle „Gast“ (25.11.2026):** Während einer Störung führte das LSF ein Studierenden-Konto „in der Rolle: Gast“
+    (kein „Meine Funktionen“, kein Stundenplan, kein Notenspiegel); am 26.11. war die Rolle zurück. Die App zeigt dafür
+    einen Hinweis statt eines Fehlers und behält vorhandene Daten (`LSFClient.guest`, `LSFGuestTexts`).
   - `core_course_get_contents` ist **per AJAX gesperrt** (`servicenotavailable`), nur mit Token (REST) nutzbar.
   - Kursnamen: `"SoSe 2026: 9406 Titel"` → Semester, Veranstaltungsnummer (wie im LSF), Titel.
   - Abschnitte heißen oft nur `"1"`, `"2"` → als `"Woche N"` speichern (Wochenerkennung im Lernplan).

@@ -22,6 +22,8 @@ struct TimetableView: View {
     /// Breite des Rasters (fuer die Spaltenwahl und den Hinweis auf ausgeblendete Wochenendtage); 0 = noch nicht gemessen
     @State private var gridWidth: CGFloat = 0
     @Environment(\.ufWindowWidth) private var windowWidth
+    /// Uni Hildesheim: Konto im LSF nur in der Rolle "Gast" (`LSFGuestTexts`), sonst nil bzw. false
+    @Environment(\.hildesheim) private var hildesheim
     /// iPhone hochkant (Auftrag des Inhabers 23.11.2026): "days" = Tagesliste wie bisher, "week" = ganze Woche als
     /// Raster (`PhoneTimetableWeek`); gemerkt fuer die naechsten Besuche. iPad, Mac und iPhone quer zeigen das volle Raster.
     @AppStorage("timetable.phoneMode") private var phoneMode = "days"
@@ -96,11 +98,13 @@ struct TimetableView: View {
             nav.padding(.bottom, 4)
             legendRow.padding(.bottom, 11.2)
             if allEv.isEmpty {
+                let guest = hildesheim?.lsfGuest == true
                 UFCard {
-                    (Text("Noch kein Stundenplan. ").font(.uf(14.5, 700)).foregroundColor(UF.text)
-                     + Text(Self.emptyHint(studipPending: studipPending)).foregroundColor(UF.muted))
+                    (Text(guest ? LSFGuestTexts.timetableTitle : "Noch kein Stundenplan. ").font(.uf(14.5, 700)).foregroundColor(UF.text)
+                     + Text(guest ? LSFGuestTexts.timetableHint : Self.emptyHint(studipPending: studipPending)).foregroundColor(UF.muted))
                         .ufFont(14.5)
                 }
+                .accessibilityIdentifier(guest ? "timetable.empty.lsfGuest" : "timetable.empty")
                 .padding(.bottom, 12.8)
             }
             if PhoneWeekList.applies(width: windowWidth) {

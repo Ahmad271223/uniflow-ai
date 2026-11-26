@@ -86,6 +86,12 @@ enum CommunityTexts {
     static let noPDFNotice = "Du hast diese PDF nicht (oder eine andere Fassung). Lösungen auf Folien und Aufgabenblättern siehst du nur zusammen mit dem Dokument: Lade die PDF in StudiNow (z. B. mit „Sync“), dann öffnest du die Lösung neben deinem Dokument. Eigene Blätter der Lösung erscheinen hier auf ihrem Papier. Die PDF des Lehrenden wird nie mitgeschickt."
     /// an Stelle einer Seite auf einer Folie, wenn die eigene PDF fehlt
     static let pageNeedsPDF = "Diese Seite steht auf der PDF. Du siehst sie, sobald du die PDF in StudiNow hast."
+    /// an Stelle einer Seite auf einer Folie, wenn sich die PDF-Seite nicht oeffnen laesst, obwohl die PDF bekannt ist
+    /// (Datei nicht lesbar, Seite fehlt): kein Bild, nie die Striche auf einer weissen Seite (Inhaber 26.11.2026)
+    static let pageNotShown = "Diese Seite der PDF lässt sich gerade nicht anzeigen. Die Lösung dazu siehst du nur zusammen mit der Seite."
+    /// Leser breit, die PDF steht im eigenen Kurs und ist noch nicht geladen: laden und die Loesung daneben oeffnen
+    static let loadPDFNow = "PDF jetzt laden"
+    static let loadPDFNowHint = "Lädt die PDF aus deinem Kurs und öffnet die Lösung neben deinem Dokument"
     /// Treffer zu einer anderen Fassung derselben Datei (Datei-Familie, 23.11.2026)
     static let otherVersion = "zu einer anderen Fassung dieser PDF"
     /// Leser: Loesung zu einer anderen Fassung, gleich gebliebene Seiten auf der eigenen PDF
@@ -623,7 +629,7 @@ struct CommunityReaderSheet: View {
                 let host = container.host
                 // dieselbe PDF oder eine andere Fassung derselben Datei (Datei-Familie, 23.11.2026)
                 version = await CommunityCourses.view(for: c, family: solution.family, host: host, university: container.university)
-                localFile = await CommunityCourses.localFile(fingerprint: c.fingerprint, host: host) ?? version.fileID
+                localFile = await CommunityCourses.besideFile(for: c, version: version, host: host)
                 ownPDF = version.own
             }
             if service.supportsDiscussion { comments = try await service.comments(solutionID: solution.solutionID) }
@@ -709,6 +715,8 @@ struct CommunityReaderPage: View {
     /// aufbewahrte Fassung des Absenders (S7)
     var old: OffscreenPDF?
     @State private var image: UIImage?
+    /// die PDF-Seite liess sich nicht oeffnen (`OffscreenPDF.solutionPreview` gab kein Bild): Hinweis statt Bild
+    @State private var unavailable = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -772,9 +780,27 @@ struct CommunityReaderPage: View {
         .accessibilityIdentifier("community.page.needsPDF")
     }
 
+    /// PDF-Seite laesst sich nicht oeffnen (bei einer Seite der alten Fassung derselbe Satz wie ohne diese Fassung)
+    @ViewBuilder private var unavailablePage: some View {
+        if case .oldVersion? = placement {
+            changedPage
+        } else {
+            HStack(spacing: 10) {
+                UFIcon("file-text", size: 18).foregroundStyle(UF.muted)
+                Text(CommunityTexts.pageNotShown).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(UF.surface2, in: RoundedRectangle(cornerRadius: UF.rSm))
+            .accessibilityIdentifier("community.page.notShown")
+        }
+    }
+
     private var pageImage: some View {
         Group {
-            if let image {
+            if unavailable {
+                unavailablePage
+            } else if let image {
                 Image(uiImage: image).resizable().scaledToFit().overlay(Rectangle().stroke(UF.line))
                     .overlay {
                         GeometryReader { geo in
@@ -801,9 +827,14 @@ struct CommunityReaderPage: View {
         .task(id: page.key + (background == nil ? "" : "-pdf-\(backgroundIndex ?? 0)")) {
             let page = self.page, images = self.images, index = backgroundIndex
             if let source = background {
-                image = await source.solutionPreview(page, images: images, width: 860, scale: 2, pdfIndex: index)
+                // kein Bild = PDF-Seite nicht zu oeffnen: Hinweis, nie die Striche auf Weiss
+                let picture = await source.solutionPreview(page, images: images, width: 860, scale: 2, pdfIndex: index)
+                image = picture
+                unavailable = picture == nil
             } else {
+                // nur eigene Blaetter des Absenders kommen hierher (PDF-Seiten ohne PDF zeigen den Hinweis, `display`)
                 image = await Task.detached(priority: .utility) { ImageBox(SolutionPreview.image(page, images: images, width: 860)) }.value.image
+                unavailable = false
             }
         }
     }

@@ -1070,3 +1070,152 @@ def test_university_list_comes_from_the_profiles(monkeypatch):
     monkeypatch.setitem(universities.PROFILES, "testuni", {"key": "testuni"})
     assert config.normalize_university(" TestUni ") == "testuni"
     assert config.normalize_university("unbekannt") == universities.DEFAULT
+
+
+# --- Echter Aufbau des Notenspiegels (LSF Hildesheim, gesehen 26.11.2026; Faecher, Nummern und Noten erfunden) ---
+# Dieselben Zeilen wie LSFRealLayoutTests im Swift-Kern: Uebersicht kurz (5 Spalten), Reiter ausfuehrlich (9 Spalten),
+# Konto-Zeilen (LP-Summe je Fach, Gesamtnote) auf dem Reiter ohne aufgefaecherte Zellen mit einer Zelle weniger.
+
+_LSF_FIRST = "Abschluss: [B5] Zwei-Fächer-Bachelor Studiengang: [105] Erstfach PO-Version: 2025"
+_LSF_SECOND = "Abschluss: [B5] Zwei-Fächer-Bachelor Studiengang: [011] Zweitfach PO-Version: 2014"
+_LSF_SHORT = ["Prüfungsnr.", "Bezeichnung der Leistung / der Lehrveranstaltung", "Note", "Status", "Bonus"]
+_LSF_LONG = ["Prüfungsnr.", "Bezeichnung der Leistung / der Lehrveranstaltung", "Semester", "Note", "Status", "Bonus",
+             "Prüfungsart", "Versuch", "Prüfungsdatum"]
+_LSF_OVERVIEW = [
+    [_LSF_FIRST], _LSF_SHORT,
+    ["10", "Erstfach", "0,0", "", "12"],
+    ["4010", "BM 1: Grundlagen", "2,3", "bestanden", "6"],
+    ["4011", "TM: Grundlagen I (V) / 3200 Grundlagen 1", "2,3", "bestanden", "3"],
+    ["4012", "TM: Grundlagen II (Ü) / 3201 Grundlagen 2", "", "bestanden", "3"],
+    ["4032", "TM: Rechnen 2 / 3300 Rechnen", "5,0", "nicht bestanden", "0"],
+    ["5021", "TM: Einführung / 5100 Einführung", "", "bestanden", "3"],
+    ["8992", "Vorläufige Gesamtnote aller Fächer", "2,3", "", "16"],
+    [_LSF_SECOND], _LSF_SHORT,
+    ["10", "Zweitfach", "", "", "4"],
+    ["7011", "TM: Psychologie / 0810 Grundlagen", "", "bestanden", "4"],
+]
+_LSF_TABS = [
+    [_LSF_FIRST], _LSF_LONG,
+    ["10", "Erstfach", "0,0", "", "12", "", "", ""],
+    ["4010", "BM 1: Grundlagen", "WiSe 25/26", "2,3", "bestanden", "6", "", "", ""],
+    ["4011", "TM: Grundlagen I (V) / 3200 Grundlagen 1", "WiSe 25/26", "2,3", "bestanden", "3", "(Klausur)", "1", "09.02.2026"],
+    ["4012", "TM: Grundlagen II (Ü) / 3201 Grundlagen 2", "WiSe 25/26", "", "bestanden", "3", "(Klausur)", "1", "09.02.2026"],
+    ["4032", "TM: Rechnen 2 / 3300 Rechnen", "SoSe 26", "5,0", "nicht bestanden", "0", "(Klausur)", "1", "03.08.2026"],
+    ["4032", "TM: Rechnen 2 / 3300 Rechnen", "SoSe 26", "4,0", "bestanden", "3", "(Klausur)", "2", "23.10.2026"],
+    ["5021", "TM: Einführung / 5100 Einführung", "SoSe 26", "", "bestanden", "3", "(Hausarbeit)", "1", "31.08.2026"],
+    ["8992", "Vorläufige Gesamtnote aller Fächer", "2,3", "", "16", "", "", ""],
+    [_LSF_SECOND], _LSF_LONG,
+    ["10", "Zweitfach", "", "", "4", "", "", ""],
+    ["7011", "TM: Psychologie / 0810 Grundlagen", "WiSe 25/26", "", "bestanden", "4", "(Klausur)", "1", "10.02.2026"],
+]
+
+
+from app import qis  # noqa: E402 - nur fuer die Tests ab hier
+
+
+def _is_account(g: dict) -> bool:
+    return (g.get("text") or "").startswith(qis.ACCOUNT_PREFIX)
+
+
+def test_lsf_real_layout_only_the_detailed_row_remains():
+    from app import grades_model
+    read = qis.parse_grade_rows(_LSF_OVERVIEW) + qis.parse_grade_rows(_LSF_TABS)
+    assert len(read) == 8 + 10
+    rows = qis.account_rows(qis.prefer_detailed(read))
+    assert len(rows) == 10                                   # jede Leistung einmal, beide Versuche von 4032, drei Konten
+    assert all(qis.is_detailed(g) for g in rows if not _is_account(g))
+    accounts = [g for g in rows if _is_account(g)]
+    assert [g["text"] for g in accounts] == ["Gesamtkonto: Erstfach", "Gesamtkonto: Vorläufige Gesamtnote aller Fächer",
+                                             "Gesamtkonto: Zweitfach"]
+    assert [g["credits"] for g in accounts] == ["12", "16", "4"]
+    assert [g["note"] for g in accounts] == ["0,0", "2,3", None]
+    assert all(g["semester"] is None and g["status"] is None for g in accounts)
+    assert all(g["pruefungsnr"] is None for g in accounts)             # die Bezeichnung unterscheidet die Konten
+    assert len([r for r in __import__("app.grades_model", fromlist=["x"]).model(rows) if _is_account(r)]) == 3
+
+    m = grades_model.model(rows)
+    assert grades_model.counted_lp(m) == 16
+
+    def lp(abschluss: str) -> float:
+        return sum(r.get("lp_counted") or 0 for r in m if r.get("abschluss") == abschluss)
+    assert lp(_LSF_FIRST) == 12 and lp(_LSF_SECOND) == 4
+    counted = [r for r in m if r.get("counted")]
+    assert {r["semester_norm"] for r in counted} == {"WiSe 25/26", "SoSe 26"}        # bestanden in welchem Semester
+    assert all(r["level"] == "bereich" and not r["counted"] for r in m if _is_account(r))
+    assert not any((r.get("modul_text") or "").startswith(qis.ACCOUNT_PREFIX) for r in m)
+    # vorher: Kurz- und Langfassung zusammen zaehlten mehrfach
+    assert grades_model.counted_lp(grades_model.model(read)) > 16
+
+
+def test_lsf_real_layout_overview_alone_and_straight_accounts():
+    read = qis.parse_grade_rows(_LSF_OVERVIEW)
+    kept = qis.account_rows(qis.prefer_detailed(read))
+    assert len(kept) == len(read)
+    assert [g["text"] for g in kept if _is_account(g)] == ["Gesamtkonto: Erstfach", "Gesamtkonto: Vorläufige Gesamtnote aller Fächer"]
+    assert [g for g in kept if not _is_account(g)] == [g for g in read if g.get("pruefungsnr") not in ("10", "8992")]
+    # aufgefaecherte Zellen (colspan, wie _ROW_CELLS_JS am PC): das Konto steht gerade unter der Kopfzeile des Reiters
+    straight = qis.parse_grade_rows([[_LSF_FIRST], _LSF_LONG, ["10", "Erstfach", "", "0,0", "", "12", "", "", ""],
+                                     ["8992", "Vorläufige Gesamtnote aller Fächer", "", "2,3", "", "16", "", "", ""]])
+    assert [(g["text"], g["note"], g["credits"], g["status"]) for g in qis.account_rows(straight)] == [
+        ("Gesamtkonto: Erstfach", "0,0", "12", None), ("Gesamtkonto: Vorläufige Gesamtnote aller Fächer", "2,3", "16", None)]
+    # Uebersicht und gerader Reiter zusammen: jedes Konto einmal (gleiche Zeile nach dem Zurechtruecken)
+    both = qis.account_rows(qis.prefer_detailed(read + straight))
+    keys = {(g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch")) for g in both if _is_account(g)}
+    assert len(keys) == 2
+    # andere Studiengaenge beruehren sich nicht; eine Leistung mit Versuch/Datum oder echter Note ist nie ein Konto
+    short = {"pruefungsnr": "4010", "text": "BM 1: Grundlagen", "note": "2,3", "status": "bestanden", "credits": "6", "abschluss": _LSF_FIRST}
+    other = dict(short, abschluss=_LSF_SECOND)
+    detailed = dict(short, text="BM 1:  Grundlagen", semester="WiSe 25/26")
+    assert qis.prefer_detailed([short, other, detailed]) == [other, detailed]
+    odd = {"pruefungsnr": "1", "text": "Leistung", "status": "5", "versuch": "1", "abschluss": _LSF_FIRST}
+    graded = {"pruefungsnr": "4011", "text": "TM: Grundlagen I", "note": "2,3", "credits": "3", "abschluss": _LSF_FIRST}
+    assert qis.account_rows([odd, graded]) == [odd, graded]
+
+
+def test_lsf_real_layout_accounts_separate_the_subjects():
+    """Konto-Zeilen ohne Note und Status (am PC von _ROW_CELLS_LSF_JS mit "Gesamtkonto: " markiert) bleiben beim Lesen:
+    ohne sie haengte grades_model die Teilleistungen des zweiten Teilfachs an das bestandene Modul davor (4 LP fehlten
+    am echten Konto). Zeilen wie `LSFRealLayoutTests.testWholeNotenspiegelCountsWhatTheLSFAccountsSay`."""
+    from app import grades_model
+    bildung = "Abschluss: [B5] Zwei-Fächer-Bachelor Studiengang: [ESW] Bildung PO-Version: 2022"
+    rows = qis.parse_grade_rows([
+        [bildung], _LSF_LONG,
+        ["700", "Gesamtkonto: Pädagogik", "", "", "", "7", "", "", ""],
+        ["6210", "VM 1: Handeln", "SoSe 26", "", "bestanden", "7", "", "", ""],
+        ["6211", "TM: Praktikum / 0401 Praktikum", "SoSe 26", "", "bestanden", "7", "(Bericht)", "1", "01.07.2026"],
+        ["800", "Gesamtkonto: Psychologie", "", "", "", "4", "", "", ""],
+        ["8011", "TM: Grundlagen der Psychologie / 0810 Grundlagen", "WiSe 25/26", "", "bestanden", "2", "(Klausur)", "1", "10.02.2026"],
+        ["8012", "TM: Lehren und Lernen / 0811 Lernen", "SoSe 26", "", "bestanden", "2", "(Klausur)", "1", "15.07.2026"],
+    ])
+    rows = qis.account_rows(qis.prefer_detailed(rows))
+    assert [(g["text"], g["credits"]) for g in rows if _is_account(g)] == [("Gesamtkonto: Pädagogik", "7"), ("Gesamtkonto: Psychologie", "4")]
+    m = grades_model.model(rows)
+    assert grades_model.counted_lp(m) == 11
+    assert [r["lp_counted"] for r in m if r.get("pruefungsnr") in ("8011", "8012")] == [2, 2]
+    # ohne die Konto-Zeilen (so war es bis 26.11.2026: die beiden Teilleistungen galten als Teil von VM 1, 7 LP):
+    # VM 1 ist mit 6211 (7 LP) schon voll, die beiden zaehlen selbst
+    without = grades_model.model([g for g in rows if not _is_account(g)])
+    assert grades_model.counted_lp(without) == 11
+
+
+def test_lsf_pending_module_rows_stay_only_in_the_lsf():
+    """Modulzeilen "Prüfung vorhanden" (echter Notenspiegel 26.11.2026): nur beim LSF (`modules=True`, _parse_tables mit
+    lsf), nur mit Nummer und nie eine Bereichszeile; sonst wie vorher. Wie
+    `LSFRealLayoutTests.testPendingModuleRowsStayOnlyInTheLSF`."""
+    from app import grades_model
+    rows = [[_LSF_FIRST], _LSF_LONG,
+            ["25010", "BM 1: Aufbau der Zahlbereiche", "SoSe 26", "", "Prüfung vorhanden", "14", "", "", ""],
+            ["25011", "TM 1: Arithmetik / 5105 Arithmetik", "WiSe 25/26", "3,3", "bestanden", "6", "(Klausur)", "1", "20.02.2026"],
+            ["10010", "Pflichtmodule (mindestens 12 LP)", "", "", "Prüfung vorhanden", "6", "", "", ""],
+            ["", "Vorläufige Gesamtnote aller Fächer", "", "3,45", "Prüfung vorhanden", "", "", "", ""],
+            ["", "Ohne Nummer", "SoSe 26", "", "Prüfung vorhanden", "3", "", "", ""],
+            ["22040", "M 4: Praktische Philosophie", "SoSe 26", "2,7", "Prüfung vorhanden", "3", "", "", ""]]
+    assert [g["text"] for g in qis.parse_grade_rows(rows, modules=True)] == [
+        "BM 1: Aufbau der Zahlbereiche", "TM 1: Arithmetik / 5105 Arithmetik", "Vorläufige Gesamtnote aller Fächer",
+        "M 4: Praktische Philosophie"]
+    assert [g["text"] for g in qis.parse_grade_rows(rows)] == [
+        "TM 1: Arithmetik / 5105 Arithmetik", "Vorläufige Gesamtnote aller Fächer", "M 4: Praktische Philosophie"]
+    m = grades_model.model(qis.parse_grade_rows(rows[:4], modules=True))
+    tm = next(r for r in m if r["pruefungsnr"] == "25011")
+    assert (tm["modul_text"], tm["lp_counted"]) == ("BM 1: Aufbau der Zahlbereiche", 6), "Modul der Teilleistung, zaehlt selbst"
+    assert next(r for r in m if r["pruefungsnr"] == "25010")["counted"] is False

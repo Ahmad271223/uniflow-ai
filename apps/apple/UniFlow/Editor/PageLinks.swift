@@ -135,6 +135,9 @@ final class LinkTargetPicker: NSObject, UIGestureRecognizerDelegate {
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         guard let c = controller, let pick = c.tools.linkPick else { return false }
+        // der Editor, in dem der Verweis begonnen wurde, ist zu (Spalte geschlossen): Der Entwurf ist hinfaellig -
+        // sonst schluckte dieser Erkenner von nun an jeden Tipp
+        guard pick.source != nil else { c.objects.dropLinkPick(); return false }
         // im Editor, der den Verweis anlegt, nimmt das Werkzeug selbst den zweiten Tipp (`ObjectEditing.tapped`)
         return pick.source !== c || !(c.objects.isActive && c.objects.tool == .link)
     }
@@ -149,7 +152,16 @@ extension ObjectEditing {
     static let linkLockedHint = "Verweise auf Dokument und Seite gibt es mit Pro AI."
     static let linkTargetHint = "Jetzt das Ziel antippen: im Dokument daneben oder auf einer anderen Seite."
     static let linkSameSpotHint = "Tippe auf die Stelle, auf die der Verweis zeigen soll – in einem anderen Dokument oder auf einer anderen Seite."
-    static func linkMissingHint(_ t: PageLink.Target) -> String { "Das Ziel „\(t.title)“ ist auf diesem Gerät nicht vorhanden." }
+    static func linkMissingHint(_ t: PageLink.Target) -> String {
+        t.title.trimmingCharacters(in: .whitespaces).isEmpty ? "Das Ziel dieses Verweises ist auf diesem Gerät nicht vorhanden."
+            : "Das Ziel „\(t.title)“ ist auf diesem Gerät nicht vorhanden."
+    }
+
+    /// Verweis-Entwurf ohne Quelle verwerfen
+    func dropLinkPick() {
+        controller?.tools.linkPick = nil
+        onLinkPending?(false)
+    }
 
     /// Ein Verweis wartet auf sein Ziel (Leiste im Objektmodus)
     var linkPending: Bool { controller?.tools.linkPick != nil }
@@ -166,7 +178,8 @@ extension ObjectEditing {
 
     /// Schritt 2: Ziel angetippt (in diesem oder im anderen Editor) - der Verweis wird im Quelldokument angelegt
     func finishLink(targetOn overlay: PageInkView, at p: CGPoint) {
-        guard let c = controller, let pick = c.tools.linkPick, let source = pick.source else { return }
+        guard let c = controller, let pick = c.tools.linkPick else { return }
+        guard let source = pick.source else { dropLinkPick(); return }
         let store = c.store
         // dieselbe Seite desselben Dokuments ist kein Ziel (der zweite Tipp war wohl ein Versehen)
         if source === c, overlay.pageKey == pick.pageKey { c.onHint?(Self.linkSameSpotHint); return }
@@ -234,6 +247,8 @@ extension PDFEditorController {
         guard let index = pageIndex(for: t), pdfView.document?.page(at: index) != nil else { return false }
         goToPage(index)
         let exact = store.layout?.index(ofKey: t.pageKey) == index
+        // die Seite von damals gibt es nicht mehr: sagen, statt still eine andere zu zeigen
+        if !exact { onHint?("Die Seite, auf die der Verweis zeigt, gibt es so nicht mehr. Das ist jetzt Seite \(index + 1).") }
         Task { @MainActor [weak self] in
             // warten, bis die Seite steht, dann genau zur Stelle und aufleuchten
             for _ in 0..<40 {

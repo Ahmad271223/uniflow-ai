@@ -51,7 +51,9 @@ def test_average_uses_passed_graded_modules_weighted_and_truncated():
     exact = (3.3 * 8 + 2.0 * 5) / 13
     assert s["average_exact"] == round(exact, 2) and s["average"] == 2.8      # 2,80 -> 2,8
     assert (s["basis"], s["graded_count"], s["graded_credits"]) == ("module", 2, 13.0)
-    assert (s["passed"], s["credits"]) == (3, 19.0), "bestandene Module mit LP, auch ohne Note"
+    # Testlabor (2 LP) steht unter Testphysik, dessen 5 LP schon die Pruefung 121 belegt: eigene Leistung ohne
+    # Modulzeile (26.11.2026, vorher vom Modul davor geschluckt)
+    assert (s["passed"], s["credits"]) == (4, 21.0), "bestandene Module mit LP, auch ohne Note, und das Labor"
     assert s["failed_attempts"] == 1
     assert [b["text"] for b in s["bereiche"]] == ["Kompetenzbereich Grundlagen", "Pflichtmodule"]
     assert gm.truncate1(3.47) == 3.4 and gm.truncate1(3.0) == 3.0 and gm.truncate1(1.99) == 1.9

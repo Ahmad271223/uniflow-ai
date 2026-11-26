@@ -153,7 +153,9 @@ public enum SolutionBuilder {
             guard let key = entry["key"]?.string, wanted.contains(key), seen.insert(key).inserted else { continue }
             let type = entry["type"]?.string ?? "pdf"
             let extra = SolutionGeometry.normalized(entry["rotation"]?.int ?? 0)
-            let objects = doc.objects(page: key)
+            // Verweise bleiben zu Hause: Sie zeigen auf Dokumente des Absenders (Datei-ID und Titel gingen sonst mit) und
+            // fuehren beim Empfaenger nirgends hin
+            let objects = doc.objects(page: key).filter { !PageLink.isLink($0) }
             do {
                 for o in objects { try SolutionValidator.validateObject(o) }
             } catch let e as SolutionError {

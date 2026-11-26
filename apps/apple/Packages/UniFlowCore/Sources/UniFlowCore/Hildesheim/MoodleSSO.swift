@@ -36,6 +36,13 @@ public struct MoodlePublicConfig: Sendable, Equatable {
 
     /// SSO-Start moeglich: launchurl vorhanden und Mobile-Webservice nicht ausgeschaltet
     public var ssoAvailable: Bool { launchURL.map { !$0.isEmpty } == true && enableMobileWebService != false }
+
+    /// launch.php nimmt den Aufruf direkt an: `typeoflogin` 2 (Browser) oder 3 (eingebetteter Browser). Bei 1 ("in der
+    /// App", so das echte Learnweb Hildesheim) und ohne Angabe zeigt launch.php ohne frische Anmeldung nur "Das Plugin
+    /// ist nicht aktiviert oder nicht richtig konfiguriert." (HTTP 404, gesehen 25.11.2026) - kein Anmeldeformular.
+    /// Dann fuehrt der Weg ueber die Anmeldeseite (`MoodleSSO.loginPageURL`): unmittelbar nach der Anmeldung
+    /// (`MoodleSSO.isSessionTest`) nimmt launch.php den Aufruf an und gibt den Schluessel aus.
+    public var browserLogin: Bool { typeOfLogin == 2 || typeOfLogin == 3 }
 }
 
 /// Moodle-Anmeldung fuer Apps (`learnweb.launch_url`, `learnweb.parse_launch_token`), docs/AUFTRAG-HILDESHEIM-IPAD.md
@@ -45,7 +52,14 @@ public struct MoodlePublicConfig: Sendable, Equatable {
 /// im WKWebView oeffnen (Datenspeicher des Containers), dort meldet sich der Nutzer beim CAS selbst an. Danach leitet
 /// Moodle auf `<schema>://token=<base64>` weiter; die Webansicht faengt diese Adresse in `decidePolicyFor
 /// navigationAction` ab (nicht an das System weitergeben) und gibt sie an `parseLaunchToken`. Der Schluessel gilt fuer
-/// den REST-Weg: Dateien ohne Browser, Moodle verbucht keine Aufrufe. Gegen das echte Learnweb noch nicht geprueft.
+/// den REST-Weg: Dateien ohne Browser, Moodle verbucht keine Aufrufe.
+///
+/// Echtes Learnweb Hildesheim (`typeoflogin` 1, 25./26.11.2026): launch.php direkt zeigt nur eine Fehlerseite. Der
+/// Schluessel kommt, wenn launch.php unmittelbar nach einer Anmeldung aufgerufen wird: die Webansicht oeffnet die
+/// Anmeldeseite (`loginPageURL`, weiter zum CAS) und laedt, sobald Moodle zur Pruefseite `login/index.php?testsession=…`
+/// weiterleiten will (`isSessionTest`), stattdessen launch.php; die Antwort ist `<schema>://token=…`. So am 26.11.2026
+/// am echten Learnweb durchgelaufen (stille Erneuerung mit gueltiger CAS-Anmeldung, Schluessel angenommen, Abgleich
+/// damit gelungen). Am 25.11. kam der Schluessel auf demselben Server ueber den Link "Anmelden" der Fehlerseite.
 public enum MoodleSSO {
     public static let defaultScheme = "moodlemobile"
     public static let service = "moodle_mobile_app"
@@ -73,6 +87,28 @@ public enum MoodleSSO {
 
     private static func launch(_ launchPHP: String, passport: String, scheme: String) -> String {
         "\(launchPHP)?service=\(service)&passport=\(PyText.quote(passport, safe: ""))&urlscheme=\(PyText.quote(scheme, safe: ""))"
+    }
+
+    /// Anmeldeseite der Instanz, wie der Link "Anmelden" auf jeder Moodle-Seite (ohne Parameter)
+    public static func loginPageURL(base: String) -> String {
+        var b = base
+        while b.hasSuffix("/") { b.removeLast() }
+        return b + "/login/index.php"
+    }
+
+    /// Moodles Pruefseite direkt nach einer gelungenen Anmeldung: `<base>/login/index.php?testsession=<Nutzer-ID>`.
+    /// Dorthin leitet login/index.php weiter, sobald die Anmeldung abgeschlossen ist, und von dort zum Ziel.
+    public static func isSessionTest(_ url: String, base: String) -> Bool {
+        guard url.hasPrefix(loginPageURL(base: base) + "?"), let items = URLComponents(string: url)?.queryItems,
+              let id = items.first(where: { $0.name == "testsession" })?.value else { return false }
+        return !id.isEmpty && id.allSatisfy(\.isNumber)
+    }
+
+    /// `<schema>://token=…` aus dem Text einer Seite: manchen Browsern zeigt launch.php statt der Weiterleitung eine
+    /// Seite mit diesem Link ("Hier klicken, um die App zu starten"). nil ohne einen solchen Link.
+    public static func tokenLink(html: String, scheme: String) -> String? {
+        let pattern = NSRegularExpression.escapedPattern(for: scheme) + #"://token=[A-Za-z0-9+/=_%-]+"#
+        return HText.match(HText.regex(pattern, [.caseInsensitive]), html)?.groups[0]
     }
 
     /// Zufaelliger Passport fuer einen Anmeldevorgang (merken, bis die Weiterleitung kommt)
