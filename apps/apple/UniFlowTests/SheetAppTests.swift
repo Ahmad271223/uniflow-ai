@@ -649,6 +649,73 @@ final class SheetAppTests: XCTestCase {
         XCTAssertFalse(lost)
     }
 
+    // MARK: Zweite Durchsicht vom 26.11.2026
+
+    func testAusschneidenUndProzentBeimTippen() {
+        var t = Sheet(rows: 12, cols: 3)
+        t.set("1", at: SheetRef("A1")!)
+        t.set("5", at: SheetRef("A3")!)
+        t.set("=A3*2", at: SheetRef("B3")!)
+        t.set("=SUMME(A3:B3)+A1", at: SheetRef("C3")!)
+        let m = SheetEditorModel(sheet: t, title: "T")
+        m.select(SheetRange("A3:C3")!)
+        m.cut()
+        m.select(SheetRef("A10")!)
+        m.paste()
+        XCTAssertEqual(m.sheet.raw(SheetRef("B10")!), "=A10*2", "Bezug innerhalb der Zeile wandert mit")
+        XCTAssertEqual(m.sheet.raw(SheetRef("C10")!), "=SUMME(A10:B10)+A1", "Bezug nach draussen bleibt")
+        XCTAssertEqual(m.calc.value(SheetRef("C10")!), .number(16))
+
+        // Prozent: "7" getippt meint 7 %, auch wenn die Zelle vorher "7" mit Prozent-Format zeigte (700 %)
+        m.select(SheetRef("A1")!)
+        m.setFormat("p")
+        XCTAssertEqual(m.sheet.display(SheetRef("A1")!, m.calc), "100 %")
+        m.beginEditing("7")
+        m.commitEditing()
+        XCTAssertEqual(m.sheet.display(SheetRef("A1")!, m.calc), "7 %")
+        m.beginEditing("0,5")
+        m.commitEditing()
+        XCTAssertEqual(m.sheet.display(SheetRef("A1")!, m.calc), "50 %")
+        // eingefuegter Text bleibt, wie er ist
+        UIPasteboard.general.string = "12"
+        SheetEditorModel.clipboard = nil
+        m.select(SheetRef("A1")!)
+        m.paste()
+        XCTAssertEqual(m.sheet.raw(SheetRef("A1")!), "12")
+    }
+
+    func testGeschuetztesDokumentOeffnetNurZumAnsehen() async throws {
+        let s = try await open(proAI: true)
+        _ = try await overlay(s, key: s.blank)
+        let o = SheetObject.object(id: "t", x: 60, y: 100, sheet: table(), page: (595, 842))
+        await s.store.editObjects(pageKey: s.blank) { $0 + [o] }
+        await s.store.flush()
+        s.editor.canEdit = false                          // geteilte Loesung, alte Fassung
+        s.editor.objects.openSheet(key: s.blank, id: "t")
+        try await BildProbe.wait("offen") { s.editor.presentedViewController is UIHostingController<SheetEditorView> }
+        let host = try XCTUnwrap(s.editor.presentedViewController as? UIHostingController<SheetEditorView>)
+        XCTAssertTrue(host.rootView.model.readOnly, "auch mit Pro AI nur ansehen")
+        XCTAssertNil(host.rootView.model.askAI)
+        s.editor.dismiss(animated: false)
+        try await BildProbe.wait("zu") { s.editor.presentedViewController == nil }
+    }
+
+    func testTabelleRuecktNurWennSieGewachsenIst() async throws {
+        let s = try await open()
+        _ = try await overlay(s, key: s.blank)
+        // bewusst nah an den Rand gelegt
+        var o = SheetObject.object(id: "t", x: 60, y: 100, sheet: table(), page: (595, 842))
+        let w = try XCTUnwrap(SheetObject.size(o)?.width)
+        o["x"] = .number(595 - w - 2)
+        await s.store.editObjects(pageKey: s.blank) { $0 + [o] }
+        var same = table()
+        same.set("Analysis", at: SheetRef("A2")!)
+        let ok = await s.editor.objects.saveSheet(same, key: s.blank, id: "t", original: o)
+        XCTAssertTrue(ok)
+        let after = await s.store.objects(forPageKey: s.blank).first { $0["id"] == "t" }
+        XCTAssertEqual(after?["x"]?.double ?? 0, 595 - w - 2, accuracy: 0.01, "nicht gewachsen: bleibt, wo sie lag")
+    }
+
     // MARK: KI-Hilfe
 
     private final class Asked {

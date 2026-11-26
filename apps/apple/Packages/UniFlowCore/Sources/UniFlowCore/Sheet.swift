@@ -82,10 +82,16 @@ public struct Sheet: Equatable, Sendable {
             if hint == "p", s.decimals == nil || switched { s.decimals = Sheet.percentDecimals(text) }
             if hint == "e", switched { s.decimals = nil }
             styles[r] = s
-        } else if s.format == "p", abs(n.value) >= 1, !text.hasPrefix("'") {
-            // in eine Prozent-Zelle "7" getippt meint 7 % (wie in Excel), nicht 700 %
-            cells[r] = text.trimmingCharacters(in: .whitespaces) + " %"
         }
+    }
+
+    /// Was der Nutzer in eine Zelle tippt, wie Excel gelesen: In einer Prozent-Zelle meint "7" 7 % (nicht 700 %).
+    /// Nur fuers Tippen - Einfuegen und die KI setzen ihre Werte, wie sie sind.
+    public func typed(_ input: String, at r: SheetRef) -> String {
+        let t = input.trimmingCharacters(in: .whitespaces)
+        guard style(r).format == "p", !SheetFormula.isFormula(t), !t.hasPrefix("'"), let n = SheetText.parseNumber(t), n.hint == nil,
+              abs(n.value) >= 1 else { return input }
+        return t + " %"
     }
 
     /// "12,5 %" → 1 Nachkommastelle
@@ -276,20 +282,22 @@ public struct Sheet: Equatable, Sendable {
         return b
     }
 
-    /// Ausschnitt einsetzen; Formeln wandern mit (`=A1*2` zwei Zeilen tiefer wird `=A3*2`) - ausser nach dem
-    /// Ausschneiden (`shiftingReferences: false`): Dann zeigt die Formel weiter auf dieselben Zellen. Die Tabelle
-    /// waechst, wenn der Ausschnitt ueber den Rand reicht. Liefert den gefuellten Bereich.
+    /// Ausschnitt einsetzen; Formeln wandern mit (`=A1*2` zwei Zeilen tiefer wird `=A3*2`). Nach dem Ausschneiden
+    /// (`cut`) wie in Excel: Bezuege innerhalb des ausgeschnittenen Bereichs wandern mit, Bezuege nach draussen zeigen
+    /// weiter auf dieselben Zellen. Die Tabelle waechst, wenn der Ausschnitt ueber den Rand reicht. Liefert den
+    /// gefuellten Bereich.
     @discardableResult
-    public mutating func paste(_ b: Block, at target: SheetRef, shiftingReferences: Bool = true) -> SheetRange {
+    public mutating func paste(_ b: Block, at target: SheetRef, cut: Bool = false) -> SheetRange {
         guard target.col >= 0, target.row >= 0, target.col < Sheet.maxCols, target.row < Sheet.maxRows else { return SheetRange(target) }
         rows = max(rows, min(Sheet.maxRows, target.row + b.rows))
         cols = max(cols, min(Sheet.maxCols, target.col + b.cols))
-        let dCol = shiftingReferences ? target.col - b.origin.col : 0, dRow = shiftingReferences ? target.row - b.origin.row : 0
+        let dCol = target.col - b.origin.col, dRow = target.row - b.origin.row
+        let source = SheetRange(b.origin, SheetRef(col: b.origin.col + b.cols - 1, row: b.origin.row + b.rows - 1))
         for r in 0..<b.rows {
             for c in 0..<b.cols {
                 let k = SheetRef(col: c, row: r), to = SheetRef(col: target.col + c, row: target.row + r)
                 guard contains(to) else { continue }
-                cells[to] = b.cells[k].map { SheetFormula.shifted($0, dCol: dCol, dRow: dRow) }
+                cells[to] = b.cells[k].map { cut ? SheetFormula.moved($0, block: source, dCol: dCol, dRow: dRow) : SheetFormula.shifted($0, dCol: dCol, dRow: dRow) }
                 styles[to] = b.styles[k]
             }
         }

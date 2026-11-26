@@ -34,6 +34,9 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     private var dragBegan = false
     private var lastTouchIsPointer = false
     private var pinchStart: CGFloat = 1
+    private var long: UILongPressGestureRecognizer?
+    /// Unten frei halten: Dort liegen die Hinweise (KI arbeitet, Meldungen) ueber dem Gitter
+    static let bottomReserve: CGFloat = 40
     /// Zweiter Tipp auf dieselbe Zelle kurz danach = Doppeltipp (ohne dass der erste Tipp darauf warten muss)
     private var lastTap: (ref: SheetRef, time: TimeInterval)?
     static let doubleTapTime: TimeInterval = 0.4
@@ -77,6 +80,8 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
         let long = UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:)))
         long.minimumPressDuration = 0.45
+        long.delegate = self
+        self.long = long
         let secondary = UITapGestureRecognizer(target: self, action: #selector(secondaryClicked(_:)))
         secondary.buttonMaskRequired = .secondary
         secondary.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
@@ -142,7 +147,7 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     }
 
     private func updateContentSize() {
-        let size = CGSize(width: Self.headerWidth + grid.size.width * zoom + 140, height: Self.headerHeight + grid.size.height * zoom + 180)
+        let size = CGSize(width: Self.headerWidth + grid.size.width * zoom + 140, height: Self.headerHeight + grid.size.height * zoom + 180 + Self.bottomReserve)
         if scroll.contentSize != size { scroll.contentSize = size }
     }
 
@@ -178,7 +183,8 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
             if cr.minX < off.x + Self.headerWidth { off.x = cr.minX - Self.headerWidth } else if cr.maxX > off.x + bounds.width { off.x = cr.maxX - bounds.width + 8 }
         }
         if vertical {
-            if cr.minY < off.y + Self.headerHeight { off.y = cr.minY - Self.headerHeight } else if cr.maxY > off.y + bounds.height { off.y = cr.maxY - bounds.height + 8 }
+            let bottom = bounds.height - Self.bottomReserve
+            if cr.minY < off.y + Self.headerHeight { off.y = cr.minY - Self.headerHeight } else if cr.maxY > off.y + bottom { off.y = cr.maxY - bottom + 8 }
         }
         off.x = max(0, off.x)
         off.y = max(0, off.y)
@@ -224,7 +230,22 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         return true
     }
 
+    /// Das Menue (langes Druecken) nimmt dem Ziehen nichts: Wer einen Auswahlpunkt oder Spaltenrand haelt und dann
+    /// zieht, zieht; gerollt wird weiter wie immer (zweite Durchsicht 26.11.2026)
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool {
+        g === long || other === long
+    }
+
     override func gestureRecognizerShouldBegin(_ g: UIGestureRecognizer) -> Bool {
+        if g === long {
+            let p = g.location(in: self)
+            switch target(at: p, forDrag: true) {
+            case .handle, .colEdge, .rowEdge: return false
+            default: break
+            }
+            if case .cell = target(at: p, forDrag: false) { return true }
+            return false
+        }
         guard g === pan else { return true }
         let start = pan.location(in: self)
         let t = pan.translation(in: self)

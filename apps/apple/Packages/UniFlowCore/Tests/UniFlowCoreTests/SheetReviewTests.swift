@@ -70,6 +70,18 @@ final class SheetReviewTests: XCTestCase {
         }
     }
 
+    /// Fund der zweiten Durchsicht: Ein Kreis ueber einen Zweig von WENN zeigte je nach Reihenfolge der Fragen
+    /// verschiedene Werte - jetzt immer beide #ZIRKEL! (wie Excel, das jeden Bezug zaehlt)
+    func testKreisUeberWennIstImmerEinKreis() {
+        let s = sheet(["A1": "=WENN(B1>0;1;A2)", "A2": "=A1+1", "B1": "5"])
+        for order in [["A1", "A2"], ["A2", "A1"]] {
+            let c = s.calc()
+            for n in order { _ = c.value(SheetRef(n)!) }
+            XCTAssertEqual(c.value(SheetRef("A1")!), .error(.cycle), order.description)
+            XCTAssertEqual(c.value(SheetRef("A2")!), .error(.cycle), order.description)
+        }
+    }
+
     func testKreiseBleibenKreise() {
         XCTAssertEqual(sheet(["A1": "=WENNFEHLER(A1;0)"]).calc().value(SheetRef("A1")!), .error(.cycle))
         let s = sheet(["A1": "=B1+1", "B1": "=C1+1", "C1": "=A1+1", "D1": "=A1", "A2": "5", "B2": "=A2*2"])
@@ -110,7 +122,12 @@ final class SheetReviewTests: XCTestCase {
 
     func testProzentUndEuroKlebenNicht() {
         var s = sheet(["A1": "50 %"])
-        s.set("7", at: SheetRef("A1")!)
+        // getippt (nicht eingefuegt, nicht von der KI): "7" in der Prozent-Zelle meint 7 %
+        XCTAssertEqual(s.typed("7", at: SheetRef("A1")!), "7 %")
+        XCTAssertEqual(s.typed("0,25", at: SheetRef("A1")!), "0,25")
+        XCTAssertEqual(s.typed("=A2", at: SheetRef("A1")!), "=A2")
+        XCTAssertEqual(s.typed("7", at: SheetRef("B1")!), "7", "ohne Prozent-Format bleibt es")
+        s.set(s.typed("7", at: SheetRef("A1")!), at: SheetRef("A1")!)
         XCTAssertEqual(shown(s, "A1"), "7 %")
         XCTAssertEqual(s.calc().value(SheetRef("A1")!), .number(0.07))
         s.set("0,25", at: SheetRef("A1")!)
@@ -229,9 +246,18 @@ final class SheetReviewTests: XCTestCase {
     func testAusschneidenLaesstBezuegeStehenUndEinfuegenWaechst() {
         var s = sheet(["A1": "2", "B1": "=A1*2"], rows: 3, cols: 2)
         let b = s.block(SheetRange("B1")!)
-        s.paste(b, at: SheetRef(col: 1, row: 4), shiftingReferences: false)
+        s.paste(b, at: SheetRef(col: 1, row: 4), cut: true)
         XCTAssertEqual(s.rows, 5)
-        XCTAssertEqual(s.raw(SheetRef("B5")!), "=A1*2")
+        XCTAssertEqual(s.raw(SheetRef("B5")!), "=A1*2", "Bezug nach draussen bleibt")
+        // ganze Zeile ausgeschnitten: Bezuege innerhalb wandern mit (zweite Durchsicht 26.11.2026)
+        var z = sheet(["A3": "5", "B3": "=A3*2", "C3": "=SUMME(A3:B3)+A1", "A1": "1"], rows: 12, cols: 3)
+        let row = z.block(SheetRange("A3:C3")!)
+        z.clear(SheetRange("A3:C3")!)
+        z.paste(row, at: SheetRef("A10")!, cut: true)
+        XCTAssertEqual(z.raw(SheetRef("B10")!), "=A10*2")
+        XCTAssertEqual(z.raw(SheetRef("C10")!), "=SUMME(A10:B10)+A1")
+        XCTAssertEqual(z.calc().value(SheetRef("C10")!), .number(16))
+        XCTAssertEqual(SheetFormula.moved("=SUMME(A1:A5)", block: SheetRange("A3:A4")!, dCol: 1, dRow: 0), "=SUMME(A1:A5)", "Bereich nur teils im Block bleibt")
         s.paste(b, at: SheetRef(col: 2, row: 1))
         XCTAssertEqual(s.cols, 3)
         XCTAssertEqual(s.raw(SheetRef("C2")!), "=B2*2")
@@ -273,8 +299,17 @@ final class SheetReviewTests: XCTestCase {
     func testKIFormelnMitFehlerWerdenGezaehltUndGrenzenGelten() throws {
         var s = Sheet()
         let plan = try XCTUnwrap(SheetAI.parse(##"{"zellen":{"A1":"1","A2":"2","A3":"=SUMME(A1:A3)","B1":"=GIBTSNICHT(1)","B2":"=A1+A2","AZ500":"zu weit","C1":"#NV"},"diagramme":[{"art":"kreis","bereich":"K1:L5"}]}"##))
-        XCTAssertNil(plan.cells[SheetRef("AZ500")!])
         let out = SheetAI.apply(plan, to: &s, at: SheetRef(col: 0, row: 0))
+        XCTAssertEqual(s.raw(SheetRef("AZ500")!), "", "die verirrte Zelle kommt nicht hinein")
+        XCTAssertEqual(out.dropped, 1)
+        XCTAssertTrue(out.summary.contains("passte nicht"), out.summary)
+        // eine lange Tabelle darf die KI ganz fuellen
+        var long = Sheet(rows: 400, cols: 3)
+        var fill = SheetAI.Plan()
+        for r in 0..<400 { fill.cells[SheetRef(col: 2, row: r)] = "=A\(r + 1)*2" }
+        let filled = SheetAI.apply(fill, to: &long, at: SheetRef(col: 0, row: 0))
+        XCTAssertEqual(filled.cells, 400)
+        XCTAssertEqual(filled.dropped, 0)
         XCTAssertEqual(out.broken, 2)                       // Kreis und unbekannte Funktion; "#NV" als Text zaehlt nicht
         XCTAssertEqual(out.charts, 0)                       // Bereich neben der Tabelle
         XCTAssertLessThanOrEqual(s.rows, 6)

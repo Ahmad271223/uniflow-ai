@@ -213,7 +213,7 @@ final class SheetEditorModel: ObservableObject {
     /// der letzten Zeile etwas, waechst die Tabelle dabei um eine Zeile (am rechten Rand um eine Spalte) - alles
     /// zusammen ist ein Schritt fuer "Widerrufen".
     func commitEditing(dCol: Int = 0, dRow: Int = 0) {
-        let text = editing, at = active
+        let text = editing.map { sheet.typed($0, at: active) }, at = active
         editing = nil
         let typed = text.map { $0 != sheet.raw(at) } ?? false
         func filled(_ refs: [SheetRef]) -> Bool {
@@ -402,7 +402,9 @@ final class SheetEditorModel: ObservableObject {
 
     func cut() {
         guard !readOnly else { return }
-        copy(cut: true)
+        // versteckt ein Filter Zeilen in der Auswahl, ruecken die sichtbaren zusammen - dann gilt es wie eine Kopie
+        let whole = visibleSelection.count == 1 && visibleSelection.first == selection
+        copy(cut: whole)
         clearContents()
     }
 
@@ -414,7 +416,7 @@ final class SheetEditorModel: ObservableObject {
         let text = UIPasteboard.general.string
         if let own = Self.clipboard, text == nil || text == own.text {
             var filled = SheetRange(at)
-            change { filled = $0.paste(own.block, at: at, shiftingReferences: !own.cut) }
+            change { filled = $0.paste(own.block, at: at, cut: own.cut) }
             // nach dem ersten Einfuegen ist es eine gewoehnliche Kopie
             if own.cut { Self.clipboard = (own.block, own.text, false) }
             select(filled)

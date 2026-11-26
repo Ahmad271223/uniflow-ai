@@ -29,7 +29,8 @@ extension ObjectEditing {
     func openSheet(key: String, id: String, title: String = "Tabelle") {
         guard let c = controller else { return }
         guard c.presentedViewController == nil else { return }
-        let readOnly = !richAllowed
+        // nur ansehen: ohne Pro AI - und in Dokumenten, die man nicht aendern darf (geteilte Loesung, alte Fassung)
+        let readOnly = !richAllowed || !c.writable
         endTextEditing()
         Task {
             guard let o = await objects(key).first(where: { $0["id"]?.string == id }), let sheet = SheetObject.table(o) else { return }
@@ -90,7 +91,11 @@ extension ObjectEditing {
         let page = c.boundOverlay(forKey: key).map { (width: Double($0.geometry.pageSize.width), height: Double($0.geometry.pageSize.height)) }
         func written(_ o: JSONValue) -> JSONValue {
             let saved = SheetObject.saving(sheet, in: o)
-            return page.map { SheetObject.fitted(saved, page: $0) } ?? saved
+            // nur wenn sie gewachsen ist: Eine Tabelle, die man bewusst an den Rand oder groesser als die Seite gelegt hat,
+            // bleibt, wie sie ist
+            guard let page, let before = SheetObject.size(o), let after = SheetObject.size(saved),
+                  after.width > before.width + 0.5 || after.height > before.height + 0.5 else { return saved }
+            return SheetObject.fitted(saved, page: page)
         }
         await commit(key) { list in
             if list.contains(where: { $0["id"]?.string == id && SheetObject.isSheet($0) }) {

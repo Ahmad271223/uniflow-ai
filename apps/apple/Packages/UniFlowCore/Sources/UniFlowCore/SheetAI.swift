@@ -14,9 +14,13 @@ public enum SheetAI {
     public static let contextLimit = 7_000
     /// So viel uebernimmt die App hoechstens aus einer Antwort
     public static let maxCells = 3_000
-    /// So gross darf eine Tabelle der KI werden (eine verirrte Zelle "AZ500" soll die Tabelle nicht aufblaehen)
-    public static let maxRows = 200
-    public static let maxCols = 26
+    /// So weit liest die App eine Antwort (so gross wie jede Tabelle)
+    public static let maxRows = Sheet.maxRows
+    public static let maxCols = Sheet.maxCols
+    /// So weit darf die KI eine Tabelle wachsen lassen: Eine vorhandene Tabelle darf sie ganz fuellen, neu anlegen bis
+    /// 200 Zeilen und 26 Spalten - eine verirrte Zelle "AZ500" blaeht eine kleine Tabelle nicht auf (die Meldung nennt sie)
+    public static let growRows = 200
+    public static let growCols = 26
 
     public static let examples = ["Notenübersicht mit Schnitt und Leistungspunkten", "Lernplan für die nächsten 4 Wochen",
                                   "Haushaltsbuch für einen Monat mit Summe", "Mach aus dieser Tabelle ein passendes Diagramm"]
@@ -70,6 +74,8 @@ public enum SheetAI {
         public var cells: [SheetRef: String] = [:]
         public var charts: [Chart] = []
         public var note = ""
+        /// Zellen der Antwort, die nicht in die Tabelle passten
+        public var dropped = 0
         public init() {}
         public var isEmpty: Bool { cells.isEmpty && charts.isEmpty }
     }
@@ -133,12 +139,13 @@ public enum SheetAI {
         return limited(plan)
     }
 
-    /// Nur was in die Grenzen passt; bei zu vielen Zellen die ersten Zeilen (nicht irgendwelche)
+    /// Nur was in die Grenzen passt; bei zu vielen Zellen die ersten Zeilen (nicht irgendwelche). Was wegfaellt, zaehlt
+    /// `dropped` (die Meldung nennt es).
     static func limited(_ plan: Plan) -> Plan {
         var out = plan
         out.cells = [:]
-        for r in plan.cells.keys.sorted() where r.row < maxRows && r.col < maxCols {
-            guard out.cells.count < maxCells else { break }
+        for r in plan.cells.keys.sorted() {
+            guard r.row < maxRows, r.col < maxCols, out.cells.count < maxCells else { out.dropped += 1; continue }
             out.cells[r] = String((plan.cells[r] ?? "").prefix(Sheet.maxCellLength))
         }
         return out
@@ -219,6 +226,8 @@ public enum SheetAI {
         public var broken = 0
         /// Die Tabelle wurde vorher geleert: so viele Zellen standen darin
         public var cleared = 0
+        /// Zellen der Antwort, die nicht hineinpassten
+        public var dropped = 0
         /// Bereich, den die neuen Zellen fuellen
         public var filled: SheetRange?
         public init() {}
@@ -230,6 +239,7 @@ public enum SheetAI {
             if charts > 0 { parts.append(charts == 1 ? "1 Diagramm angelegt" : "\(charts) Diagramme angelegt") }
             var s = parts.isEmpty ? "Die KI hat nichts geändert." : "Die KI hat " + parts.joined(separator: " und ") + "."
             if cleared > 0 { s += " Der alte Inhalt wurde dafür ersetzt." }
+            if dropped > 0 { s += dropped == 1 ? " Eine Zelle passte nicht mehr in die Tabelle." : " \(dropped) Zellen passten nicht mehr in die Tabelle." }
             if broken > 0 { s += broken == 1 ? " Eine Formel muss noch geprüft werden." : " \(broken) Formeln müssen noch geprüft werden." }
             return s
         }
@@ -239,6 +249,7 @@ public enum SheetAI {
     @discardableResult
     public static func apply(_ plan: Plan, to s: inout Sheet, at origin: SheetRef) -> Outcome {
         var out = Outcome()
+        out.dropped = plan.dropped
         let wasEmpty = s.cells.isEmpty
         if plan.replace, !plan.cells.isEmpty {
             out.cleared = s.cells.count
@@ -252,7 +263,8 @@ public enum SheetAI {
         var placed: [SheetRef] = []
         for (r, text) in plan.cells {
             let to = SheetRef(col: r.col + shift.col, row: r.row + shift.row)
-            guard to.col >= 0, to.row >= 0, to.col < Sheet.maxCols, to.row < Sheet.maxRows else { continue }
+            guard to.col >= 0, to.row >= 0, to.col < max(growCols, s.cols), to.row < max(growRows, s.rows),
+                  to.col < Sheet.maxCols, to.row < Sheet.maxRows else { out.dropped += 1; continue }
             // "" raeumt eine Zelle leer und zaehlt nicht als gefuellt
             if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { if s.contains(to) { s.cells[to] = nil }; continue }
             s.rows = max(s.rows, to.row + 1)
@@ -275,7 +287,8 @@ public enum SheetAI {
         }
         if out.charts > 0, s.show == "table" { s.show = "both" }
         let calc = s.calc()
-        out.broken = placed.filter { SheetFormula.isFormula(s.raw($0)) && calc.value($0).error != nil }.count
+        let own: Set<SheetError> = [.name, .syntax, .cycle, .ref]
+        out.broken = placed.filter { SheetFormula.isFormula(s.raw($0)) && calc.value($0).error.map(own.contains) == true }.count
         return out
     }
 }

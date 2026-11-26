@@ -76,9 +76,12 @@ enum SheetRender {
 
         /// `p`: linke obere Ecke (Kontext mit Ursprung links oben, wie ueberall in UIKit)
         func draw(at p: CGPoint, in ctx: CGContext) {
+            let before = ctx.textMatrix
             ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
             ctx.textPosition = CGPoint(x: p.x, y: p.y + ascent)
             CTLineDraw(line, ctx)
+            // die Text-Matrix gehoert nicht zum gesicherten Zustand des Kontexts: wieder herstellen
+            ctx.textMatrix = before
         }
     }
 

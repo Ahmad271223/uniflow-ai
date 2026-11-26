@@ -277,8 +277,9 @@ final class PageObjectsView: UIView {
 
     override convenience init(frame: CGRect) { self.init(frame: frame, kind: .page) }
 
-    /// Hoechstens so viele Bildpunkte fuer das Bild eines Objekts (rund 32 MB); Tabellen haben ihre eigene, kleinere Grenze
-    static let pixelBudget: CGFloat = 8_000_000
+    /// Hoechstens so viele Bildpunkte fuer das Bild eines Objekts (rund 64 MB: ein seitengrosser Textblock bleibt bei
+    /// Zoom 300 % scharf); Tabellen haben ihre eigene, kleinere Grenze. Nie unschaerfer als der Bildschirm.
+    static let pixelBudget: CGFloat = 16_000_000
 
     /// Schreibt nur der Stift ("Nur Stift"), laesst eine AUFGEDECKTE Karte die Beruehrung durch: Man kann die Antwort
     /// darunter mit dem Stift verbessern. Der Finger zeichnet dann ohnehin nicht, sein Tipp verdeckt die Karte wieder
@@ -399,7 +400,7 @@ final class PageObjectsView: UIView {
             // `pixelBudget` je Objekt: Ein seitengrosser Textblock belegte bei starkem Zoom sonst ueber 100 MB
             let wanted = max(renderScale, UIScreen.main.scale * 2)
             let area = max(1, v.bounds.width * v.bounds.height)
-            v.contentScaleFactor = min(wanted, max(1, (Self.pixelBudget / area).squareRoot()))
+            v.contentScaleFactor = min(wanted, max(UIScreen.main.scale, (Self.pixelBudget / area).squareRoot()))
             v.subviews.forEach(walk)
         }
         subviews.forEach(walk)

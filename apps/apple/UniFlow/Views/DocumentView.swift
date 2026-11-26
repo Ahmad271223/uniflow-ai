@@ -288,6 +288,8 @@ struct DocumentView: View {
     @State private var exporting = false
     @State private var actionError: String?
     @State private var companion: Companion?
+    /// Letzter angetippter Verweis: Eine spaete Antwort fuer einen frueheren Tipp oeffnet nichts mehr
+    @State private var linkToken: UUID?
     @State private var suggestion: ScriptSuggestion?
     /// Skriptsuche gescheitert (Fehlerantwort, Server nicht erreichbar): Hinweis statt stillem Ausbleiben
     @State private var suggestionError: String?
@@ -1303,11 +1305,16 @@ struct DocumentView: View {
     /// schon daneben offen, nur springen.
     private func openLink(_ t: PageLink.Target) {
         guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
+        let token = UUID()
+        linkToken = token
+        let shownBefore = companion?.file.id
         Task { @MainActor in
             if companion?.file.id != t.file {
                 // die echte Datei aus der Bibliothek: Ein Notizbuch oder Whiteboard ist keine PDF (vorher wurde immer
                 // eine PDF angenommen - solche Ziele oeffneten nie). Erst danach raeumt die Spalte daneben
                 let real = try? await api.json("/api/files/\(t.file)", as: LibFile.self)
+                // inzwischen ein anderer Verweis angetippt oder daneben etwas anderes geoeffnet: nichts tun
+                guard linkToken == token, companion?.file.id == shownBefore else { return }
                 solutionSide = nil
                 webSide = nil
                 companion = Companion(file: real ?? libFile(id: t.file, title: t.title), pdfPage: t.pdfPage, request: UUID().uuidString)

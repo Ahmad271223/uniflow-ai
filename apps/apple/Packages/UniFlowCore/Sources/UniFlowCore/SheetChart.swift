@@ -68,8 +68,8 @@ public struct SheetChart: Equatable, Sendable {
         // Beschriftung: Text in der ersten Spalte - oder eine Zaehlung (Semester 1, 2, 3; Jahre 2023, 2024, 2025)
         let firstNumbers = dataRows.map { value(cols[0], $0).number }
         var counting = false
-        if cols.count > 1, firstNumbers.count >= 3, let a = firstNumbers[0], let b = firstNumbers[1], b > a, a == a.rounded(), b == b.rounded() {
-            counting = zip(firstNumbers, firstNumbers.dropFirst()).allSatisfy { x, y in x != nil && y != nil && y! - x! == b - a }
+        if cols.count > 1, firstNumbers.count >= 3, let a = firstNumbers[0], a == a.rounded() {
+            counting = zip(firstNumbers, firstNumbers.dropFirst()).allSatisfy { x, y in x != nil && y != nil && y! - x! == 1 }
         }
         let labelCol = cols.count > 1 && (counting || (dataRows.contains { isLabel(value(cols[0], $0)) } && !dataRows.contains { value(cols[0], $0).number != nil }))
         let dataCols = Array((labelCol ? Array(cols.dropFirst()) : cols).prefix(SheetChart.maxSeries))

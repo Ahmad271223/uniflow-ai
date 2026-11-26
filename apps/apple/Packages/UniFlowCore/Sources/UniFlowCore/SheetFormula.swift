@@ -612,6 +612,25 @@ public enum SheetFormula {
         }
     }
 
+    /// Ausgeschnitten und an anderer Stelle eingefuegt (wie in Excel): Bezuege auf Zellen IM ausgeschnittenen Bereich
+    /// `block` wandern mit, Bezuege nach draussen bleiben, wo sie waren. Ein Bereich wandert nur, wenn er ganz im Block liegt.
+    public static func moved(_ raw: String, block: SheetRange, dCol: Int, dRow: Int) -> String {
+        func move(_ r: RefTok) -> RefTok? {
+            var n = r
+            n.col += dCol
+            n.row += dRow
+            return n.col >= 0 && n.row >= 0 && n.col < RefTok.maxCol && n.row < RefTok.maxRow ? n : nil
+        }
+        return rewriting(raw) { a, b in
+            let inside = block.contains(a.ref) && (b.map { block.contains($0.ref) } ?? true)
+            guard inside else { return (a, b) }
+            guard let na = move(a) else { return nil }
+            guard let b else { return (na, nil) }
+            guard let nb = move(b) else { return nil }
+            return (na, nb)
+        }
+    }
+
     /// Zeilen (oder Spalten) eingefuegt (`count > 0`) oder geloescht (`count < 0`) ab `index`
     public static func adjusted(_ raw: String, rows: Bool, at index: Int, count: Int) -> String {
         guard count != 0 else { return raw }
