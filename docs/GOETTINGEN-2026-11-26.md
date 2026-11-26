@@ -31,7 +31,7 @@ Grundlagen (nur auf dem Mac, nicht im Repo):
 1. **Server-Update (nur mit Okay des Inhabers):** Der laufende StudiNow-Dienst kennt `goettingen` nicht. Ein neuer
    Göttinger Nutzer bekäme beim Anlegen des StudiNow-Kontos „Unbekannte Hochschule“ (`university_unknown`) – keine KI,
    keine Probe über das Konto. Nötig sind aus diesem Zweig `app/universities.py`, `app/config.py`, `app/account_api.py`,
-   `app/server.py`, `app/mensa.py`, `app/mensa_api.py` und die Daten `packages/shared-contracts/mensa.json`,
+   `app/server.py`, `app/mensa.py`, `app/mensa_api.py`, `app/holidays.py`, `app/studip_lecturers.py`, `app/rooms.py` und die Daten `packages/shared-contracts/mensa.json`,
    `rooms.json` (Tests: `tests/test_goettingen.py`, `tests/test_mensa.py`, `tests/test_account_contract.py`). Der Rest
    des Dienstes ändert sich nicht; Hannover/Hildesheim sehen in der Web-App weiter nur ihre Hochschulen und Mensen.
 2. **Einmal mit echtem Konto in der App:** Der Inhaber meldet sich in der Testfassung selbst bei Stud.IP Göttingen an,
@@ -152,7 +152,7 @@ Kabel aufs iPad, er meldet sich im Anmeldefenster selbst an, ein Abgleich, dann 
 
 ## 4. Tests (26.11.2026)
 
-- Kern: neu `GoettingenTests` (11) und Mensa-Fälle für Göttingen; **alle 1895 Kern-Tests** liefen, 3 alte Prüfungen
+- Kern: neu `GoettingenTests` (13, seit dem Durchlauf mit Vorlesungszeiten und Lehrenden) und Mensa-Fälle für Göttingen; **alle 1895 Kern-Tests** liefen, 3 alte Prüfungen
   setzten genau drei Hochschulen voraus und sind angepasst (`ReleaseUniversitiesTests`), danach grün.
 - App: neu `GoettingenAppTests` (7: Schalter, Anmelderegeln, Erstabgleich gegen die Nachbildung mit allen Bereichen,
   abgelaufene Sitzung, Ausblenden, Mensa ohne Preise, Nachbildung). Gesamtläufe iPad/iPhone/Mac: siehe Abschnitt 6.
@@ -180,7 +180,42 @@ Kabel aufs iPad, er meldet sich im Anmeldefenster selbst an, ein Abgleich, dann 
 | Store | Texte, Bilder, Datenschutz | nichts geändert | Vor Freigabe: Store-Texte („LUH und Hildesheim“), Datenschutztext (Studierendenwerk Göttingen als Quelle). |
 | Medizin (UMG), go@med | – | nicht betrachtet | – |
 
-## 6. Testläufe auf dem letzten Stand (f2e21505, 26.11.2026 abends)
+## 6. Kompletter Durchlauf 26.11.2026 abends (Auftrag „teste göttingen komplett durch“)
+
+Rundgang über alle Seiten mit der Nachbildung (angemeldet, nach einem Abgleich), iPad und iPhone, je 24 Seiten plus
+Hochschulwahl. Bildschirmfotos: `~/Studora-Builds/goettingen/rundgang-ipad-2/` (vor den Korrekturen) und
+`…/rundgang-iphone-2/` (danach).
+
+Gefunden und behoben (Commit c8624807):
+
+| Fehler | Ursache | Behoben |
+|---|---|---|
+| Stundenplan zeigte „WiSe 2026/27 · 12.10.2026 – 30.01.2027“ (Vorlesungszeit der LUH) | `holidays.SEMESTERS` kannte Göttingen nicht, also blieb die alte LUH-Vorgabe | Göttinger Semestertermine (ohne Medizin, Seite „Semestertermine“ der Uni) in `app/holidays.py` und `Holidays.swift`: WiSe 26.10.2026–12.02.2027 mit Weihnachtspause 28.12.–08.01., SoSe 2027, WiSe 2027/28, SoSe 2028; SoSe 2026 wie im echten Stud.IP. Jetzt „26.10.2026 – 12.02.2027“ |
+| „Lehrende“ sagte „gibt es vorerst für die Leibniz Universität Hannover“ | Abfrage und Abgleich fragten fest nach `luh` | Freigegeben für alle Hochschulen mit Stud.IP (`universities.has_studip`, `StudIPLecturers.offered`), auch im Termin. Göttingen zeigt jetzt die Lehrenden mit E-Mail und „Nachricht in Stud.IP“ |
+| Raumfinder nannte unten „Standortfinder der Leibniz Universität Hannover“ | Standort-Antwort gab immer die LUH-Quelle mit | Quelle nur noch, wenn die Hochschule einen eigenen Raumfinder hat (LUH, Hildesheim mit LSF); betraf auch die HsH |
+| Wochenansicht fast leer | Nachbildung hatte nur 1–2 Einzeltermine je Kurs | Nachbildung legt wie das echte Stud.IP jede Woche der Vorlesungszeit an (ohne Weihnachtspause, ein Termin fällt aus) |
+
+Angesehen und in Ordnung: Start, Stundenplan (Tag und Woche), Module und Modulseite, Dokumente, Nachrichten, Uni & Noten
+(FlexNow-Karte, Stud.IP, Schwarzes Brett), Bescheinigungen (eCampus-Karte), Studienverlauf (ruhige Karte), Mensa (echter
+Speiseplan, keine Preise, „Seite der Mensa öffnen“), Raumfinder (drei Standorte), Uni-Mail (nicht angeboten), Tests,
+Karteikarten, KI, Community, alle Einstellungen, Hochschulwahl mit Göttingen-Text.
+
+Nicht geändert, nur bemerkt: Im Modul steht der Reiter „Aufzeichnungen“ auch in Göttingen (darin der Hinweis auf
+Mediacast); „Aktuelle Lehrwoche“ zählt wie überall die letzte Woche mit Dateien.
+
+## 6a. Testläufe auf dem letzten Stand (c8624807, 26.11.2026 abends)
+
+| Lauf | Ergebnis |
+|---|---|
+| Kern (`swift test`) | 1936 Tests, 0 Fehler (20 übersprungen) |
+| Python (`pytest tests`) | 4133 grün; rot: die 3 alten in `test_audit_p58_87_golive.py` (auf 1.0.8 genauso) und `test_release_build_provenance` (die Build-Sitzung hat `StudiNow-50.commit` neben die Archive gelegt, die Tabelle in diesem Zweig kennt Build 50 noch nicht – kein Bezug zu Göttingen) |
+| App iPad, **alle 2320 Tests** (Stand cba3e6b4, vor den Korrekturen) | 3 rot: `StoreScreenshotTests.test01Uebersicht` (auf 1.0.8 genauso), `EditorStrichBleibtTests…Absetzen` (Bildmessung unter Last; einzeln grün), `MacTestIsolationTests` (meine Rundgang-Anmeldung lag noch im Simulator; auf geleertem Simulator grün) |
+| App iPad, neuer Stand | 76 Klassen, die die Korrekturen berühren (646 Tests): **alle grün** |
+| App iPhone, neuer Stand | dieselben Klassen (661 Tests): 2 rot – `BackArrowAppTests.testHomeHasNoArrowOtherPagesExactlyOne` und `StoreScreenshotTests.test01Uebersicht`, **auf dem unveränderten 1.0.8 im selben Simulator genauso rot** |
+| App iPhone, alle Tests (neuer Stand) | siehe unten |
+| Mac (`tools/mac-test.sh`, eigener Bauordner `dd-goe-mac`) | `MacTestIsolationTests`, `GoettingenAppTests`, `MensaAppTests`, `ReleaseUniversitiesAppTests`, `LecturersAppTests`: 28 Tests, alle grün |
+
+## 6b. Frühere Testläufe (f2e21505, 26.11.2026 abends)
 
 | Lauf | Ergebnis |
 |---|---|
