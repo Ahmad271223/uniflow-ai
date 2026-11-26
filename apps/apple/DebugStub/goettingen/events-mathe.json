@@ -1,0 +1,65 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 2
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "course-events",
+   "id": "9eab2e4d10e0f1f8666af081560187aa",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-11-30T10:15:00+01:00",
+    "end": "2026-11-30T11:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "ZHG010 (ZHG)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "155acb78c2e55f6f101677b5c478e8f4"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "368e1638707cc42eb0f27676691131fc",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-12-07T10:15:00+01:00",
+    "end": "2026-12-07T11:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "ZHG010 (ZHG)",
+    "is-cancelled": true,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "155acb78c2e55f6f101677b5c478e8f4"
+     }
+    }
+   }
+  }
+ ]
+}

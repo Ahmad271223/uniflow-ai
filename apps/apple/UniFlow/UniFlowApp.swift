@@ -236,6 +236,15 @@ struct UniFlowApp: App {
                             let on = (try? await containers.active?.api.value("/api/demo"))?["enabled"]?.bool == true
                             if !on { _ = try? await containers.setDemo(true) }
                         }
+                        // -UFStubSignedIn YES (nur mit -UFLoginStub): Stud.IP der Nachbildung gilt als angemeldet und gleicht
+                        // einmal ab - Bildvergleiche einer verbundenen Hochschule ohne Antippen der Anmeldeseite
+                        // (Rundgang Uni Goettingen, 26.11.2026). Nie eine echte Sitzung, nie ein Netz (DebugUniStub).
+                        if UserDefaults.standard.bool(forKey: "UFStubSignedIn"), DebugUniStub.isActive {
+                            for _ in 0..<50 where containers.active == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
+                            if containers.active != nil, containers.studip.offersStudIP, !containers.studip.hasStoredSession {
+                                containers.studip.signedIn(cookies: DebugUniStub.studipCookies())
+                            }
+                        }
                         #endif
                         await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer)
                     }

@@ -68,7 +68,10 @@ private struct RecordingsPanelContent: View {
         case .notConnected: return "Verbinde Stud.IP, dann erscheinen hier die Aufzeichnungen deiner Kurse nach Vorlesungswoche."
         case .expired: return "Melde dich erneut bei Stud.IP an, damit StudiNow die Aufzeichnungen aktualisiert."
         case .connected:
-            return studip.isRunning ? "Aufzeichnungen werden beim laufenden Abgleich geprüft …" : "Keine Aufzeichnungen zu diesem Modul."
+            if studip.isRunning { return "Aufzeichnungen werden beim laufenden Abgleich geprüft …" }
+            // Uni Goettingen (26.11.2026): Videos laufen dort ueber die Erweiterung "Mediacast" (Reiter "Medien"), die
+            // StudiNow noch nicht liest; Videodateien in den Ordnern der Kurse erscheinen hier
+            return studip.university == .goettingen ? UFUniversityScope.mediacastHint : "Keine Aufzeichnungen zu diesem Modul."
         case .otherSources: return "Aufzeichnungen (Opencast) gibt es in StudiNow nur über das Stud.IP der Leibniz Universität Hannover; das Learnweb der Universität Hildesheim bietet keine."
         case .demo: return "Die Demo-Inhalte haben keine Aufzeichnungen. Sie kommen mit deiner Stud.IP-Anmeldung, wenn die Demo beendet ist."
         }

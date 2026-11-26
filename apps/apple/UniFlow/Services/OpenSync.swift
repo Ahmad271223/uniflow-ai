@@ -427,7 +427,7 @@ enum UniversitySyncStart: Equatable {
         switch u {
         case .hsh?: return "Zuerst Moodle oder Campusmanagement verbinden"
         case .hildesheim?: return "Zuerst Learnweb oder LSF verbinden"
-        case .luh?: return "Zuerst den Uni-Zugang in den Einstellungen speichern"
+        case .luh?, .goettingen?: return "Zuerst den Uni-Zugang in den Einstellungen speichern"
         default: return "Zuerst die Hochschule verbinden"
         }
     }

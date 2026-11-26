@@ -569,7 +569,8 @@ struct ModulePage: View {
                 if let m = d?["module"] { overlay.modal { ModuleEditDialog(m: m) } }
             }
             // Studienverlauf (04.11.2026): das Modul im persoenlichen Plan zeigen (Zuordnung ueber den Modulnamen)
-            if let name = d?["module"]?["name"]?.string, !name.isEmpty {
+            // nur, wo es den Studienverlauf gibt (nicht an der Uni Goettingen, `UFUniversityScope`)
+            if UFUniversityScope.offersStudyPlan(UFUniversityScope.current), let name = d?["module"]?["name"]?.string, !name.isEmpty {
                 UFButton("Im Studienverlauf", icon: "columns", size: .small) { router.go(.studyPlan(module: name)) }
                     .accessibilityIdentifier("module.studyPlan")
             }

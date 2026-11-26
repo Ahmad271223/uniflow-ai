@@ -68,8 +68,11 @@ targets:
         # ("Ja, auch im Store"): Release (TestFlight, App Store, Kabel-Fassungen) bietet ihn an und er ist von selbst AN,
         # Ausschalten in den Einstellungen. Debug bleibt NO (Tests, Simulator): dort geht nie etwas weg.
         # Vor dem Einreichen muessen Nutzungsbedingungen + Datenschutz (Entwuerfe in docs/release) live sein.
+        # Uni Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md): im Code, in Debug und Tests zur Wahl; im Release
+        # NICHT, bis der Inhaber sie freigibt (dann "goettingen" an den Release-Wert haengen). Eine Kabel-Fassung fuer
+        # sein iPad bekommt sie mit `xcodebuild ... UF_SHIPPED_UNIVERSITIES="luh hildesheim goettingen"`.
         Debug:
-          UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"
+          UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh goettingen"
           UF_INTAKE_OFFERED: "NO"
           # Testlauf am Mac ("Designed for iPad", 14.11.2026, docs/MAC-TESTLAUF-EIGENER-ORDNER-2026-11-14.md): am Mac
           # waere der Testwirt sonst dieselbe App wie die installierte (gleiche Kennung = gleicher Datenordner,
@@ -283,6 +286,10 @@ targets:
       # Stub-Ordner und Vertrags-Fixtures auch im Testbundle: auf dem Mac ("Designed for iPad") laeuft die App in der
       # Sandbox und darf den Repo-Ordner nicht lesen (Befund 08.11.2026); ContainerTestBed.repoURL faellt darauf zurueck
       - path: DebugStub/erststart
+        type: folder
+        buildPhase: resources
+      # Nachbildung des Stud.IP der Uni Goettingen (tools/build-goettingen-stub.py), fuer GoettingenAppTests
+      - path: DebugStub/goettingen
         type: folder
         buildPhase: resources
       - path: ../../packages/shared-contracts/fixtures

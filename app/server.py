@@ -4175,7 +4175,7 @@ def api_services():
     hi = uni["key"] == "hildesheim"
     return {"services": universities.services(uni["key"]) or SERVICES, "credentials": creds,
             "university": {k: uni[k] for k in ("key", "name", "short", "files_source", "grades_source", "login", "user_label")},
-            "universities": [{"key": k, "name": v["name"]} for k, v in universities.PROFILES.items()],
+            "universities": [{"key": k, "name": universities.PROFILES[k]["name"]} for k in universities.offered()],
             "university_next": config.configured_university(),
             "learnweb": {"token_set": bool(config.secret("LEARNWEB_TOKEN"))},
             "qis": {"configured": qis.configured("hsh") if uni["key"] == "hsh" else (creds["hildesheim"]["configured"] if hi else q["configured"]),
@@ -4225,6 +4225,14 @@ def university_profile(key: str) -> dict:
         out.update({"login_url": hsh.login_url(), "logged_in_check_url": f"{hsh.moodle_base()}/my/", "session_cookie": "MoodleSession",
                     "hosts": [host, hisinone.HOST, *_HSH_SSO_HOSTS], "file_host": host, "learnweb_base": hsh.moodle_base(), "cas_base": None,
                     "campus_login_url": hisinone.SSO_LOGIN_URL, "campus_start_url": hisinone.START_URL})
+    elif key == "goettingen":
+        # Uni Goettingen (26.11.2026): eigenes Stud.IP, eigenes Anmeldeformular; nie die Adressen der LUH ausgeben.
+        # Cookie-Name am 26.11.2026 an der oeffentlichen Anmeldeseite gesehen (Set-Cookie: Studip_Session)
+        base = universities.GOETTINGEN_STUDIP_BASE
+        host = urlsplit(base).hostname or ""
+        out.update({"login_url": f"{base}/dispatch.php/login", "logged_in_check_url": f"{base}/jsonapi.php/v1/users/me",
+                    "session_cookie": "Studip_Session", "hosts": [host], "file_host": host,
+                    "learnweb_base": None, "cas_base": None})
     else:
         host = urlsplit(studip_sync.STUDIP_BASE).hostname or ""
         out.update({"login_url": studip_sync.LOGIN_URL, "logged_in_check_url": f"{studip_sync.STUDIP_BASE}/jsonapi.php/v1/users/me",

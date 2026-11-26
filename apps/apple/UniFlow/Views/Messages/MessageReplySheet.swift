@@ -348,7 +348,7 @@ struct MessageReplyEntry: View {
             model: MessageReplyModel(original: original, mode: mode,
                                      dependencies: .live(studip: studip, defaults: ActiveContainer.current?.defaults ?? .standard)),
             login: { done in
-                AnyView(StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
+                AnyView(StudIPLoginView(base: studip.base, dataStore: studip.websiteDataStore) { cookies in
                     studip.signedIn(cookies: cookies)
                     done()
                 })

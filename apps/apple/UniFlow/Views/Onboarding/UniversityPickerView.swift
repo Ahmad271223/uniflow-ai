@@ -110,6 +110,9 @@ struct UniversityOption: View {
             return UFDevice.adapt("Learnweb: Kurse und Dateien direkt auf dieses iPad. LSF: Stundenplan und Notenspiegel. Anmeldung mit deinem UNI-Account auf den Seiten der Universität.")
         case .hsh:
             return UFDevice.adapt("Moodle: Kurse, Dateien und Fristen direkt auf dieses iPad. Campusmanagement: Stundenplan, Leistungen und angemeldete Prüfungen. Anmeldung mit deinem SSO-Account auf den Seiten der Hochschule.")
+        case .goettingen:
+            // nur, was die App dort wirklich kann (26.11.2026): Stud.IP; FlexNow, eCampus und E-Mail sind nicht angebunden
+            return UFDevice.adapt("Stud.IP: Kurse, Ordner, neue Dateien, Stundenplan, Nachrichten und das Schwarze Brett direkt auf dieses iPad. Dazu der Speiseplan der Mensen. Noten (FlexNow) und eCampus öffnest du weiter im Browser. Anmeldung mit deinem Uni-Konto auf der Seite von Stud.IP.")
         }
     }
 }

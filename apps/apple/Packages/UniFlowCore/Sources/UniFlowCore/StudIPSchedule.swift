@@ -190,6 +190,28 @@ public enum StudIPSchedule {
     /// keine Art erkennen laesst; die LUH-eigenen Nummern (7, 10, 35, 40 ...) sind unbekannt und bleiben aussen vor.
     public static let standardCourseTypes: [Int: StudIPScheduleArt] = [2: .seminar, 3: .uebung, 4: .labor]
 
+    /// Uni Goettingen (26.11.2026): eigene Nummern der Veranstaltungsarten, am echten Stud.IP aus `sem-types` der
+    /// JSON:API gelesen (116 Arten). Der Stud.IP-Standard passt dort nicht: 2 ist "Grundstudium", 3 "Hauptstudium",
+    /// 4 "Seminar" (im Standard: Praktikum). Eingetragen sind nur eindeutige Arten; Mischformen wie 111 "Vorlesung
+    /// mit Übung" bleiben Vorlesung, 99 ist wie im Standard die Studiengruppe (`StudIPStudyGroups`).
+    public static let goettingenCourseTypes: [Int: StudIPScheduleArt] = {
+        var t: [Int: StudIPScheduleArt] = [:]
+        // Seminar, Pro-, Ober-, Haupt-, Projekt-, Master-, Aufbau-, Basis-, Graduierten-, Wahlpflichtseminar
+        for n in [4, 22, 23, 25, 27, 74, 104, 107, 116, 117, 118, 120, 121, 123, 125, 127, 133, 141, 142, 144, 147, 149, 150, 151] { t[n] = .seminar }
+        // Übung, Geländeübung, Praktische Übung, Übung mit Exkursion, Masterübung, Zusatzübung
+        for n in [21, 72, 114, 124, 129, 135] { t[n] = .uebung }
+        t[134] = .hoersaaluebung                            // Saalübung
+        t[26] = .tutorium
+        // Praktikum, Experimental Lab Course, Gelände-, Labor-, Apparatives, Experimentelles Praktikum
+        for n in [16, 68, 70, 73, 112, 113] { t[n] = .labor }
+        return t
+    }()
+
+    /// Nummern der Veranstaltungsarten der Hochschule (`settings.university`); ohne eigene Tabelle der Stud.IP-Standard
+    public static func courseTypes(university: String?) -> [Int: StudIPScheduleArt] {
+        university == UniversityKey.goettingen.rawValue ? goettingenCourseTypes : standardCourseTypes
+    }
+
     /// Kurszeiten aus den `data`-Listen von users/{id}/schedule und users/{id}/courses (eigene Eintraege bleiben
     /// aussen vor, siehe oben).
     public static func timetable(schedule: [JSONValue], courses: [JSONValue],

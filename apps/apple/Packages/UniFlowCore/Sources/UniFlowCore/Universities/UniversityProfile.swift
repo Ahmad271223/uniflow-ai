@@ -12,12 +12,16 @@ import Foundation
 // hildesheim -> Learnweb (Moodle) + LSF der Universitaet Hildesheim, Anmeldung ueber das zentrale CAS
 // hsh        -> Moodle + Campusmanagement (HISinOne, SAML-IdP) der Hochschule Hannover, je eigene Anmeldung mit dem
 //               SSO-Account (docs/HSH-2026-11-05.md)
+// goettingen -> Stud.IP der Georg-August-Universitaet Goettingen (Direkt-Anmeldung auf dispatch.php/login, JSON:API mit
+//               der Sitzung wie an der LUH); Noten (FlexNow 2), eCampus (HISinOne) und E-Mail (Exchange) sind nicht
+//               angebunden (docs/GOETTINGEN-2026-11-26.md)
 
 /// Schluessel einer Hochschule (Werte wie `universities.PROFILES` in Python).
 public enum UniversityKey: String, Sendable, CaseIterable, Codable, Hashable {
     case luh
     case hildesheim
     case hsh
+    case goettingen
 
     /// Wie `universities.DEFAULT`
     public static let `default`: UniversityKey = .luh
@@ -101,10 +105,11 @@ public struct UniversityProfile: Sendable, Hashable {
     public let userLabel: String
     /// Praefix aller Schluesselbund-Eintraege dieser Hochschule ("luh", "hildesheim")
     public let keychainPrefix: String
-    /// Aufbau des Notenspiegels (QIS der LUH bzw. LSF Hildesheim)
-    public let gradeLayout: QISGradeLayout
+    /// Aufbau des Notenspiegels (QIS der LUH bzw. LSF Hildesheim); nil: die App liest an dieser Hochschule keine Noten
+    /// (Goettingen: FlexNow 2 ist nicht angebunden)
+    public let gradeLayout: QISGradeLayout?
     /// Bescheinigungen aus dem QIS/LSF wie `qis.PROFILES[<uni>]["documents"]` (LUH ja, Hildesheim nein)
-    public var qisDocuments: Bool { gradeLayout.collectsDocuments }
+    public var qisDocuments: Bool { gradeLayout?.collectsDocuments ?? false }
     public let loginServices: [UniversityLoginService]
     /// Dienste mit gespeichertem Schluessel statt Benutzername und Passwort (Hildesheim: "learnweb" aus dem Moodle-SSO)
     public let tokenServices: [String]
@@ -162,13 +167,14 @@ public struct UniversityProfile: Sendable, Hashable {
          "grades_source": .string(gradesSource), "login": .string(login), "user_label": .string(userLabel)]
     }
 
-    public static let all: [UniversityProfile] = [luh, hildesheim, hsh]
+    public static let all: [UniversityProfile] = [luh, hildesheim, hsh, goettingen]
 
     public static func profile(for key: UniversityKey) -> UniversityProfile {
         switch key {
         case .luh: return luh
         case .hildesheim: return hildesheim
         case .hsh: return hsh
+        case .goettingen: return goettingen
         }
     }
 
@@ -176,7 +182,7 @@ public struct UniversityProfile: Sendable, Hashable {
     public static func profile(forKey raw: String?) -> UniversityProfile? { raw.flatMap(UniversityKey.init(rawValue:))?.profile }
 }
 
-// MARK: - Die beiden Hochschulen
+// MARK: - Die Hochschulen
 
 extension UniversityProfile {
     // Adressen wie app/universities.py, app/config.py (STUDIP_BASE), app/qis.py (QIS_BASE, QIS_START)
@@ -346,4 +352,55 @@ extension UniversityProfile {
         ],
         hasBulletinBoard: false,
         studipBase: nil, casBase: nil, learnwebBase: hshMoodle, lsfBase: nil)
+
+    // Georg-August-Universitaet Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md): Stud.IP 6.2 mit eigenem
+    // Anmeldeformular auf dispatch.php/login (Felder loginname/password, am 26.11.2026 ohne zweiten Faktor), danach die
+    // JSON:API mit der Sitzung wie an der LUH. Alles andere (FlexNow 2, eCampus, E-Mail) steht nur als Link bei den
+    // Diensten und oeffnet sich im Browser des Systems - dort verlangt die Academic Cloud einen zweiten Faktor.
+    public static let goettingenStudIP = URL(string: "https://studip.uni-goettingen.de")!
+    /// Speiseplaene des Studierendenwerks Goettingen (Link bei den Diensten; die Daten holt `Mensa`, Quelle "stwgoe")
+    public static let goettingenMensaPage = "https://www.studierendenwerk-goettingen.de/campusgastronomie/mensen/speiseplaene-der-mensen"
+
+    public static let goettingen = UniversityProfile(
+        key: .goettingen, name: "Georg-August-Universität Göttingen", short: "Uni Göttingen", filesSource: "Stud.IP",
+        gradesSource: "FlexNow", login: "Stud.IP-Anmeldung (Uni-Konto)", userLabel: "Benutzername (Uni-Konto)",
+        keychainPrefix: "goettingen", gradeLayout: nil,
+        loginServices: [
+            // nur das eigene Formular von Stud.IP ("Direkt"); CAS und "Other Institutes Login" derselben Seite fuellt die
+            // App nie aus und liest dort nichts mit (kein Eintrag in `UniLoginForms`)
+            UniversityLoginService(
+                key: "studip", name: "Stud.IP", userLabel: "Benutzername (Uni-Konto)",
+                entryURLs: [goettingenStudIP.appendingPathComponent("dispatch.php/login")],
+                targets: [UniversityLoginTarget(host: goettingenStudIP.host ?? "", pathPrefix: "/dispatch.php/login")]),
+        ],
+        tokenServices: [],
+        services: [
+            UniversityServiceLink(key: "studip", name: "Stud.IP", url: goettingenStudIP.absoluteString + "/",
+                                  desc: "Kurse, Dateien, Termine, Ankündigungen, Nachrichten", login: "Uni-Konto", icon: "book",
+                                  connected: true, connector: false),
+            UniversityServiceLink(key: "flexnow", name: "FlexNow (Prüfungsverwaltung)", url: "https://flexnow2.uni-goettingen.de/",
+                                  desc: "Prüfungsanmeldung, Noten, Leistungsübersicht", login: "Uni-Konto", icon: "exam",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "ecampus", name: "eCampus", url: "https://ecampus.uni-goettingen.de/",
+                                  desc: "Vorlesungsverzeichnis, Bescheinigungen, Rückmeldung", login: "Uni-Konto (zweiter Faktor)",
+                                  icon: "user", connected: false, connector: false),
+            UniversityServiceLink(key: "mail", name: "E-Mail (Exchange)", url: "https://email.stud.uni-goettingen.de/",
+                                  desc: "Studentisches Postfach im Browser", login: "Uni-Konto (zweiter Faktor)", icon: "bell",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "sub", name: "SUB Göttingen", url: "https://www.sub.uni-goettingen.de/",
+                                  desc: "Bibliothek: Literatur, Lernplätze, Ausleihe", login: "Bibliotheksausweis", icon: "book",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "mensa", name: "Mensa (Studierendenwerk)", url: goettingenMensaPage,
+                                  desc: "Speisepläne der Mensen", login: "–", icon: "sun", connected: false, connector: false),
+            UniversityServiceLink(key: "lageplan", name: "Lageplan", url: "https://lageplan.uni-goettingen.de/",
+                                  desc: "Gebäude und Räume auf der Karte", login: "–", icon: "info", connected: false, connector: false),
+            UniversityServiceLink(key: "studit", name: "studIT (Hilfe)", url: "https://wiki.student.uni-goettingen.de/",
+                                  desc: "Anleitungen: Konto, WLAN, E-Mail, Drucken", login: "–", icon: "settings",
+                                  connected: false, connector: false),
+            UniversityServiceLink(key: "uni", name: "Universität Göttingen", url: "https://www.uni-goettingen.de/",
+                                  desc: "Webseite der Universität", login: "–", icon: "info", connected: false, connector: false),
+        ],
+        // dieselbe Erweiterung wie an der LUH (26.11.2026 gesehen: category/list mit sb-categories, RSS je Thema)
+        hasBulletinBoard: true,
+        studipBase: goettingenStudIP, casBase: nil, learnwebBase: nil, lsfBase: nil)
 }

@@ -1,0 +1,19 @@
+{
+ "data": {
+  "type": "users",
+  "id": "0140aed7ce29ed182aeb6342ffb185d6",
+  "attributes": {
+   "username": "erika.muster",
+   "formatted-name": "Erika Muster",
+   "family-name": "Muster",
+   "given-name": "Erika",
+   "name-prefix": "",
+   "name-suffix": "",
+   "permission": "autor",
+   "email": "erika.muster@stud.uni-goettingen.de"
+  },
+  "links": {
+   "self": "/jsonapi.php/v1/users/0140aed7ce29ed182aeb6342ffb185d6"
+  }
+ }
+}

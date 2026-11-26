@@ -203,7 +203,7 @@ struct ConnectStudIPCard: View {
     }
 
     private var login: some View {
-        StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
+        StudIPLoginView(base: studip.base, dataStore: studip.websiteDataStore) { cookies in
             showLogin = false
             studip.signedIn(cookies: cookies)
         }

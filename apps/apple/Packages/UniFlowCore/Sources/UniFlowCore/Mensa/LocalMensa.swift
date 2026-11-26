@@ -68,6 +68,7 @@ public final class LocalMensa: @unchecked Sendable {
         var last: Error = URLError(.cannotLoadFromNetwork)
         for kind in kinds {
             do {
+                if kind == "stwgoe" { return (try await fetchStwgoe(c, start: start, end: end, http: http), kind) }
                 let raw = try JSONValue.parse(try await http.get(Mensa.sourceURL(c, start: start, end: end, kind: kind)))
                 let parsed = Mensa.parse(kind: kind, raw: raw)
                 if kind != "openmensa" && (parsed["days"]?.object ?? [:]).isEmpty && kinds.count > 1 {
@@ -80,6 +81,26 @@ public final class LocalMensa: @unchecked Sendable {
             }
         }
         throw last
+    }
+
+    /// Studierendenwerk Goettingen: je Tag ein HTML-Baustein (hoechstens sechs kleine, vom Werk zwischengespeicherte
+    /// Dateien je Mensa und Abruf; Cache 3 Stunden). 404 heisst: fuer den Tag gibt es (noch) keinen Plan. Kommt kein
+    /// einziger Tag an und gab es einen anderen Fehler (Netz), wirft der Abruf: dann bleibt der letzte Stand.
+    func fetchStwgoe(_ c: JSONValue, start: String, end: String, http: MensaHTTP) async throws -> JSONValue {
+        var pages: [JSONValue] = []
+        var last: Error?
+        for (day, url) in Mensa.stwgoeURLs(c, start: start, end: end) {
+            do {
+                let body = try await http.get(url)
+                pages.append(["date": .string(day), "html": .string(String(decoding: body, as: UTF8.self))])
+            } catch let e as MensaHTTPError where e.status == 404 {
+                continue
+            } catch {
+                last = error
+            }
+        }
+        if pages.isEmpty, let last { throw last }
+        return Mensa.parseStwgoe(["pages": .array(pages)])
     }
 
     /// Antwort von GET /api/mensa/menu

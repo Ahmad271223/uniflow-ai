@@ -3670,6 +3670,1488 @@
      "2026-11-07"
     ]
    }
+  },
+  "stwgoe-zentralmensa.json": {
+   "kind": "stwgoe",
+   "result": {
+    "days": {
+     "2026-11-26": [
+      {
+       "id": "2026-11-26-0",
+       "name": "Vegane Filetstreifen mit Chinagemüse",
+       "category": "Vegan",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "frische Petersilie",
+        "Wildreismischung",
+        "Karottensalat"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-26-1",
+       "name": "Gemüse Gouda Knusperstäbchen",
+       "category": "Vegetarisch",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Gemüse Kräutersauce (g,i)",
+        "Kartoffelpüree mit Röstzwiebeln (3,a.1,a,g,l)",
+        "oder Bulgur mit Quinoa und Minze (a.1,a)",
+        "Selleriesalat mit Schmand (g,i)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-26-2",
+       "name": "Salatvariationen in Selbstbedienung!",
+       "category": "Salatbuffet",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a",
+         "key": "gluten",
+         "name": "Glutenhaltiges Getreide"
+        },
+        {
+         "code": "b",
+         "key": "krebstiere",
+         "name": "Krebstiere"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "d",
+         "key": "fisch",
+         "name": "Fisch"
+        },
+        {
+         "code": "e",
+         "key": "erdnuss",
+         "name": "Erdnüsse"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "h",
+         "key": "schalenfruechte",
+         "name": "Schalenfrüchte"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "k",
+         "key": "sesam",
+         "name": "Sesam"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        },
+        {
+         "code": "m",
+         "key": "lupine",
+         "name": "Lupinen"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Können Allergene (a-m) und Zusatzstoffe (1-11) enthalten. Detaillierte Informationen am Salatbuffet."
+       ],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "image": null,
+       "labels": [],
+       "main": false
+      },
+      {
+       "id": "2026-11-26-3",
+       "name": "CampusCurry Fleischwurst vom Schwein",
+       "category": "CampusCurry",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Curryketchup Berliner Blume (3,j)",
+        "Pommes frites (3)",
+        "bunter Krautsalat mit Paprika"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-26-4",
+       "name": "Vegane Currywurst",
+       "category": "CampusCurry Vegan",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Mango-Curryketchup (1)",
+        "Pommes frites (3)",
+        "bunter Krautsalat mit Paprika"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-26-5",
+       "name": "Gebratene Schupfnudeln mit knackigen Gemüsestreifen",
+       "category": "Teppan Yaki Kombi",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "bunte Sennenkäsesauce (g)",
+        "oder Speck-Zwiebelschmelze (1,3,g)",
+        "hausgemachter Coleslaw Salat (3,c,g,j)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch"
+       ],
+       "main": true,
+       "pork_unknown": true
+      },
+      {
+       "id": "2026-11-26-6",
+       "name": "Reis-Gemüsebratling mit Pinienkernen",
+       "category": "Nds-Menü Natürlich Fit HK ZM",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.2",
+         "key": "gluten",
+         "name": "Gerste"
+        },
+        {
+         "code": "a.4",
+         "key": "gluten",
+         "name": "Roggen"
+        },
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "2",
+         "name": "mit Farbstoff"
+        },
+        {
+         "code": "5",
+         "name": "geschwefelt"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [
+        "Niedersachsen-Menü"
+       ],
+       "nutrition": null,
+       "components": [
+        "Limetten-Dip (2,g,l)",
+        "kleine Kräuterkartoffeln (5)",
+        "knackiger Eisbergsalat",
+        "Balsamico Dressing (2,3,j,l)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-26-7",
+       "name": "Cremiger Spinat-Laucheintopf mit Schafskäse",
+       "category": "Spezial Eintopf",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "a.4",
+         "key": "gluten",
+         "name": "Roggen"
+        },
+        {
+         "code": "a.2",
+         "key": "gluten",
+         "name": "Gerste"
+        },
+        {
+         "code": "a.3",
+         "key": "gluten",
+         "name": "Hafer"
+        },
+        {
+         "code": "k",
+         "key": "sesam",
+         "name": "Sesam"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        }
+       ],
+       "additives": [
+        {
+         "code": "5",
+         "name": "geschwefelt"
+        },
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "zusätzlich Mehrkornbrötchen (a.1,a,a.4,a.2,a.3,k)",
+        "oder Geflügelwürstchen Wiener Art (1,3,i)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch"
+       ],
+       "main": true,
+       "pork_unknown": true
+      },
+      {
+       "id": "2026-11-26-8",
+       "name": "Hähnchen Cordon bleu mit Käse und Geflügelschinken gefüllt",
+       "category": "Menü",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Paprikarahmsauce (g)",
+        "Zitronenecke",
+        "Pommes frites (3)",
+        "Campus Classic Mix"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch"
+       ],
+       "main": true,
+       "pork_unknown": true
+      },
+      {
+       "id": "2026-11-26-9",
+       "name": "veganes Schokomousse",
+       "category": "Dessert",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.3",
+         "key": "gluten",
+         "name": "Hafer"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "h.2",
+         "key": "schalenfruechte",
+         "name": "Haselnüsse"
+        },
+        {
+         "code": "h.1",
+         "key": "schalenfruechte",
+         "name": "Mandeln"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "mit frischen Johannisbeeren",
+        "oder Hausgemachter Fruchtquark Waldbeeren (g)",
+        "mit vegane Schokoraspeln (f)",
+        "oder Haselnussjoghurt (g,h.2,h)",
+        "mit Nougatröllchen (a,g,h.2,h.1)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "2026-11-26-10",
+       "name": "Last Minute",
+       "category": "Last Minute",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a",
+         "key": "gluten",
+         "name": "Glutenhaltiges Getreide"
+        },
+        {
+         "code": "b",
+         "key": "krebstiere",
+         "name": "Krebstiere"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "d",
+         "key": "fisch",
+         "name": "Fisch"
+        },
+        {
+         "code": "e",
+         "key": "erdnuss",
+         "name": "Erdnüsse"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "h",
+         "key": "schalenfruechte",
+         "name": "Schalenfrüchte"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "k",
+         "key": "sesam",
+         "name": "Sesam"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        },
+        {
+         "code": "m",
+         "key": "lupine",
+         "name": "Lupinen"
+        },
+        {
+         "code": "n",
+         "key": "weichtiere",
+         "name": "Weichtiere"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Last Minute Mo-Do von 14:15-14:30 Uhr und Fr 14.15-14.30 Uhr - Nur solange der Vorrat reicht ! 1 Hauptgericht + 2 Beilagen oder 1 Kombigericht + 1 Beilage Kann enthalten: (1-11) sowie (a-n). Für weitere Auskünfte fragen Sie gerne unser Personal."
+       ],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "image": null,
+       "labels": [],
+       "main": false
+      },
+      {
+       "id": "2026-11-26-11",
+       "name": "Pastabuffet",
+       "category": "Pasta- Buffet",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "14",
+         "name": "Kennzeichen 14 (in der Legende des Studierendenwerks nicht erklärt)"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Muschelnudeln (a.1,a)",
+        "Spiralnudeln bunt (a.1,a)",
+        "Nudeln Penne Rigate (a.1,a)",
+        "Farfalle Nudeln (a.1,a)",
+        "Carbonara Sauce mit Schinken (1,3,14,g)",
+        "Ratatouillesauce (j)",
+        "Pesto pomodori (1,3)",
+        "Zwiebel-Champignon-Schmelze (g)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch"
+       ],
+       "main": true,
+       "pork_unknown": true
+      },
+      {
+       "id": "2026-11-26-12",
+       "name": "Schweineschnitzel",
+       "category": "ZM Aktion 3 abends",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "5",
+         "name": "geschwefelt"
+        }
+       ],
+       "notes": [
+        "Nachmittagsangebot ab 14:30 Uhr"
+       ],
+       "nutrition": null,
+       "components": [
+        "Utrechter Art mit Champignons Tomaten und Gouda überbacken (3,g)",
+        "mit cremiger Kräutersauce (g)",
+        "Senf-Kartoffeln (5,j)",
+        "Pariser Karotten"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      }
+     ],
+     "2026-11-30": [
+      {
+       "id": "2026-11-30-0",
+       "name": "Veganer hausgemachter Rote-Bete- Hummus",
+       "category": "Vegan",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "k",
+         "key": "sesam",
+         "name": "Sesam"
+        },
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "frische Petersilie",
+        "Fladenbrot vegan (a,a.1,k)",
+        "Eisberg-Radicchiosalat",
+        "fruchtiges Mangodressing"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-30-1",
+       "name": "Vegane Falafelbällchen mit Blumenkohl",
+       "category": "Vegetarisch",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "k",
+         "key": "sesam",
+         "name": "Sesam"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Limetten-Minze-Sauce (3,g)",
+        "Gemüse-Vollkornreis (i)",
+        "Gurkensalat"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-30-2",
+       "name": "Salatvariationen in Selbstbedienung!",
+       "category": "Salatbuffet",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a",
+         "key": "gluten",
+         "name": "Glutenhaltiges Getreide"
+        },
+        {
+         "code": "b",
+         "key": "krebstiere",
+         "name": "Krebstiere"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "d",
+         "key": "fisch",
+         "name": "Fisch"
+        },
+        {
+         "code": "e",
+         "key": "erdnuss",
+         "name": "Erdnüsse"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "h",
+         "key": "schalenfruechte",
+         "name": "Schalenfrüchte"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "k",
+         "key": "sesam",
+         "name": "Sesam"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        },
+        {
+         "code": "m",
+         "key": "lupine",
+         "name": "Lupinen"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Können Allergene (a-m) und Zusatzstoffe (1-11) enthalten. Detaillierte Informationen am Salatbuffet."
+       ],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "image": null,
+       "labels": [],
+       "main": false
+      },
+      {
+       "id": "2026-11-30-3",
+       "name": "CampusCurry Fleischwurst vom Schwein",
+       "category": "CampusCurry",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Curryketchup Berliner Blume (3,j)",
+        "Pommes frites (3)",
+        "bunter Krautsalat mit Paprika"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch",
+        "schwein"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-30-4",
+       "name": "Vegane Currywurst",
+       "category": "CampusCurry Vegan",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Mango-Curryketchup (1)",
+        "Pommes frites (3)",
+        "bunter Krautsalat mit Paprika"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegan",
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-30-5",
+       "name": "Matjesfilets nach Hausfrauen Art in Joghurtsauce",
+       "category": "Nds-Menü Natürlich Fit HK ZM",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "d",
+         "key": "fisch",
+         "name": "Fisch"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "1",
+         "name": "mit Konservierungsstoff"
+        },
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "9",
+         "name": "mit Süßungsmittel"
+        },
+        {
+         "code": "5",
+         "name": "geschwefelt"
+        }
+       ],
+       "notes": [
+        "Niedersachsen-Menü"
+       ],
+       "nutrition": null,
+       "components": [
+        "Petersilienkartoffeln (5)",
+        "Blattsalatmix",
+        "Frenchdressing (3,c,g,j)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-30-6",
+       "name": "Vegane bunte mediterrane Nudelpfanne mit frischem Gemüse",
+       "category": "Teppan Yaki Kombi",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        },
+        {
+         "code": "6",
+         "name": "geschwärzt"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Ziegenkäse-Honig-Sauce (g)",
+        "oder fruchtige Tomaten-Basilikum-Sugo",
+        "Chinakohlsalat",
+        "Pfirsich-Joghurt Dressing (g)"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-30-7",
+       "name": "Gebackene Hähnchen Crossies aus dem Brustfilet",
+       "category": "Menü",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        }
+       ],
+       "additives": [
+        {
+         "code": "3",
+         "name": "mit Antioxidationsmittel"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "pikanter Curry Dip (3,c,g,j)",
+        "Crispy Chips (3)",
+        "Mais Erbsengemüse"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "fleisch"
+       ],
+       "main": true,
+       "pork_unknown": true
+      },
+      {
+       "id": "2026-11-30-8",
+       "name": "Veganes Cappuccino Dessert",
+       "category": "Dessert",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.3",
+         "key": "gluten",
+         "name": "Hafer"
+        },
+        {
+         "code": "h.1",
+         "key": "schalenfruechte",
+         "name": "Mandeln"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        }
+       ],
+       "additives": [
+        {
+         "code": "7",
+         "name": "gewachst"
+        }
+       ],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "oder Hausgemachter Milchreis (g)",
+        "mit Kirschsauce",
+        "oder Bananenjoghurt (g)",
+        "mit Schokoladensauce"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": false
+      },
+      {
+       "id": "2026-11-30-9",
+       "name": "Last Minute",
+       "category": "Last Minute",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a",
+         "key": "gluten",
+         "name": "Glutenhaltiges Getreide"
+        },
+        {
+         "code": "b",
+         "key": "krebstiere",
+         "name": "Krebstiere"
+        },
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "d",
+         "key": "fisch",
+         "name": "Fisch"
+        },
+        {
+         "code": "e",
+         "key": "erdnuss",
+         "name": "Erdnüsse"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "h",
+         "key": "schalenfruechte",
+         "name": "Schalenfrüchte"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        },
+        {
+         "code": "j",
+         "key": "senf",
+         "name": "Senf"
+        },
+        {
+         "code": "k",
+         "key": "sesam",
+         "name": "Sesam"
+        },
+        {
+         "code": "l",
+         "key": "sulfite",
+         "name": "Schwefeldioxid und Sulfite"
+        },
+        {
+         "code": "m",
+         "key": "lupine",
+         "name": "Lupinen"
+        },
+        {
+         "code": "n",
+         "key": "weichtiere",
+         "name": "Weichtiere"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Last Minute Mo-Do von 14:15-14:30 Uhr und Fr 14.15-14.30 Uhr - Nur solange der Vorrat reicht ! 1 Hauptgericht + 2 Beilagen oder 1 Kombigericht + 1 Beilage Kann enthalten: (1-11) sowie (a-n). Für weitere Auskünfte fragen Sie gerne unser Personal."
+       ],
+       "nutrition": null,
+       "components": [],
+       "climate": null,
+       "image": null,
+       "labels": [],
+       "main": false
+      },
+      {
+       "id": "2026-11-30-10",
+       "name": "Pastabuffet",
+       "category": "Pasta- Buffet",
+       "time": "mittag",
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "f",
+         "key": "soja",
+         "name": "Soja"
+        },
+        {
+         "code": "i",
+         "key": "sellerie",
+         "name": "Sellerie"
+        }
+       ],
+       "additives": [],
+       "notes": [],
+       "nutrition": null,
+       "components": [
+        "Spiralnudeln Totiglioni (a.1,a)",
+        "Spaghetti (a.1,a)",
+        "Spinatnudeln (a.1,a)",
+        "Vollkorn Soiralnudeln (a.1,a)",
+        "Spinat-Käsesauce (g)",
+        "Vegane Bolognesesauce mit Soja (f,i)",
+        "Schmorzwiebeln",
+        "Geröstete Kichererbsen"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      },
+      {
+       "id": "2026-11-30-11",
+       "name": "Kartoffelgratin Broccoli",
+       "category": "Aktion II",
+       "time": null,
+       "prices": {
+        "student": null,
+        "employee": null,
+        "guest": null
+       },
+       "allergens": [
+        {
+         "code": "c",
+         "key": "ei",
+         "name": "Eier"
+        },
+        {
+         "code": "g",
+         "key": "milch",
+         "name": "Milch"
+        },
+        {
+         "code": "a.1",
+         "key": "gluten",
+         "name": "Weizen"
+        }
+       ],
+       "additives": [],
+       "notes": [
+        "Nachmittagsangebot ab 14:30 Uhr"
+       ],
+       "nutrition": null,
+       "components": [
+        "Lauch -Käsesauce (a,a.1,g)",
+        "Tomatensalat mit Frühlingszwiebeln"
+       ],
+       "climate": null,
+       "image": null,
+       "labels": [
+        "vegetarisch"
+       ],
+       "main": true
+      }
+     ]
+    },
+    "closed": [
+     "2026-11-29"
+    ]
+   }
   }
  },
  "days": [
@@ -3961,6 +5443,213 @@
   "166002",
   "166006"
  ],
+ "stwgoe": {
+  "status": [
+   "open",
+   "closed",
+   "closed",
+   "closed",
+   "open",
+   "none"
+  ],
+  "filters": [
+   {
+    "filter": {},
+    "ids": [
+     "2026-11-26-0",
+     "2026-11-26-1",
+     "2026-11-26-2",
+     "2026-11-26-3",
+     "2026-11-26-4",
+     "2026-11-26-5",
+     "2026-11-26-6",
+     "2026-11-26-7",
+     "2026-11-26-8",
+     "2026-11-26-9",
+     "2026-11-26-10",
+     "2026-11-26-11",
+     "2026-11-26-12"
+    ],
+    "top": [
+     "2026-11-26-0",
+     "2026-11-26-1",
+     "2026-11-26-3"
+    ]
+   },
+   {
+    "filter": {
+     "vegan": true
+    },
+    "ids": [
+     "2026-11-26-0",
+     "2026-11-26-4"
+    ],
+    "top": [
+     "2026-11-26-0",
+     "2026-11-26-4"
+    ]
+   },
+   {
+    "filter": {
+     "vegetarisch": true
+    },
+    "ids": [
+     "2026-11-26-0",
+     "2026-11-26-1",
+     "2026-11-26-4",
+     "2026-11-26-6",
+     "2026-11-26-9"
+    ],
+    "top": [
+     "2026-11-26-0",
+     "2026-11-26-1",
+     "2026-11-26-4"
+    ]
+   },
+   {
+    "filter": {
+     "ohne_schwein": true
+    },
+    "ids": [
+     "2026-11-26-0",
+     "2026-11-26-1",
+     "2026-11-26-2",
+     "2026-11-26-4",
+     "2026-11-26-6",
+     "2026-11-26-9",
+     "2026-11-26-10"
+    ],
+    "top": [
+     "2026-11-26-0",
+     "2026-11-26-1",
+     "2026-11-26-4"
+    ]
+   },
+   {
+    "filter": {
+     "allergens": [
+      "gluten"
+     ]
+    },
+    "ids": [
+     "2026-11-26-3",
+     "2026-11-26-4"
+    ],
+    "top": [
+     "2026-11-26-3",
+     "2026-11-26-4"
+    ]
+   },
+   {
+    "filter": {
+     "allergens": [
+      "milch",
+      "ei"
+     ]
+    },
+    "ids": [
+     "2026-11-26-0",
+     "2026-11-26-3",
+     "2026-11-26-4"
+    ],
+    "top": [
+     "2026-11-26-0",
+     "2026-11-26-3",
+     "2026-11-26-4"
+    ]
+   },
+   {
+    "filter": {
+     "vegetarisch": true,
+     "allergens": [
+      "gluten"
+     ]
+    },
+    "ids": [
+     "2026-11-26-4"
+    ],
+    "top": [
+     "2026-11-26-4"
+    ]
+   },
+   {
+    "filter": {
+     "vegan": true,
+     "ohne_schwein": true,
+     "allergens": [
+      "soja",
+      "sellerie"
+     ]
+    },
+    "ids": [
+     "2026-11-26-4"
+    ],
+    "top": [
+     "2026-11-26-4"
+    ]
+   }
+  ],
+  "price_sort": [
+   "2026-11-26-0",
+   "2026-11-26-1",
+   "2026-11-26-2",
+   "2026-11-26-3",
+   "2026-11-26-4",
+   "2026-11-26-5",
+   "2026-11-26-6",
+   "2026-11-26-7",
+   "2026-11-26-8",
+   "2026-11-26-9",
+   "2026-11-26-10",
+   "2026-11-26-11",
+   "2026-11-26-12"
+  ],
+  "prices": [
+   "{\"employee\": null, \"guest\": null, \"student\": null}"
+  ],
+  "pork_unknown": [
+   "2026-11-26-5",
+   "2026-11-26-7",
+   "2026-11-26-8",
+   "2026-11-26-11"
+  ],
+  "urls": [
+   [
+    "2026-11-26",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-26/zentralmensa.html"
+   ],
+   [
+    "2026-11-27",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-27/zentralmensa.html"
+   ],
+   [
+    "2026-11-28",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-28/zentralmensa.html"
+   ],
+   [
+    "2026-11-29",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-29/zentralmensa.html"
+   ],
+   [
+    "2026-11-30",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-30/zentralmensa.html"
+   ],
+   [
+    "2026-12-01",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-12-01/zentralmensa.html"
+   ]
+  ],
+  "urls_short": [
+   [
+    "2026-11-26",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-26/mensa_am_turm.html"
+   ],
+   [
+    "2026-11-27",
+    "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-27/mensa_am_turm.html"
+   ]
+  ]
+ },
  "sorts": [
   {
    "fixture": "studifutter-garbsen.json",
@@ -4325,7 +6014,8 @@
  "urls": {
   "garbsen": "https://studi-futter.rocket-meals.de/rocket-meals/api/items/foodoffers?fields=id%2Cdate%2Calias%2Cprice_student%2Cprice_employee%2Cprice_guest%2Cfoodoffer_category.alias%2Cfoodoffer_category.sort%2Cmarkings.markings_id.external_identifier%2Cattribute_values.number_value%2Cattribute_values.string_value%2Cattribute_values.food_attribute.external_identifier%2Cfoodoffer_components.component_foodoffers_id.alias%2Cfood.image&limit=-1&filter=%7B%22_and%22%3A%5B%7B%22canteen%22%3A%7B%22_eq%22%3A%2293b60b44-7040-40a9-910a-96dcce287c3e%22%7D%7D%2C%7B%22date%22%3A%7B%22_between%22%3A%5B%222026-11-05%22%2C%222026-11-18%22%5D%7D%7D%5D%7D",
   "hi-uni": "https://sls.api.stw-on.de/v1/locations/150/menu/2026-11-05/2026-11-18",
-  "hauptmensa": "https://openmensa.org/api/v2/canteens/6/meals"
+  "hauptmensa": "https://openmensa.org/api/v2/canteens/6/meals",
+  "goe-cgin": "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached/de/2026-11-05/cgin.html"
  },
  "canteens": {
   "luh": {
@@ -4345,7 +6035,10 @@
     "hmtmh",
     "hi-uni",
     "hi-buehler",
-    "hi-hohnsen"
+    "hi-hohnsen",
+    "goe-zentralmensa",
+    "goe-cgin",
+    "goe-turm"
    ],
    "own": [
     "hauptmensa",
@@ -4371,7 +6064,10 @@
     "hmtmh",
     "hi-uni",
     "hi-buehler",
-    "hi-hohnsen"
+    "hi-hohnsen",
+    "goe-zentralmensa",
+    "goe-cgin",
+    "goe-turm"
    ],
    "own": [
     "linden",
@@ -4396,11 +6092,42 @@
     "blumhardt",
     "tiho-tower",
     "caballus",
-    "hmtmh"
+    "hmtmh",
+    "goe-zentralmensa",
+    "goe-cgin",
+    "goe-turm"
    ],
    "own": [
     "hi-uni",
     "hi-buehler"
+   ]
+  },
+  "goettingen": {
+   "university": "goettingen",
+   "region": "goettingen",
+   "default": "goe-zentralmensa",
+   "ids": [
+    "goe-zentralmensa",
+    "goe-cgin",
+    "goe-turm",
+    "hauptmensa",
+    "contine",
+    "garbsen",
+    "herrenhausen",
+    "linden",
+    "grosse-pause",
+    "blumhardt",
+    "tiho-tower",
+    "caballus",
+    "hmtmh",
+    "hi-uni",
+    "hi-buehler",
+    "hi-hohnsen"
+   ],
+   "own": [
+    "goe-zentralmensa",
+    "goe-cgin",
+    "goe-turm"
    ]
   },
   "unbekannt": {
@@ -4420,7 +6147,10 @@
     "hmtmh",
     "hi-uni",
     "hi-buehler",
-    "hi-hohnsen"
+    "hi-hohnsen",
+    "goe-zentralmensa",
+    "goe-cgin",
+    "goe-turm"
    ],
    "own": [
     "hauptmensa",

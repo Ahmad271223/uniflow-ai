@@ -43,7 +43,10 @@ enum DebugUniStub {
     /// Erfundenes Sitzungs-Cookie fuer die Stud.IP-Anmeldung der Nachbildung (leer gaelte als abgemeldet)
     static func studipCookies() -> [HTTPCookie] {
         guard isActive, let host = StudIPSync.base.host else { return [] }
-        return [HTTPCookie(properties: [.name: "Seminar_Session", .value: "stub-sitzung", .domain: host, .path: "/", .secure: "TRUE",
+        // Name wie am echten Rechner: LUH "Seminar_Session", Uni Goettingen "Studip_Session" (26.11.2026 gesehen); der
+        // Abgleich waehlt Cookies nach dem Rechner, nie nach dem Namen
+        let name = ActiveContainer.current?.key.university == .goettingen ? "Studip_Session" : "Seminar_Session"
+        return [HTTPCookie(properties: [.name: name, .value: "stub-sitzung", .domain: host, .path: "/", .secure: "TRUE",
                                         .expires: Date().addingTimeInterval(7 * 24 * 3600)])].compactMap { $0 }
     }
 

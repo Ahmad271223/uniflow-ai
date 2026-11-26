@@ -582,6 +582,10 @@ public enum QISParser {
         "copy": "©", "reg": "®", "euro": "€", "times": "×", "laquo": "«", "raquo": "»",
         "bdquo": "„", "ldquo": "“", "rdquo": "”", "sbquo": "‚", "lsquo": "‘", "rsquo": "’",
         "frac12": "½", "sup2": "²", "ensp": "\u{2002}", "emsp": "\u{2003}", "thinsp": "\u{2009}", "zwnj": "\u{200C}",
+        // Speiseplaene (Studierendenwerk Goettingen, 26.11.2026): Gerichte mit fremden Namen ("Cr&ecirc;pe", "Jalape&ntilde;o")
+        "acirc": "â", "ecirc": "ê", "icirc": "î", "ocirc": "ô", "ucirc": "û", "ntilde": "ñ", "iacute": "í", "uacute": "ú",
+        "igrave": "ì", "ograve": "ò", "ugrave": "ù", "euml": "ë", "iuml": "ï", "aring": "å", "oslash": "ø", "aelig": "æ",
+        "atilde": "ã", "otilde": "õ", "Agrave": "À", "Aacute": "Á", "Ccedil": "Ç", "Egrave": "È", "Ecirc": "Ê", "Ntilde": "Ñ",
     ]
 
     /// Windows-1252 statt C1-Steuerzeichen bei &#128;-&#159; (wie Browser)

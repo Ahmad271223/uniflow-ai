@@ -12,7 +12,7 @@ final class URLSessionStudIPWriter: StudIPWritingTransport, @unchecked Sendable 
     private let transport: URLSessionUniTransport
 
     init(cookies: [HTTPCookie], host: String, configuration: URLSessionConfiguration = .ephemeral) {
-        transport = URLSessionUniTransport(cookies: cookies, allowedDomains: [host] + URLSessionUniTransport.studipDomains,
+        transport = URLSessionUniTransport(cookies: cookies, allowedDomains: URLSessionUniTransport.studipDomains(host: host),
                                            configuration: configuration)
     }
 
@@ -279,11 +279,11 @@ extension StudIPSubmitModel.Dependencies {
         Self(connected: { studip.offersStudIP && studip.hasStoredSession },
              ensureSession: { await studip.ensureSession($0) },
              client: {
-                 let host = StudIPSync.base.host ?? ""
+                 let host = studip.base.host ?? ""
                  let writer: StudIPWritingTransport = DebugUniStub.studipWriter()
                      ?? URLSessionStudIPWriter(cookies: StudIPSync.ownCookies(studip.cookies.load(), host: host), host: host)
                  // wenige Anfragen auf Knopfdruck: kurze Pause, kleine Grenze
-                 return StudIPClient(base: StudIPSync.base, transport: writer, pauseMillis: 100, maxRequests: 40)
+                 return StudIPClient(base: studip.base, transport: writer, pauseMillis: 100, maxRequests: 40)
              },
              courses: { StudIPSubmitModel.courses(from: (try? await api.value("/api/courses")) ?? .array([])) },
              makePDF: makePDF,

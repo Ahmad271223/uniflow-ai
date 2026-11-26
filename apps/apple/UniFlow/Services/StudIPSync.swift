@@ -105,7 +105,7 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 
     /// `configuration`: nur Tests (feste Antworten ueber `URLProtocol`); sonst fluechtig, ohne Cookie-Speicher.
     init(cookies: [HTTPCookie], host: String, configuration: URLSessionConfiguration = .ephemeral) {
-        transport = URLSessionUniTransport(cookies: cookies, allowedDomains: [host] + URLSessionUniTransport.studipDomains,
+        transport = URLSessionUniTransport(cookies: cookies, allowedDomains: URLSessionUniTransport.studipDomains(host: host),
                                            configuration: configuration)
     }
 
@@ -161,8 +161,33 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
 /// versucht es damit nicht erneut und meldet sie nur einmal.
 @MainActor
 final class StudIPSync: ObservableObject {
-    /// Stud.IP der LUH aus dem Hochschul-Profil (die eine Quelle der Adresse)
-    static let base = UniversityKey.luh.profile.studipBase!
+    /// Stud.IP der LUH aus dem Hochschul-Profil (Vorgabe ohne offenen Container, Tests)
+    nonisolated static let luhBase = UniversityKey.luh.profile.studipBase!
+    /// Stud.IP der Hochschule des offenen Containers aus dem Hochschul-Profil (die eine Quelle der Adresse; LUH,
+    /// seit 26.11.2026 auch Uni Goettingen). Fuer Ansichten ohne eigenen Abgleich; ein Abgleich nimmt `base` seiner
+    /// eigenen Hochschule. Ohne offenen Container die LUH.
+    nonisolated static var base: URL { ActiveContainer.current?.key.university.profile.studipBase ?? luhBase }
+
+    /// Einstieg in die Anmeldung: LUH direkt ins WebSSO (`ssoLoginURL`); eine Hochschule mit eigenem Formular auf der
+    /// Stud.IP-Seite (Uni Goettingen, `UniLoginForms.goettingenStudIP`) die Anmeldeseite von Stud.IP selbst
+    nonisolated static func loginEntryURL(university: UniversityKey, base: URL) -> URL {
+        if university == .luh { return ssoLoginURL(base: base) }
+        return university.profile.loginService("studip")?.entryURLs.first ?? base.appendingPathComponent("dispatch.php/login")
+    }
+
+    /// Einstieg in die Anmeldung der Hochschule des offenen Containers (Ansichten)
+    nonisolated static func loginEntryURL(base: URL) -> URL {
+        let u = UniversityProfile.all.first { $0.studipBase?.host == base.host }?.key ?? .luh
+        return loginEntryURL(university: u, base: base)
+    }
+
+    /// Ist diese Adresse eine Stud.IP-Seite hinter der Anmeldung? Rechner von Stud.IP, nicht die Zwischenadresse des
+    /// WebSSO (`Shibboleth.sso`) und nicht das eigene Anmeldeformular der Hochschule (Goettingen: dispatch.php/login
+    /// liegt auf demselben Rechner; ohne diese Regel galt die Anmeldeseite selbst als "angekommen")
+    nonisolated static func isPastLogin(_ url: URL, university: UniversityKey, base: URL) -> Bool {
+        guard url.host?.lowercased() == base.host?.lowercased(), !url.path.contains("Shibboleth.sso") else { return false }
+        return UniLoginForms.form(for: url, university: university) == nil
+    }
 
     enum Phase: Equatable {
         case signedOut
@@ -330,8 +355,12 @@ final class StudIPSync: ObservableObject {
     }
 
     let root: URL
-    /// Hochschule des Containers; Stud.IP gibt es nur an der LUH
+    /// Hochschule des Containers; Stud.IP gibt es an der LUH und der Uni Goettingen (`UniversityProfile.studipBase`)
     let university: UniversityKey
+    /// Stud.IP dieser Hochschule (ohne Stud.IP die Adresse der LUH; dann gleicht die Instanz nie ab, `offersStudIP`)
+    let base: URL
+    /// Einstieg in die Anmeldung dieser Hochschule (`loginEntryURL`)
+    var loginEntry: URL { Self.loginEntryURL(university: university, base: base) }
     /// Sitzungs-Cookie dieses Containers im Schluesselbund
     let cookies: StudIPCookieStore
     /// Datenspeicher der Anmelde-Webansicht dieses Containers (`WKWebsiteDataStore(forIdentifier:)`)
@@ -383,6 +412,8 @@ final class StudIPSync: ObservableObject {
         self.defaults = defaults
         self.support = support
         self.university = university
+        let studipBase = university.profile.studipBase ?? Self.luhBase
+        self.base = studipBase
         self.cookies = cookies ?? ActiveContainer.current?.cookies ?? StudIPCookieStore(account: "ohne-container")
         self.websiteDataStore = websiteDataStore ?? .nonPersistent()
         // Videodateien aus Stud.IP (Dateibaum, Courseware) laufen ueber die JSON:API mit dem Sitzungs-Cookie dieses Containers
@@ -420,7 +451,7 @@ final class StudIPSync: ObservableObject {
         guard !legacyIndex.isEmpty, let files = host.files, let backend = try? await host.backend() else { return 0 }
         let entries = legacyIndex, courses = self.courses, root = self.root, now = clock.nowISO
         let adopted = try? await backend.context.database.transaction { c in
-            try StudIPLibrary.adopt(c, entries: entries, courses: courses, at: now, base: Self.base, localPath: { e in
+            try StudIPLibrary.adopt(c, entries: entries, courses: courses, at: now, base: base, localPath: { e in
                 let url = root.appendingPathComponent(e.relativePath)
                 return FileManager.default.fileExists(atPath: url.path) ? files.stored(url) : nil
             })
@@ -515,17 +546,17 @@ final class StudIPSync: ObservableObject {
               renewing == nil else { return false }
         let store = websiteDataStore
         let before = signOuts
-        let host = Self.base.host?.lowercased() ?? ""
+        let uni = university, base = self.base, entry = loginEntry
         var fresh: [HTTPCookie]?
-        let silent = await UniDirectLogin.silent(store: store, university: university, entry: Self.ssoLoginURL()) { url, _ in
-            url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
+        let silent = await UniDirectLogin.silent(store: store, university: university, entry: entry) { url, _ in
+            Self.isPastLogin(url, university: uni, base: base)
         }
         switch silent {
         case .done:
             fresh = await verifiedStudIPCookies(store)
         case .unsupported:
             // Seite ohne bekanntes Formular, nichts gesendet: wie bisher die unsichtbare Webansicht (ohne Passwort)
-            if liveSessionWorkAllowed { fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true) }
+            if liveSessionWorkAllowed { fresh = await StudIPSilentLogin.attempt(url: entry, dataStore: store, background: true, base: base, university: uni) }
         case .needsPassword:
             break
         case .cancelled, .failed, .blocked, .rejected:
@@ -535,7 +566,7 @@ final class StudIPSync: ObservableObject {
         if fresh == nil, await autoLogin(store: store, background: true) {
             fresh = await verifiedStudIPCookies(store)
             if fresh == nil, liveSessionWorkAllowed {
-                fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store, background: true)
+                fresh = await StudIPSilentLogin.attempt(url: entry, dataStore: store, background: true, base: base, university: uni)
             }
         }
         guard let fresh, sessionKnownExpired, signOuts == before, !stopped else { return false }
@@ -544,7 +575,7 @@ final class StudIPSync: ObservableObject {
 
     /// Stud.IP-Cookies des Datenspeichers, wenn Stud.IP sie annimmt (`users/me`); sonst nil
     private func verifiedStudIPCookies(_ store: WKWebsiteDataStore) async -> [HTTPCookie]? {
-        let mine = Self.ownCookies(await store.httpCookieStore.allCookies(), host: Self.base.host ?? "")
+        let mine = Self.ownCookies(await store.httpCookieStore.allCookies(), host: base.host ?? "")
         guard !mine.isEmpty, await Self.storedLoginSessionCheck(mine) else { return nil }
         return mine
     }
@@ -552,7 +583,7 @@ final class StudIPSync: ObservableObject {
     /// Direkter Einstieg ins WebSSO der LUH (ueberspringt die Hochschulauswahl), wie `SHIB_LOGIN_URL` in
     /// app/studip_sync.py
     static let ssoEntityID = "https://sso.idm.uni-hannover.de/idp/shibboleth"
-    static func ssoLoginURL(base: URL = base) -> URL {
+    nonisolated static func ssoLoginURL(base: URL = base) -> URL {
         let root = base.absoluteString.hasSuffix("/") ? String(base.absoluteString.dropLast()) : base.absoluteString
         let target = root + "/dispatch.php/login?sso=shib&again=yes&cancel_login=1"
         let enc = { (s: String) in s.addingPercentEncoding(withAllowedCharacters: .alphanumerics.union(CharacterSet(charactersIn: "-._~"))) ?? s }
@@ -560,7 +591,7 @@ final class StudIPSync: ObservableObject {
     }
 
     /// Cookies der Stud.IP-Adresse aus allen Cookies der Webansicht
-    static func ownCookies(_ all: [HTTPCookie], host: String = base.host ?? "") -> [HTTPCookie] {
+    nonisolated static func ownCookies(_ all: [HTTPCookie], host: String = base.host ?? "") -> [HTTPCookie] {
         all.filter { host.hasSuffix($0.domain.hasPrefix(".") ? String($0.domain.dropFirst()) : $0.domain) }
     }
 
@@ -589,11 +620,12 @@ final class StudIPSync: ObservableObject {
                                       knownExpired: true, state: renewal, now: Date()) == .renew else { return false }
         if phase != .needsLogin, !isRunning { phase = .needsLogin }   // abgelaufen gemerkt (Neustart): wie im Lauf
         let store = websiteDataStore
+        let uni = university, base = self.base, entry = loginEntry
         let task = Task { @MainActor () -> Bool in
-            var fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store)
+            var fresh = await StudIPSilentLogin.attempt(url: entry, dataStore: store, base: base, university: uni)
             // WebSSO will das Passwort: mit dem gespeicherten still anmelden, dann genau einmal neu (`UniAutoLogin`)
             if fresh == nil, await self.autoLogin(store: store) {
-                fresh = await StudIPSilentLogin.attempt(url: Self.ssoLoginURL(), dataStore: store)
+                fresh = await StudIPSilentLogin.attempt(url: entry, dataStore: store, base: base, university: uni)
             }
             guard let fresh, self.sessionKnownExpired else { return false }
             self.signedIn(cookies: fresh)                          // speichert (auch die Uni-Anmeldung) und startet den Abgleich
@@ -609,10 +641,10 @@ final class StudIPSync: ObservableObject {
     /// Automatisch anmelden (docs/AUTOMATISCH-ANMELDEN-2026-11-06.md): auf dem WebSSO mit dem gespeicherten Passwort
     /// (nur mit Zustimmung, nur dieses Geraet); true, wenn danach Stud.IP erreicht ist
     private func autoLogin(store: WKWebsiteDataStore, background: Bool = false) async -> Bool {
-        let host = Self.base.host?.lowercased() ?? ""
+        let uni = university, base = self.base
         let before = signOuts
-        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL(), background: background) { url, _ in
-            url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
+        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: loginEntry, background: background) { url, _ in
+            Self.isPastLogin(url, university: uni, base: base)
         }
         return d == .retryOnce && signOuts == before && hasStoredSession
     }
@@ -628,13 +660,13 @@ final class StudIPSync: ObservableObject {
     func connectWithStoredLogin(userAction: Bool = false) async -> Bool {
         guard offersStudIP, !hasStoredSession, !stopped, !UniAutoLogin.signedOut(.studip, store: websiteDataStore) else { return false }
         let store = websiteDataStore
-        let host = Self.base.host?.lowercased() ?? ""
+        let uni = university, base = self.base
         let before = signOuts
-        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: Self.ssoLoginURL(), userAction: userAction) { url, _ in
-            url.host?.lowercased() == host && !url.path.contains("Shibboleth.sso")
+        let d = await UniAutoLogin.handleExpiry(portal: "studip", store: store, entry: loginEntry, userAction: userAction) { url, _ in
+            Self.isPastLogin(url, university: uni, base: base)
         }
         guard d == .retryOnce, signOuts == before, !hasStoredSession, !stopped else { return false }
-        let mine = Self.ownCookies(await store.httpCookieStore.allCookies(), host: Self.base.host ?? "")
+        let mine = Self.ownCookies(await store.httpCookieStore.allCookies(), host: base.host ?? "")
         guard !mine.isEmpty, await Self.storedLoginSessionCheck(mine), signOuts == before, !hasStoredSession else { return false }
         signedIn(cookies: mine)
         return true
@@ -671,7 +703,7 @@ final class StudIPSync: ObservableObject {
             return await renewSilently(trigger: trigger) ? .renewed : needsUser()
         case .check:
             guard !isRunning else { return .ready }
-            switch await Self.sessionCheck(cookies.load()) {
+            switch await Self.sessionCheck(cookies.load(), base: base) {
             case .valid:
                 renewal.verified(at: Date())
                 return .ready
@@ -693,13 +725,13 @@ final class StudIPSync: ObservableObject {
     }
 
     /// Prueft mit den Cookies aus der Webansicht, ob Stud.IP die Sitzung annimmt.
-    static func sessionIsValid(_ cookies: [HTTPCookie]) async -> Bool {
-        await sessionCheck(cookies) == .valid
+    static func sessionIsValid(_ cookies: [HTTPCookie], base: URL = base) async -> Bool {
+        await sessionCheck(cookies, base: base) == .valid
     }
 
     /// Eine leichte Anfrage (`users/me`): gilt die Sitzung, ist sie abgelaufen (401, Weiterleitung zur Anmeldung) oder
     /// ist das nicht zu sagen (kein Netz, Stud.IP gestoert)? `transport`: nur Tests (feste Antworten).
-    static func sessionCheck(_ cookies: [HTTPCookie], transport: StudIPTransport? = nil) async -> UniSessionCheck {
+    static func sessionCheck(_ cookies: [HTTPCookie], transport: StudIPTransport? = nil, base: URL = base) async -> UniSessionCheck {
         let t = transport ?? URLSessionStudIPTransport(cookies: cookies, host: base.host ?? "")
         let c = StudIPClient(base: base, transport: t, pauseMillis: 0, maxRequests: 1)
         do {
@@ -725,9 +757,9 @@ final class StudIPSync: ObservableObject {
     /// das wie eine Anmeldung (der Abgleich startet). Nur bei verbundenem Stud.IP; nie eine neue Verbindung.
     func adoptBrowserSession() async {
         guard offersStudIP, hasStoredSession, liveSessionWorkAllowed, !isRunning else { return }
-        let mine = Self.ownCookies(await websiteDataStore.httpCookieStore.allCookies())
+        let mine = Self.ownCookies(await websiteDataStore.httpCookieStore.allCookies(), host: base.host ?? "")
         guard !mine.isEmpty, UniCookiePolicy.differs(mine, cookies.load()) else { return }
-        guard await Self.sessionCheck(mine) == .valid, hasStoredSession, !isRunning else { return }
+        guard await Self.sessionCheck(mine, base: base) == .valid, hasStoredSession, !isRunning else { return }
         if sessionKnownExpired {
             signedIn(cookies: mine)
         } else {
@@ -850,8 +882,8 @@ final class StudIPSync: ObservableObject {
 
     /// Client mit dem gespeicherten Sitzungs-Cookie (nur Debug mit -UFLoginStub: feste Antworten aus dem Stub-Ordner)
     func liveClient(_ cookies: [HTTPCookie]) -> StudIPClient {
-        let transport: StudIPTransport = DebugUniStub.studipTransport() ?? URLSessionStudIPTransport(cookies: cookies, host: Self.base.host ?? "")
-        return StudIPClient(base: Self.base, transport: transport, pauseMillis: Self.livePauseMillis)
+        let transport: StudIPTransport = DebugUniStub.studipTransport() ?? URLSessionStudIPTransport(cookies: cookies, host: base.host ?? "")
+        return StudIPClient(base: base, transport: transport, pauseMillis: Self.livePauseMillis)
     }
 
     /// Abgleich aller Portale (OpenSync, 11.11.2026): einen Lauf starten und nur bis "fertig" warten (Dateien,
@@ -1161,7 +1193,7 @@ final class StudIPSync: ObservableObject {
             // active_custom) gelten. Ihre Dateien holt Stufe (d) danach im Hintergrund (`olderOnly`,
             // `OlderSemesterLoader`), neuestes Semester zuerst, nur Dateiliste und Downloads.
             let term = SyncOrder.currentTerm(today: today, terms: courses.compactMap { c in
-                c.semesterTitle.map { SyncOrder.PortalTerm(title: $0, start: c.semesterStart) } }, university: .luh)
+                c.semesterTitle.map { SyncOrder.PortalTerm(title: $0, start: c.semesterStart) } }, university: university)
             let chosen = selectedNow.filter { active.contains($0.id) }.enumerated().sorted { a, b in
                 (SyncOrder.stage(active: true, semester: a.element.semesterTitle, current: term), a.offset)
                     < (SyncOrder.stage(active: true, semester: b.element.semesterTitle, current: term), b.offset)
@@ -1248,7 +1280,7 @@ final class StudIPSync: ObservableObject {
                     wantedByCourse[i] = try await db.transaction {
                         try StudIPLibrary.storeLinks($0, courseID: c.id, files, complete: complete, now: started)
                         // Videodateien zusaetzlich als Aufzeichnungen (Stream und Laden auf Wunsch, `OpencastStore`)
-                        try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: Self.base)
+                        try OpencastStore.storeFileVideos($0, courseID: c.id, files, complete: complete, now: started, base: base)
                         // Liste gelesen: das Modul zeigt ab jetzt seine Dateien statt "werden noch geladen" (`SyncPending`)
                         if complete { try SyncPending.markListed($0, courseID: c.id, now: started) }
                         // "Neu" erst nach dem ersten Einlesen (17.11.2026): der Kurs merkt sich einmal, wann seine Liste
@@ -1256,7 +1288,7 @@ final class StudIPSync: ObservableObject {
                         // einzelne Unterordner nicht zeigt (403/404, meist dauerhaft): sonst waere in solchen Kursen nie
                         // etwas neu. Eine nicht lesbare Liste kommt hier nicht an (der Kurs bleibt ohne Zeitpunkt).
                         try UniStore.markFirstListing($0, courseID: c.id, now: started)
-                        return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: Self.base, localFiles: localFiles)
+                        return try StudIPLibrary.storeFiles($0, files, startedAt: started, base: base, localFiles: localFiles)
                     }
                 }
             }
@@ -1306,7 +1338,7 @@ final class StudIPSync: ObservableObject {
             // Register stehen, aber keinen Ablageort haben, laedt jeder volle Lauf - auch wenn die Liste dieses Laufs
             // sie nicht (mehr) nannte. Absagen (403/404) ruhen wie oben; alles andere wird erneut versucht.
             var jobs = toLoad.map { DownloadJob(id: $0.id, courseID: $0.courseID, name: $0.name, size: $0.size,
-                                                row: StudIPLibrary.fileRow($0, base: Self.base), path: StudIPImport.relativePath(for: $0)) }
+                                                row: StudIPLibrary.fileRow($0, base: base), path: StudIPImport.relativePath(for: $0)) }
             if scope == .full, !olderOnly {
                 let tried = Set(toLoad.map(\.id)).union(restingIDs)
                 let courseIDs = Set(fileCourses.map(\.id))

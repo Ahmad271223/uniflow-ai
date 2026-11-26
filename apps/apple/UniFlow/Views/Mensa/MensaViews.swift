@@ -90,8 +90,28 @@ enum MensaUI {
     /// Sortierungen, fuer die es Daten gibt (Kalorien/Eiweiss nur mit Naehrwerten), wie `availableSorts` im Web
     static func sorts(for meals: [JSONValue]) -> [String] {
         func has(_ k: String) -> Bool { meals.contains { $0["nutrition"]?[k]?.double != nil } }
-        return Mensa.sorts.filter { $0 == "line" || $0 == "price" || ($0 == "kcal" && has("energy_kcal")) || ($0 == "protein" && has("protein")) }
+        // "Preis" nur, wenn es Preise gibt (Studierendenwerk Goettingen nennt keine); ohne geladene Gerichte wie bisher
+        let priced = meals.isEmpty || meals.contains(where: hasPrices)
+        return Mensa.sorts.filter { $0 == "line" || ($0 == "price" && priced) || ($0 == "kcal" && has("energy_kcal")) || ($0 == "protein" && has("protein")) }
     }
+
+    /// Nennt die Quelle fuer dieses Gericht ueberhaupt einen Preis (irgendeine Gruppe)? Der Speiseplan des
+    /// Studierendenwerks Goettingen nennt keine Preise je Gericht: dann zeigt die App keinen Betrag und keinen Strich
+    /// (26.11.2026: lieber keine Angabe als eine falsche).
+    static func hasPrices(_ meal: JSONValue) -> Bool {
+        ["student", "employee", "guest"].contains { meal["prices"]?[$0]?.double != nil }
+    }
+
+    /// Preis der Gruppe als Text ("3,80 €"; "–", wenn nur diese Gruppe fehlt); nil, wenn das Gericht gar keinen Preis hat
+    static func priceText(_ meal: JSONValue, role: String) -> String? {
+        hasPrices(meal) ? price(Mensa.price(meal, role: role)) : nil
+    }
+
+    /// Hinweis zum Filter "ohne Schwein" bei einer Quelle, die die Fleischart nicht nennt (`pork_unknown`)
+    static let porkUnknownHint = "Dieser Speiseplan nennt die Fleischart nicht. „Ohne Schwein“ blendet deshalb alle Fleischgerichte aus."
+
+    /// Hinweis statt der Preise bei einer Quelle ohne Preise
+    static let noPrices = "Der Speiseplan nennt keine Preise je Gericht. Die Preisliste steht auf der Seite der Mensa."
 
     /// "35,2" / "1.354" wie toLocaleString("de-DE")
     static func num(_ v: Double, digits: Int = 1) -> String {
@@ -197,7 +217,7 @@ enum MensaUI {
 
     /// VoiceOver einer Gerichtkarte: "Chili con Carne, 3,80 €, Rind, Menülinie Fleisch & Meer"
     static func accessibility(_ meal: JSONValue, role: String) -> String {
-        var parts = [meal.s("name") ?? "", price(Mensa.price(meal, role: role))]
+        var parts = [meal.s("name") ?? ""] + (priceText(meal, role: role).map { [$0] } ?? [])
         let l = shownLabels(meal).map { labelNames[$0] ?? $0 }
         if !l.isEmpty { parts.append(l.joined(separator: ", ")) }
         if let c = meal.s("category"), !c.isEmpty { parts.append("Menülinie \(c)") }
@@ -311,12 +331,14 @@ struct MensaPage: View {
             UFSegmented(options: [(MensaUI.Mode.today, "Heute"), (.tomorrow, "Morgen"), (.week, "Woche")], selection: $mode)
                 .accessibilityIdentifier("mensa.mode")
 
-            HStack(spacing: 6) {
-                Text("Preis für").ufFont(13).foregroundStyle(UF.muted)
-                UFSelect(options: MensaUI.roles, selection: Binding(get: { prefs.role }, set: { r in update { $0.role = r } }))
+            if showsPrices {
+                HStack(spacing: 6) {
+                    Text("Preis für").ufFont(13).foregroundStyle(UF.muted)
+                    UFSelect(options: MensaUI.roles, selection: Binding(get: { prefs.role }, set: { r in update { $0.role = r } }))
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("mensa.role")
             }
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier("mensa.role")
 
             let sorts = MensaUI.sorts(for: menu?.list("days").flatMap { $0.list("meals") } ?? [])
             HStack(spacing: 6) {
@@ -401,7 +423,8 @@ struct MensaPage: View {
                 .buttonStyle(.plain)
                 .accessibilityHint("Filter, Preis und Sortierung")
                 .accessibilityIdentifier("mensa.filters")
-                Text(prefs.filter.isEmpty ? "Preis: \(MensaUI.roles.first { $0.value == prefs.role }?.label ?? "")" : prefs.summary(names: names))
+                Text(prefs.filter.isEmpty ? (showsPrices ? "Preis: \(MensaUI.roles.first { $0.value == prefs.role }?.label ?? "")" : "Kein Filter")
+                     : prefs.summary(names: names))
                     .ufFont(12.8).foregroundStyle(UF.muted).lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityIdentifier("mensa.filters.summary")
@@ -447,11 +470,13 @@ struct MensaPage: View {
                     Toggle("ohne Schwein", isOn: Binding(get: { prefs.noPork }, set: { on in update { $0.noPork = on } }))
                         .accessibilityIdentifier("mensa.sheet.nopork")
                 }
-                Section("Preis und Reihenfolge") {
-                    Picker("Preis für", selection: Binding(get: { prefs.role }, set: { r in update { $0.role = r } })) {
-                        ForEach(MensaUI.roles, id: \.value) { Text($0.label).tag($0.value) }
+                Section(showsPrices ? "Preis und Reihenfolge" : "Reihenfolge") {
+                    if showsPrices {
+                        Picker("Preis für", selection: Binding(get: { prefs.role }, set: { r in update { $0.role = r } })) {
+                            ForEach(MensaUI.roles, id: \.value) { Text($0.label).tag($0.value) }
+                        }
+                        .accessibilityIdentifier("mensa.sheet.role")
                     }
-                    .accessibilityIdentifier("mensa.sheet.role")
                     Picker("Sortieren", selection: Binding(get: { sorts.contains(prefs.sort) ? prefs.sort : "line" }, set: { v in update { $0.sort = v } })) {
                         ForEach(sorts, id: \.self) { Text(MensaUI.sortLabels[$0] ?? $0).tag($0) }
                     }
@@ -520,6 +545,13 @@ struct MensaPage: View {
     @ViewBuilder private func days(_ menu: JSONValue) -> some View {
         let ds = menu.list("days")
         VStack(alignment: .leading, spacing: 8) {
+            // Quelle ohne Fleischart (Studierendenwerk Goettingen): "ohne Schwein" blendet dort jedes Fleischgericht aus
+            if prefs.noPork, ds.contains(where: { $0.list("meals").contains { $0["pork_unknown"]?.bool == true } }) {
+                Text(MensaUI.porkUnknownHint).ufFont(12.8).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                    .padding(10).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: UF.rSm).fill(UF.surface2))
+                    .accessibilityIdentifier("mensa.pork.hint")
+            }
             ForEach(ds, id: \.self) { d in
                 if mode == .week {
                     Text("\(MensaUI.dayLabel(d.s("date") ?? "", today: today)) · \(UFFmt.longToday(Fmt.date(d.s("date")) ?? Date()))")
@@ -596,6 +628,10 @@ struct MensaPage: View {
         }
     }
 
+    /// Zeigt die gewaehlte Mensa Preise? Nein bei einer Quelle ohne Preise je Gericht (Studierendenwerk Goettingen):
+    /// dann gibt es weder "Preis für" noch die Sortierung nach Preis
+    private var showsPrices: Bool { Mensa.sourceHasPrices(menu?["source"]?.s("key")) }
+
     private func sourceLine(_ menu: JSONValue) -> String {
         var s = menu["source"]?.s("attribution") ?? ""
         if let at = menu.s("fetched_at"), at.count >= 16 { s += " · Stand \(at.dropFirst(11).prefix(5)) Uhr" }
@@ -631,7 +667,7 @@ struct MensaMealCard: View {
                     Text(((meal.s("category") ?? "") + (meal.s("time") == "abend" ? " · abends" : "")).uppercased())
                         .ufFont(11.5, 600, em: 0.03).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 6)
-                    Text(MensaUI.price(Mensa.price(meal, role: role))).ufFont(15, 700).foregroundStyle(UF.text).fixedSize()
+                    if let price = MensaUI.priceText(meal, role: role) { Text(price).ufFont(15, 700).foregroundStyle(UF.text).fixedSize() }
                 }
                 Text(meal.s("name") ?? "").ufFont(main ? 16 : 15, main ? 600 : 500).foregroundStyle(UF.text)
                     .multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
@@ -716,7 +752,12 @@ struct MensaMealDetail: View {
                             .joined(separator: " · ")).ufFont(13.5).foregroundStyle(UF.muted)
                     }
                     section("Preise") {
-                        ForEach(MensaUI.roles, id: \.value) { r in row(r.label, MensaUI.price(Mensa.price(meal, role: r.value))) }
+                        if MensaUI.hasPrices(meal) {
+                            ForEach(MensaUI.roles, id: \.value) { r in row(r.label, MensaUI.price(Mensa.price(meal, role: r.value))) }
+                        } else {
+                            Text(MensaUI.noPrices).ufFont(13.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                                .accessibilityIdentifier("mensa.detail.noprices")
+                        }
                     }
                     let comps = meal.list("components").compactMap(\.string)
                     if !comps.isEmpty { section("Bestandteile und Beilagen") { bullets(comps) } }
@@ -819,7 +860,7 @@ struct MensaTodayCard: View {
                             if let l = MensaUI.shownLabels(m).first(where: { $0 == "vegan" || $0 == "vegetarisch" }) {
                                 UFBadge(MensaUI.labelNames[l] ?? l, tone: .ok)
                             }
-                            Text(MensaUI.price(Mensa.price(m, role: role))).ufFont(14.5, 700).foregroundStyle(UF.text).fixedSize()
+                            if let price = MensaUI.priceText(m, role: role) { Text(price).ufFont(14.5, 700).foregroundStyle(UF.text).fixedSize() }
                         }
                         .padding(.vertical, 6)
                         .ufBorderBottom(m != meals.last)

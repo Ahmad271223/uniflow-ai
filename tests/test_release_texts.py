@@ -240,7 +240,9 @@ def test_app_store_texts_match_current_build():
     # 14.11.2026 (Inhaber): 1.0.4 mit Universitaet Hildesheim, Hochschule Hannover bleibt ausgeblendet
     assert "1.0.4 mit Universität Hildesheim" in text
     assert re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim"\n', yml), "Release-Build LUH und Hildesheim"
-    assert re.search(r'Debug:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"\n', yml), "Debug und Tests alle drei"
+    # seit 26.11.2026 auch die Uni Goettingen (nur Debug und Tests; Release erst nach Freigabe des Inhabers)
+    assert re.search(r'Debug:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh goettingen"\n', yml), "Debug und Tests alle vier"
+    assert "goettingen" not in re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "([^"]*)"', yml).group(1), "Göttingen nicht im Store"
     assert "UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)" in yml
     if (APPLE / "Info.plist").is_file():                 # von xcodegen erzeugt (gitignore), nur wo es liegt
         assert "<key>UFShippedUniversities</key>" in (APPLE / "Info.plist").read_text(encoding="utf-8")

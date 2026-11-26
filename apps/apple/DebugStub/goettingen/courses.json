@@ -1,0 +1,219 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 6
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "courses",
+   "id": "155acb78c2e55f6f101677b5c478e8f4",
+   "attributes": {
+    "course-number": "700011",
+    "title": "Mathematik für Wirtschaftswissenschaftler",
+    "subtitle": null,
+    "course-type": 111,
+    "description": null,
+    "location": null,
+    "miscellaneous": null
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    },
+    "end-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    }
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/courses/155acb78c2e55f6f101677b5c478e8f4"
+   }
+  },
+  {
+   "type": "courses",
+   "id": "18db79536ec05b0efaf518bb4dbff602",
+   "attributes": {
+    "course-number": "700012",
+    "title": "Übung zu Mathematik für Wirtschaftswissenschaftler",
+    "subtitle": null,
+    "course-type": 21,
+    "description": null,
+    "location": null,
+    "miscellaneous": null
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    },
+    "end-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    }
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/courses/18db79536ec05b0efaf518bb4dbff602"
+   }
+  },
+  {
+   "type": "courses",
+   "id": "05c992a8ae577ef1e61028c6aa474074",
+   "attributes": {
+    "course-number": "200305",
+    "title": "Einführung in das Bürgerliche Recht",
+    "subtitle": null,
+    "course-type": 1,
+    "description": null,
+    "location": null,
+    "miscellaneous": null
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    },
+    "end-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    }
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/courses/05c992a8ae577ef1e61028c6aa474074"
+   }
+  },
+  {
+   "type": "courses",
+   "id": "f9bd2e4f6c0bd32e6173521e569f5f27",
+   "attributes": {
+    "course-number": "800120",
+    "title": "Seminar Unternehmensführung",
+    "subtitle": null,
+    "course-type": 4,
+    "description": null,
+    "location": null,
+    "miscellaneous": null
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    },
+    "end-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    }
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/courses/f9bd2e4f6c0bd32e6173521e569f5f27"
+   }
+  },
+  {
+   "type": "courses",
+   "id": "f02db6dbb98e67326737722d28a08920",
+   "attributes": {
+    "course-number": null,
+    "title": "Erstsemester-Forum der Fakultät",
+    "subtitle": null,
+    "course-type": 15,
+    "description": null,
+    "location": null,
+    "miscellaneous": null
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "2a89f49298de03f5e06ec6efffb27e0f"
+     }
+    }
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/courses/f02db6dbb98e67326737722d28a08920"
+   }
+  },
+  {
+   "type": "courses",
+   "id": "3975df4e6cd01e4d71d6573087d218a3",
+   "attributes": {
+    "course-number": "700020",
+    "title": "Statistik (Sommersemester)",
+    "subtitle": null,
+    "course-type": 1,
+    "description": null,
+    "location": null,
+    "miscellaneous": null
+   },
+   "relationships": {
+    "start-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "f915b06117bd8b8324b027f6f422e619"
+     }
+    },
+    "end-semester": {
+     "data": {
+      "type": "semesters",
+      "id": "f915b06117bd8b8324b027f6f422e619"
+     }
+    }
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/courses/3975df4e6cd01e4d71d6573087d218a3"
+   }
+  }
+ ],
+ "included": [
+  {
+   "type": "semesters",
+   "id": "2a89f49298de03f5e06ec6efffb27e0f",
+   "attributes": {
+    "title": "WiSe 2026/27",
+    "token": "",
+    "start": "2026-10-01T00:00:00+02:00",
+    "end": "2027-03-31T23:59:59+02:00",
+    "start-of-lectures": "2026-10-26T00:00:00+01:00",
+    "end-of-lectures": "2027-02-12T23:59:59+01:00",
+    "visible": true,
+    "is-current": true
+   }
+  },
+  {
+   "type": "semesters",
+   "id": "f915b06117bd8b8324b027f6f422e619",
+   "attributes": {
+    "title": "SoSe 2026",
+    "token": "",
+    "start": "2026-04-01T00:00:00+02:00",
+    "end": "2026-09-30T23:59:59+02:00",
+    "start-of-lectures": "2026-04-13T00:00:00+02:00",
+    "end-of-lectures": "2026-07-17T23:59:59+02:00",
+    "visible": true,
+    "is-current": false
+   }
+  }
+ ]
+}
