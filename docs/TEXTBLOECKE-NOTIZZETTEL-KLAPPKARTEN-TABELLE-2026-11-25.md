@@ -597,6 +597,20 @@ Bewusst offen bzw. am iPad zu prüfen:
 - Verweis folgen: Free bekommt die Tarifwahl für die geteilte Ansicht; am iPhone öffnet ein fremdes Ziel nicht.
 - Farbe und Schriftgröße ganzer Textfelder gehen (wie in 1.0.7) ohne Pro AI.
 
-### 12.4 Prüfläufe nach den Korrekturen
+### 12.4 Prüfläufe nach den Korrekturen (26.11.2026)
 
-Siehe Abschnitt 12.5 (wird nach dem ganzen Lauf ergänzt).
+- Rechenkern komplett: 1882 Tests grün (Zweig ohne Tabelle) bzw. alle Tabellen-Tests grün (`editor/tabelle`).
+- Ganze App-Sammlung im iPad-Simulator (`editor/tabelle` @ 751a3bd0): 2264 Tests, 12 rot. Davon ein **echter Fund**:
+  KI-Feld und Filter der Tabelle öffneten sich an der Mac-Schranke vorbei (`.popover` statt `.ufPopover`, am Mac
+  Absturzgefahr) → behoben (`5087101c`). Die übrigen sind auf dem Ausgangsstand `9a5983d8` genauso rot:
+  StoreScreenshotTests.test01Uebersicht, ExamGeneratorUITests (2), WebSideUITests (2), MacTestIsolationTests (nur am
+  Mac sinnvoll), EditorScale/EditorStrichBleibt (Bild-für-Bild-Messungen, abhängig von Last und Reihenfolge).
+- EditorStrichBleibtTests.testNeuerStrichFehltInKeinemBildNachDemAbsetzen genauer: allein auf `editor/tabelle` grün;
+  auf dem Stand von Build 50 (`release/1.0.8-alles` @ b1682e3a) schon ohne meine Änderungen rot (4 von 4 Fällen mit
+  Lücke), mit meinem Paket 1 von 4. An die Sitzung gemeldet, die Build 50 baut.
+- Danach (`5087101c`): iPad-Simulator Tabelle 15, Schranke 7, Textblöcke 31, Notizzettel 4 grün; iPhone-Simulator 58 grün.
+- Zweig für Build 50 ohne Tabelle: `editor/befunde-ohne-tabelle` (`~/Studora-Builds/wt-befunde-108`, bbaf9570 +
+  f503f210 auf b1682e3a). iPad- und iPhone-Simulator: Textblöcke 31, Notizzettel 4, Schranke 7 grün.
+- Testfassung fürs iPad: `test/ipad-editor-whisper-tabelle` @ 3ce90118 (= Stand des iPads 88e732c1 + `editor/tabelle`),
+  57 Tests grün, Gerätefassung gebaut (`~/Studora-Builds/dd-kombi-tabelle-geraet`, 26.11. 16:21), **nicht aufgespielt**.
+- Nicht gelaufen: Mac (die Build-50-Sitzung fuhr gerade ihren Mac-Lauf), echtes Gerät, echte KI.
