@@ -179,6 +179,12 @@ def _user_with_tokens(email, tokens, tz="Europe/Berlin", environment=None):
     return u["id"]
 
 
+def _accounts_with_tokens(tokens, tz="Europe/Berlin", environment=None):
+    """Je Token ein eigenes Konto mit einem Geraet: Versandtests mit mehreren Geraeten (seit 26.11.2026 weckt der Dienst
+    je Konto nur ein Geraet, `wake_push.wake_devices`)."""
+    return [_user_with_tokens(f"geraet{i}-{t[:6]}@beispiel.de", [t], tz=tz, environment=environment) for i, t in enumerate(tokens)]
+
+
 # ---------------------------------------------------------------- Zeitplan: Fenster, Staffelung, 20 je Tag
 
 def test_the_three_numbers_live_in_one_place():
@@ -706,7 +712,7 @@ def test_jwt_is_never_renewed_within_twenty_minutes_even_if_apple_rejects_it(swi
     from app import wake_push
     monkeypatch.setattr(wake_push, "CONFIG_PAUSE_S", 60)
     a, b, c = (tokens_with_offset(k)[0] for k in (0, 10, 25))
-    _user_with_tokens("a@beispiel.de", [a, b, c])
+    _accounts_with_tokens([a, b, c])
     apns = FakeApns()
     sender = wake_push.Sender(apns)
     day = lambda h, mi: berlin(2026, 11, 17, h, mi)  # noqa: E731
@@ -761,7 +767,7 @@ def test_only_one_of_two_processes_gets_the_section(switched_on):
 def test_a_full_day_through_the_sender_gives_twenty_signals_per_device(switched_on):
     from app import wake_push
     t0, t29 = tokens_with_offset(0)[0], tokens_with_offset(29)[0]
-    _user_with_tokens("a@beispiel.de", [t0, t29])
+    _accounts_with_tokens([t0, t29])
     _user_with_tokens("b@beispiel.de", tokens_with_offset(5, 1), tz="America/New_York")
     apns = FakeApns()
     sender = wake_push.Sender(apns)
@@ -777,10 +783,51 @@ def test_a_full_day_through_the_sender_gives_twenty_signals_per_device(switched_
     assert len(apns.calls) == 60
 
 
+def _register_at(email, uid, device, token, when, platform="ios"):
+    """Geraet `device` des Kontos meldet `token` zum Zeitpunkt `when` (die App meldet sich beim Oeffnen)."""
+    from app import accounts, wake_push
+    _, session = accounts.login(email, PW, device, device)
+    wake_push.register(uid, session, token, platform, "1.0.9", "Europe/Berlin", now=when)
+
+
+def test_only_the_device_used_last_is_woken_per_account(switched_on):
+    """26.11.2026 ("Abruf schonen"): iPad, iPhone und Mac eines Kontos - geweckt wird nur das zuletzt benutzte, sonst
+    gliche das Konto dreimal alle 30 Minuten bei der Hochschule ab. Ein anderes Konto zaehlt fuer sich."""
+    from app import accounts, wake_push
+    ipad, iphone, mac, other = tokens_with_offset(0, 4)
+    email = "drei@beispiel.de"
+    uid = accounts.register(email, PW, "luh")["id"]
+    _register_at(email, uid, "ipad", ipad, berlin(2026, 11, 17, 7, 0), "ipados")
+    _register_at(email, uid, "iphone", iphone, berlin(2026, 11, 17, 7, 30))
+    _register_at(email, uid, "mac", mac, berlin(2026, 11, 17, 6, 0), "macos")
+    _accounts_with_tokens([other])
+    now = berlin(2026, 11, 17, 9, 0)
+    assert sorted(r["token"] for r, _ in wake_push.due(now)) == sorted([iphone, other])
+    apns = FakeApns()
+    assert wake_push.Sender(apns).tick(now)["sent"] == 2
+    assert iphone in apns.tokens() and ipad not in apns.tokens() and mac not in apns.tokens()
+    # Mittags wird das iPad geoeffnet: ab dem naechsten Abschnitt weckt der Dienst das iPad, nicht mehr das iPhone
+    _register_at(email, uid, "ipad", ipad, berlin(2026, 11, 17, 12, 5), "ipados")
+    later = berlin(2026, 11, 17, 12, 30)
+    assert sorted(r["token"] for r, _ in wake_push.due(later)) == sorted([ipad, other])
+    # alle drei Geraete bleiben gemeldet (Abmelden, Export und Aufraeumen wie bisher)
+    assert len(wake_push.devices(uid)) == 3
+
+
+def test_same_last_report_picks_one_device_stably():
+    from app import wake_push
+    rows = [{"token": "bb", "user_id": "u1", "last_seen_at": "2026-11-17T08:00:00Z"},
+            {"token": "aa", "user_id": "u1", "last_seen_at": "2026-11-17T08:00:00Z"},
+            {"token": "cc", "user_id": "u1", "last_seen_at": "2026-11-17T07:00:00Z"},
+            {"token": "dd", "user_id": "u2", "last_seen_at": "2026-11-17T06:00:00Z"}]
+    assert sorted(r["token"] for r in wake_push.wake_devices(rows)) == ["aa", "dd"]
+    assert sorted(r["token"] for r in wake_push.wake_devices(list(reversed(rows)))) == ["aa", "dd"]
+
+
 def test_tokens_apple_calls_invalid_are_deleted(switched_on):
     from app import wake_push
     gone, bad, unreg, wrong_topic, odd, fine = tokens_with_offset(0, 6)
-    _user_with_tokens("a@beispiel.de", [gone, bad, unreg, wrong_topic, odd, fine])
+    _accounts_with_tokens([gone, bad, unreg, wrong_topic, odd, fine])
     apns = FakeApns()
     apns.responses = {gone: apple(410, "Unregistered"), bad: apple(400, "BadDeviceToken"), unreg: apple(400, "Unregistered"),
                       wrong_topic: apple(400, "DeviceTokenNotForTopic"), odd: apple(400, "PayloadEmpty")}
@@ -814,7 +861,7 @@ def test_410_older_than_the_latest_report_keeps_the_device(switched_on):
 def test_apple_asks_to_slow_down_and_the_service_pauses_instead_of_storming(switched_on, status, reason):
     from app import wake_push
     tokens = tokens_with_offset(0, 5)
-    _user_with_tokens("a@beispiel.de", tokens)
+    _accounts_with_tokens(tokens)
     apns = FakeApns()
     sender = wake_push.Sender(apns)
     apns.default = apple(status, reason)
@@ -868,7 +915,7 @@ def test_pause_grows_only_up_to_a_limit_and_respects_retry_after(switched_on):
 def test_no_connection_pauses_too_and_does_not_send_twice(switched_on):
     from app import wake_push
     tokens = tokens_with_offset(0, 3)
-    _user_with_tokens("a@beispiel.de", tokens)
+    _accounts_with_tokens(tokens)
     apns = FakeApns()
     sender = wake_push.Sender(apns)
     apns.responses[tokens[0]] = TimeoutError("keine Antwort")
@@ -982,7 +1029,7 @@ def test_without_the_http2_package_nothing_is_sent_and_it_is_said_once(switched_
 def test_log_never_contains_a_token_only_a_short_hash(switched_on, caplog):
     from app import wake_push
     gone, odd, fine, down = tokens_with_offset(0, 4)
-    _user_with_tokens("a@beispiel.de", [gone, odd, fine, down])
+    _accounts_with_tokens([gone, odd, fine, down])
     apns = FakeApns()
     sender = wake_push.Sender(apns)
     apns.responses = {gone: apple(410, "Unregistered"), odd: apple(400, "Seltsam\nGEFÄLSCHTE ZEILE " + odd),
@@ -1257,7 +1304,7 @@ def test_real_http2_transport_speaks_to_a_local_apns(local_apns, caplog):
 def test_sender_end_to_end_over_http2_against_the_local_apns(local_apns, switched_on, apns_key, monkeypatch):
     from app import wake_push
     fine, gone = tokens_with_offset(0, 2)
-    _user_with_tokens("a@beispiel.de", [fine, gone])
+    _accounts_with_tokens([fine, gone])
     local_apns.responses[gone] = (410, json.dumps({"reason": "Unregistered"}).encode())
     monkeypatch.setattr(wake_push, "HOSTS", {"production": "127.0.0.1", "sandbox": "127.0.0.1"})
     transport = wake_push.Http2Transport(verify=local_apns.client_context(), port=local_apns.port)
