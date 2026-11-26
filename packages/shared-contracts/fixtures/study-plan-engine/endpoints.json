@@ -341,6 +341,58 @@
     "message": "Für deinen Studiengang gibt es noch keinen Katalog.",
     "notes": [],
     "order_suggestion": null,
+    "passed_terms": [
+     {
+      "lp": 0.0,
+      "name": "WiSe 25/26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Programmieren I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Mathematik I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen digitaler Systeme"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Elektrotechnische Grundlagen I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen der theoretischen Informatik"
+       }
+      ],
+      "term": 4051
+     },
+     {
+      "lp": 0.0,
+      "name": "SoSe 26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,0",
+        "program": null,
+        "text": "Mathematik II"
+       }
+      ],
+      "term": 4052
+     }
+    ],
     "placements": {},
     "po": null,
     "po_confirmed": false,
@@ -640,7 +692,7 @@
     "code": "TIBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": "B.Sc.",
+    "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [
@@ -757,6 +809,58 @@
      }
     ],
     "order_suggestion": null,
+    "passed_terms": [
+     {
+      "lp": 0.0,
+      "name": "WiSe 25/26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Programmieren I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Mathematik I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen digitaler Systeme"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Elektrotechnische Grundlagen I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen der theoretischen Informatik"
+       }
+      ],
+      "term": 4051
+     },
+     {
+      "lp": 0.0,
+      "name": "SoSe 26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,0",
+        "program": null,
+        "text": "Mathematik II"
+       }
+      ],
+      "term": 4052
+     }
+    ],
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
@@ -2088,7 +2192,7 @@
     "code": "TIBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": "B.Sc.",
+    "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [
@@ -2205,6 +2309,58 @@
      }
     ],
     "order_suggestion": null,
+    "passed_terms": [
+     {
+      "lp": 0.0,
+      "name": "WiSe 25/26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Programmieren I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Mathematik I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen digitaler Systeme"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Elektrotechnische Grundlagen I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen der theoretischen Informatik"
+       }
+      ],
+      "term": 4051
+     },
+     {
+      "lp": 0.0,
+      "name": "SoSe 26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,0",
+        "program": null,
+        "text": "Mathematik II"
+       }
+      ],
+      "term": 4052
+     }
+    ],
     "placements": {},
     "po": "2022",
     "po_confirmed": false,
@@ -3090,7 +3246,7 @@
     "code": "INFBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": "B.Sc.",
+    "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [
      {
@@ -3168,6 +3324,58 @@
      }
     ],
     "order_suggestion": null,
+    "passed_terms": [
+     {
+      "lp": 0.0,
+      "name": "WiSe 25/26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Programmieren I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Mathematik I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen digitaler Systeme"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Elektrotechnische Grundlagen I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen der theoretischen Informatik"
+       }
+      ],
+      "term": 4051
+     },
+     {
+      "lp": 0.0,
+      "name": "SoSe 26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,0",
+        "program": null,
+        "text": "Mathematik II"
+       }
+      ],
+      "term": 4052
+     }
+    ],
     "placements": {},
     "po": "2022",
     "po_confirmed": true,
@@ -3427,6 +3635,58 @@
     "message": "Für die Prüfungsordnung 1999 gibt es noch keinen Katalog.",
     "notes": [],
     "order_suggestion": null,
+    "passed_terms": [
+     {
+      "lp": 0.0,
+      "name": "WiSe 25/26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Programmieren I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Mathematik I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen digitaler Systeme"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Elektrotechnische Grundlagen I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen der theoretischen Informatik"
+       }
+      ],
+      "term": 4051
+     },
+     {
+      "lp": 0.0,
+      "name": "SoSe 26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,0",
+        "program": null,
+        "text": "Mathematik II"
+       }
+      ],
+      "term": 4052
+     }
+    ],
     "placements": {},
     "po": null,
     "po_confirmed": true,
@@ -3835,17 +4095,21 @@
     "custom": [
      {
       "area": null,
+      "content": null,
       "id": "eigen-2",
       "lp": 4,
       "semester": null,
-      "title": "Spanisch A1"
+      "title": "Spanisch A1",
+      "workload_h": null
      },
      {
       "area": null,
+      "content": null,
       "id": "eigen-1",
       "lp": 0,
       "semester": null,
-      "title": "Rhetorik"
+      "title": "Rhetorik",
+      "workload_h": null
      }
     ],
     "elective_lp_required": 20,
@@ -4139,7 +4403,7 @@
     "code": "TIBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": "B.Sc.",
+    "degree": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [
@@ -4264,6 +4528,58 @@
      }
     ],
     "order_suggestion": null,
+    "passed_terms": [
+     {
+      "lp": 0.0,
+      "name": "WiSe 25/26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Programmieren I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Mathematik I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen digitaler Systeme"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Elektrotechnische Grundlagen I"
+       },
+       {
+        "lp": 0,
+        "note": "2,3",
+        "program": null,
+        "text": "Grundlagen der theoretischen Informatik"
+       }
+      ],
+      "term": 4051
+     },
+     {
+      "lp": 0.0,
+      "name": "SoSe 26",
+      "rows": [
+       {
+        "lp": 0,
+        "note": "2,0",
+        "program": null,
+        "text": "Mathematik II"
+       }
+      ],
+      "term": 4052
+     }
+    ],
     "placements": {
      "mathematik-3": "WiSe 27/28",
      "rechnernetze": "SoSe 27"
@@ -4475,6 +4791,7 @@
         "attempt": null,
         "attempt_known": false,
         "code": null,
+        "content": null,
         "custom": true,
         "final": false,
         "grade": null,
@@ -4490,13 +4807,15 @@
         "semester": null,
         "status": "offen",
         "title": "Spanisch A1",
-        "turnus": null
+        "turnus": null,
+        "workload_h": null
        },
        {
         "area": null,
         "attempt": null,
         "attempt_known": false,
         "code": null,
+        "content": null,
         "custom": true,
         "final": false,
         "grade": null,
@@ -4512,7 +4831,8 @@
         "semester": null,
         "status": "offen",
         "title": "Rhetorik",
-        "turnus": null
+        "turnus": null,
+        "workload_h": null
        }
       ],
       "slots": [
@@ -4978,17 +5298,21 @@
     "custom": [
      {
       "area": null,
+      "content": null,
       "id": "eigen-2",
       "lp": 4,
       "semester": null,
-      "title": "Spanisch A1"
+      "title": "Spanisch A1",
+      "workload_h": null
      },
      {
       "area": null,
+      "content": null,
       "id": "eigen-1",
       "lp": 0,
       "semester": null,
-      "title": "Rhetorik"
+      "title": "Rhetorik",
+      "workload_h": null
      }
     ],
     "elective_lp_required": 20,
@@ -5175,17 +5499,21 @@
     "custom": [
      {
       "area": null,
+      "content": null,
       "id": "eigen-2",
       "lp": 4,
       "semester": null,
-      "title": "Spanisch A1"
+      "title": "Spanisch A1",
+      "workload_h": null
      },
      {
       "area": null,
+      "content": null,
       "id": "eigen-1",
       "lp": 0,
       "semester": null,
-      "title": "Rhetorik"
+      "title": "Rhetorik",
+      "workload_h": null
      }
     ],
     "elective_lp_required": 20,
@@ -5281,7 +5609,7 @@
   "settings": [
    {
     "key": "study_plan",
-    "value": "{\"po\": null, \"start_term\": null, \"electives\": [], \"tracks\": {\"schwerpunkt\": \"x\"}, \"custom\": [{\"id\": \"eigen-2\", \"title\": \"Spanisch A1\", \"lp\": 4, \"area\": null, \"semester\": null}, {\"id\": \"eigen-1\", \"title\": \"Rhetorik\", \"lp\": 0, \"area\": null, \"semester\": null}]}"
+    "value": "{\"po\": null, \"start_term\": null, \"electives\": [], \"tracks\": {\"schwerpunkt\": \"x\"}, \"custom\": [{\"id\": \"eigen-2\", \"title\": \"Spanisch A1\", \"lp\": 4, \"area\": null, \"semester\": null, \"workload_h\": null, \"content\": null}, {\"id\": \"eigen-1\", \"title\": \"Rhetorik\", \"lp\": 0, \"area\": null, \"semester\": null, \"workload_h\": null, \"content\": null}]}"
    }
   ]
  },

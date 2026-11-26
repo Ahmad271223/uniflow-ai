@@ -30,6 +30,9 @@ struct StudyPlanProgramChoice: Equatable, Identifiable {
 struct StudyPlanProgramQuestion: View {
     let programs: [StudyPlanProgramChoice]
     let source: String
+    /// die Studiengaenge sind die Faecher eines Mehr-Faecher-Studiengangs (26.11.2026): alle zaehlen, gefragt ist nur,
+    /// fuer welches Fach der Verlaufsplan gezeigt wird
+    var subjects = false
     let busy: Bool
     let pick: (String) -> Void
     let other: () -> Void
@@ -39,9 +42,10 @@ struct StudyPlanProgramQuestion: View {
             HStack(alignment: .top, spacing: 12) {
                 StudyPlanIconTile(icon: "graduation", pair: CommunityPalette.sky)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text("Welchen Studiengang studierst du gerade?").ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text)
+                    Text(subjects ? Self.subjectsTitle : "Welchen Studiengang studierst du gerade?").ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("\(source) nennt mehrere Studiengänge. Leistungen aus einem früheren Studiengang zählen nur, wenn sie anerkannt sind.")
+                    Text(subjects ? Self.subjectsHint(source: source)
+                         : "\(source) nennt mehrere Studiengänge. Leistungen aus einem früheren Studiengang zählen nur, wenn sie anerkannt sind.")
                         .ufFont(13.12, lh: 1.4).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -66,6 +70,101 @@ struct StudyPlanProgramQuestion: View {
         .background(RoundedRectangle(cornerRadius: UF.r).fill(Color.mix(UF.info, 0.07, UF.surface)))
         .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(Color.mix(UF.info, 0.3, UF.line), lineWidth: 1))
         .accessibilityIdentifier("studyplan.programs")
+    }
+
+    static let subjectsTitle = "Für welches Fach möchtest du den Verlaufsplan sehen?"
+    static func subjectsHint(source: String) -> String {
+        "\(source) führt die Fächer deines Studiengangs einzeln. Alle zählen zu deinen Leistungspunkten; der Verlaufsplan zeigt die Module eines Fachs."
+    }
+}
+
+/// Karte des ganzen Mehr-Faecher-Studiengangs (26.11.2026): LP aller Faecher gegen die Gesamtzahl (Bachelor 180), je Fach
+/// seine LP; vorher stand ein Fach fuer den ganzen Studiengang ("69 von 72 LP") und ein anderes unter "Früheres Studium"
+struct StudyPlanDegreeCard: View {
+    let degree: StudyPlanDegree
+    let source: String
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Dein Studiengang", icon: "graduation") {
+                Text(degree.progress).ufFont(14.5, 700).monospacedDigit().foregroundStyle(UF.okText)
+            }
+            Text(degree.name).ufFont(15.2, 650, lh: 1.3).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+            if let total = degree.lpTotal {
+                UFProgress(value: min(1, max(0, degree.lpDone / total)), ok: true).padding(.vertical, 6)
+            }
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(degree.subjects) { s in
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(s.program).ufFont(14.5, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                            Text(Self.detail(s)).ufFont(12.48).foregroundStyle(UF.muted)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        Text("\(StudyPlanText.number(s.lpDone)) LP").ufFont(14.5, 650).monospacedDigit().foregroundStyle(UF.text)
+                    }
+                    .padding(.vertical, 8)
+                    .accessibilityElement(children: .combine)
+                    if s.id != degree.subjects.last?.id { Divider().overlay(UF.line) }
+                }
+            }
+            if let official = degree.official(source: source) {
+                Text(official).ufFont(12.48).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("studyplan.degree.official")
+            }
+        }
+        .accessibilityIdentifier("studyplan.degree")
+    }
+
+    /// "PO 2025 · 7 bestandene Leistungen · Verlaufsplan unten"
+    static func detail(_ s: StudyPlanDegree.Subject) -> String {
+        [s.po.map { "PO \($0)" }, "\(s.passed) \(s.passed == 1 ? "bestandene Leistung" : "bestandene Leistungen")",
+         s.current ? "Verlaufsplan unten" : nil].compactMap { $0 }.joined(separator: " · ")
+    }
+}
+
+/// Karte "Bestanden je Semester" (26.11.2026, Wunsch des Inhabers): jede bestandene Leistung des Notenspiegels unter dem
+/// Semester, in dem sie bestanden wurde, mit LP; unabhaengig vom Katalog, alle Faecher
+struct StudyPlanPassedTermsCard: View {
+    let terms: [StudyPlanPassedTerm]
+    @State private var closed: Set<String> = []
+
+    var body: some View {
+        UFCard {
+            UFCardHead("Bestanden je Semester", icon: "check")
+            ForEach(terms) { t in
+                let isOpen = !closed.contains(t.id)
+                Button { UFMotion.toggle { if isOpen { closed.insert(t.id) } else { closed.remove(t.id) } } } label: {
+                    HStack(spacing: 8) {
+                        UFIcon("chevron-right", size: 14).foregroundStyle(UF.muted).rotationEffect(.degrees(isOpen ? 90 : 0))
+                        Text(t.title).ufFont(14.5, 600).foregroundStyle(UF.text).frame(maxWidth: .infinity, alignment: .leading)
+                        Text(t.summary).ufFont(12.8).monospacedDigit().foregroundStyle(UF.muted)
+                    }
+                    .padding(.vertical, 8)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityValue(isOpen ? "aufgeklappt" : "zugeklappt")
+                if isOpen {
+                    VStack(alignment: .leading, spacing: 5) {
+                        ForEach(Array(t.rows.enumerated()), id: \.offset) { _, r in
+                            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(r.text).ufFont(13.12).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
+                                    if let program = r.program { Text(program).ufFont(11.84).foregroundStyle(UF.muted) }
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                Text([r.note.map { "Note \($0)" }, "\(StudyPlanText.number(r.lp)) LP"].compactMap { $0 }.joined(separator: " · "))
+                                    .ufFont(12.48).monospacedDigit().foregroundStyle(UF.muted)
+                            }
+                            .accessibilityElement(children: .combine)
+                        }
+                    }
+                    .padding(.leading, 22).padding(.bottom, 6)
+                }
+            }
+        }
+        .accessibilityIdentifier("studyplan.passedterms")
     }
 }
 

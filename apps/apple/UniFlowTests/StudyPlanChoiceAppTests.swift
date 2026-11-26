@@ -158,7 +158,31 @@ final class StudyPlanChoiceAppTests: XCTestCase {
                        ["electives": ["seminar-b"], "placements": ["seminar-b": "WiSe 27/28"]])
         XCTAssertEqual(StudyPlanEdit.track(p, group: "schwerpunkt", area: "schwerpunkt-robotik"), ["tracks": ["schwerpunkt": "schwerpunkt-robotik"]])
         XCTAssertEqual(StudyPlanEdit.addCustom(p, title: " Spanisch A1 ", lp: 4, area: "studium-generale", fachsemester: 5),
-                       ["custom": [["title": "Spanisch A1", "lp": 4, "area": "studium-generale", "semester": 5]]])
+                       ["custom": [["title": "Spanisch A1", "lp": 4, "area": "studium-generale", "semester": 5, "workload_h": .null, "content": .null]]])
+        // seit 26.11.2026: eigene Module mit Arbeitsaufwand in Stunden und Inhalt (was die App nicht erkennt, selbst anlegen)
+        XCTAssertEqual(StudyPlanEdit.addCustom(p, title: "Seminar Medien", lp: 5, area: nil, fachsemester: 3, hours: 150, content: "  Grundlagen, Projekt  "),
+                       ["custom": [["title": "Seminar Medien", "lp": 5, "area": .null, "semester": 3, "workload_h": 150, "content": "Grundlagen, Projekt"]]])
+        let none = StudyPlanEdit.addCustom(p, title: "Ohne", lp: 2, area: nil, fachsemester: nil, hours: 0, content: "   ")["custom"]?.array?.first
+        XCTAssertEqual(none?["workload_h"], JSONValue.null)
+        XCTAssertEqual(none?["content"], JSONValue.null)
+        let own = StudyPlanModule(["id": "eigen-1", "title": "Seminar Medien", "lp": 5, "custom": true, "workload_h": 150, "content": "Grundlagen, Projekt"])
+        XCTAssertEqual(own.workloadH, 150)
+        XCTAssertEqual(own.content, "Grundlagen, Projekt")
+        XCTAssertEqual(StudyPlanEdit.customJSON(own, plan: p)["workload_h"], 150, "bleibt beim Aendern der Liste erhalten")
+        XCTAssertEqual(StudyPlanEdit.customJSON(own, plan: p)["content"], "Grundlagen, Projekt")
+        // Mehr-Faecher-Studiengang und bestanden je Semester aus der Antwort des Kerns
+        let combined = StudyPlan(["available": true, "semesters": [], "degree": ["name": "Zwei-Fächer-Bachelor", "lp_total": 180, "lp_done": 51,
+            "official_lp": 51, "official_grade": "3,45", "subjects": [["label": "a", "program": "Mathematik", "po": "2025", "lp_done": 17, "passed": 7, "current": true],
+                                                                       ["label": "b", "program": "Wirtschaft", "po": "2014", "lp_done": 12, "passed": 3, "current": false]]],
+            "passed_terms": [["term": 4051, "name": "WiSe 25/26", "lp": 19, "rows": [["text": "TM 1: Arithmetik", "lp": 6, "note": "3,3", "program": "Mathematik"]]],
+                             ["term": .null, "name": .null, "lp": 0, "rows": []]]])
+        XCTAssertEqual(combined.degreeOverview?.progress, StudyPlanText.progress(51, 180))
+        XCTAssertEqual(combined.degreeOverview?.official(source: "LSF"), "Laut LSF: 51 LP · vorläufige Gesamtnote 3,45")
+        XCTAssertEqual(combined.degreeOverview?.subjects.map(\.program), ["Mathematik", "Wirtschaft"])
+        XCTAssertEqual(StudyPlanDegreeCard.detail(try XCTUnwrap(combined.degreeOverview?.subjects.first)), "PO 2025 · 7 bestandene Leistungen · Verlaufsplan unten")
+        XCTAssertEqual(combined.passedTerms.map(\.title), ["WiSe 25/26"], "Semester ohne Leistung entfaellt")
+        XCTAssertEqual(combined.passedTerms.first?.summary, "1 Leistung · 19 LP")
+        XCTAssertNil(p.degreeOverview, "ein Studiengang ohne Faecher: keine Karte")
         XCTAssertEqual(StudyPlanEdit.reset, ["placements": .null, "excluded": .null])
 
         let moved = StudyPlan(try enginePlan("selbst_verschoben"))
@@ -331,14 +355,21 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         env.pump(0.6)
         let c2 = try XCTUnwrap(sheet(env))
         let fields = textFields(in: c2)
-        XCTAssertEqual(fields.count, 3, "Suche, Titel, LP")
-        let tf = try XCTUnwrap(fields.count == 3 ? fields[1] : nil)
-        _ = tf.becomeFirstResponder()
-        (tf as? UIKeyInput)?.insertText("Spanisch A1")
-        env.pump(0.3)
+        // seit 26.11.2026 dazu Arbeitsaufwand in Stunden und Inhalt (eigene Module, wenn die App etwas nicht erkennt)
+        XCTAssertEqual(fields.count, 5, "Suche, Titel, LP, Stunden, Inhalt")
+        guard fields.count == 5 else { return }
+        for (index, text) in [(1, "Spanisch A1"), (3, "90"), (4, "Grammatik und Konversation")] {
+            _ = fields[index].becomeFirstResponder()
+            (fields[index] as? UIKeyInput)?.insertText(text)
+            env.pump(0.3)
+        }
+        XCTAssertNotNil(find(c2, label: "Arbeitsaufwand des eigenen Eintrags in Stunden"), dump(c2))
+        XCTAssertNotNil(find(c2, label: "Inhalt des eigenen Eintrags"), dump(c2))
+        XCTAssertTrue(labels(c2).contains { $0.hasPrefix("Vorgesehen für ") }, "das vorgesehene Semester steht dabei")
         XCTAssertTrue(tap(c, "Hinzufügen", exact: true))
         XCTAssertTrue(env.wait { t.count("POST", "/api/study-plan/settings") == 2 }, dump(c))
-        XCTAssertEqual(lastPost(t), ["custom": [["title": "Spanisch A1", "lp": 5, "area": "studium-generale", "semester": 5]]])
+        XCTAssertEqual(lastPost(t), ["custom": [["title": "Spanisch A1", "lp": 5, "area": "studium-generale", "semester": 5, "workload_h": 90,
+                                                 "content": "Grammatik und Konversation"]]])
     }
 
     /// Textfelder des Blatts von oben nach unten
@@ -349,7 +380,11 @@ final class StudyPlanChoiceAppTests: XCTestCase {
             x.subviews.forEach(visit)
         }
         visit(v)
-        return out.sorted { $0.convert($0.bounds, to: nil).minY < $1.convert($1.bounds, to: nil).minY }
+        // Zeile fuer Zeile, in der Zeile von links nach rechts (Titel, LP und Stunden stehen nebeneinander)
+        return out.sorted { a, b in
+            let fa = a.convert(a.bounds, to: nil), fb = b.convert(b.bounds, to: nil)
+            return abs(fa.midY - fb.midY) > 12 ? fa.midY < fb.midY : fa.minX < fb.minX
+        }
     }
 
     // MARK: Verschieben

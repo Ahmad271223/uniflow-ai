@@ -519,7 +519,9 @@ public actor LSFClient {
             let html = try await page(pages[i])
             let scan = HTMLScanner.scan(html)
             for table in scan.tables where !QISParser.isStammdaten(table) {
-                out += GradeRows.parse(rows: table.rows.map { $0.map(\.text) }, abschluss: "")
+                // eine Zelle je Spalte (colspan aufgefaechert wie am PC und im QIS der LUH); Konto-Zeilen fassen Spalten
+                // zusammen und werden daran erkannt (`GradeRows.lsfCells`)
+                out += GradeRows.parse(rows: table.rows.map(GradeRows.lsfCells), abschluss: "")
             }
             if i == 0 {      // Reiter der Studiengaenge auf der ersten Seite
                 for a in scan.anchors where a.href.contains("notenspiegelStudent") && a.href.contains("nodeID=") {
@@ -529,9 +531,12 @@ public actor LSFClient {
             }
             i += 1
         }
+        // Echter Notenspiegel (26.11.2026): Uebersicht (kurz) und Reiter (ausfuehrlich, mit Semester/Versuch/Datum) nennen
+        // dieselbe Leistung - nur die ausfuehrliche Zeile bleibt; Konto-Zeilen (LP-Summe je Fach) sind keine Leistungen
+        let rows = GradeRows.accounts(GradeRows.preferDetailed(out))
         // dieselbe Leistung auf mehreren Reitern nur einmal; mehrere Versuche (gleiche Leistung, anderes Datum) bleiben
         // getrennt (`QISParser.numberAttempts`, 12.11.2026)
-        return QISParser.merge(QISParser.numberAttempts(out))
+        return QISParser.merge(QISParser.numberAttempts(rows))
     }
 
     /// Links aus `HTMLScanner` sind schon dekodiert (`HildesheimCAS.lsfAbsolute`)

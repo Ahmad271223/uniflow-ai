@@ -14937,6 +14937,7 @@
         "attempt": null,
         "attempt_known": false,
         "code": null,
+        "content": null,
         "custom": true,
         "final": false,
         "grade": "1,3",
@@ -14952,7 +14953,8 @@
         "semester": null,
         "status": "bestanden",
         "title": "Spanisch A1",
-        "turnus": null
+        "turnus": null,
+        "workload_h": null
        }
       ],
       "slots": [],
@@ -15304,6 +15306,7 @@
         "attempt": null,
         "attempt_known": false,
         "code": null,
+        "content": null,
         "custom": true,
         "final": false,
         "grade": null,
@@ -15319,7 +15322,8 @@
         "semester": 5,
         "status": "geplant",
         "title": "Rhetorik",
-        "turnus": null
+        "turnus": null,
+        "workload_h": null
        }
       ],
       "slots": [],
@@ -23826,6 +23830,7 @@
         "attempt": null,
         "attempt_known": false,
         "code": null,
+        "content": null,
         "custom": true,
         "final": false,
         "grade": null,
@@ -23841,7 +23846,8 @@
         "semester": null,
         "status": "offen",
         "title": "Auslandsmodul",
-        "turnus": null
+        "turnus": null,
+        "workload_h": null
        }
       ],
       "slots": [],
@@ -26104,6 +26110,7 @@
         "attempt": null,
         "attempt_known": false,
         "code": null,
+        "content": null,
         "custom": true,
         "final": false,
         "grade": null,
@@ -26119,7 +26126,8 @@
         "semester": null,
         "status": "offen",
         "title": "Seminar im Ausland",
-        "turnus": null
+        "turnus": null,
+        "workload_h": null
        }
       ],
       "slots": [],
@@ -36454,6 +36462,7 @@
         "attempt": null,
         "attempt_known": false,
         "code": null,
+        "content": null,
         "custom": true,
         "final": false,
         "grade": null,
@@ -36470,7 +36479,8 @@
         "semester": null,
         "status": "bestanden",
         "title": "Spanisch A1",
-        "turnus": null
+        "turnus": null,
+        "workload_h": null
        }
       ],
       "slots": [

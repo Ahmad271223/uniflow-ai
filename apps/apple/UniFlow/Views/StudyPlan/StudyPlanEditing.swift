@@ -294,7 +294,8 @@ struct StudyPlanChooserSheet: View {
     let slot: StudyPlanSlot?
     let api: APIClient?
     let choose: (StudyPlanOption, String?) -> Void
-    let addCustom: (String, Double, String?, Int?) -> Void
+    /// Titel, LP, Bereich, Fachsemester, Stunden, Inhalt
+    let addCustom: (String, Double, String?, Int?, Int?, String?) -> Void
     let chooseTrack: (String, String) -> Void
 
     @Environment(\.dismiss) private var dismiss
@@ -304,6 +305,9 @@ struct StudyPlanChooserSheet: View {
     @State private var term = ""
     @State private var customTitle = ""
     @State private var customLP = "5"
+    /// Arbeitsaufwand in Stunden und Inhalt des eigenen Eintrags (26.11.2026), beides freiwillig
+    @State private var customHours = ""
+    @State private var customContent = ""
 
     private var title: String {
         if let slot { return slot.isTrack ? slot.title : StudyPlanText.slotHeading(slot, plan: plan) }
@@ -476,8 +480,15 @@ struct StudyPlanChooserSheet: View {
             Text("Zum Beispiel eine Studium-generale-Veranstaltung einer anderen Fakultät. Heißt er wie \(StudyPlanText.gradeSourceIn(hildesheim: hildesheim != nil, hsh: hsh != nil)), übernimmt StudiNow Stand und Note.")
                 .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { customTitleField.frame(minWidth: 240); customLPField.frame(width: 90); customButton }
-                VStack(alignment: .leading, spacing: 8) { customTitleField; HStack(spacing: 8) { customLPField.frame(width: 90); customButton } }
+                HStack(spacing: 8) { customTitleField.frame(minWidth: 240); customLPField.frame(width: 90); customHoursField.frame(width: 110) }
+                VStack(alignment: .leading, spacing: 8) { customTitleField; HStack(spacing: 8) { customLPField.frame(width: 90); customHoursField.frame(width: 110) } }
+            }
+            customContentField
+            HStack(spacing: 8) {
+                Text(Self.customSemesterHint(plan: plan, term: slot?.term.isEmpty == false ? slot!.term : term))
+                    .ufFont(12.48, lh: 1.4).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                customButton
             }
         }
         .padding(12)
@@ -497,12 +508,32 @@ struct StudyPlanChooserSheet: View {
             .accessibilityIdentifier("studyplan.custom.lp")
     }
 
+    private var customHoursField: some View {
+        UFTextField("Stunden", text: $customHours)
+            .keyboardType(.numberPad)
+            .accessibilityLabel("Arbeitsaufwand des eigenen Eintrags in Stunden")
+            .accessibilityIdentifier("studyplan.custom.hours")
+    }
+
+    private var customContentField: some View {
+        UFTextField("Inhalt (freiwillig), z. B. Themen und Prüfungsform", text: $customContent)
+            .accessibilityLabel("Inhalt des eigenen Eintrags")
+            .accessibilityIdentifier("studyplan.custom.content")
+    }
+
+    /// "Vorgesehen für WiSe 26/27 (3. Fachsemester)."; ohne erkennbares Fachsemester nur das Semester
+    static func customSemesterHint(plan: StudyPlan, term: String) -> String {
+        guard !term.isEmpty else { return "Das vorgesehene Semester wählst du oben." }
+        return "Vorgesehen für \(term)" + (plan.fachsemester(of: term).map { " (\($0). Fachsemester)" } ?? "") + "; oben änderst du das Semester."
+    }
+
     private var customButton: some View {
         UFButton("Hinzufügen", icon: "plus", size: .small) {
             let lp = Double(customLP.replacingOccurrences(of: ",", with: ".").trimmingCharacters(in: .whitespaces)) ?? 0
+            let hours = Int(customHours.trimmingCharacters(in: .whitespaces)).flatMap { (1...2000).contains($0) ? $0 : nil }
             let target = slot?.term.isEmpty == false ? slot!.term : term
             dismiss()
-            addCustom(customTitle, max(0, min(60, lp)), slot?.area, plan.fachsemester(of: target))
+            addCustom(customTitle, max(0, min(60, lp)), slot?.area, plan.fachsemester(of: target), hours, customContent)
         }
         .disabled(customTitle.trimmingCharacters(in: .whitespaces).isEmpty)
         .fixedSize()
