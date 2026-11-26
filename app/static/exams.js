@@ -37,11 +37,18 @@ export function examHref(e) {
   return Number.isInteger(e?.module_id) ? `#/modules/${e.module_id}` : `#/plan?view=day&date=${encodeURIComponent(e?.date || "")}`;
 }
 
-/// Karte "Nächste Klausuren" (HTML) oder "" ohne Klausuren; `iconHtml`: Symbol im Kopf (core.js icon())
+/// Text des Knopfs unter den Zeilen: "und 5 weitere" bzw. "Weniger anzeigen"
+export function moreText(count, open) {
+  return open ? "Weniger anzeigen" : `und ${count - LIMIT} weitere`;
+}
+
+/// Karte "Nächste Klausuren" (HTML) oder "" ohne Klausuren; `iconHtml`: Symbol im Kopf (core.js icon()).
+/// Die ersten vier Zeilen stehen sofort da, die übrigen in `.ov-exam-rest` (versteckt) hinter dem Knopf "und n weitere":
+/// `bindExamsCard` klappt die Karte auf, dann stehen alle untereinander (Wunsch des Inhabers 26.11.2026).
 export function examsCard(items, iconHtml = "", iconFn = () => "") {
   const list = Array.isArray(items) ? items.filter(e => e && e.date) : [];
   if (!list.length) return "";
-  const rows = list.slice(0, LIMIT).map(e => {
+  const row = e => {
     const link = !!e.room && mayLink(e.room);
     const place = placeText(e), shown = placeText(e, !link);
     const day = examDate(e.date);
@@ -52,8 +59,25 @@ export function examsCard(items, iconHtml = "", iconFn = () => "") {
       + (e.source_label ? `<div class="sub ov-exam-src">${esc(e.source_label)}</div>` : "")
       + `</div><span class="badge ov-exam-in">${esc(countdown(e))}</span></a>`
       + (link ? `<div class="ov-exam-room">${roomLink(e.room, iconFn)}</div>` : "");
-  }).join("");
-  const more = list.length > LIMIT ? `<div class="ov-t2 small">und ${list.length - LIMIT} weitere</div>` : "";
+  };
+  const rows = list.slice(0, LIMIT).map(row).join("");
+  const rest = list.slice(LIMIT);
+  const more = rest.length
+    ? `<div class="list ov-exam-rest" id="ovExamRest" hidden>${rest.map(row).join("")}</div>`
+      + `<button type="button" class="ov-exam-more" aria-expanded="false" aria-controls="ovExamRest" data-count="${list.length}">${esc(moreText(list.length, false))}</button>`
+    : "";
   return `<section class="card ov-card ov-exams" aria-label="Nächste Klausuren"><div class="card-head"><h2>${iconHtml} Nächste Klausuren</h2></div>`
     + `<div class="list">${rows}</div>${more}</section>`;
+}
+
+/// Knopf "und n weitere" der Karte: klappt die übrigen Klausuren auf und wieder zu (`root`: Seite oder Karte)
+export function bindExamsCard(root) {
+  const btn = root?.querySelector?.(".ov-exam-more"), rest = root?.querySelector?.(".ov-exam-rest");
+  if (!btn || !rest) return;
+  btn.addEventListener("click", () => {
+    const open = rest.hidden;
+    rest.hidden = !open;
+    btn.setAttribute("aria-expanded", String(open));
+    btn.textContent = moreText(Number(btn.dataset.count) || 0, open);
+  });
 }
