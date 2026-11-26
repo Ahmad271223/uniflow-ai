@@ -216,10 +216,19 @@ public struct QISPage: Sendable {
             guard let node = l.parameters["nodeid"]?.lowercased(), !node.isEmpty else { return true }
             return !visitedNodes.contains { $0 == node || $0.hasPrefix(node + ",") || $0.hasPrefix(node + "|") }
         }
-        for t in [QISTarget.leistungen, .abschluss] {
-            let l = QISParser.preferProgram(links(t).filter(isOpen), preferred)
-            if !l.isEmpty { return Array(l.prefix(10)) }
+        // Listen dieser Seite UND die noch zugeklappten Abschluesse daneben (26.11.2026): war im Baum schon ein Zweig
+        // aufgeklappt (frueherer Abruf derselben Sitzung, oder der Nutzer in der Webansicht), standen nur dessen Listen
+        // in der Warteschlange; die uebrigen Abschluesse wurden nie gelesen und der Abruf ersetzte den Notenspiegel
+        // ohne sie. Ein aufgeklappter Knoten (expand=1 = zuklappen, oder Links darunter auf der Seite) wird nie angefasst.
+        let nodes = Set(links.compactMap { $0.parameters["nodeid"]?.lowercased() }.filter { !$0.isEmpty })
+        func isClosed(_ l: QISLink) -> Bool {
+            guard l.parameters["expand"] != "1" else { return false }
+            guard let node = l.parameters["nodeid"]?.lowercased(), !node.isEmpty else { return true }
+            return !nodes.contains { $0.hasPrefix(node + "|") || $0.hasPrefix(node + ",") }
         }
+        let lists = QISParser.preferProgram(links(.leistungen).filter(isOpen), preferred)
+        let closed = QISParser.preferProgram(links(.abschluss).filter { isOpen($0) && isClosed($0) }, preferred)
+        if !lists.isEmpty || !closed.isEmpty { return Array((lists + closed).prefix(12)) }
         for t in [QISTarget.notenspiegel, .meinStudium] {
             if let l = links(t).first(where: isOpen) { return [l] }
         }
@@ -296,10 +305,43 @@ public enum QISParser {
         t.summary.lowercased().contains("stammdaten") || t.rows.contains { GradeRows.isStammdatenRow($0.map(\.text)) }
     }
 
-    /// Doppelte entfernen wie fetch_grades: gleiche Pruefungsnr., Text, Semester und Versuch; die erste bleibt.
+    /// Doppelte entfernen wie fetch_grades: gleiche Pruefungsnr., Text, Semester und Versuch sind eine Zeile (so
+    /// speichert sie auch die Tabelle `grades`, UNIQUE). Stehen unter demselben Schluessel zwei verschiedene Eintraege
+    /// (26.11.2026: erster Termin "nicht bestanden" mit Vermerk OWR = ohne Wertung, zweiter Termin bestanden, beide
+    /// Versuch 1 im selben Semester), gilt der bestandene, sonst der mit dem spaeteren Datum; vorher blieb immer der
+    /// erste und die bestandene Pruefung fehlte ganz. Die Zeile bleibt an der Stelle des ersten Eintrags.
     public static func merge(_ grades: [QISGrade]) -> [QISGrade] {
-        var seen = Set<[String?]>()
-        return grades.filter { seen.insert([$0.pruefungsnr, $0.text, $0.semester, $0.versuch]).inserted }
+        var index: [[String?]: Int] = [:]
+        var out: [QISGrade] = []
+        for g in grades {
+            let key = [g.pruefungsnr, g.text, g.semester, g.versuch]
+            guard let i = index[key] else {
+                index[key] = out.count
+                out.append(g)
+                continue
+            }
+            if supersedes(g, out[i]) { out[i] = g }
+        }
+        return out
+    }
+
+    /// `new` ersetzt `old` (gleicher Schluessel): bestanden vor nicht bestanden, dann das spaetere Datum
+    static func supersedes(_ new: QISGrade, _ old: QISGrade) -> Bool {
+        let p = isPassedStatus(new.status), q = isPassedStatus(old.status)
+        if p != q { return p }
+        return sortableDate(new.datum) > sortableDate(old.datum)
+    }
+
+    /// Status bestanden/BE/anerkannt/angerechnet (wie `GradesModel.isPassed` ohne die Note)
+    static func isPassedStatus(_ s: String?) -> Bool {
+        let t = (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return t == "be" || ["bestanden", "anerkannt", "angerechnet"].contains { t.hasPrefix($0) }
+    }
+
+    /// "21.08.2026" -> "20260821" (vergleichbar), sonst ""
+    static func sortableDate(_ d: String?) -> String {
+        let p = (d ?? "").trimmingCharacters(in: .whitespaces).split(separator: ".").map(String.init)
+        return p.count == 3 ? p[2] + p[1].leftPadded(2) + p[0].leftPadded(2) : ""
     }
 
     /// LSF der Uni Hildesheim (12.11.2026): Zeilen ohne Semester und Versuch. Vorher fielen ein nicht bestandener und

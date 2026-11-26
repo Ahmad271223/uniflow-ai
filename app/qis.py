@@ -348,17 +348,40 @@ def grade_tables_from_html(html: str) -> list[list[list[str]]]:
     return out
 
 
+def _passed_status(s) -> bool:
+    t = (s or "").strip().lower()
+    return t == "be" or t.startswith(("bestanden", "anerkannt", "angerechnet"))
+
+
+def _sortable_date(d) -> str:
+    p = (d or "").strip().split(".")
+    return p[2] + p[1].zfill(2) + p[0].zfill(2) if len(p) == 3 else ""
+
+
+def merge_grades(grades: list[dict]) -> list[dict]:
+    """Doppelte entfernen: gleiche Pruefungsnr., Text, Semester, Versuch sind eine Zeile (UNIQUE in `grades`). Zwei
+    verschiedene Eintraege unter demselben Schluessel (26.11.2026: erster Termin ohne Wertung "nicht bestanden", zweiter
+    bestanden, beide Versuch 1): es gilt der bestandene, sonst der mit dem spaeteren Datum, an der Stelle des ersten.
+    Vorher blieb immer der erste und die bestandene Pruefung fehlte. Wie `QISParser.merge` im Swift-Kern."""
+    index: dict[tuple, int] = {}
+    out: list[dict] = []
+    for g in grades:
+        key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
+        if key not in index:
+            index[key] = len(out)
+            out.append(g)
+            continue
+        old = out[index[key]]
+        p, q = _passed_status(g.get("status")), _passed_status(old.get("status"))
+        if (p and not q) or (p == q and _sortable_date(g.get("datum")) > _sortable_date(old.get("datum"))):
+            out[index[key]] = g
+    return out
+
+
 def parse_grade_html(html: str, abschluss: str = "") -> list[dict]:
     """Leistungen einer Notenspiegel-Seite (HTML) wie im Browser: jede Tabelle mit parse_grade_rows, Doppelte wie
-    fetch_grades entfernt"""
-    seen, out = set(), []
-    for rows in grade_tables_from_html(html):
-        for g in parse_grade_rows(rows, abschluss):
-            key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
-            if key not in seen:
-                seen.add(key)
-                out.append(g)
-    return out
+    fetch_grades zusammengefuehrt (`merge_grades`)"""
+    return merge_grades([g for rows in grade_tables_from_html(html) for g in parse_grade_rows(rows, abschluss)])
 
 
 # Navigation im Notenspiegel (12.11.2026, wie QISPage.nextLinksTowardGrades im Swift-Kern)
@@ -469,14 +492,8 @@ def fetch_grades(page: Page, prof: dict, store: "DocStore") -> list[dict]:
     if prof.get("key") == "hildesheim":
         # echter Notenspiegel (26.11.2026): Uebersicht und Reiter nennen dieselbe Leistung, Konto-Zeilen sind Summen
         grades = account_rows(prefer_detailed(grades))
-    # Doppelte (gleiche Zeile) entfernen
-    seen, out = set(), []
-    for g in grades:
-        key = (g.get("pruefungsnr"), g.get("text"), g.get("semester"), g.get("versuch"))
-        if key not in seen:
-            seen.add(key)
-            out.append(g)
-    return out
+    # Doppelte zusammenfuehren (gleiche Zeile; derselbe Versuch zweimal: der bestandene gilt)
+    return merge_grades(grades)
 
 
 def _collect_offers(page: Page, prof: dict, store: "DocStore") -> None:
