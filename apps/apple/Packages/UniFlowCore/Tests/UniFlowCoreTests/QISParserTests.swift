@@ -472,7 +472,9 @@ final class QISParserTests: XCTestCase {
         let tree82 = QISPage.parse(html: twoAbschlussTree(expanded: [82]), url: try XCTUnwrap(start.url(for: open82)))
         c.absorb(tree82, via: open82)
         let l82 = c.nextLinks(on: tree82)
-        XCTAssertEqual(l82.map { $0.studiengang ?? "" }, ["Bachelorfach (PO-Version 2017)"])
+        // die Liste des Bachelors und der noch zugeklappte Master daneben (26.11.2026: vorher nur die Liste; war der Baum
+        // schon teilweise aufgeklappt, wurde der Master nie gelesen)
+        XCTAssertEqual(l82.map { $0.studiengang ?? $0.text }, ["Bachelorfach (PO-Version 2017)", "Abschluss 88 Master of Science"])
         let list82 = QISPage.parse(html: gradeListHTML("1001", "Mathematik I"), url: try XCTUnwrap(tree82.url(for: l82[0])))
         c.absorb(list82, via: l82[0])
 

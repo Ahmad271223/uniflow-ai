@@ -400,6 +400,24 @@ def guess_kind(title: str) -> str:
     return "vorlesung"
 
 
+_ROMANS = {"1": "i", "2": "ii", "3": "iii", "4": "iv", "5": "v", "6": "vi"}
+_SERIES_RE = re.compile(r"(?<![a-zäöüß0-9])(?:iii|ii|iv|vi|v|i|[1-6])(?=\s*(?:$|[-–(:/,.;]))")
+
+
+def series_marks(s: str) -> set[str]:
+    """Teil einer Reihe im Namen ("Technische Mechanik II", "Mathematik 2", "Mathematik I - Übung"): roemische Zahl
+    oder einzelne Ziffer am Ende bzw. vor einem Satzzeichen, nicht mitten im Text ("alle 2 Wochen"). Wie
+    `ModuleGuess.seriesMarks` im Swift-Kern."""
+    return {_ROMANS.get(x, x) for x in _SERIES_RE.findall((s or "").lower())}
+
+
+def other_part(a: str, b: str) -> bool:
+    """Zwei Teile verschiedener Reihen ("… I" und "… II") sind nie dasselbe Modul (26.11.2026: die Anmeldung zur
+    Wiederholung "Technische Mechanik I" landete beim App-Modul "Technische Mechanik II")"""
+    x, y = series_marks(a), series_marks(b)
+    return bool(x) and bool(y) and not (x & y)
+
+
 def guess_module(conn, title: str) -> int | None:
     mods = db.rows(conn, "SELECT id, name FROM modules")
     courses = db.rows(conn, "SELECT module_id, title FROM courses WHERE module_id IS NOT NULL")
@@ -407,6 +425,8 @@ def guess_module(conn, title: str) -> int | None:
     best, score = None, 0.0
     for m in mods:
         n = m["name"].lower()
+        if other_part(t, n):
+            continue
         sc = difflib.SequenceMatcher(None, t, n).ratio()
         if n in t or t in n:
             sc = max(sc, 0.9)
@@ -419,6 +439,8 @@ def guess_module(conn, title: str) -> int | None:
             best, score = m["id"], sc
     for c in courses:
         n = c["title"].lower()
+        if other_part(t, n):
+            continue
         sc = difflib.SequenceMatcher(None, t, n).ratio()
         if n in t or t in n:
             sc = max(sc, 0.9)

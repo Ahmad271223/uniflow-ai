@@ -528,6 +528,8 @@ def _is_cas(url: str) -> bool:
 def walk(get, start: str, max_pages: int = MAX_PAGES, profile: str = "luh") -> dict:
     """`get(url) -> (status, html, final_url)`; nur GET. Liefert {registrations, pages, tables}. `profile`
     "hildesheim": LSF der Uni Hildesheim (Zwischenschritt "POS-Management", Ziel "Meine POS-Anmeldungen")."""
+    said_empty = [False]
+
     def page(url: str) -> Page:
         status, html, final = get(url)
         # LSF Hildesheim: abgelaufene Sitzung leitet zur CAS-Anmeldung
@@ -538,6 +540,8 @@ def walk(get, start: str, max_pages: int = MAX_PAGES, profile: str = "luh") -> d
         p = Page(html, final or url)
         if p.has_login_form or not p.is_logged_in:
             raise SessionExpired("QIS-Sitzung abgelaufen")
+        if says_empty(html):
+            said_empty[0] = True
         return p
 
     first = page(start)
@@ -556,7 +560,8 @@ def walk(get, start: str, max_pages: int = MAX_PAGES, profile: str = "luh") -> d
     if info is None:
         raise POSOverviewNotFound() if profile == "hildesheim" else InfoNotFound()
     visited = {first.address, src.address}
-    rows, n_tables = [], 0
+    rows, n_tables, list_pages = [], 0, 0
+    said_empty[0] = False
     pending = [(info, src)]
     while pending and pages < max_pages:
         link, frm = pending.pop(0)
@@ -564,6 +569,8 @@ def walk(get, start: str, max_pages: int = MAX_PAGES, profile: str = "luh") -> d
             continue
         p = page(frm.url_for(link))
         pages += 1
+        if link.parameters.get("next", "").lower() == "list.vm":
+            list_pages += 1
         visited.add(link.address)
         visited.add(p.address)
         ab = studiengang(link) or ""
@@ -571,7 +578,27 @@ def walk(get, start: str, max_pages: int = MAX_PAGES, profile: str = "luh") -> d
             n_tables += 1
             rows += parse_rows(t, ab)
         pending = [(l, p) for l in next_links(p, info, visited)] + pending
-    return {"registrations": merge(rows), "pages": pages, "tables": n_tables}
+    return {"registrations": merge(rows), "pages": pages, "tables": n_tables, "list_pages": list_pages,
+            "said_empty": said_empty[0]}
+
+
+_EMPTY = ("keine leistungen", "keine pruefungen", "keine pruefungsleistungen", "keine eintraege", "keine daten",
+          "keine angemeldeten", "no achievements", "no exams", "no entries")
+
+
+def says_empty(html: str) -> bool:
+    """Seite sagt selbst, dass es nichts gibt ("keine Prüfungen angemeldet"); wie `QISClient.saysEmpty`"""
+    t = fold(clean((html or "").replace("&uuml;", "ü").replace("&Uuml;", "Ü").replace("&nbsp;", " ")))
+    return any(x in t for x in _EMPTY)
+
+
+LIST_NOT_REACHED = "Die Liste der angemeldeten Prüfungen war gerade nicht erreichbar. Bitte später erneut versuchen."
+
+
+def reached_list(r: dict) -> bool:
+    """Tabelle, Listenseite oder "keine Prüfungen" gelesen (26.11.2026): sonst (Hinweis-/Sperrseite statt Baum) ist
+    "keine angemeldet" nicht bekannt und nichts wird geloescht"""
+    return r.get("tables", 0) > 0 or r.get("list_pages", 0) > 0 or bool(r.get("said_empty"))
 
 
 # ---------------------------------------------------------------------------- Speicher (dieser PC; mit Konto im Geraeteabgleich ohne Pruefende)
@@ -596,7 +623,7 @@ def _loose(r: dict) -> tuple:
 STORED = FIELDS + ("raw",)
 
 
-def store(conn, rows: list[dict], now: str) -> None:
+def store(conn, rows: list[dict], now: str, remove_missing: bool = True) -> None:
     """Abgleich der Tabelle mit dem Abruf (20.11.2026, statt alles zu ersetzen): gleiche Pruefung (`key`) -> Zeile
     bleibt und wird nur bei einer Aenderung geschrieben; sonst dieselbe Pruefung mit anderem Datum (eindeutig, ohne
     Datum gleich) -> Zeile bleibt mit neuem Datum; neue -> einfuegen; nicht mehr gelistete (auch doppelte) -> loeschen.
@@ -630,7 +657,7 @@ def store(conn, rows: list[dict], now: str) -> None:
             used.add(hit["id"])
         pairs.append((r, hit))
     for o in old:
-        if o["id"] not in used:
+        if remove_missing and o["id"] not in used:
             conn.execute("DELETE FROM exam_registrations WHERE id=?", (o["id"],))
     for r, o in pairs:
         vals = {k: (r.get(k) or None) for k in FIELDS}
@@ -709,6 +736,10 @@ def run(get, start: str, now: str | None = None, profile: str = "luh") -> dict:
         with db.cursor() as conn:
             save_run(conn, at, False, 0, msg)
         return {"ok": False, "count": None, "message": msg, "needs_login": isinstance(e, SessionExpired)}
+    if not reached_list(r):
+        with db.cursor() as conn:
+            save_run(conn, at, False, 0, LIST_NOT_REACHED)
+        return {"ok": False, "count": None, "message": LIST_NOT_REACHED, "needs_login": False}
     regs = r["registrations"]
     n = sum(1 for x in regs if is_registered(x.get("status")))
     msg = message(n, system)

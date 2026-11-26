@@ -290,11 +290,14 @@ public enum QISRegistrationError: Error, Equatable, CustomStringConvertible, Loc
     case infoNotFound
     /// LSF Hildesheim: weder auf "Meine Funktionen" noch unter "POS-Management" ein Link "Meine POS-Anmeldungen"
     case posOverviewNotFound
+    /// Info-Seite erreicht, aber weder Liste noch Tabelle noch "keine Prüfungen" (26.11.2026)
+    case listNotReached
 
     public var description: String {
         switch self {
         case .infoNotFound: return "Die Seite „Info über angemeldete Prüfungen“ wurde im QIS nicht gefunden."
         case .posOverviewNotFound: return "Die Seite „Meine POS-Anmeldungen“ wurde im LSF nicht gefunden."
+        case .listNotReached: return "Die Liste der angemeldeten Prüfungen war gerade nicht erreichbar. Bitte später erneut versuchen."
         }
     }
 
@@ -305,6 +308,12 @@ public struct QISRegistrationResult: Sendable, Equatable {
     public let registrations: [QISRegistration]
     public let pages: Int
     public let tables: Int
+    /// gelesene Listenseiten (next=list.vm) und Seiten, die selbst "keine Prüfungen" sagen (26.11.2026): ohne Tabelle,
+    /// ohne Liste und ohne diesen Satz wurde die Liste nie erreicht (Hinweis-/Sperrseite) - dann ist "keine angemeldet"
+    /// nicht bekannt und nichts wird geloescht
+    public var listPages = 0
+    public var saidEmpty = false
+    public var reachedList: Bool { tables > 0 || listPages > 0 || saidEmpty }
 }
 
 /// Liest "Info über angemeldete Prüfungen" mit einer angemeldeten QIS-Sitzung (Cookies setzt der Transport der App)
@@ -328,14 +337,16 @@ public actor QISRegistrationClient {
         self.layout = layout
     }
 
-    private func page(_ url: URL) async throws -> QISPage {
+    private func page(_ url: URL) async throws -> QISPage { try await pageAndText(url).page }
+
+    private func pageAndText(_ url: URL) async throws -> (page: QISPage, html: String) {
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
         // LSF Hildesheim: abgelaufene Sitzung leitet zur CAS-Anmeldung
         if layout == .hildesheim, HildesheimCAS.isCASPage(resp.finalURL?.absoluteString ?? "") { throw QISError.sessionExpired }
         guard resp.status == 200 else { throw QISError.http(status: resp.status) }
         let p = QISPage.parse(html: resp.text, url: resp.finalURL ?? url)
         if p.hasLoginForm || !p.isLoggedIn { throw QISError.sessionExpired }
-        return p
+        return (p, resp.text)
     }
 
     /// Zwischenschritt zur Info-Seite: "Mein Studium" (LUH) bzw. "POS-Management" (LSF Hildesheim)
@@ -365,15 +376,17 @@ public actor QISRegistrationClient {
         guard let info else { throw layout == .hildesheim ? QISRegistrationError.posOverviewNotFound : QISRegistrationError.infoNotFound }
         var visited = Set<String>([first.address, from.address])
         var rows: [QISRegistration] = []
-        var tableCount = 0
+        var tableCount = 0, listPages = 0, saidEmpty = false
         var pending: [(link: QISLink, from: QISPage)] = [(info, from)]
         while !pending.isEmpty, pages < maxPages {
             let next = pending.removeFirst()
             guard !visited.contains(next.link.address), !QISRegistrationLinks.isForbidden(next.link),
                   let url = next.from.url(for: next.link) else { continue }
             try Task.checkCancellation()
-            let p = try await page(url)
+            let (p, html) = try await pageAndText(url)
             pages += 1
+            if (next.link.parameters["next"] ?? "").lowercased() == "list.vm" { listPages += 1 }
+            if QISClient.saysEmpty(html) { saidEmpty = true }
             visited.insert(next.link.address)
             visited.insert(p.address)
             let abschluss = QISRegistrationLinks.studiengang(next.link) ?? ""
@@ -384,7 +397,10 @@ public actor QISRegistrationClient {
             // erst in die Tiefe (Abschluss -> Studiengang -> Liste), dann die uebrigen
             pending = QISRegistrationLinks.next(on: p, info: info, visited: visited).map { ($0, p) } + pending
         }
-        return QISRegistrationResult(registrations: RegistrationRows.merge(rows), pages: pages, tables: tableCount)
+        var result = QISRegistrationResult(registrations: RegistrationRows.merge(rows), pages: pages, tables: tableCount)
+        result.listPages = listPages
+        result.saidEmpty = saidEmpty
+        return result
     }
 }
 
@@ -474,7 +490,8 @@ public enum QISRegistrationsSync {
     /// Datum (eindeutig, ohne Datum gleich) -> Zeile bleibt mit neuem Datum; neue -> einfuegen; nicht mehr gelistete (auch
     /// doppelte) -> loeschen, abgemeldete verschwinden so aus der App. Die IDs, die der Geraeteabgleich kennt, bleiben: ein
     /// zweiter Abruf ist ohne Wirkung, eine Zeile von einem anderen Geraet wird uebernommen statt verdoppelt.
-    public static func store(_ c: SQLiteConnection, _ rows: [QISRegistration], now: String) throws {
+    /// `removeMissing: false` (Knopf "Diese Seite auslesen", 26.11.2026): nur ergaenzen und aktualisieren, nichts loeschen
+    public static func store(_ c: SQLiteConnection, _ rows: [QISRegistration], now: String, removeMissing: Bool = true) throws {
         try c.executeScript(tableSQL)
         // schon mit einem Konto abgeglichen: Trigger des Abgleichs auch fuer eine eben angelegte Tabelle
         if try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='sync_tombstones'") != nil {
@@ -508,7 +525,7 @@ public enum QISRegistrationsSync {
             if let hit { used.insert(id(hit)) }
             pairs.append((r, hit))
         }
-        for o in old where !used.contains(id(o)) {
+        for o in old where removeMissing && !used.contains(id(o)) {
             try c.execute("DELETE FROM exam_registrations WHERE id=?", [.integer(id(o))])
         }
         for (r, o) in pairs {
@@ -581,6 +598,8 @@ public enum QISRegistrationsSync {
                            maxPages: Int = QISRegistrationClient.defaultMaxPages, layout: QISGradeLayout = .luh) async -> Report {
         do {
             let r = try await QISRegistrationClient(transport: transport, retry: retry, maxPages: maxPages, layout: layout).fetch()
+            // Liste nie erreicht (Hinweis- oder Sperrseite statt Baum/Liste, 26.11.2026): nichts speichern, nichts loeschen
+            guard r.reachedList else { throw QISRegistrationError.listNotReached }
             let now = clock.nowISO
             let text = message(count: r.registrations.filter(\.registered).count, system: layout == .hildesheim ? "LSF" : "QIS")
             let rows = r.registrations

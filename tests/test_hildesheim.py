@@ -1192,9 +1192,10 @@ def test_lsf_real_layout_accounts_separate_the_subjects():
     m = grades_model.model(rows)
     assert grades_model.counted_lp(m) == 11
     assert [r["lp_counted"] for r in m if r.get("pruefungsnr") in ("8011", "8012")] == [2, 2]
-    # ohne die Konto-Zeilen (so war es): die beiden Teilleistungen gelten als Teil von VM 1 und zaehlen nicht
+    # ohne die Konto-Zeilen (so war es bis 26.11.2026: die beiden Teilleistungen galten als Teil von VM 1, 7 LP):
+    # VM 1 ist mit 6211 (7 LP) schon voll, die beiden zaehlen selbst
     without = grades_model.model([g for g in rows if not _is_account(g)])
-    assert grades_model.counted_lp(without) == 7
+    assert grades_model.counted_lp(without) == 11
 
 
 def test_lsf_pending_module_rows_stay_only_in_the_lsf():

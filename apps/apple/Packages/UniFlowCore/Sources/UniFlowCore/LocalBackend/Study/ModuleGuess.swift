@@ -5,6 +5,25 @@ import Foundation
 /// (S5) braucht dieselbe Funktion.
 public enum ModuleGuess {
     private static let token = PyRegex("[a-zäöü0-9]+")
+    private static let romans = ["1": "i", "2": "ii", "3": "iii", "4": "iv", "5": "v", "6": "vi"]
+
+    /// Teil einer Reihe im Namen ("Technische Mechanik II", "Mathematik 2"): roemische Zahlen i-vi und einzelne Ziffern
+    /// 1-6 als roemische Zahl, sonst leer. `timetable.series_marks` in Python.
+    /// Nur am Ende des Namens oder vor einem Satzzeichen ("Mathematik I - Übung", "… II (Wiederholung)"), nicht
+    /// mitten im Text ("alle 2 Wochen").
+    private static let mark = PyRegex(#"(?<![a-zäöüß0-9])(?:iii|ii|iv|vi|v|i|[1-6])(?=\s*(?:$|[-–(:/,.;]))"#)
+
+    static func seriesMarks(_ s: String) -> Set<String> {
+        Set(mark.findAll(PyText.lower(s)).map { romans[$0] ?? $0 })
+    }
+
+    /// Zwei Teile verschiedener Reihen ("… I" und "… II") sind nie dasselbe Modul (26.11.2026: die Anmeldung zur
+    /// Wiederholung "Technische Mechanik I" landete beim App-Modul "Technische Mechanik II", weil der eine Name im
+    /// anderen steckt; Titel und Klausurtermin waren dann falsch)
+    static func otherPart(_ a: String, _ b: String) -> Bool {
+        let x = seriesMarks(a), y = seriesMarks(b)
+        return !x.isEmpty && !y.isEmpty && x.isDisjoint(with: y)
+    }
 
     /// `guess_module(conn, title)`: Modul-ID ab einer Aehnlichkeit von 0.55, sonst nil
     public static func guessModule(_ c: SQLiteConnection, title: String?) throws -> SQLiteValue? {
@@ -15,6 +34,7 @@ public enum ModuleGuess {
         var score = 0.0
         for m in mods {
             let n = PyText.lower(m["name"]?.string ?? "")
+            if otherPart(t, n) { continue }
             var sc = SequenceMatcher(t, n).ratio()
             if PyText.contains(t, n) || PyText.contains(n, t) { sc = max(sc, 0.9) }
             // Kurztitel wie "Mathe I", "DuA", "GDS", "ET"
@@ -27,6 +47,7 @@ public enum ModuleGuess {
         }
         for course in courses {
             let n = PyText.lower(course["title"]?.string ?? "")
+            if otherPart(t, n) { continue }
             var sc = SequenceMatcher(t, n).ratio()
             if PyText.contains(t, n) || PyText.contains(n, t) { sc = max(sc, 0.9) }
             if sc > score { best = course["module_id"]; score = sc }
