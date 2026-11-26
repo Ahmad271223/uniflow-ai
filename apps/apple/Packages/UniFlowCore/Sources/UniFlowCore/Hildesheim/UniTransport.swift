@@ -129,27 +129,79 @@ public struct UniRetry: Sendable {
         return false
     }
 
-    func run<T>(_ body: () async throws -> T) async throws -> T {
+    func run<T>(retryAfter hint: UniRetryAfterHint? = nil, _ body: () async throws -> T) async throws -> T {
         var n = 0
         while true {
             do {
                 return try await body()
             } catch {
                 n += 1
-                guard n < max(1, attempts), Self.isTransient(error), retriesTimeouts || !Self.isTimeout(error), !Task.isCancelled else { throw error }
-                try? await Task.sleep(nanoseconds: delayNanos(n))
+                guard n < max(1, attempts), Self.isTransient(error), retriesTimeouts || !Self.isTimeout(error), !Task.isCancelled,
+                      let wait = wait(attempt: n, retryAfter: hint?.take()) else { throw error }
+                try? await Task.sleep(nanoseconds: wait)
                 try Task.checkCancellation()
             }
         }
+    }
+
+    // MARK: Retry-After (26.11.2026, "Abruf schonen")
+
+    /// Laenger wartet ein Lauf auf "Retry-After" nicht: verlangt die Hochschule mehr Ruhe, gibt der Lauf diese Anfrage
+    /// auf (der Fehler 429/503 laesst den Abgleich von selbst dann 2 Stunden ruhen, `AutoSyncOverload`), statt sie nach
+    /// 1,5 s erneut zu stellen
+    public static let maxRetryAfter: TimeInterval = 30
+
+    /// Kopfzeile `Retry-After` (RFC 9110): Sekunden ("120") oder ein HTTP-Datum; nil ohne oder unlesbar. Nie negativ.
+    public static func retryAfter(_ value: String?, now: Date = Date()) -> TimeInterval? {
+        guard let v = value?.trimmingCharacters(in: .whitespaces), !v.isEmpty else { return nil }
+        if let s = Int(v) { return TimeInterval(max(s, 0)) }
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "GMT")
+        f.dateFormat = "EEE, dd MMM yyyy HH:mm:ss zzz"
+        guard let date = f.date(from: v) else { return nil }
+        return max(date.timeIntervalSince(now), 0)
+    }
+
+    /// Wartezeit vor Versuch `attempt` (ab 1) in Nanosekunden: die eigene Pause, mindestens aber die von der Hochschule
+    /// verlangte. nil: nicht mehr versuchen (verlangt mehr als `maxRetryAfter`).
+    public func wait(attempt: Int, retryAfter: TimeInterval?) -> UInt64? {
+        let own = delayNanos(attempt)
+        guard let retryAfter else { return own }
+        guard retryAfter <= Self.maxRetryAfter else { return nil }
+        return max(own, UInt64(retryAfter * 1_000_000_000))
+    }
+}
+
+/// Merkt sich das "Retry-After" der letzten abgelehnten Antwort fuer `UniRetry.run` (ein Lauf, eine Anfrage)
+public final class UniRetryAfterHint: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: TimeInterval?
+
+    public init() {}
+
+    public func set(_ v: TimeInterval?) { lock.lock(); value = v; lock.unlock() }
+
+    /// Wert holen und vergessen (der naechste Fehlschlag bringt seinen eigenen)
+    public func take() -> TimeInterval? {
+        lock.lock(); defer { lock.unlock() }
+        let v = value
+        value = nil
+        return v
     }
 }
 
 extension UniTransport {
     /// GET/POST mit Wiederholungen; 5xx/429 werden zu `HildesheimError.http` (wiederholbar), andere Fehlercodes nicht.
+    /// Ein "Retry-After" der Hochschule verlaengert die Pause davor oder beendet die Wiederholungen (`UniRetry.wait`).
     func fetch(_ r: UniRequest, retry: UniRetry) async throws -> UniResponse {
-        try await retry.run {
+        let hint = UniRetryAfterHint()
+        return try await retry.run(retryAfter: hint) {
             let resp = try await send(r)
-            if resp.status == 429 || resp.status >= 500 { throw HildesheimError.http(status: resp.status, url: HText.withoutQuery(r.url.absoluteString)) }
+            if resp.status == 429 || resp.status >= 500 {
+                hint.set(UniRetry.retryAfter(resp.headers["retry-after"]))
+                throw HildesheimError.http(status: resp.status, url: HText.withoutQuery(r.url.absoluteString))
+            }
             return resp
         }
     }

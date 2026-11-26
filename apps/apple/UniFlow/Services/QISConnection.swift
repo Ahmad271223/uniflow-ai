@@ -8,8 +8,9 @@ import WebKit
 // Rechner des QIS. Der Sitzungsparameter asi und die Stammdaten der Seiten werden nie gespeichert (Kern).
 
 /// Verbindung zum QIS fuer einen Container (Apple-Nutzer, LUH). Der `ContainerManager` baut je offenem LUH-Container
-/// eine; sie haelt ihren Container fest. Abgerufen wird hoechstens alle 20 Stunden von selbst (beim Oeffnen der App,
-/// `runIfDue`) und auf Knopfdruck sofort (`run(force: true)`). Ein leerer Notenspiegel ist kein Fehler.
+/// eine; sie haelt ihren Container fest. Von selbst ruft der Abgleich 8 bis 18 Uhr QIS hoechstens alle 4 Stunden ab
+/// (`AutoSync.portalIntervals`, seit 26.11.2026; vorher alle 30 Minuten), die eigene Regel `runIfDue` hoechstens alle
+/// 20 Stunden; auf Knopfdruck sofort (`run(force: true)`). Ein leerer Notenspiegel ist kein Fehler.
 @MainActor
 final class QISConnection: ObservableObject {
     enum State: Equatable {

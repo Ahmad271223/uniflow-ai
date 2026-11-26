@@ -113,6 +113,25 @@ final class WakePushAppTests: XCTestCase {
         XCTAssertEqual(push.deviceToken, String(repeating: "ab", count: 32))
     }
 
+    /// 26.11.2026 ("Abruf schonen"): der Dienst weckt je Konto nur das zuletzt benutzte Geraet. Darum meldet sich die App
+    /// beim Oeffnen erneut, wenn die letzte Meldung mindestens eine Stunde her ist - oefter nicht.
+    func testSameRegistrationIsRepeatedAfterAnHourSoTheServiceKnowsTheDeviceInUse() async throws {
+        var clock = Date(timeIntervalSince1970: 1_795_000_000)
+        push.now = { clock }
+        await push.received(token: apnsToken)
+        XCTAssertEqual(service.requests.count, 1)
+        clock = clock.addingTimeInterval(WakePush.reportAgain - 1)
+        await push.report()
+        XCTAssertEqual(service.requests.count, 1, "innerhalb einer Stunde nicht noch einmal")
+        clock = clock.addingTimeInterval(1)
+        await push.report()
+        XCTAssertEqual(service.requests.count, 2, "nach einer Stunde: erneut melden (zuletzt benutzt)")
+        clock = clock.addingTimeInterval(-3 * 3600)
+        await push.report()
+        XCTAssertEqual(service.requests.count, 3, "Uhr zurueckgestellt: lieber einmal mehr melden")
+        XCTAssertEqual(WakePush.reportAgain, 3600)
+    }
+
     func testWithoutAccountNothingIsRegistered() async {
         push.client = { nil }
         push.refresh()

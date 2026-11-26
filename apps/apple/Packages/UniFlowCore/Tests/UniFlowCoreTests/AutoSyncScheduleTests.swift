@@ -326,4 +326,85 @@ final class AutoSyncScheduleTests: XCTestCase {
         XCTAssertEqual(AutoSyncLedger.attemptKey("Uni-Mail"), "uniflow.autosync.attempt.unimail")
         XCTAssertEqual(AutoSyncLedger.attemptKey("Stud.IP"), "uniflow.autosync.attempt.studip")
     }
+
+    // MARK: Versatz je Geraet (26.11.2026, "Abruf schonen")
+
+    /// Mit Versatz 17 Minuten: Fenster ab 08:17, Laeufe 08:17, 08:47 … 17:47 - weiter 20, das Ende bleibt 18:00
+    func testOffsetMovesTheWindowStartButNotTheEnd() throws {
+        let tz = try zone("Europe/Berlin")
+        let staggered = plan.staggered(by: 17 * 60)
+        XCTAssertFalse(staggered.isInWindow(try at("2026-11-17 08:16:59", tz), timeZone: tz))
+        XCTAssertTrue(staggered.isInWindow(try at("2026-11-17 08:17:00", tz), timeZone: tz))
+        XCTAssertTrue(staggered.isInWindow(try at("2026-11-17 17:59:59", tz), timeZone: tz))
+        XCTAssertFalse(staggered.isInWindow(try at("2026-11-17 18:00:00", tz), timeZone: tz))
+        XCTAssertEqual(local(staggered.nextRun(last: nil, now: try at("2026-11-17 06:00", tz), timeZone: tz), tz), "2026-11-17 08:17:00")
+        XCTAssertEqual(local(staggered.nextRun(last: nil, now: try at("2026-11-17 19:00", tz), timeZone: tz), tz), "2026-11-18 08:17:00")
+        var now = try at("2026-11-17 00:00", tz)
+        let end = try at("2026-11-18 00:00", tz)
+        var last: Date?
+        var runs: [String] = []
+        while now < end {
+            if staggered.isDue(last: last, now: now, timeZone: tz) {
+                last = now
+                runs.append(String(local(now, tz).suffix(8).prefix(5)))
+            }
+            now = now.addingTimeInterval(60)
+        }
+        XCTAssertEqual(runs.count, 20)
+        XCTAssertEqual(runs.first, "08:17")
+        XCTAssertEqual(runs.last, "17:47")
+    }
+
+    func testOffsetStaysBelowTheInterval() {
+        XCTAssertEqual(plan.offset, 0, "der Plan selbst hat keinen Versatz")
+        XCTAssertEqual(plan.staggered(by: -5).offset, 0)
+        XCTAssertEqual(plan.staggered(by: 45 * 60).offset, 30 * 60 - 1)
+        XCTAssertEqual(plan.staggered(by: 61.9).offset, 61)
+    }
+
+    func testDeviceOffsetIsRolledOnceAndKept() {
+        let d = freshDefaults()
+        XCTAssertEqual(AutoSyncStagger.offset(defaults: d, random: { _ in 1234 }), 1234)
+        XCTAssertEqual(AutoSyncStagger.offset(defaults: d, random: { _ in 7 }), 1234, "bleibt bei jedem Start derselbe")
+        d.set(99_999, forKey: AutoSyncStagger.key)
+        XCTAssertEqual(AutoSyncStagger.offset(defaults: d, random: { _ in 5 }), 5, "ein unsinniger Wert wird neu gewuerfelt")
+        let spread = Set((0..<200).map { _ in AutoSyncStagger.offset(defaults: freshDefaults()) })
+        XCTAssertTrue(spread.allSatisfy { $0 >= 0 && $0 < 30 * 60 })
+        XCTAssertGreaterThan(spread.count, 100, "die Geraete verteilen sich ueber die 30 Minuten")
+    }
+
+    // MARK: eigener Abstand je Portal (Noten aus QIS hoechstens alle 4 Stunden)
+
+    func testOwnIntervalAlsoMovesTheNextRun() throws {
+        let tz = try zone("Europe/Berlin")
+        let d = freshDefaults()
+        let ledger = AutoSyncLedger(defaults: d)
+        let last = try at("2026-11-17 08:00", tz)
+        let four: TimeInterval = 4 * 3600
+        XCTAssertFalse(ledger.isDue("QIS", lastSuccess: last, now: try at("2026-11-17 11:59", tz), timeZone: tz, interval: four))
+        XCTAssertTrue(ledger.isDue("QIS", lastSuccess: last, now: try at("2026-11-17 12:00", tz), timeZone: tz, interval: four))
+        XCTAssertEqual(local(ledger.nextRun("QIS", lastSuccess: last, now: try at("2026-11-17 08:30", tz), timeZone: tz, interval: four), tz),
+                       "2026-11-17 12:00:00")
+        XCTAssertEqual(local(ledger.nextRun("QIS", lastSuccess: try at("2026-11-17 16:00", tz), now: try at("2026-11-17 16:30", tz),
+                                            timeZone: tz, interval: four), tz),
+                       "2026-11-18 08:00:00", "nach 18 Uhr nicht mehr, am naechsten Morgen zuerst")
+        XCTAssertEqual(local(ledger.nextRun("QIS", lastSuccess: last, now: try at("2026-11-17 08:30", tz), timeZone: tz), tz),
+                       "2026-11-17 08:30:00", "ohne eigenen Abstand wie bisher 30 Minuten")
+    }
+
+    func testFourHoursGiveThreeRunsADay() throws {
+        let tz = try zone("Europe/Berlin")
+        let ledger = AutoSyncLedger(defaults: freshDefaults())
+        var now = try at("2026-11-17 00:00", tz)
+        let end = try at("2026-11-18 00:00", tz)
+        var runs: [String] = []
+        while now < end {
+            if ledger.isDue("QIS", lastSuccess: nil, now: now, timeZone: tz, interval: 4 * 3600) {
+                ledger.recordAttempt("QIS", at: now)
+                runs.append(String(local(now, tz).suffix(8).prefix(5)))
+            }
+            now = now.addingTimeInterval(60)
+        }
+        XCTAssertEqual(runs, ["08:00", "12:00", "16:00"])
+    }
 }

@@ -110,7 +110,8 @@ final class URLSessionStudIPTransport: StudIPTransport, @unchecked Sendable {
     }
 
     private static func reply(_ r: UniResponse) -> HTTPReply {
-        HTTPReply(status: r.status, contentType: r.headers["content-type"] ?? "", finalURL: r.finalURL, body: r.body)
+        HTTPReply(status: r.status, contentType: r.headers["content-type"] ?? "", finalURL: r.finalURL, body: r.body,
+                  retryAfter: r.headers["retry-after"])
     }
 
     func get(_ url: URL, accept: String?) async throws -> HTTPReply {
