@@ -22,6 +22,7 @@ enum HomeWidgetGroup {
 enum HomeWidgetKind {
     static let next = "de.uniflow.ai.widget.next"
     static let mensa = "de.uniflow.ai.widget.mensa"
+    static let messages = "de.uniflow.ai.widget.messages"
 }
 
 struct HomeWidgetData: Codable, Equatable {
@@ -34,6 +35,8 @@ struct HomeWidgetData: Codable, Equatable {
     /// so weit reichen die Termine (Ende des letzten abgefragten Tages); danach weiss das Widget nichts mehr
     var eventsUntil: Date
     var mensa: Mensa?
+    /// ungelesene Nachrichten (26.11.2026); nil ohne Nachrichtenquelle (eigener Server, nichts verbunden)
+    var messages: Messages? = nil
 
     struct Event: Codable, Equatable, Hashable {
         var title: String
@@ -44,6 +47,35 @@ struct HomeWidgetData: Codable, Equatable {
         var color: String?
         /// vorlesung, uebung, tutorium … (`LocalTimetable.eventKinds`)
         var kind: String?
+    }
+
+    /// Widget "Nachrichten": Zahl der ungelesenen und die letzten Zeilen. Betreff und Textanfang stehen nur drin, wenn
+    /// sie gezeigt werden duerfen; der Textanfang nur mit dem Schalter "Anfang des Nachrichtentexts zeigen".
+    struct Messages: Codable, Equatable {
+        /// "Stud.IP", "Learnweb" oder "Moodle"
+        var source: String
+        /// ungelesene der Quelle (laut Stud.IP ungelesen und seit dem letzten Oeffnen der Seite neu)
+        var unread: Int
+        /// ungelesene im Posteingang der Uni-Mail; nil ohne Uni-Mail (nicht verbunden oder abgeschaltet)
+        var mailUnread: Int?
+        /// neueste ungelesene zuerst, erst die Quelle, dann Uni-Mail; hoechstens `HomeWidgetData.messageLines`
+        var lines: [MessageLine]
+        /// Betreffe auch auf dem Sperrbildschirm
+        var lockSubjects: Bool
+        /// Stand der Nachrichten (letzter Abruf)
+        var fetchedAt: Date?
+
+        var total: Int { unread + (mailUnread ?? 0) }
+    }
+
+    struct MessageLine: Codable, Equatable, Hashable {
+        /// Rolle ("Lehrende", "Stud.IP") bzw. Absender der E-Mail
+        var sender: String
+        var subject: String
+        /// Anfang des Textes; nil ohne den Schalter
+        var preview: String?
+        var sentAt: Date?
+        var isMail: Bool
     }
 
     struct Mensa: Codable, Equatable {
@@ -70,6 +102,9 @@ struct HomeWidgetData: Codable, Equatable {
 }
 
 extension HomeWidgetData {
+    /// so viele Zeilen traegt der Schnappschuss (das mittlere Widget zeigt drei)
+    static let messageLines = 4
+
     /// Termine, die zu `now` laufen oder danach beginnen
     func upcoming(at now: Date) -> [Event] { events.filter { $0.end > now } }
 

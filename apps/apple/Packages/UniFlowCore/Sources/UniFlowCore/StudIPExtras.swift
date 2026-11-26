@@ -41,9 +41,16 @@ public enum StudIPExtras {
             sent_at TEXT,
             url TEXT,                          -- Posteingang (nicht die Einzelansicht)
             dates TEXT,                        -- erkannte Tage [{date, time, kind}]
-            fetched_at TEXT
+            fetched_at TEXT,
+            is_read INTEGER                    -- gelesen laut Stud.IP (`is-read` der Liste): 1/0, NULL unbekannt (Moodle, Learnweb, alt)
         )
         """
+    /// Spalte `is_read` (26.11.2026, Widget "Nachrichten") in Tabellen von vorher nachtragen
+    static func ensureReadColumn(_ c: SQLiteConnection) throws {
+        guard try has(c, "studip_messages") else { return }
+        let cols = try c.rows("PRAGMA table_info(studip_messages)").compactMap { $0["name"]?.string }
+        if !cols.contains("is_read") { try c.execute("ALTER TABLE studip_messages ADD COLUMN is_read INTEGER") }
+    }
     static let activityTable = """
         CREATE TABLE IF NOT EXISTS studip_activity (
             id TEXT PRIMARY KEY,
@@ -118,6 +125,9 @@ public enum StudIPExtras {
         public let id, sender, subject, preview, sentAt, url: String
         /// [{date, time, kind}]
         public let dates: [JSONValue]
+        /// gelesen laut Stud.IP (Attribut `is-read` der Liste des Posteingangs); nil, wenn die Quelle es nicht nennt.
+        /// Nicht in `json` (Vergleich mit der Python-Referenz), nur in der Spalte `is_read`.
+        public var isRead: Bool? = nil
 
         public var json: JSONValue {
             ["id": .string(id), "sender": .string(sender), "subject": .string(subject), "preview": .string(preview),
@@ -156,7 +166,7 @@ public enum StudIPExtras {
             }
             let preview = PyText.slice(text, 0, Announcements.maxText)      // ganzer Text (Inhaber 03.11.2026: nie "…")
             out.append(Message(id: "sp-msg-\(id)", sender: senderLabel(m, users: users), subject: subject, preview: preview, sentAt: sent,
-                               url: "\(base)/dispatch.php/messages/overview", dates: dates))
+                               url: "\(base)/dispatch.php/messages/overview", dates: dates, isRead: a["is-read"]?.bool))
         }
         return out
     }
@@ -318,12 +328,13 @@ public enum StudIPExtras {
     /// `store_messages`: Nachrichten ersetzen (in Stud.IP Geloeschtes verschwindet)
     static func storeMessages(_ c: SQLiteConnection, _ items: [Message], fetchedAt: String) throws {
         try c.executeScript(messagesTable)
+        try ensureReadColumn(c)
         try c.execute("DELETE FROM studip_messages WHERE id NOT IN (\(marks(items.count)))", items.map { .text($0.id) })
         for m in items {
             try c.execute("""
-                INSERT OR REPLACE INTO studip_messages(id, sender, subject, preview, sent_at, url, dates, fetched_at) VALUES (?,?,?,?,?,?,?,?)
+                INSERT OR REPLACE INTO studip_messages(id, sender, subject, preview, sent_at, url, dates, fetched_at, is_read) VALUES (?,?,?,?,?,?,?,?,?)
                 """, [.text(m.id), .text(m.sender), .text(m.subject), .text(m.preview), .text(m.sentAt), .text(m.url),
-                      .text(JSONValue.array(m.dates).jsonString()), .text(fetchedAt)])
+                      .text(JSONValue.array(m.dates).jsonString()), .text(fetchedAt), m.isRead.map { .integer($0 ? 1 : 0) } ?? .null])
         }
     }
 

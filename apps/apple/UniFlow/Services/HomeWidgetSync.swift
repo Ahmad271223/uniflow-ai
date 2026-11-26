@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import UniFlowCore
 import SwiftUI
@@ -18,6 +19,8 @@ enum HomeWidgetSync {
 
     private static var running = false
     private static var again = false
+    /// Uni-Mail des offenen Containers (setzt `HomeWidgetRefresher`), fuer die Zahl im Widget "Nachrichten"
+    static weak var mail: UniMailConnection?
 
     /// Schnappschuss neu schreiben bzw. loeschen; laeuft schon einer, folgt genau ein weiterer danach
     static func refresh(api: APIClient?, now: Date = Date()) async {
@@ -55,7 +58,67 @@ enum HomeWidgetSync {
         let events = Self.events(weeks: week, cancelled: cancelled, from: today, to: lastDay)
         let until = HomeWidgetClock.date(day: Mensa.addDays(lastDay, 1), time: "00:00") ?? now.addingTimeInterval(Double(days) * 86_400)
         let mensa = await Self.mensa(api: api, today: today, prefs: prefs)
-        return HomeWidgetData(createdAt: now, events: events, eventsUntil: until, mensa: mensa)
+        let messages = await Self.messages(api: api)
+        return HomeWidgetData(createdAt: now, events: events, eventsUntil: until, mensa: mensa, messages: messages)
+    }
+
+    // MARK: Nachrichten (26.11.2026)
+
+    /// Widget "Nachrichten": nur mit lokalem Backend (der eigene Server gleicht den Posteingang nicht ab)
+    static func messages(api: APIClient, prefs: MessagesWidgetPrefs = .load()) async -> HomeWidgetData.Messages? {
+        guard api.isLocal else { return nil }
+        let list = try? await api.value("/api/studip/messages")
+        let mailOn = prefs.mail && (mail?.isConnected ?? false)
+        let cached = mailOn ? await mail?.cachedInbox() : nil
+        return messages(list: list, mark: ActiveContainer.current?.defaults.string(forKey: MessagesInbox.seenKey),
+                        source: sourceName(ActiveContainer.current?.key.university), prefs: prefs,
+                        mailUnread: mailOn ? mail?.unseen : nil, mailListing: cached)
+    }
+
+    static func sourceName(_ u: UniversityKey?) -> String {
+        switch u {
+        case .hildesheim: return "Learnweb"
+        case .hsh: return "Moodle"
+        default: return "Stud.IP"
+        }
+    }
+
+    /// so viele Zeichen Textanfang (nur mit dem Schalter)
+    static let previewLength = 120
+
+    /// Reine Regel (WidgetSnapshotAppTests): ungelesen = laut Stud.IP nicht gelesen (unbekannt zaehlt mit) und neuer als
+    /// das letzte Oeffnen der Seite "Nachrichten" in StudiNow (`MessagesInbox.isNew`). Zeilen: neueste ungelesene der
+    /// Quelle, danach ungelesene E-Mails der ersten Seite des Posteingangs. nil, wenn es weder gespeicherte Nachrichten
+    /// noch Uni-Mail gibt.
+    static func messages(list: JSONValue?, mark: String?, source: String, prefs: MessagesWidgetPrefs,
+                         mailUnread: Int?, mailListing: JSONValue?) -> HomeWidgetData.Messages? {
+        let all = list?.list("messages") ?? []
+        if all.isEmpty, mailUnread == nil { return nil }
+        let unread = all.filter { MessagesInbox.isUnread($0, since: mark) }
+        func clean(_ s: String?) -> String { (s ?? "").replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines) }
+        func preview(_ s: String?) -> String? {
+            guard prefs.preview else { return nil }
+            let t = clean(s).split(whereSeparator: \.isWhitespace).joined(separator: " ")
+            guard !t.isEmpty else { return nil }
+            return t.count > previewLength ? String(t.prefix(previewLength - 1)) + "…" : t
+        }
+        var lines: [HomeWidgetData.MessageLine] = unread.prefix(HomeWidgetData.messageLines).map { m in
+            .init(sender: clean(m.s("sender")).isEmpty ? source : clean(m.s("sender")),
+                  subject: clean(m.s("subject")).isEmpty ? "(ohne Betreff)" : clean(m.s("subject")),
+                  preview: preview(m.s("text")), sentAt: StudIPExtras.messageInstant(m.s("sent_at")), isMail: false)
+        }
+        if mailUnread != nil {
+            for m in mailListing?.list("messages") ?? [] where m["read"]?.bool == false {
+                guard lines.count < HomeWidgetData.messageLines else { break }
+                let sender = clean(m.s("sender"))
+                lines.append(.init(sender: sender.isEmpty ? "Uni-Mail" : sender,
+                                   subject: clean(m.s("subject")).isEmpty ? "(ohne Betreff)" : clean(m.s("subject")),
+                                   preview: nil, sentAt: nil, isMail: true))
+            }
+        }
+        let fetched = list?.s("fetched_at").flatMap { StudIPExtras.messageInstant($0) ?? ISO8601DateFormatter().date(from: $0) }
+        return .init(source: source, unread: unread.count, mailUnread: mailUnread.map { max(0, $0) }, lines: lines,
+                     lockSubjects: prefs.lockSubjects, fetchedAt: fetched)
     }
 
     /// Termine aus Antworten von GET /api/timetable/week: nur "teilnahme" (Ausfall, verschoben, nicht besucht fallen
@@ -126,7 +189,48 @@ struct HomeWidgetRefresher: View {
             .frame(width: 0, height: 0)
             .accessibilityHidden(true)
             .onChange(of: Trigger(runs: studip.finishedRuns, generation: containers.generation, demo: containers.demoActive), initial: true) { _, _ in
+                HomeWidgetSync.mail = containers.uniMail
+                Task { await HomeWidgetSync.refresh(api: containers.active?.api) }
+            }
+            // Widget "Nachrichten": Seite geoeffnet (gesehen), Learnweb/Moodle abgeglichen, Uni-Mail gelesen
+            .onReceive(MessagesInbox.shared.$newCount.removeDuplicates().dropFirst()) { _ in
+                Task { await HomeWidgetSync.refresh(api: containers.active?.api) }
+            }
+            .onReceive(containers.uniMail.map { $0.$unseen.removeDuplicates().dropFirst().eraseToAnyPublisher() } ?? Empty().eraseToAnyPublisher()) { _ in
+                HomeWidgetSync.mail = containers.uniMail
                 Task { await HomeWidgetSync.refresh(api: containers.active?.api) }
             }
     }
+}
+
+/// Was das Widget "Nachrichten" zeigen darf (Geraet, `UserDefaults.standard`; Karte in den Einstellungen)
+struct MessagesWidgetPrefs: Equatable {
+    /// Betreffe auch auf dem Sperrbildschirm (Vorgabe aus: dort nur Zahl und Absender)
+    var lockSubjects = false
+    /// Anfang des Nachrichtentexts im Widget (Vorgabe aus)
+    var preview = false
+    /// Uni-Mail mitzaehlen, wenn verbunden (Vorgabe an)
+    var mail = true
+
+    enum Keys {
+        static let lockSubjects = "uniflow.widget.messages.lockSubjects"
+        static let preview = "uniflow.widget.messages.preview"
+        static let mail = "uniflow.widget.messages.mail"
+    }
+
+    static func load(_ d: UserDefaults = .standard) -> MessagesWidgetPrefs {
+        var p = MessagesWidgetPrefs()
+        p.lockSubjects = d.bool(forKey: Keys.lockSubjects)
+        p.preview = d.bool(forKey: Keys.preview)
+        if d.object(forKey: Keys.mail) != nil { p.mail = d.bool(forKey: Keys.mail) }
+        return p
+    }
+
+    func save(_ d: UserDefaults = .standard) {
+        d.set(lockSubjects, forKey: Keys.lockSubjects)
+        d.set(preview, forKey: Keys.preview)
+        d.set(mail, forKey: Keys.mail)
+    }
+
+    static let intro = "Das Widget zeigt, wie viele Nachrichten ungelesen sind, und auf dem Home-Bildschirm Absender und Betreff der neuesten. Auf dem Sperrbildschirm stehen ohne den Schalter nur die Zahl und der Absender, nie ein Nachrichtentext. Alles bleibt auf diesem Gerät."
 }

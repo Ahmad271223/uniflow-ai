@@ -56,8 +56,14 @@ final class MessagesInbox: ObservableObject {
         return sentAt > mark
     }
 
+    /// Ungelesen: neuer als die Marke und nicht schon in Stud.IP gelesen (Feld `read` seit 26.11.2026; fehlt es, zaehlt
+    /// nur die Marke). So verschwindet eine im Browser gelesene Nachricht auch aus Abzeichen und Widget.
+    static func isUnread(_ m: JSONValue, since mark: String?) -> Bool {
+        m["read"]?.bool != true && isNew(m.s("sent_at"), since: mark)
+    }
+
     static func newCount(_ messages: [JSONValue], since mark: String?) -> Int {
-        messages.filter { isNew($0.s("sent_at"), since: mark) }.count
+        messages.filter { isUnread($0, since: mark) }.count
     }
 
     /// Neueste `sent_at` einer Liste (nach Zeitpunkt)

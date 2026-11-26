@@ -23,8 +23,10 @@ Nur Debug: `-UFScroll center` (Mitte der Seite für Bildvergleiche).
 
 ## Bewusst nicht umgesetzt (Entscheidung des Inhabers nötig)
 
-- „läuft · noch 35 Min“ / „in 25 Min“ in der Zeile des laufenden bzw. nächsten Termins (innerhalb von „Heute an der
-  Uni“, keine eigene Karte – die Startseite hat seit 13.11. keinen Termine-Block).
+- ~~„läuft · noch 35 Min“ / „in 25 Min“ in der Zeile des laufenden bzw. nächsten Termins~~ – **am 26.11.2026 vom
+  Inhaber entschieden und gebaut** (Zweig `app/kalender-countdown-nachrichten`, `TerminCountdown.swift`,
+  `DashboardEventsCard.swift`): in der Zeile von „Heute an der Uni“, keine eigene Karte, iPhone und iPad/Mac, dazu
+  „Als Nächstes: morgen 8:15 · …“ nach dem letzten Termin. Siehe docs/KALENDER-COUNTDOWN-NACHRICHTEN-2026-11-26.md.
 - Kennzahl-Zeile an leeren Tagen begründen („keine Uni-Termine heute“, Feiertag, vorlesungsfrei) – die Zeile ist
   vom Inhaber freigegeben.
 - iPhone-Store-Bilder neu: die Bilder vom 14.11. zeigen noch Lernkalender und „Weiterlernen“.

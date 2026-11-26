@@ -25,7 +25,8 @@ extension StudIPExtras {
         return words.allSatisfy { hay.range(of: $0, options: [.caseInsensitive, .diacriticInsensitive]) != nil }
     }
 
-    /// `GET /api/studip/messages?q=`: {messages: [{id, sender, subject, text, sent_at, url, dates, recipients}], total, fetched_at, q}.
+    /// `GET /api/studip/messages?q=`: {messages: [{id, sender, subject, text, sent_at, url, dates, recipients, read}], total, fetched_at, q}.
+    /// `read`: gelesen laut Stud.IP (true/false), null, wenn unbekannt (Moodle, Learnweb, vor dem 26.11.2026 gespeichert).
     /// `recipients`: Zahl der Empfaenger mit einem selbst (fuer "Allen antworten"), null, wenn Stud.IP sie nicht nennt.
     /// Neueste zuerst (nach Zeitpunkt, bei Gleichstand nach Kennung); `total` zaehlt alle gespeicherten, `fetched_at`
     /// ist der juengste Abruf (nil ohne Nachrichten). Ohne Tabelle (noch kein Abgleich) leer.
@@ -35,12 +36,15 @@ extension StudIPExtras {
         var fetched: String?
         if try has(c, "studip_messages") {
             let meta = try messageMeta(c)
-            for r in try c.rows("SELECT id, sender, subject, preview, sent_at, url, dates, fetched_at FROM studip_messages") {
+            let cols = Set(try c.rows("PRAGMA table_info(studip_messages)").compactMap { $0["name"]?.string })
+            let read = cols.contains("is_read") ? "is_read" : "NULL AS is_read"
+            for r in try c.rows("SELECT id, sender, subject, preview, sent_at, url, dates, fetched_at, \(read) FROM studip_messages") {
                 let dates = (r["dates"]?.string).flatMap { try? JSONValue.parse(Data($0.utf8)) } ?? .array([])
                 all.append(["id": r["id"] ?? .null, "sender": r["sender"] ?? .null, "subject": r["subject"] ?? .null,
                             "text": r["preview"] ?? .null, "sent_at": r["sent_at"] ?? .null, "url": r["url"] ?? .null,
                             "dates": dates.array != nil ? dates : .array([]),
-                            "recipients": (r["id"]?.string).flatMap { meta[$0] }.map { .number(Double($0)) } ?? .null])
+                            "recipients": (r["id"]?.string).flatMap { meta[$0] }.map { .number(Double($0)) } ?? .null,
+                            "read": r["is_read"]?.int.map { .bool($0 != 0) } ?? .null])
                 if let f = r["fetched_at"]?.string, !f.isEmpty, fetched.map({ PyText.less($0, f) }) ?? true { fetched = f }
             }
         }

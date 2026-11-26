@@ -118,6 +118,8 @@ struct UniFlowApp: App {
                     .modifier(UFToastOverlay(center: toast))
                     // Widgets nach jedem Abgleich, beim Abmelden/Wechsel der Hochschule und beim Ein-/Ausschalten der Demo
                     .background(HomeWidgetRefresher(containers: containers, studip: containers.studip))
+                    // Termine im Kalender des Geraets (nur eingeschaltet, 26.11.2026)
+                    .background(CalendarExportRefresher(containers: containers, studip: containers.studip))
                     .environmentObject(account)
                     .environmentObject(containers)
                     .environmentObject(session)

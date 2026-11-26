@@ -83,4 +83,51 @@ final class StudIPMessagesEndpointTests: XCTestCase {
         XCTAssertNil(StudIPExtras.messageInstant("gestern"))
         XCTAssertLessThan(StudIPExtras.messageInstant("2026-10-30T12:30:00+02:00")!, StudIPExtras.messageInstant("2026-10-30T12:00:00+01:00")!)
     }
+
+    // MARK: Gelesen laut Stud.IP (26.11.2026, Widget "Nachrichten")
+
+    func testReadStateFromStudIPIsStoredAndListed() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        let inbox: JSONValue = ["data": [
+            ["id": "r1", "type": "messages", "attributes": ["subject": "Gelesen", "message": "a", "mkdate": "2026-11-02T08:00:00+01:00", "is-read": true]],
+            ["id": "r2", "type": "messages", "attributes": ["subject": "Ungelesen", "message": "b", "mkdate": "2026-11-02T09:00:00+01:00", "is-read": false]],
+            ["id": "r3", "type": "messages", "attributes": ["subject": "Ohne Angabe", "message": "c", "mkdate": "2026-11-02T07:00:00+01:00"]],
+        ]]
+        let parsed = StudIPExtras.parseMessages(inbox["data"], included: nil, base: base, today: 20759)
+        XCTAssertEqual(parsed.map(\.isRead), [true, false, nil])
+        XCTAssertNil(parsed[0].json.object?["read"], "nicht im Vergleich mit der Python-Referenz")
+        var d = StudIPExtras.Download()
+        d.messages = parsed
+        try await backend.context.database.transaction { try StudIPExtras.store(d, in: $0, clock: self.clock) }
+        let listed = try await get(backend)
+        let ms = try XCTUnwrap(listed["messages"]?.array)
+        let read = Dictionary(uniqueKeysWithValues: ms.map { ($0["id"]?.string ?? "", $0["read"] ?? .null) })
+        XCTAssertEqual(read["sp-msg-r1"], .bool(true))
+        XCTAssertEqual(read["sp-msg-r2"], .bool(false))
+        XCTAssertEqual(read["sp-msg-r3"], .null, "unbekannt bleibt unbekannt")
+    }
+
+    /// Tabellen von vor dem 26.11.2026 (ohne Spalte is_read): Liste geht weiter, der naechste Abgleich traegt die Spalte nach
+    func testOldTableWithoutReadColumn() async throws {
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        try await backend.context.database.transaction { c in
+            try c.executeScript("""
+                CREATE TABLE studip_messages (id TEXT PRIMARY KEY, sender TEXT, subject TEXT, preview TEXT, sent_at TEXT, url TEXT, dates TEXT, fetched_at TEXT);
+                INSERT INTO studip_messages VALUES ('sp-msg-alt', 'Stud.IP', 'Alt', 'x', '2026-11-01T08:00:00+01:00', '', '[]', '2026-11-01T08:00:00');
+                """)
+        }
+        let old = try await get(backend)
+        let before = try XCTUnwrap(old["messages"]?.array)
+        XCTAssertEqual(before.first?["read"], .null)
+        var d = StudIPExtras.Download()
+        let fresh: JSONValue = [["id": "n1", "type": "messages",
+                                 "attributes": ["subject": "Neu", "message": "y", "mkdate": "2026-11-02T08:00:00+01:00", "is-read": false]]]
+        d.messages = StudIPExtras.parseMessages(fresh, included: nil, base: base, today: 20759)
+        XCTAssertEqual(d.messages?.count, 1)
+        try await backend.context.database.transaction { try StudIPExtras.store(d, in: $0, clock: self.clock) }
+        let new = try await get(backend)
+        let after = try XCTUnwrap(new["messages"]?.array)
+        XCTAssertEqual(after.map { $0["id"]?.string }, ["sp-msg-n1"])
+        XCTAssertEqual(after.first?["read"], .bool(false))
+    }
 }

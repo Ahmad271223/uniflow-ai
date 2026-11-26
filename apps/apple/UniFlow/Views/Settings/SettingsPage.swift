@@ -1203,6 +1203,8 @@ private struct LocalUniArea: View {
             }
             BackgroundSyncCard()                                     // Abgleich im Hintergrund (S8)
             SyncNotificationsCard()                                  // Mitteilungen bei Neuem (17.11.2026)
+            CalendarExportCard()                                     // Termine im Kalender des Geraets (26.11.2026)
+            MessagesWidgetCard()                                     // Widget "Nachrichten": was es zeigen darf (26.11.2026)
             CourseFileIntakeCard()                                   // Datei-Eingang: nur Test-Build (UF_INTAKE_OFFERED), mit Konto
             if let term { UFCard { SemesterFields(term: term, reload: reload) } }
             if !studip.offersStudIP && hildesheim != nil {

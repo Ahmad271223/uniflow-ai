@@ -11,6 +11,7 @@ struct StudiNowWidgetBundle: WidgetBundle {
     var body: some Widget {
         NextEventWidget()
         MensaWidget()
+        MessagesWidget()
     }
 }
 
@@ -96,3 +97,32 @@ struct MensaWidget: Widget {
     }
 }
 
+
+/// Widget "Nachrichten" (26.11.2026): nur ein Eintrag; neu geladen, wenn die App einen geaenderten Schnappschuss
+/// schreibt (nach jedem Abgleich, beim Oeffnen der Nachrichten, nach Uni-Mail)
+struct MessagesProvider: TimelineProvider {
+    func placeholder(in context: Context) -> MessagesEntry { MessagesEntry(date: Date(), data: .sampleMessages(now: Date())) }
+
+    func getSnapshot(in context: Context, completion: @escaping (MessagesEntry) -> Void) {
+        let now = Date()
+        let data = HomeWidgetStore.load()
+        completion(MessagesEntry(date: now, data: context.isPreview && data?.messages == nil ? .sampleMessages(now: now) : data))
+    }
+
+    func getTimeline(in context: Context, completion: @escaping (Timeline<MessagesEntry>) -> Void) {
+        let now = Date()
+        completion(Timeline(entries: [MessagesEntry(date: now, data: HomeWidgetStore.load())], policy: .after(now.addingTimeInterval(6 * 3600))))
+    }
+}
+
+struct MessagesWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: HomeWidgetKind.messages, provider: MessagesProvider()) { entry in
+            MessagesWidgetView(entry: entry)
+                .containerBackground(for: .widget) { Color(uiColor: .systemBackground) }
+        }
+        .configurationDisplayName("Nachrichten")
+        .description("Wie viele Nachrichten ungelesen sind und von wem – aus Stud.IP und wahlweise Uni-Mail.")
+        .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryCircular, .accessoryInline])
+    }
+}

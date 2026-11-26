@@ -1,0 +1,174 @@
+# Termine im Kalender, Countdown, Widget „Nachrichten“ (26.11.2026)
+
+Auftrag des Inhabers vom 26.11.2026 nach dem Vergleich mit der freien Stud.IP-App eines LUH-Studenten (MIT): „mach das
+alles bei uns besser als bei denen, viel besser und genauer“. Übernommen sind nur die drei Ideen – kein Code, kein
+Name, kein Logo.
+
+- Zweig: `app/kalender-countdown-nachrichten` (Ordner `~/Studora-Builds/wt-kalender-countdown`), abgezweigt von
+  `release/1.0.8-alles` @ 75ddc104. Lokal committet, **nicht gepusht**, in **keinem** Build.
+- Ziel: der Build **nach** 1.0.8 (Build 50). Nichts davon ist in Build 50.
+
+## 1. Termine im Kalender
+
+**Was es tut.** Einstellungen → Uni-Zugang & Abgleich → Karte „Termine im Kalender“. Schalter „In die Kalender-App
+eintragen“ (von selbst **aus**). Erst dieser Schalter fragt iOS nach der Erlaubnis. StudiNow legt einen eigenen
+Kalender **„StudiNow“** an und hält ihn aktuell.
+
+- **Quelle:** genau der Stundenplan, wie er in der App steht (`GET /api/timetable/week`): Stud.IP, LSF/Campus-
+  management, eigene Termine, eigene Änderungen, Verlegungen, eigene Ausfälle, vorlesungsfreie Tage. Dazu wahlweise
+  Abgaben/Tests/Fristen (Feld `deadlines` derselben Antwort) und Klausuren/Prüfungen (`GET /api/exams/upcoming`).
+- **Im Eintrag:** Titel, Zeit (Europe/Berlin), Raum als Ort, in den Notizen Art (Vorlesung, Übung …), Modul,
+  Lehrende, Sitzungsthema, eigene Notiz, „Verlegt vom 26.11.“, Hinweis „fällt vielleicht aus“ aus Ankündigungen, und
+  als Adresse ein Link zurück in die App (`uniflow://#/timetable?date=…`, Prüfungen `#/exams`).
+- **Zeitraum wählbar:** 2 Wochen, 4 Wochen, 8 Wochen, **ganzes Semester** (Vorgabe; bis Semesterende, mindestens 2
+  Wochen, höchstens 200 Tage; ohne bekanntes Semesterende 8 Wochen).
+- **Schalter im Einzelnen:** Abgaben und Fristen · Klausuren und Prüfungen · Ausfälle als „Fällt aus“ zeigen ·
+  Feiertage und vorlesungsfreie Zeit (alle von selbst an, sobald der Abgleich an ist).
+
+**Genau abgleichen statt neu anlegen** (`CalendarExportPlan`, `EventKitCalendarStore`):
+
+- Jedes Ereignis trägt eine feste Kennung in seiner Adresse (`…&sn=<Kennung>`): Serie + Tag (`e12@2026-11-26`),
+  Stud.IP-Einzeltermin (`s<Quelle>|<id>`), Abgabe (`d…`), Prüfung (`x…`), Feiertag/Pause (`h<Art>|<Name>|<Nr>`).
+- Geändertes wird geändert, Entfallenes entfernt, Doppeltes gelöscht (z. B. nach einem abgebrochenen Lauf).
+  Unveränderte Einträge werden **nicht** neu geschrieben.
+- **Verlegt:** behält die Kennung seines ursprünglichen Tages – der Eintrag wandert, statt gelöscht und neu angelegt.
+- **Ausfälle:** Ausfälle laut Stud.IP blendet die App aus (Entscheidung des Inhabers 28.10.2026) – im Kalender fehlen
+  sie deshalb auch. Selbst markierte Ausfälle (in der App durchgestrichen) stehen als „Fällt aus: …“ (als „frei“, wo der
+  Kalender das kennt), oder fehlen, wenn der Schalter aus ist. Nicht besuchte Termine fehlen.
+- **Feiertage/vorlesungsfreie Zeit:** aufeinanderfolgende Tage als **ein** ganztägiger Eintrag; läuft die Zeit schon
+  seit vor heute, behält der Eintrag seinen Beginn.
+- **Nie angefasst:** Ereignisse ohne StudiNow-Kennung (auch nicht, wenn sie jemand in den Kalender „StudiNow“
+  einträgt), alle anderen Kalender, alles Vergangene.
+- **Wann:** nach jedem Stud.IP-Abgleich, beim Öffnen der App (höchstens alle 10 Minuten), beim Wechsel in den
+  Hintergrund (eigene Änderungen am Stundenplan), beim Wechsel der Hochschule/des Kontos, bei jeder Änderung einer
+  Einstellung. Mit Demo-Inhalten passiert nichts (erfundene Termine gehören nicht in den echten Kalender).
+  Abgemeldet: die künftigen Einträge werden entfernt.
+- **Abschalten** fragt nach und entfernt den Kalender „StudiNow“ ganz.
+- **In der Kalender-App gelöscht:** StudiNow legt ihn nicht ungefragt neu an, sondern schaltet den Abgleich aus und
+  sagt es in der Karte.
+- **Wo:** bevorzugt „Auf meinem iPhone/iPad“ (bleibt auf dem Gerät). Gibt es den nicht (iCloud-Kalender an), in
+  iCloud; dann nutzen mehrere Geräte denselben Kalender „StudiNow“ (gleiche Kennungen, also nichts doppelt).
+
+**Besser/genauer als das Vorbild:** dort ein Kalender mit den nächsten 8 Wochen, höchstens einmal am Tag abgeglichen.
+Hier: Quelle ist der ganze Stundenplan der App (mit eigenen Terminen, Änderungen, Verlegungen, Ausfällen, Feiertagen,
+Abgaben, Prüfungen), Zeitraum wählbar bis zum Semesterende, Abgleich nach jedem Stundenplan-Abgleich und beim Öffnen,
+feste Kennungen statt Neuanlage, Raum/Lehrende/Thema/Link in jedem Eintrag, fremde Einträge unberührt.
+
+## 2. Countdown auf der Startseite
+
+In der Karte „Heute an der Uni“ (keine neue Karte, Vorgabe vom 13.11.2026), iPhone, iPad und Mac:
+
+- laufender Termin: **„läuft · noch 35 Min“** (über eine Stunde: „noch 1 Std 10 Min“);
+- nächster Termin: **„in 25 Min“**, „in 2 Std 10 Min“, „beginnt jetzt“; beginnen zwei gleichzeitig, beide;
+- nach dem letzten Termin des Tages unten: **„Als Nächstes: morgen 8:15 · Analysis I“** (sonst „Mo. 10:00“ bzw.
+  „14.12. 10:00“); gibt es in der nächsten Woche nichts, verschwindet die Zeile ganz.
+- Zählt nur besuchte Termine; Ausfälle, nicht besuchte und verlegte zählen nicht (nach einem Ausfall kommt der
+  nächste stattfindende). Ausfälle laut Stud.IP sind ohnehin ausgeblendet. Raum aus dem Termin selbst (Raumänderungen
+  stehen dort).
+- Aktualisiert sich zu jeder vollen Minute ohne Neuladen (`TimelineView(.everyMinute)`), Minuten aufgerundet (um
+  10:14 „in 1 Min“, um 10:15 „läuft“).
+- VoiceOver liest ganze Sätze: „Läuft gerade, noch 35 Minuten“, „Beginnt in 25 Minuten“, „Nächster Termin morgen um
+  8:15 Uhr: Analysis I“.
+- iPad/Mac: kleines Feld vor dem Raum; iPhone: eigene Zeile unter dem Raum (bricht bei großer Schrift nicht ab).
+
+Code: `UniFlow/Views/TerminCountdown.swift`, Karte herausgelöst nach `UniFlow/Views/DashboardEventsCard.swift`
+(Inhalt und Aussehen sonst unverändert).
+
+## 3. Widget „Nachrichten“
+
+Neues drittes Widget neben „Nächster Termin“ und „Mensa heute“ (gleiche App-Gruppe `group.de.uniflow.ai`, gleicher
+Schnappschuss `home-widget.json`, neues Feld `messages`; alte Schnappschüsse bleiben lesbar).
+
+- **Größen:** klein, mittel; Sperrbildschirm rechteckig, rund (Zahl), Zeile („3 ungelesene Nachrichten“).
+- **Inhalt:** Zahl der ungelesenen Stud.IP-Nachrichten (Uni Hildesheim: Learnweb, HsH: Moodle), wahlweise plus
+  Uni-Mail (SOGo, wenn verbunden; Vorgabe an), und die neuesten ungelesenen Absender + Betreffe (mittel: 3, klein: 1).
+- **„Ungelesen“ genau:** laut Stud.IP ungelesen **und** neuer als das letzte Öffnen der Seite „Nachrichten“ in
+  StudiNow. Dafür speichert der Abgleich jetzt das Feld `is-read` aus Stud.IP mit (neue Spalte `is_read`, wird in
+  alten Datenbanken nachgetragen). Wer eine Nachricht im Browser liest, sieht sie also auch im Widget und am Abzeichen
+  „Nachrichten“ nicht mehr als neu.
+- **Antippen:** öffnet „Nachrichten“ in der App; eine Uni-Mail-Zeile öffnet „Uni-Mail“; nur Uni-Mail ungelesen →
+  „Uni-Mail“.
+- **Datenschutz/Sperrbildschirm** (Karte „Widget „Nachrichten““ in den Einstellungen):
+  - Home-Bildschirm: Absender und Betreff.
+  - Sperrbildschirm: **nur Zahl und Absender**; Betreff nur mit dem Schalter „Betreff auf dem Sperrbildschirm“ (aus).
+  - **Nie ein Nachrichtentext** ohne den Schalter „Anfang des Nachrichtentexts zeigen“ (aus). Ohne Schalter steht der
+    Text gar nicht erst im Schnappschuss.
+  - Betreff und Textanfang sind `privacySensitive` (iOS blendet sie bei gesperrtem Gerät aus, wo es das kann).
+  - Absender von Stud.IP sind wie bisher Rollen („Lehrende“, „Stud.IP“), keine Personennamen.
+- **Wann neu:** nach jedem Abgleich, beim Öffnen der Seite „Nachrichten“, nach Uni-Mail, beim Ändern der Schalter.
+
+**Besser/genauer als das Vorbild:** dort nur die Zahl ungelesener Stud.IP-Nachrichten. Hier: Zahl plus Absender und
+Betreff, Uni-Mail dazu, Sperrbildschirm-Größen, genaue Zählung (Stud.IP-Stand und App-Stand), Schutz des Inhalts auf
+dem Sperrbildschirm, Antippen öffnet die richtige Seite.
+
+## Getestet
+
+- **App-Tests** `UniFlowTests/KalenderCountdownNachrichtenAppTests` (17 Tests) auf eigenem iPad-Simulator (iPad Pro
+  11 M5, iOS 27.2, `D8CDB2DD-…`) grün, darunter **gegen den echten Kalender des Simulators** (anlegen, zweiter Lauf
+  ändert nichts, ändern, entfernen, fremdes Ereignis bleibt, Abschalten entfernt den Kalender, gelöschter Kalender wird
+  erkannt). Dieser Test fand einen echten Fehler: lokale Kalender kennen „frei/beschäftigt“ nicht und hätten bei jedem
+  Abgleich alle Abgaben/Feiertage/Ausfälle neu geschrieben – behoben.
+- Widget-Bilder aller Größen hell/dunkel und Countdown-Bilder (iPhone 402 pt, iPhone SE 375 pt, iPhone mit großer
+  Schrift, iPad; 09:50, 11:10, 13:40, 18:00) in `~/Studora-Builds/kalender-countdown/widget-bilder/`.
+- **Kern-Tests** (`swift test`, ganzes Paket): 1893 Tests, 0 Fehler; neu: `is-read` wird gespeichert, alte Tabelle ohne
+  Spalte.
+- **iPad-Simulator, weitere App-Tests** (196 Tests, 8 übersprungen wie immer, 0 Fehler): Quellen-Prüfungen
+  (`AuditPaket353740`, `AuditPaket59bis77`, `AuditRunde0910`, `AuditRunde11`, `SheetGate`, `SheetNachHinweis`,
+  `BackArrow`, `StudoraName`, `UniversityLoginPolicy`, `MacTestIsolation`, `DataSeparation`, `ViewTypeDepth`,
+  `LayoutWidthAudit`), `EinstellungenKlar`, `EinstellungenBilder`, `StartseiteBilder`, `OhneLernkalender`,
+  `WidgetSnapshot`, `Messages`.
+- **iPhone-Simulator** (iPhone 17 Pro, iOS 27.2, `3881184D-…`): `KalenderCountdownNachrichtenAppTests` (mit echtem
+  Kalender), `WidgetSnapshot`, `Messages`, `OhneLernkalender` – 54 Tests, 0 Fehler.
+- Nicht gelaufen: die ganze App-Suite (rund 290 Testdateien) und die UI-Tests.
+- Schon vorher so, nicht Teil dieses Auftrags: auf dem iPhone mit sehr großer Schrift bricht die Uhrzeitspalte in
+  „Heute an der Uni“ um („10:“ / „15“), weil sie fest 44 pt breit ist.
+
+## Nicht getestet
+
+- **Am echten Gerät** (iPad/iPhone des Inhabers): nichts aufgespielt (braucht sein Okay). Besonders offen: wie iOS
+  nach der Erlaubnis fragt (iOS 17+: „Vollzugriff“), iCloud-Fall ohne lokalen Kalender, Widget auf echtem
+  Sperrbildschirm.
+- **Mac** („Designed for iPad“): nicht gebaut/getestet (kein Mac-Lauf, solange die Build-50-Sitzung läuft). Offen,
+  ob macOS den Kalenderzugriff einer iPad-App ohne zusätzliche Berechtigung erlaubt.
+- Ein echtes Stud.IP-Konto mit `is-read`: das Feld ist im Geräte-Probelauf (`StudIPDeviceProbeTests`) schon gelesen
+  worden, aber der neue Speicherweg lief noch nicht mit echten Daten.
+- Bildschirmfotos aus der laufenden App im Simulator: die Freigabe zum Bedienen des Simulators kam nicht; die Bilder
+  oben sind mit derselben Ansicht im Test gezeichnet.
+
+## Was der Inhaber entscheiden muss
+
+1. **Erlaubnistext** (Info.plist, steht in `project.yml`): „StudiNow trägt deinen Stundenplan, wenn du es in den
+   Einstellungen einschaltest, in einen eigenen Kalender „StudiNow“ ein und hält ihn aktuell. Andere Kalender liest
+   oder ändert StudiNow nicht. Nichts davon geht an einen Server.“ – so lassen? (`NSCalendarsFullAccessUsageDescription`
+   und für ältere Systeme `NSCalendarsUsageDescription`.) Vollzugriff ist nötig: mit „Nur hinzufügen“ kann eine App
+   keinen eigenen Kalender anlegen und nichts ändern oder entfernen. Apple prüft bei Vollzugriff genauer, ob die
+   Begründung passt.
+2. **Datenschutzerklärung (Website + Dienst):** neuer Absatz nötig (Vorschlag):
+   „**Kalender und Widgets.** Schaltest du „Termine im Kalender“ ein, trägt StudiNow deinen Stundenplan (Titel, Zeit,
+   Raum, Lehrende, Link in die App) in einen eigenen Kalender „StudiNow“ auf deinem Gerät ein. Liegt dein Kalender in
+   iCloud, synchronisiert Apple ihn wie deine anderen Kalender. StudiNow liest nur diesen eigenen Kalender. Die Widgets
+   zeigen Termine, Mensa und die Zahl ungelesener Nachrichten mit Absender und Betreff aus den Daten auf deinem Gerät;
+   nichts davon geht an einen Server von StudiNow.“
+3. **App-Datenschutz in App Store Connect / `PrivacyInfo.xcprivacy`:** keine neue Datenart (nichts verlässt das Gerät
+   Richtung StudiNow; EventKit ist keine „Required Reason“-Schnittstelle). Hinweis: Der Kommentar im Manifest sagt noch
+   „UserDefaults … keine App Group“ – seit den Widgets stimmt das nicht mehr (Text anpassen, keine neue Angabe nötig).
+4. **Store-Text „Neu in dieser Version“** und ggf. ein Bild mit dem Kalender/Widget.
+5. **Vorgaben ok?** Kalender aus; Zeitraum „Ganzes Semester“; Ausfälle als „Fällt aus“ sichtbar; Sperrbildschirm ohne
+   Betreff; kein Nachrichtentext; Uni-Mail mitzählen an.
+6. **App-Gruppe/Widget-ID im Apple-Konto** wie schon bei den Widgets (Build 47): nichts Neues, das Widget
+   „Nachrichten“ steckt in derselben Erweiterung.
+
+## Prüfläufe
+
+Befehle (eigener Bauordner `~/Studora-Builds/dd-kalender`, eigene Simulatoren „Kalender-Countdown iPad“
+`D8CDB2DD-24A0-450F-9423-08F6E5D7D6C9` und „Kalender-Countdown iPhone“ `3881184D-71C1-4C63-9BA4-5C33CB72726E`):
+
+```
+export DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer
+cd apps/apple && xcodegen generate
+xcrun simctl privacy <Simulator> grant calendar de.uniflow.ai     # sonst wird der Kalender-Test übersprungen
+xcodebuild test -project UniFlow.xcodeproj -scheme UniFlow -destination id=<Simulator> -derivedDataPath ~/Studora-Builds/dd-kalender \
+  -only-testing:UniFlowTests/KalenderCountdownNachrichtenAppTests
+```
+
+Ergebnisse: siehe „Getestet“ oben.

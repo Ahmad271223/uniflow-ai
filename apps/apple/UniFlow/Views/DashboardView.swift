@@ -39,6 +39,8 @@ struct DashboardView: View {
     @State private var bulletinNew = 0
     /// "Zuletzt benutzt" (Weitermachen wie zuvor, `RecentCard`): Dokumente, KI-Gespraeche, Wochentests
     @State private var recent: [RecentItem] = []
+    /// erster Termin ab morgen fuer "Als Nächstes: morgen 8:15" nach dem letzten Termin des Tages (`TerminCountdown`)
+    @State private var later: TerminCountdown.Later?
     private let api: APIClient?
 
     init(api: APIClient?) {
@@ -85,6 +87,9 @@ struct DashboardView: View {
             studipCancelled = await StudIPCancelled.keys(api, from: shown, to: shown)
         }
         recent = await RecentItem.load(api: api, conversations: .shared, limit: Self.recentLimit)
+        let tomorrow = Mensa.addDays(data.value?["today"]?.s("date") ?? device, 1)
+        let week = try? await api?.value("/api/timetable/week?start=\(tomorrow)")
+        later = TerminCountdown.later(week: week, cancelled: await StudIPCancelled.keys(api, from: tomorrow, to: Mensa.addDays(tomorrow, 6)))
     }
 
     /// so viele Eintraege in "Zuletzt benutzt" auf der Uebersicht (KI-Start: 15)
@@ -144,7 +149,7 @@ struct DashboardView: View {
                 let planner = LearnCalendar.enabled
                 DashboardFlow(twoColumns: windowWidth > 1100, spacing: 8) {
                     if planner { todayCard(pk: pk, dayLink: todayDate).ufAppear("dashboard", index: 3).dashboardSlot(.main) }
-                    if !evs.isEmpty { eventsCard(evs).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
+                    if !evs.isEmpty { eventsCard(evs, date: todayDate).ufAppear("dashboard", index: 4).dashboardSlot(.main) }
                     DueListCard().ufAppear("dashboard", index: 5).dashboardSlot(.main)   // Abgaben & Prüfungen (nur lokal)
                     // die Woche in der breiten Spalte (sieben Tage brauchen Platz; zaehlt auch "Aufgaben erledigt")
                     if planner { weekCard(d["week"] ?? .null, today: todayDate).ufAppear("dashboard", index: 6).dashboardSlot(.main) }
@@ -214,66 +219,10 @@ struct DashboardView: View {
         }
     }
 
-    private func eventsCard(_ evs: [JSONValue]) -> some View {
-        UFCard {
-            UFCardHead("Heute an der Uni", icon: "clock") {
-                Button("Stundenplan") { router.go(.timetable()) }.ufFont(13.12).foregroundStyle(UF.accentText).buttonStyle(.plain)
-            }
-            ForEach(Row.rows(evs, key: "event_id")) { row in
-                let e = row.value
-                let attending = e.s("status") == "teilnahme"
-                Button { PlanEnv.make(session, overlay, toast, router).openOccurrence(e, date: e.s("date") ?? UFFmt.todayISO()) } label: {
-                  if compact {
-                    compactEventRow(e, attending: attending)
-                  } else {
-                    HStack(spacing: 9.6) {
-                        UFDot(color: Color(hex: e.s("color")))
-                        Text("\(e.s("start") ?? "")–\(e.s("end") ?? "")").ufFont(13.12, 700).foregroundStyle(UF.text).frame(minWidth: 92, alignment: .leading)
-                        Text(e.s("title") ?? "").ufFont(13.12).strikethrough(!attending)
-                            .foregroundStyle(attending ? UF.text : UF.muted).frame(maxWidth: .infinity, alignment: .leading).lineLimit(1)
-                        if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 11.52).help(UFCancel.helpText(e) ?? mark) }
-                        Text(String((e.s("room") ?? "").prefix(22))).ufFont(13.12).foregroundStyle(UF.muted).lineLimit(1)
-                    }
-                    .padding(.vertical, 4.8)
-                    .ufBorderBottom()
-                    .contentShape(Rectangle())
-                  }
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-
-    /// iPhone (Feinschliff 23.11.2026, nach dem Vergleich mit StudGo): links Beginn fett und Ende klein, dann ein
-    /// 4-pt-Balken in Modulfarbe, rechts Titel bis zwei Zeilen und darunter der Raum. Vorher stand alles in einer
-    /// Zeile, auf 402 pt Breite wurde der Titel nach wenigen Zeichen gekuerzt. Inhalt und Reihenfolge wie bisher.
-    private func compactEventRow(_ e: JSONValue, attending: Bool) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            VStack(alignment: .leading, spacing: 1) {
-                Text(e.s("start") ?? "").ufFont(14, 700).foregroundStyle(UF.text).monospacedDigit()
-                Text(e.s("end") ?? "").ufFont(12).foregroundStyle(UF.muted).monospacedDigit()
-            }
-            .frame(width: 44, alignment: .leading)
-            RoundedRectangle(cornerRadius: 2).fill(Color(hex: e.s("color"))).frame(width: 4)
-                .opacity(attending ? 1 : 0.4)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                    Text(e.s("title") ?? "").ufFont(14, 600).strikethrough(!attending)
-                        .foregroundStyle(attending ? UF.text : UF.muted).lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if let mark = UFCancel.label(e) { UFCancelMark(text: mark, size: 11.52).help(UFCancel.helpText(e) ?? mark) }
-                }
-                if let room = e.s("room"), !room.isEmpty {
-                    Text(room).ufFont(12.5).foregroundStyle(UF.muted).lineLimit(1)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .padding(.vertical, 8)
-        .ufBorderBottom()
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
+    private func eventsCard(_ evs: [JSONValue], date: String) -> some View {
+        DashboardEventsCard(events: evs, date: date, later: later, compact: compact,
+                            openTimetable: { router.go(.timetable()) },
+                            open: { e in PlanEnv.make(session, overlay, toast, router).openOccurrence(e, date: e.s("date") ?? UFFmt.todayISO()) })
     }
 
     /// modules[] aus /api/dashboard ohne abgeschaltete Module, hoechstens fuenf (wie modulesCard in views-home.js)

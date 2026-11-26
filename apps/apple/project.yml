@@ -224,6 +224,11 @@ targets:
         # Teilen-Menues bieten "Bild sichern" an (QR-Code der Einladung, Downloads im In-App-Browser); ohne diesen Text
         # beendet iOS die App beim Antippen (Generalprobe 04.11.2026). Nur Hinzufuegen, nie Lesen der Fotos.
         NSPhotoLibraryAddUsageDescription: StudiNow sichert ein Bild, das du im Teilen-Menü mit „Bild sichern“ auswählst, in deinen Fotos.
+        # Termine im Kalender (26.11.2026, CalendarExport.swift): erst der Schalter in den Einstellungen fragt. Vollzugriff,
+        # weil nur damit ein eigener Kalender "StudiNow" angelegt, genau abgeglichen und beim Abschalten entfernt werden
+        # kann; gelesen wird nur dieser Kalender. Alter Schluessel fuer den Mac (aeltere macOS-Fassungen).
+        NSCalendarsFullAccessUsageDescription: StudiNow trägt deinen Stundenplan, wenn du es in den Einstellungen einschaltest, in einen eigenen Kalender „StudiNow“ ein und hält ihn aktuell. Andere Kalender liest oder ändert StudiNow nicht. Nichts davon geht an einen Server.
+        NSCalendarsUsageDescription: StudiNow trägt deinen Stundenplan, wenn du es in den Einstellungen einschaltest, in einen eigenen Kalender „StudiNow“ ein und hält ihn aktuell. Andere Kalender liest oder ändert StudiNow nicht. Nichts davon geht an einen Server.
         # Raumfinder (05.11.2026, docs/RAUMFINDER-2026-11-05.md): "In Google Maps öffnen" nimmt die Google-Maps-App, wenn
         # installiert (canOpenURL braucht den Eintrag), sonst die Webadresse; nichts geht an Google ohne Antippen
         LSApplicationQueriesSchemes:
@@ -277,6 +282,7 @@ targets:
         buildPhase: resources       # SKTestSession(configurationFileNamed:) sucht die Datei im Testbundle
       # Ansichten der Widgets fuer die Bilder in WidgetSnapshotAppTests (Datenformat kommt ueber @testable import UniFlow)
       - path: StudiNowWidgets/WidgetViews.swift
+      - path: StudiNowWidgets/MessagesWidgetView.swift
       # alle vier Tarife, nur fuer die Tests der Wechsel-Logik (Pro-Tarife kommen erst mit dem StudiNow-Dienst)
       - path: UniFlowTests/UniFlowAlleTarife.storekit
         buildPhase: resources
