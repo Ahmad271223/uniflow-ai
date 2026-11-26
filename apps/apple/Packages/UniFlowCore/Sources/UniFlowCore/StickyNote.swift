@@ -120,7 +120,7 @@ public enum StickyNote {
         obj["block"] = 1
         // liniertes Zettelpapier: Zeilenabstand fuer aeltere Apps und das Web
         let fontSize = TextBlock.clampedSize(obj["fontSize"]?.double ?? s.fontSize)
-        obj["lineHeight"] = paper == "lined" ? .number(((lineStep / fontSize) * 1000).rounded() / 1000) : 1.25
+        obj["lineHeight"] = paper == "lined" ? .number(TextBlock.webLineHeight(fontSize: fontSize, step: lineStep)) : 1.25
         return .object(obj)
     }
 

@@ -17,7 +17,8 @@ struct TextEdit {
     let key: String
     let id: String
     let view: UITextView
-    let isNew: Bool
+    /// noch nicht auf der Seite (kommt mit dem ersten Text bzw. dem ersten Zwischenstand dorthin)
+    var isNew: Bool
     let layout: TextBlockRender.Layout
     /// Objekt beim Beginn; Aenderungen am ganzen Block waehrend des Tippens (Ausrichtung) stehen hier
     var object: JSONValue
@@ -103,6 +104,10 @@ extension ObjectEditing {
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         if g === pan { panDown = touch.location(in: nil) }
+        // im Text, der gerade getippt wird, gehoeren Tipp und Doppeltipp der Textansicht (Schreibmarke setzen, Wort
+        // markieren): Vorher beendete jeder Tipp das Tippen, und der Doppeltipp begann es mit dem ALTEN Text neu -
+        // das seither Getippte war weg
+        if g === tap || g === doubleTap, let view = editing?.view, view.bounds.contains(touch.location(in: view)) { return false }
         guard g === hold else { return true }
         guard holdAccepts(touchType: touch.type) else { return false }
         // im Text, der gerade getippt wird, gehoert das lange Druecken der Textauswahl
@@ -112,6 +117,9 @@ extension ObjectEditing {
 
     func holdShouldBegin() -> Bool {
         guard grab == nil, !transferring, let (overlay, p) = locate(hold) else { return false }
+        // beim Schreiben liegt die Hand oft sekundenlang still auf der Seite: Solange der Stift in dieser Zeit
+        // geschrieben hat, greift das Halten nichts (sonst wechselte der Editor mitten im Satz auf "Auswählen")
+        if !isActive, overlay.touchTracker.sincePencil < Self.holdSeconds { return false }
         return textObject(on: overlay, at: p) != nil
     }
 
@@ -153,6 +161,8 @@ extension ObjectEditing {
     // MARK: Text bearbeiten (Tastatur, Diktat oder Scribble mit dem Pencil)
 
     func beginTextEditing(key: String, id: String, isNew: Bool) {
+        // schon dabei: nicht mit dem gespeicherten (aelteren) Text neu beginnen
+        if let e = editing, e.id == id, e.key == key { return }
         guard let overlay = controller?.boundOverlay(forKey: key) else { return }
         Task {
             guard let o = await objects(key).first(where: { $0["id"]?.string == id }), o["type"]?.string == "text" else { return }
@@ -248,9 +258,16 @@ extension ObjectEditing {
     func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {
         guard text == "\n", range.length == 0, let e = editing, e.view === textView else { return true }
         let whole = textView.textStorage.string as NSString
-        let lineStart = whole.paragraphRange(for: NSRange(location: range.location, length: 0)).location
+        let paragraph = whole.paragraphRange(for: NSRange(location: range.location, length: 0))
+        let lineStart = paragraph.location
         let line = whole.substring(with: NSRange(location: lineStart, length: range.location - lineStart))
-        guard let next = TextBlock.listContinuation(after: line) else { return true }
+        // "12. November" ist keine Liste: Nummern zaehlen ab 1 oder als Fortsetzung der Zeile davor
+        let previous = lineStart > 0 ? whole.substring(with: whole.paragraphRange(for: NSRange(location: lineStart - 1, length: 0))).trimmingCharacters(in: .newlines) : nil
+        guard TextBlock.continuesList(line, previous: previous), let next = TextBlock.listContinuation(after: line) else { return true }
+        // die Schreibmarke steht gleich hinter dem Listenzeichen, dahinter steht aber Text: eine gewoehnliche neue
+        // Zeile (vorher verschwand das Listenzeichen)
+        let rest = whole.substring(with: NSRange(location: range.location, length: NSMaxRange(paragraph) - range.location)).trimmingCharacters(in: .newlines)
+        if next.insert == nil, !rest.isEmpty { return true }
         if let insert = next.insert {
             textView.textStorage.replaceCharacters(in: range, with: NSAttributedString(string: insert, attributes: textView.typingAttributes))
             textView.selectedRange = NSRange(location: range.location + (insert as NSString).length, length: 0)
@@ -292,6 +309,44 @@ extension ObjectEditing {
         if abs(e.view.bounds.height - size.height) > 0.01 { e.view.bounds = CGRect(origin: .zero, size: size) }
     }
 
+    /// Text auf der Seite halten: Ist der Block beim Tippen unten oder rechts aus der Seite gewachsen, rueckt er so
+    /// weit nach oben bzw. links, wie es geht (gedrehte Bloecke bleiben, wo sie sind). Vorher wurde der Text gespeichert,
+    /// war aber auf der Seite und im Export nicht zu sehen.
+    func keptOnPage(_ o: JSONValue, key: String) -> JSONValue {
+        guard let page = controller?.boundOverlay(forKey: key)?.geometry.pageSize, (o["rotation"]?.double ?? 0) == 0,
+              let x = o["x"]?.double, let y = o["y"]?.double else { return o }
+        let size = TextBlockRender.size(o)
+        var out = o
+        if x + Double(size.width) > Double(page.width) { out["x"] = .number((max(0, Double(page.width - size.width)) * 100).rounded() / 100) }
+        if y + Double(size.height) > Double(page.height) { out["y"] = .number((max(0, Double(page.height - size.height)) * 100).rounded() / 100) }
+        return out
+    }
+
+    /// Zwischenstand sichern, ohne das Tippen zu beenden (die App geht in den Hintergrund): Beendet iOS sie dort, ist
+    /// der Text nicht verloren. Ein neuer Block kommt dabei auf die Seite.
+    func saveTextDraft() {
+        guard var e = editing else { return }
+        let text = NSAttributedString(attributedString: e.view.textStorage)
+        guard !text.string.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        let base = TextBlock.baseStyle(e.object)
+        let runs = TextBlockRender.runs(from: text, fallback: base)
+        let asBlock = TextBlock.isBlock(e.object) || e.formatted || runs.contains { $0.style != base }
+        let align = e.object["align"]
+        func written(_ o: JSONValue) -> JSONValue {
+            var out = o
+            if let align { out["align"] = align }
+            return asBlock ? TextBlock.saving(runs, in: out) : (PageObjectEdit.set([out], ids: [e.id], "text", .string(text.string)).first ?? out)
+        }
+        if e.isNew {
+            let saved = written(e.object)
+            e.isNew = false
+            editing = e
+            Task { await commit(e.key) { list in list.contains { $0["id"]?.string == e.id } ? list : list + [saved] } }
+        } else {
+            Task { await commit(e.key) { list in list.map { $0["id"]?.string == e.id && $0["type"]?.string == "text" ? written($0) : $0 } } }
+        }
+    }
+
     /// Bearbeiten beenden: Text und Formatierung speichern; ein leeres Feld wird entfernt (sonst bliebe es unsichtbar
     /// auf der Seite)
     func endTextEditing() {
@@ -313,7 +368,7 @@ extension ObjectEditing {
             guard !empty else { return }
             var out = e.object
             if let align { out["align"] = align }
-            let saved = asBlock ? TextBlock.saving(runs, in: out) : (PageObjectEdit.set([out], ids: [e.id], "text", .string(text.string)).first ?? out)
+            let saved = keptOnPage(asBlock ? TextBlock.saving(runs, in: out) : (PageObjectEdit.set([out], ids: [e.id], "text", .string(text.string)).first ?? out), key: e.key)
             Task { await commit(e.key) { $0 + [saved] } }
             return
         }
@@ -327,7 +382,7 @@ extension ObjectEditing {
                         guard o["id"]?.string == e.id, o["type"]?.string == "text" else { return o }
                         var out = o
                         if let align { out["align"] = align }
-                        return asBlock ? TextBlock.saving(runs, in: out) : (PageObjectEdit.set([out], ids: [e.id], "text", .string(text.string)).first ?? out)
+                        return self.keptOnPage(asBlock ? TextBlock.saving(runs, in: out) : (PageObjectEdit.set([out], ids: [e.id], "text", .string(text.string)).first ?? out), key: e.key)
                     }
                 }
             }

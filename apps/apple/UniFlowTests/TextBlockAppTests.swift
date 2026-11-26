@@ -1297,6 +1297,175 @@ final class TextBlockAppTests: XCTestCase {
         let plain = try XCTUnwrap(image.pixel(at: CGPoint(x: (a["x"]?.double ?? 0) + 1, y: baseline - 12)))
         XCTAssertTrue(plain.b > 0.9, "daneben weisses Papier: \(plain)")
     }
+
+    // MARK: Befunde der Durchsicht vom 26.11.2026
+
+    private func touch(_ p: CGPoint, on page: PageInkView, in window: UIWindow, times: Int = 1) async throws {
+        let at = page.content.convert(p, to: nil)
+        for _ in 0..<times {
+            let finger = TestFinger(at: at, in: window)
+            try await Task.sleep(nanoseconds: 40_000_000)
+            finger.lift()
+            try await Task.sleep(nanoseconds: 90_000_000)
+        }
+        try await Task.sleep(nanoseconds: 450_000_000)
+    }
+
+    /// Im Text, der gerade getippt wird, setzt ein Tipp die Schreibmarke und ein Doppeltipp markiert ein Wort - das
+    /// Tippen geht weiter. Vorher beendete der Tipp das Tippen, und der Doppeltipp begann es mit dem alten Text neu.
+    func testTippUndDoppeltippImBearbeitetenTextBehaltenDasGetippte() async throws {
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        let a = TextBlock.setting([TextBlock.Run(text: "Erster Block mit Text", style: TextBlock.Style(fontSize: 16))],
+                                  in: TextBlock.block(id: "a", x: 60, y: 100, template: "blank", pageWidth: 595))
+        await s.store.editObjects(pageKey: s.blank) { $0 + [a] }
+        try await BildProbe.wait("gezeigt") { page.objectsView.shownObjects.count == 1 }
+        s.editor.choose(.text)
+        try await BildProbe.tap(CGPoint(x: 90, y: 112), on: page, in: s.window)
+        try await BildProbe.wait("Block wird bearbeitet") { s.editor.objects.editing?.id == "a" }
+        let view = try XCTUnwrap(s.editor.objects.editingTextView)
+        view.selectedRange = NSRange(location: view.textStorage.length, length: 0)
+        view.insertText(" und mehr")
+
+        try await touch(CGPoint(x: 100, y: 112), on: page, in: s.window)
+        XCTAssertTrue(s.editor.objects.editingTextView === view, "ein Tipp in den Text beendet das Tippen nicht")
+        try await touch(CGPoint(x: 100, y: 112), on: page, in: s.window, times: 2)
+        XCTAssertTrue(s.editor.objects.editingTextView === view, "der Doppeltipp beginnt nicht neu")
+        XCTAssertEqual(view.text, "Erster Block mit Text und mehr")
+        s.editor.objects.beginTextEditing(key: s.blank, id: "a", isNew: false)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertTrue(s.editor.objects.editingTextView === view)
+
+        // daneben tippen beendet und sichert
+        try await BildProbe.tap(CGPoint(x: 300, y: 220), on: page, in: s.window)          // ueber der Bildschirmtastatur
+        try await BildProbe.wait("gesichert") { await self.object(s, s.blank, "a")?["text"] == "Erster Block mit Text und mehr" }
+        XCTAssertNil(s.editor.objects.editing)
+    }
+
+    /// Geht die App beim Tippen in den Hintergrund, steht der Text schon auf der Seite - und das Tippen geht weiter
+    func testZwischenstandBeimTippenUndTextBleibtAufDerSeite() async throws {
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        s.editor.choose(.text)
+        try await BildProbe.tap(CGPoint(x: 120, y: 300), on: page, in: s.window)
+        try await BildProbe.wait("neuer Block wird getippt") { s.editor.objects.editing?.isNew == true }
+        let view = try XCTUnwrap(s.editor.objects.editingTextView)
+        view.insertText("Entwurf")
+        let none = await s.store.objects(forPageKey: s.blank)
+        XCTAssertTrue(none.isEmpty, "noch nichts auf der Seite")
+        NotificationCenter.default.post(name: UIApplication.willResignActiveNotification, object: nil)
+        try await BildProbe.wait("Zwischenstand auf der Seite") { await s.store.objects(forPageKey: s.blank).first?["text"] == "Entwurf" }
+        XCTAssertTrue(s.editor.objects.editingTextView === view, "das Tippen geht weiter")
+        XCTAssertEqual(s.editor.objects.editing?.isNew, false)
+        view.insertText(" weiter")
+        s.editor.objects.endTextEditing()
+        try await BildProbe.wait("fertig") { await s.store.objects(forPageKey: s.blank).first?["text"] == "Entwurf weiter" }
+        let count = await s.store.objects(forPageKey: s.blank).count
+        XCTAssertEqual(count, 1, "kein zweiter Block")
+
+        // ein Block, der unten und rechts aus der Seite gewachsen ist, rueckt zurueck auf die Seite
+        let long = TextBlock.setting([TextBlock.Run(text: (1...8).map { "Zeile \($0)" }.joined(separator: "\n"), style: TextBlock.Style(fontSize: 16))],
+                                     in: TextBlock.block(id: "u", x: 520, y: 800, template: "blank", pageWidth: 595))
+        let kept = s.editor.objects.keptOnPage(long, key: s.blank)
+        let size = TextBlockRender.size(kept)
+        XCTAssertLessThanOrEqual((kept["y"]?.double ?? 0) + Double(size.height), 842.01)
+        XCTAssertLessThanOrEqual((kept["x"]?.double ?? 0) + Double(size.width), 595.01)
+        XCTAssertGreaterThanOrEqual(kept["y"]?.double ?? -1, 0)
+        let fine = TextBlock.block(id: "f", x: 60, y: 100, template: "blank", pageWidth: 595)
+        XCTAssertEqual(s.editor.objects.keptOnPage(fine, key: s.blank), fine, "was passt, bleibt, wo es ist")
+    }
+
+    func testListenRegelnBeimTippen() async throws {
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        s.editor.choose(.text)
+        try await BildProbe.tap(CGPoint(x: 120, y: 200), on: page, in: s.window)
+        try await BildProbe.wait("wird getippt") { s.editor.objects.editing != nil }
+        let view = try XCTUnwrap(s.editor.objects.editingTextView)
+        func enter() -> Bool {
+            let r = view.selectedRange
+            let plain = view.delegate?.textView?(view, shouldChangeTextIn: r, replacementText: "\n") ?? true
+            if plain { view.insertText("\n") }
+            return plain
+        }
+        view.insertText("12. November 2026")
+        XCTAssertTrue(enter(), "ein Datum ist keine Liste")
+        XCTAssertEqual(view.text, "12. November 2026\n")
+        view.insertText("1. Analysis")
+        XCTAssertFalse(enter())
+        XCTAssertTrue(view.text.hasSuffix("1. Analysis\n2. "), view.text)
+        view.insertText("Algebra")
+        // Schreibmarke gleich hinter dem Listenzeichen, dahinter steht Text: eine gewoehnliche neue Zeile
+        let whole = view.text as NSString
+        view.selectedRange = NSRange(location: whole.range(of: "2. ", options: .backwards).location + 3, length: 0)
+        XCTAssertTrue(enter())
+        XCTAssertTrue(view.text.contains("2. \nAlgebra"), view.text)
+        s.editor.objects.endTextEditing()
+    }
+
+    func testKlappkartenStapelnNichtStiftSchreibtUnterAufgedeckterKarteUndAusblenden() async throws {
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        let text = TextBlock.setting([TextBlock.Run(text: "Antwort: 42", style: TextBlock.Style(fontSize: 14))],
+                                     in: TextBlock.block(id: "t", x: 80, y: 190, template: "blank", pageWidth: 400))
+        let card = FlipCover.cover(id: "k", x: 70, y: 180, width: 240, height: 50)
+        await s.store.editObjects(pageKey: s.blank) { $0 + [card, text] }          // der Text steht in der Liste NACH der Karte
+        try await BildProbe.wait("Karte gezeigt") { self.covers(page).count == 1 }
+
+        // "Nur Stift": Unter der aufgedeckten Karte schreibt der Stift, die verdeckte bleibt dicht
+        XCTAssertTrue(page.coversView.revealedLetPencilThrough)
+        XCTAssertTrue(page.coversView.point(inside: CGPoint(x: 100, y: 200), with: nil))
+        page.coversView.toggleCover("k", animated: false)
+        XCTAssertFalse(page.coversView.point(inside: CGPoint(x: 100, y: 200), with: nil), "aufgedeckt: die Beruehrung geht an die Zeichenflaeche")
+        s.editor.pencilOnly = false
+        XCTAssertTrue(page.coversView.point(inside: CGPoint(x: 100, y: 200), with: nil), "schreibt auch der Finger, bleibt die Karte dicht")
+        s.editor.pencilOnly = true
+        page.coversView.toggleCover("k", animated: false)
+
+        // Werkzeug "Klappkarte" auf eine vorhandene Karte: waehlen statt stapeln
+        s.editor.choose(.select)
+        s.editor.tools.select(.cover)
+        try await BildProbe.tap(CGPoint(x: 150, y: 205), on: page, in: s.window)
+        try await BildProbe.wait("Karte gewaehlt") { s.editor.objects.hasSelection }
+        let list = await s.store.objects(forPageKey: s.blank)
+        XCTAssertEqual(list.filter(FlipCover.isCover).count, 1, "keine zweite Karte darueber")
+
+        // "Auswählen" trifft die Karte, die man sieht - nicht den Text darunter
+        s.editor.objects.clearSelection()
+        s.editor.tools.select(.select)
+        try await BildProbe.tap(CGPoint(x: 150, y: 205), on: page, in: s.window)
+        try await BildProbe.wait("gewaehlt") { s.editor.objects.hasSelection }
+        XCTAssertNotNil(s.editor.objects.selectedCovers, "die Karte ist gewaehlt")
+
+        // "Meine Notizen" ausgeblendet: Karten und Verweise auch
+        page.setOwnNotesVisible(false)
+        XCTAssertTrue(page.coversView.isHidden)
+        page.setOwnNotesVisible(true)
+        XCTAssertFalse(page.coversView.isHidden)
+    }
+
+    func testVervielfaeltigenNurMitProAIUndHaltenWartetAufDenStift() async throws {
+        let plus = try await open(proAI: false)
+        let page = try await overlay(plus, key: plus.blank)
+        var hints: [String] = []
+        plus.editor.onHint = { hints.append($0) }
+        let text = PageObjectEdit.text(id: "t", x: 40, y: 40, text: "einfach")
+        var doc = Sheet()
+        doc.isDocument = true
+        let sheet = SheetObject.object(id: "s", x: 60, y: 100, sheet: doc, page: (595, 842))
+        let card = FlipCover.cover(id: "k", x: 70, y: 300, width: 240, height: 50)
+        XCTAssertEqual(plus.editor.objects.copyable([text, sheet, card]).compactMap { $0["id"]?.string }, ["t"])
+        XCTAssertEqual(hints.last, ObjectEditing.copyLockedHint)
+
+        // der Stift hat eben geschrieben: Die ruhende Hand greift keinen Block
+        XCTAssertGreaterThan(page.touchTracker.sincePencil, ObjectEditing.holdSeconds, "ohne Stift: sofort bereit")
+
+        let pro = try await open(proAI: true)
+        let copies = pro.editor.objects.copyable([text, sheet, card])
+        XCTAssertEqual(copies.count, 3)
+        XCTAssertEqual(SheetObject.sheet(copies[1])?.isDocument, false, "eine Kopie ist nie die Tabelle als eigene Datei")
+    }
+
 }
 
 extension UIImage {
