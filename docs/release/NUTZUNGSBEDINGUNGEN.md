@@ -1,10 +1,10 @@
 # Nutzungsbedingungen StudiNow
 
-**Stand 24.11.2026.**
+**Stand 26.11.2026.**
 
 ## 1. Geltung und Vertragspartner
 
-Diese Bedingungen gelten für die Nutzung der StudiNow-Apps (iPad und Mac, Android, Windows), der Web-Oberfläche und
+Diese Bedingungen gelten für die Nutzung der StudiNow-Apps (iPhone, iPad und Mac, Android, Windows), der Web-Oberfläche und
 des gehosteten StudiNow-Dienstes. Anbieter ist IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih),
 Vahrenwalder Straße 30, 30165 Hannover, E-Mail support@studinow.app („wir“). Mit dem Anlegen
 eines Kontos oder der Nutzung der App stimmst du diesen Bedingungen zu. Für den Kauf der App und des Abos über den
@@ -70,7 +70,7 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   StudiNow Free, es sei denn, du schließt ein Abo ab; die Probe wird nie von selbst kostenpflichtig.
 - **Web und Windows:** Die Web-Oberfläche und die Windows-App nutzt du immer mit deinem StudiNow-Konto. Dort gibt es
   keinen Free-Tarif zum Arbeiten: Nach der Probe brauchst du StudiNow Plus oder Pro AI; ohne aktives Abo kannst du dort
-  deine Daten nur ansehen und exportieren, gelöscht wird nichts. Free bleibt in der iPad-App nutzbar. Die Windows-App
+  deine Daten nur ansehen und exportieren, gelöscht wird nichts. Free bleibt in der App für iPhone, iPad und Mac nutzbar. Die Windows-App
   prüft dein Abo beim Dienst; ohne Internet gilt der zuletzt geprüfte Stand bis zu 7 Tage.
 - **Abschluss im Web und unter Windows:** über unseren Zahlungsdienstleister Stripe (die Windows-App öffnet die
   Bezahlseite in deinem Browser), sobald wir ihn eingerichtet haben; Kündigen und Wechseln im Kundenportal von Stripe.
@@ -124,12 +124,8 @@ Plus die letzten 10 Tests, in Pro AI alle; ältere Tests bleiben gespeichert und
   weitergeben, soweit dir das nicht ausdrücklich erlaubt ist.
 - Du darfst keine Inhalte hochladen oder teilen, die Rechte Dritter verletzen, die rechtswidrig, beleidigend oder
   Spam sind.
-- **Kursdateien an StudiNow (Datei-Eingang):** Die App schickt neue PDF-Dateien aus deinen Kursen (Vorlesungen,
-  Übungen, Lösungen, Skripte, Altklausuren) einmal an StudiNow, zusammen mit Angaben zum Kurs (Hochschule,
-  Studiengang, Semester, Modul, Kursname, Dateiname). StudiNow ordnet und speichert sie, um Lernhilfen zu deinen
-  Kursen anzubieten. Nicht geschickt werden dein Name, deine Notizen und Markierungen, eigene Dokumente und
-  Organisatorisches; die Dateien werden ohne Angabe gespeichert, wer sie geschickt hat. Das geschieht nur im WLAN und
-  nur mit StudiNow-Konto. Du kannst es jederzeit in den Einstellungen unter „Uni-Zugang & Abgleich“ ausschalten.
+- **Kursdateien an StudiNow (Datei-Eingang):** Seit dem 26.11.2026 abgeschaltet. StudiNow nimmt keine Kursdateien mehr
+  an. Was für ältere App-Versionen gilt, steht in der Datenschutzerklärung, Abschnitt 7a.
 
 ## 7. Community-Regeln
 

@@ -1,5 +1,9 @@
 # Entwurf: Datenschutz-Absatz „Absturzberichte“
 
+**Erledigt am 26.11.2026:** Der Absatz steht jetzt als Abschnitt 10a in `docs/release/DATENSCHUTZ.md` (gekürzt, als
+Liste), dazu ein Satz in Abschnitt 1 und 13. Diese Datei bleibt nur als Herleitung liegen; maßgeblich ist die
+Datenschutzerklärung selbst. Online ist der Text erst nach dem Upload der Website.
+
 Stand 25.11.2026. **Nur ein Entwurf.** Er steht noch nicht in `docs/release/DATENSCHUTZ.md` und nicht auf
 studinow.app. Online stellen darf ihn nur der Inhaber, und erst zusammen mit der App-Version, die die Absturzmeldung
 enthält. Der Text beschreibt, was der Code im Zweig `app/absturzmeldung` wirklich tut
