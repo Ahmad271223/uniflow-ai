@@ -3437,16 +3437,19 @@ struct ObjectToolbar: View {
 
     private var selectionActions: some View {
         HStack(spacing: 6) {
-            Menu {
-                ForEach(colors, id: \.0) { c in
-                    Button(c.1) { bridge.selectionObjects?.recolorSelection(c.0) }
-                }
-            } label: { Image(systemName: "paintpalette").frame(width: 30, height: 30) }
-                .accessibilityLabel("Farbe")
-            Button { bridge.selectionObjects?.resizeText(by: -2) } label: { Image(systemName: "textformat.size.smaller").frame(width: 30, height: 30) }
-                .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
-            Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
-                .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+            // Tabelle gewaehlt: Farbe und Schriftgroesse stellt man in der grossen Ansicht je Zelle ein
+            if bridge.selectionObjects?.selectedSheet == nil {
+                Menu {
+                    ForEach(colors, id: \.0) { c in
+                        Button(c.1) { bridge.selectionObjects?.recolorSelection(c.0) }
+                    }
+                } label: { Image(systemName: "paintpalette").frame(width: 30, height: 30) }
+                    .accessibilityLabel("Farbe")
+                Button { bridge.selectionObjects?.resizeText(by: -2) } label: { Image(systemName: "textformat.size.smaller").frame(width: 30, height: 30) }
+                    .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
+                Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
+                    .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+            }
             if let table = bridge.selectionObjects?.selectedSheet {
                 Button { bridge.selectionObjects?.openSheet(key: table.key, id: table.id) } label: {
                     Label("Bearbeiten", systemImage: "tablecells").labelStyle(.titleAndIcon).ufFont(13, 600).padding(.horizontal, 6).frame(height: 30)

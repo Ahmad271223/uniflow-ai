@@ -441,7 +441,8 @@ final class SheetBoxView: UIView {
         get { super.contentScaleFactor }
         set {
             let area = max(1, bounds.width * bounds.height)
-            super.contentScaleFactor = max(1, min(newValue, (SheetBoxView.pixelBudget / area).squareRoot()))
+            // eine riesige Tabelle wird groeber gezeichnet (auch unter 1), statt Hunderte MB zu belegen
+            super.contentScaleFactor = max(0.1, min(newValue, (SheetBoxView.pixelBudget / area).squareRoot()))
         }
     }
 

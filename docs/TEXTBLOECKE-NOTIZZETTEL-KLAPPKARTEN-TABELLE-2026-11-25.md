@@ -225,17 +225,87 @@ Zweig `editor/klappkarten` (auf Teil 2).
   `testKlappkarteAnlegenWaehlenUmgestalten`, `testKlappkartenAnlegenAbProAIAufklappenImmer`,
   `testKlappkarteImExportUndInDerCommunity`. Bilder 14–19.
 
-## 6. Teil 4: Tabelle – offene Fragen an den Inhaber
+## 6. Teil 4: Tabelle („Excel“) – gebaut am 26.11.2026
 
-Vor dem Bauen zu klären (siehe Fragen im Bericht der Sitzung):
+**Antworten des Inhabers (26.11.2026):** Ort: *beides* (Kasten auf der Seite und eigene Datei). Umfang: *Formeln,
+Sortieren und Filtern, Diagramme, Farben und Rahmen*. Excel-Dateien (.xlsx): *gar nicht*. Bausteine: „suche offene
+repos und opensource projekte dazu checke die lizenz will kein veröffentliche und das für 39.99 anbieten“.
+Was „39.99“ genau meint (Preis wofür?), ist offen – es wurde kein Preis geändert und nichts zum Kaufen gebaut.
 
-1. **Wo lebt die Tabelle?** (a) Als Kasten auf einer Seite (wie ein Textblock, verschieben/Größe) oder (b) als eigene
-   Datei in der Bibliothek (eigener Bildschirm wie Excel) oder beides?
-2. **Was heißt „sehr gut“?** Formeln (SUMME, MITTELWERT, WENN …)? Zahlenformate, Sortieren, Diagramme?
-3. **Excel-Dateien (.xlsx) öffnen und speichern?** Das ist der größte Brocken.
-4. **Community:** Soll eine Tabelle auf einer Seite beim Teilen mitgehen (als Bild der Tabelle bei älteren Apps)?
-5. **Fremdbaustein erlaubt?** Für Formeln/xlsx gibt es Bausteine mit MIT/Apache-Lizenz; sie müssten geprüft und im
-   Lizenz-Dialog (kommt mit `app/whisper-mitschrift`) eingetragen werden.
+### 6.1 Lizenzprüfung (26.11.2026, an den Quellen geprüft: LICENSE-Dateien bzw. GitHub)
+
+Bedingung: geschlossener Quelltext, Verkauf im App Store, nichts veröffentlichen. Also nur MIT, BSD, Apache-2.0 u. ä.
+
+| Baustein | Lizenz | Urteil |
+|---|---|---|
+| SimpleSpread / SpreadsheetCore (Swift) | MIT | erlaubt; verlangt aber iOS 26, ein einzelner Pfleger, erst seit 09/2026 |
+| IronCalc (Rust) | MIT oder Apache-2.0 | erlaubt; kein Anschluss für Swift, Rust im Bau nötig, noch vor Version 1 |
+| Formula.js, fast-formula-parser (JavaScript) | MIT | erlaubt; nur über eine JavaScript-Brücke, kein Neuberechnen |
+| nicklockwood/Expression (Swift) | MIT | erlaubt; rechnet nur Ausdrücke, keine Zellen und Bereiche |
+| bannzai/SpreadsheetView (Swift, Gitter) | MIT | erlaubt; nur Anzeige, seit 2020 nicht gepflegt |
+| DGCharts (Diagramme) | Apache-2.0 | erlaubt; nicht nötig |
+| Swift Charts (Apple) | Teil von iOS | erlaubt, keine Pflicht |
+| HyperFormula | GPL-3.0 oder gekauft | **nicht erlaubt** (GPL verlangt Offenlegung) |
+| Handsontable | nur nicht-kommerziell frei | **nicht erlaubt** |
+| o-spreadsheet (Odoo) | LGPL-3.0 | **nicht erlaubt** |
+| EtherCalc / SocialCalc | CPAL | **nicht erlaubt** |
+| AAChartKit-Swift | MIT-Hülle um Highcharts (Kauf-Lizenz) | **nicht erlaubt** |
+| LibreOffice Calc | MPL/LGPL, riesig | praktisch nicht nutzbar |
+
+**Entscheidung (Claude):** Alles selbst geschrieben, **kein Fremdbaustein eingebaut**. Rechenwerk, Gitter und Diagramme
+sind eigener Code auf Apples Bordmitteln. Damit gibt es keine Lizenzpflicht, keinen Eintrag im Lizenz-Dialog, nichts
+zu veröffentlichen, und die Tabelle passt in das eigene Notizformat (Abgleich, Community, Export). Die erlaubten
+Projekte wären nur dann einen zweiten Blick wert, wenn einmal echte Excel-Dateien gelesen werden sollen.
+
+### 6.2 Was gebaut ist
+
+- **Kasten auf der Seite:** Werkzeug „Tabelle“ (Objektleiste) → Stelle antippen → Tabelle liegt auf der Seite, die
+  große Ansicht geht auf. Wie jedes Objekt verschieben, größer/kleiner ziehen, kopieren, löschen. Doppeltipp oder
+  „Bearbeiten“ in der Leiste öffnet die große Ansicht wieder. Auf Wunsch zeigt der Kasten Tabelle + Diagramm, nur die
+  Tabelle oder nur das Diagramm.
+- **Eigene Datei:** Bibliothek → Neu → „Tabelle“. Das ist ein Notizbuch (A4 quer), dessen erste Seite die Tabelle
+  trägt; beim Öffnen erscheint gleich die große Ansicht. „Fertig“ zeigt die Seite mit der Tabelle – dort kann man
+  daneben schreiben und zeichnen. In der Bibliothek steht die Datei als Notizbuch mit dem Namen „Tabelle“.
+- **Große Ansicht:** Eingabezeile wie in Excel (Zelle, **fx** mit 43 Funktionen samt Erklärung, Text/Formel), Gitter
+  mit A B C / 1 2 3. Antippen wählt, Doppeltipp tippt, die zwei Punkte an der Auswahl ziehen sie größer, Kopf antippen
+  wählt Spalte/Zeile, am Rand im Kopf ziehen ändert Breite/Höhe, zwei Finger zoomen. Beim Tippen einer Formel setzt
+  Antippen einer Zelle ihren Namen ein; die gelesenen Zellen sind farbig umrandet. Eingabe = nächste Zeile (am Ende
+  wächst die Tabelle), Tab = nächste Spalte. Mit Tastatur: Pfeile, einfach lostippen, Entf, ⌘C/X/V/Z/B/I/D/A.
+  Widerrufen/Wiederholen (80 Schritte).
+- **Formeln:** deutsch wie in Excel (`=SUMME(A1:A5)`, `;` zwischen Angaben, Komma als Dezimalzeichen); englische Namen
+  und der Punkt gehen genauso. Rechnen + − × ÷ ^ %, Vergleiche, Text verketten mit `&`, feste Bezüge mit `$`.
+  Funktionen: SUMME, MITTELWERT, MIN, MAX, ANZAHL, ANZAHL2, ANZAHLLEEREZELLEN, PRODUKT, MEDIAN, STABW, STABWN,
+  VARIANZ, WENN, WENNFEHLER, UND, ODER, NICHT, RUNDEN, ABRUNDEN, AUFRUNDEN, GANZZAHL, ABS, WURZEL, POTENZ, REST, EXP,
+  LN, LOG, LOG10, PI, SIN, COS, TAN, SUMMEWENN, ZÄHLENWENN, MITTELWERTWENN, SUMMENPRODUKT, SVERWEIS, KGRÖSSTE,
+  KKLEINSTE, RANG, VERKETTEN, LÄNGE, LINKS, RECHTS, TEIL, GROSS, KLEIN, GLÄTTEN, WERT, ISTLEER, ISTZAHL, ISTTEXT,
+  ISTFEHLER. Fehler erklären sich in einfachen Worten (`#DIV/0!`, `#WERT!`, `#NAME?`, `#BEZUG!`, `#ZIRKEL!` …).
+  Zeilen/Spalten einfügen oder löschen und Kopieren passen die Formeln an.
+- **Sortieren und Filtern:** nach der Spalte der aktiven Zelle auf- oder absteigend (Kopfzeile bleibt, Leeres unten,
+  Formeln der Zeile gehen mit). Filter je Spalte: Werte an- und abwählen; gefilterte Zeilen fehlen auch auf der Seite
+  und im Diagramm.
+- **Farben und Rahmen:** fett, kursiv, Textfarbe, Zellfarbe, Ausrichtung, Zahlenformat (Zahl, Prozent, Euro, Text,
+  Nachkommastellen), Rahmen außen / alle Linien / unten / keiner, Kopfzeile an/aus.
+- **Diagramme:** Balken, Linien, Kreis aus der Auswahl; Titel, Art und Bereich änderbar; bis zu 6 je Tabelle.
+- **Tarif:** anlegen und bearbeiten ab Pro AI (`UFRichNotes`, wie alles Neue); ansehen kann jeder, auch am iPhone und
+  in geteilten Lösungen.
+
+### 6.3 Technik
+
+- **Format:** Objekt `type: "text"` mit Zusatzfeld `sheet` (kein neuer Objekttyp – `SolutionValidator`). `text` trägt
+  die angezeigten Werte als Ersatztext (Tabulator/Zeilen): ältere Apps, Web und Windows zeigen die Zahlen als Text.
+  `packages/shared-contracts/annotations.schema.json` beschreibt das Feld.
+- **Kern** (`UniFlowCore`): `Sheet.swift` (Zellen, Aussehen, Zeilen/Spalten, Kopieren, Sortieren, Filtern, Speichern,
+  `SheetObject`), `SheetFormula.swift` (Zerlegen, Baum, Rechnen, Funktionen, Bezüge umschreiben), `SheetChart.swift`.
+- **App:** `SheetRender.swift` (Zellen und Diagramme zeichnen – derselbe Code für Seite, Export, große Ansicht;
+  `SheetBoxView`), `SheetEditing.swift` (Werkzeug, Öffnen, Sichern, eigene Datei), `SheetEditorModel.swift`,
+  `SheetGridView.swift` (zeichnet nur den sichtbaren Ausschnitt), `SheetEditorView.swift`.
+- **Flüssig bleiben:** Gerechnet wird nur beim Anzeigen einer Tabelle. Der Kasten zeichnet nur den sichtbaren Teil;
+  seine Auflösung ist begrenzt (`SheetBoxView.pixelBudget`), damit eine riesige Tabelle keinen Speicher frisst.
+- **Grenzen der ersten Fassung:** 500 Zeilen × 52 Spalten. Kein Datum als Rechenwert (ein Datum ist Text), keine
+  verbundenen Zellen, kein Zeilenumbruch in der Zelle, keine .xlsx-Dateien, keine Matrixformeln. Tippen direkt auf
+  der Seite gibt es nicht – bearbeitet wird in der großen Ansicht. Am iPhone nur ansehen (wie alle Notizen dort).
+  Web und Windows zeigen den Ersatztext; ändert dort jemand den Text, gewinnt beim nächsten Bearbeiten am iPad die
+  Tabelle.
 
 ## 7. Teil 5: Verweise auf Dokument + Seite
 
@@ -302,7 +372,8 @@ Zweig `editor/verweise` (auf Teil 3). Nachtrag des Inhabers vom 25.11.2026.
 | `editor/textbloecke` | Teil 1 + Tarif-Regel `UFRichNotes` |
 | `editor/notizzettel` | + Teil 2 |
 | `editor/klappkarten` | + Teil 3 |
-| `editor/verweise` | + Teil 5 (enthält alles) |
+| `editor/verweise` | + Teil 5 |
+| `editor/tabelle` | + Teil 4 Tabelle (enthält alles, 26.11.2026) |
 
 Nichts ist gepusht, nichts eingereicht, kein Server, keine Website. Arbeitsordner `~/Studora-Builds/wt-textbloecke`.
 
@@ -316,7 +387,7 @@ Nichts ist gepusht, nichts eingereicht, kein Server, keine Website. Arbeitsordne
 
 **Offen für den Inhaber:**
 - Text für die Tarifkarten (das Neue steht dort noch nicht).
-- Teil 4 (Tabelle): Antworten auf die Fragen in Abschnitt 6.
+- Teil 4 (Tabelle) ist gebaut (Abschnitt 6), aber noch nicht am iPad ausprobiert. Offen: Was meint „39.99“?
 - Web-Editor/Windows zeigen alles nur in einfacher Form – soll das dort auch gebaut werden?
 
 ## 9. Prüfläufe am 25.11.2026 (Stand `editor/verweise`)
