@@ -400,7 +400,7 @@ struct StudyPlan: Equatable {
         qisProgram = v.s("qis_program") ?? v.s("qis_abschluss")
         programs = v.list("programs").map(StudyPlanProgramChoice.init).filter { !$0.program.isEmpty }
         earlier = v.list("earlier_studies").map(StudyPlanEarlierStudy.init).filter { $0.count > 0 }
-        degreeOverview = v["degree"].flatMap { $0.isNull ? nil : StudyPlanDegree($0) }
+        degreeOverview = v["degree_overview"].flatMap { $0.isNull ? nil : StudyPlanDegree($0) }
         passedTerms = v.list("passed_terms").map(StudyPlanPassedTerm.init).filter { !$0.rows.isEmpty }
         orderSuggestion = v["order_suggestion"].flatMap { $0.isNull ? nil : StudyPlanOrderSuggestion($0) }
         lsfPlan = v["lsf_plan"]?.s("url").flatMap(URL.init(string:)).map {
@@ -1277,7 +1277,7 @@ enum StudyPlanFilter: String, CaseIterable, Hashable {
 
 // MARK: - Mehr-Faecher-Studiengang und bestanden je Semester (26.11.2026)
 
-/// Ganzer Mehr-Faecher-Studiengang (`degree` des Kerns): das LSF fuehrt jedes Fach eines Zwei-Faecher-Bachelors als
+/// Ganzer Mehr-Faecher-Studiengang (`degree_overview` des Kerns): das LSF fuehrt jedes Fach eines Zwei-Faecher-Bachelors als
 /// eigenen "Studiengang"; zusammen sind sie ein Studiengang mit 180 LP (Master 120).
 struct StudyPlanDegree: Equatable {
     struct Subject: Equatable, Identifiable {
