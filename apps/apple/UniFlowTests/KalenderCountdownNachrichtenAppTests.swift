@@ -503,3 +503,85 @@ final class KalenderCountdownNachrichtenAppTests: XCTestCase {
         print("Countdown-Bilder: \(shotDir.path)")
     }
 }
+
+/// Durchgehend wie in der App: lokale Datenbank (`LocalBackendHost`), Termine, Ausfall, Verlegung und Nachrichten ueber
+/// dieselben Schnittstellen wie die Seiten der App, dann Kalender-Abgleich gegen den echten Kalender des Simulators,
+/// Widget-Schnappschuss und Countdown aus denselben Antworten. Uhr der Datenbank: Do., 26.11.2026, 09:00 Berlin.
+@MainActor
+final class KalenderDurchgehendAppTests: XCTestCase {
+    private func backend() throws -> APIClient {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("kalender-durchgehend-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: dir) }
+        let host = LocalBackendHost(directory: dir.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-11-26T09:00:00")!)
+        return APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
+    }
+
+    private func at(_ day: String, _ time: String) throws -> Date { try XCTUnwrap(HomeWidgetClock.date(day: day, time: time)) }
+
+    func testFromTheAppsTimetableIntoTheRealCalendarAndBack() async throws {
+        guard EKEventStore.authorizationStatus(for: .event) == .fullAccess else {
+            throw XCTSkip("Kalender-Erlaubnis fehlt (xcrun simctl privacy <Geraet> grant calendar de.uniflow.ai)")
+        }
+        let api = try backend()
+        // zwei eigene Reihen wie "Termin hinzufügen" im Stundenplan (Wochentag 0 = Montag)
+        let analysis = try await api.value("/api/timetable/events", method: "POST", body: [
+            "title": "Analysis I", "kind": "vorlesung", "weekday": 3, "start_time": "10:15", "end_time": "11:45",
+            "room": "F 102", "lecturer": "Prof. Beispiel", "date_from": "2026-11-01", "date_to": "2027-01-30"])
+        let prog = try await api.value("/api/timetable/events", method: "POST", body: [
+            "title": "Programmieren", "kind": "uebung", "weekday": 4, "start_time": "08:15", "end_time": "09:45",
+            "room": "Audimax", "date_from": "2026-11-01", "date_to": "2027-01-30"])
+        let a = try XCTUnwrap(analysis.i("id")), p = try XCTUnwrap(prog.i("id"))
+        // selbst markierter Ausfall und eine Verlegung, wie im Termin-Detail
+        _ = try await api.value("/api/timetable/exceptions", method: "POST", body: [
+            "event_id": .number(Double(a)), "date": "2026-12-03", "type": "cancelled", "note": "Krankheit"])
+        _ = try await api.value("/api/timetable/exceptions", method: "POST", body: [
+            "event_id": .number(Double(p)), "date": "2026-11-27", "type": "moved", "new_date": "2026-11-28", "new_start": "10:00", "new_end": "11:30"])
+
+        let now = try at("2026-11-26", "09:00")
+        var settings = CalendarExportSettings()
+        settings.range = .weeks2
+        let got = await CalendarExport.desired(api: api, settings: settings, now: now)
+        let desired = try XCTUnwrap(got)
+        let byKey = Dictionary(desired.map { ($0.key, $0) }, uniquingKeysWith: { x, _ in x })
+        XCTAssertEqual(byKey["e\(a)@2026-11-26"]?.location, "F 102")
+        XCTAssertTrue(byKey["e\(a)@2026-11-26"]?.notes.contains("Lehrende: Prof. Beispiel") == true)
+        XCTAssertEqual(byKey["e\(a)@2026-12-03"]?.title, "Fällt aus: Analysis I")
+        let moved = try XCTUnwrap(byKey["e\(p)@2026-11-27"], "verlegt: Kennung des urspruenglichen Tages")
+        XCTAssertEqual(moved.start, try at("2026-11-28", "10:00"))
+        XCTAssertEqual(byKey["e\(p)@2026-12-04"]?.start, try at("2026-12-04", "08:15"))
+        XCTAssertEqual(desired.filter { $0.key.hasPrefix("e") }.count, 4, "\(desired.map(\.key))")
+
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "kalender-durchgehend-\(UUID().uuidString)"))
+        let store = EKEventStore()
+        let target = try EventKitCalendarStore.open(store: store, defaults: defaults, color: nil)
+        defer { try? EventKitCalendarStore.remove(store: store, defaults: defaults) }
+        XCTAssertEqual(try CalendarExport.run(target: target, desired: desired, now: now).create.count, desired.count)
+        XCTAssertTrue(try CalendarExport.run(target: target, desired: desired, now: now).isEmpty, "zweiter Lauf ohne Aenderung")
+
+        // Aenderungen in der App: heute spaeter, Programmieren ganz geloescht
+        _ = try await api.value("/api/timetable/exceptions", method: "POST", body: [
+            "event_id": .number(Double(a)), "date": "2026-11-26", "type": "edit", "new_start": "10:30", "new_end": "12:00"])
+        _ = try await api.value("/api/timetable/events/\(p)", method: "DELETE")
+        let got2 = await CalendarExport.desired(api: api, settings: settings, now: now)
+        let after = try XCTUnwrap(got2)
+        let c = try CalendarExport.run(target: target, desired: after, now: now)
+        XCTAssertEqual(c.update.count, 1, "nur der heutige Termin")
+        XCTAssertEqual(c.remove.count, 2, "beide Programmieren-Termine")
+        XCTAssertTrue(c.create.isEmpty)
+        let inCal = try target.events(from: try at("2026-11-26", "00:00"), to: try at("2026-12-10", "00:00"))
+        XCTAssertEqual(inCal.first { $0.key == "e\(a)@2026-11-26" }?.item.start, try at("2026-11-26", "10:30"))
+        XCTAssertFalse(inCal.contains { $0.item.title.contains("Programmieren") })
+
+        // Countdown aus derselben Antwort wie die Startseite
+        let day = try await api.value("/api/timetable/day?date=2026-11-26")
+        let evs = day.list("events")
+        let first = try XCTUnwrap(evs.first { $0.s("title") == "Analysis I" })
+        XCTAssertEqual(TerminCountdown.label(for: first, in: evs, date: "2026-11-26", now: try at("2026-11-26", "10:05"))?.text, "in 25 Min")
+        XCTAssertEqual(TerminCountdown.label(for: first, in: evs, date: "2026-11-26", now: try at("2026-11-26", "11:25"))?.text, "läuft · noch 35 Min")
+        let week = try await api.value("/api/timetable/week?start=2026-11-27")
+        // Programmieren ist geloescht, der 3.12. faellt aus: als Naechstes kommt Analysis am 10.12. - liegt aber ausserhalb
+        // der Woche ab morgen, also keine Zeile
+        XCTAssertNil(TerminCountdown.later(week: week, cancelled: []), "Ausfall am 3.12. ist kein besuchter Termin")
+    }
+}

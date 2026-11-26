@@ -155,7 +155,15 @@ als Zahl (klein, rund, Zeile).
 - „Gelesen je Nachricht“ (26.11.2026 abends): Regeln, Ausgangsmarke, Seite (Antippen, „Als ungelesen markieren“,
   „Alle als gelesen“) plus Widgets, Nachrichten, Quellen-Prüfungen, Einstellungen und Breitenprüfung – 104 Tests je auf
   iPad- und iPhone-Simulator grün.
-- Nicht gelaufen: die ganze App-Suite (rund 290 Testdateien) und die UI-Tests.
+- Durchgehender Test (27.11., `KalenderDurchgehendAppTests`): echter lokaler Dienst der App, Termin + Ausfall +
+  Verlegung per API, Abgleich in den echten Simulator-Kalender, Änderung und Löschen in der App, erneuter Abgleich
+  (1 geändert, 2 entfernt, nichts doppelt), Countdown aus `/api/timetable/day` – grün.
+- **Ganze App-Suite** (27.11., iPad-Simulator): 2331 Tests, 66 übersprungen, 4 rot, alle ohne Bezug zu diesem Zweig:
+  `StoreScreenshotTests/test01Uebersicht` (rechnet mit dem heutigen Datum, Meldezeitraum; seit 25.11. auch auf dem
+  unveränderten Stand rot, siehe docs/WHISPER-MITSCHRIFT.md), `EditorScaleTests` ×2 und
+  `EditorStrichBleibtTests` (Bildzählung unter Last; allein wiederholt 2 von 3 grün, der dritte ist als „rot unter
+  Last“ bekannt). Der Zweig ändert keine Editor-Datei. UI-Tests nicht gelaufen.
+- Anleitung für den Inhaber zum Selbsttesten: docs/KALENDER-COUNTDOWN-NACHRICHTEN-SELBST-TESTEN.md.
 - Schon vorher so, nicht Teil dieses Auftrags: auf dem iPhone mit sehr großer Schrift bricht die Uhrzeitspalte in
   „Heute an der Uni“ um („10:“ / „15“), weil sie fest 44 pt breit ist.
 
