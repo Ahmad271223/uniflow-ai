@@ -338,6 +338,8 @@ struct StudIPLoginPane<Bottom: View>: View {
 @MainActor
 final class UFWebLoadState: ObservableObject {
     @Published var failure: String?
+    /// Hinweis ueber der Seite, z. B. die abgelaufene WebSSO-Anmeldung wurde neu geladen (`SSOStaleRequest`)
+    @Published var notice: String?
     weak var webView: WKWebView?
     /// zuletzt angeforderte Seite (bei einem Fehler vor dem ersten Laden hat die Webansicht noch keine Adresse)
     var lastURL: URL?
@@ -378,7 +380,29 @@ private struct UFWebLoadFailureCard: ViewModifier {
     @ObservedObject var load: UFWebLoadState
 
     func body(content: Content) -> some View {
-        content.overlay {
+        content.overlay(alignment: .top) {
+            // abgelaufene WebSSO-Anmeldung neu geladen (26.11.2026): ein kurzer Hinweis, warum das Formular wieder leer ist
+            if load.failure == nil, let notice = load.notice {
+                HStack(alignment: .top, spacing: 8) {
+                    UFIcon("info", size: 14)
+                    Text(notice).ufFont(13.6, 550).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    Button { load.notice = nil } label: { UFIcon("x", size: 13) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Hinweis schließen")
+                }
+                .foregroundStyle(UF.warnText)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(UF.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(UF.line, lineWidth: 1))
+                .padding(12)
+                .frame(maxWidth: 640)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("web.notice")
+            }
+        }
+        .overlay {
             if let failure = load.failure {
                 VStack {
                     UFCard {
@@ -434,7 +458,8 @@ struct StudIPWebView: UIViewRepresentable {
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPageLoaded: onPageLoaded, intercept: interceptNavigation, load: load, reroute: rerouteNavigation)
+        Coordinator(onPageLoaded: onPageLoaded, intercept: interceptNavigation, load: load, reroute: rerouteNavigation,
+                    start: url.isFileURL ? nil : url)
     }
 
     /// Konfiguration jeder Anmelde-Webansicht: nur der Datenspeicher des Containers, sonst der Standard von WebKit (kein
@@ -477,12 +502,17 @@ struct StudIPWebView: UIViewRepresentable {
         /// Hauptrahmen: statt dieser Adresse eine andere laden (nil = nichts aendern), z. B. `HildesheimLogin.reroute`
         let reroute: (@MainActor (URL) -> URL?)?
         let load: UFWebLoadState?
+        /// erste Seite der Anmeldung: nach "Veraltete Anfrage" des WebSSO von hier neu beginnen (`SSOStaleRequest`)
+        let start: URL?
+        /// Zeitpunkte der letzten Neuladungen wegen "Veraltete Anfrage" (hoechstens `SSOStaleRequest.maxReloads`)
+        private var staleReloads: [Date] = []
         init(onPageLoaded: @escaping (WKWebView) -> Void, intercept: (@MainActor (URL) -> Bool)? = nil, load: UFWebLoadState? = nil,
-             reroute: (@MainActor (URL) -> URL?)? = nil) {
+             reroute: (@MainActor (URL) -> URL?)? = nil, start: URL? = nil) {
             self.onPageLoaded = onPageLoaded
             self.intercept = intercept
             self.load = load
             self.reroute = reroute
+            self.start = start
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -508,7 +538,29 @@ struct StudIPWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { load?.failed(error) }
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { onPageLoaded(webView) }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // "Veraltete Anfrage" des WebSSO (26.11.2026, LUH): stand die Anmeldeseite zu lange offen, nimmt der IdP das
+            // Formular nicht mehr an. Vorher eine Sackgasse; jetzt beginnt die Anmeldung von vorn (hoechstens zweimal in
+            // zwei Minuten) und ein Hinweis sagt, warum das Formular wieder leer ist. Gelesen wird nur der Seiteninhalt,
+            // in eigener Inhaltswelt, und nur auf Seiten eines IdP.
+            guard let start, SSOStaleRequest.mayBeStale(webView.url) else {
+                if load?.notice == SSOStaleRequest.notice { load?.notice = nil }     // Anmeldung geschafft, IdP verlassen
+                onPageLoaded(webView)
+                return
+            }
+            let page = webView.url
+            webView.evaluateJavaScript("document.documentElement.outerHTML", in: nil, in: .defaultClient) { [weak self, weak webView] result in
+                guard let self, let webView else { return }
+                if case .success(let value) = result, let html = value as? String, SSOStaleRequest.isStale(url: page, html: html),
+                   SSOStaleRequest.mayReload(past: self.staleReloads) {
+                    self.staleReloads = self.staleReloads.filter { Date().timeIntervalSince($0) < SSOStaleRequest.window } + [Date()]
+                    self.load?.notice = SSOStaleRequest.notice
+                    webView.load(URLRequest(url: start, cachePolicy: .reloadIgnoringLocalCacheData))
+                    return
+                }
+                self.onPageLoaded(webView)
+            }
+        }
     }
 }
 
