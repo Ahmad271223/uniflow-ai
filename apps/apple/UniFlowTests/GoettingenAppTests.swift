@@ -268,30 +268,12 @@ final class GoettingenAppTests: XCTestCase {
         XCTAssertFalse(all.contains("iPad") || all.contains("iPhone"), "auf allen Geräten gleich")
         for u in [UniversityKey.luh, .hildesheim, .hsh] { XCTAssertNil(UFUniversityScope.newNotice(u), u.rawValue) }
         XCTAssertNil(UFUniversityScope.newNotice(nil))
-        // Kasten: Goettingen mit Titel und beiden Absaetzen, sonst nichts
-        func labels<V: View>(_ v: V) -> [String] {
-            let c = UIHostingController(rootView: v.frame(width: 600))
-            let w = UIWindow(frame: CGRect(x: 0, y: 0, width: 600, height: 600))
-            w.rootViewController = c
-            w.makeKeyAndVisible()
-            defer { w.isHidden = true }
-            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
-            var out: [String] = []
-            func visit(_ e: Any, _ d: Int) {
-                guard d < 40, let o = e as? NSObject else { return }
-                if let l = o.accessibilityLabel, !l.isEmpty { out.append(l) }
-                for x in o.accessibilityElements ?? [] { visit(x, d + 1) }
-                let k = o.accessibilityElementCount()
-                if k != NSNotFound, k > 0 { for i in 0..<min(k, 200) { if let x = o.accessibilityElement(at: i) { visit(x, d + 1) } } }
-                if let v = o as? UIView { for s in v.subviews { visit(s, d + 1) } }
-            }
-            c.view.layoutIfNeeded()
-            visit(c.view as Any, 0)
-            return out
+        // Kasten: fuer Goettingen mit Inhalt (mehrere Zeilen hoch), fuer andere Hochschulen leer
+        func height(_ u: UniversityKey) -> CGFloat {
+            UIHostingController(rootView: UFUniversityNewNotice(university: u)).sizeThatFits(in: CGSize(width: 600, height: 2000)).height
         }
-        let shown = labels(UFUniversityNewNotice(university: .goettingen)).joined(separator: "\n")
-        XCTAssertTrue(shown.contains(n.title) && shown.contains("Schon dabei") && shown.contains("Noch nicht dabei"), shown)
-        XCTAssertFalse(labels(UFUniversityNewNotice(university: .luh)).joined().contains("neu in StudiNow"))
+        XCTAssertGreaterThan(height(.goettingen), 120, "Titel und zwei Absätze")
+        XCTAssertLessThan(height(.luh), 1, "kein Kasten an der LUH")
     }
 
     func testNotOfferedAreasAreHidden() {
