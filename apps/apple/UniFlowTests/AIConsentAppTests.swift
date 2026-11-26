@@ -252,9 +252,12 @@ final class AIConsentAppTests: XCTestCase {
         // Geraete-ID seit Audit P46-04 (08.11.2026): zufaellige Installationskennung als device_id beim Dienst
         XCTAssertEqual(types, ["NSPrivacyCollectedDataTypeEmailAddress", "NSPrivacyCollectedDataTypeUserID",
                                "NSPrivacyCollectedDataTypeDeviceID", "NSPrivacyCollectedDataTypePurchaseHistory", "NSPrivacyCollectedDataTypeOtherUserContent",
-                               "NSPrivacyCollectedDataTypeProductInteraction"])
+                               "NSPrivacyCollectedDataTypeProductInteraction",
+                               // Absturzmeldung ohne Konto (25.11.2026, CrashReporting.swift): als einzige nicht verknuepft
+                               "NSPrivacyCollectedDataTypeCrashData"])
         for t in collected {
-            XCTAssertEqual(t["NSPrivacyCollectedDataTypeLinked"] as? Bool, true)
+            let crash = t["NSPrivacyCollectedDataType"] as? String == "NSPrivacyCollectedDataTypeCrashData"
+            XCTAssertEqual(t["NSPrivacyCollectedDataTypeLinked"] as? Bool, !crash)
             XCTAssertEqual(t["NSPrivacyCollectedDataTypeTracking"] as? Bool, false)
             XCTAssertEqual(t["NSPrivacyCollectedDataTypePurposes"] as? [String], ["NSPrivacyCollectedDataTypePurposeAppFunctionality"])
         }

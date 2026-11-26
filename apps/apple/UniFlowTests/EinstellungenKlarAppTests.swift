@@ -153,7 +153,9 @@ final class EinstellungenKlarAppTests: XCTestCase {
              ["Darstellung", "Hell", "Dunkel", pointer, "Schreibhand", EditorToolbarPlacementRow.title]),
             ("modules", [], ["Modul anlegen", "Zuordnung automatisch prüfen", "Grundlagen der Informatik"]),
             ("community", [], ["Community"]),
-            ("help", [], ["Rechtliches & Support", "Support", "E-Mail schreiben", "Nutzungsbedingungen", "Datenschutzerklärung", "Impressum"]),
+            // seit 25.11.2026 dazu der Schalter der Absturzmeldung (CrashReporting.swift)
+            ("help", ["crashReports.toggle"], ["Rechtliches & Support", "Support", "E-Mail schreiben", "Nutzungsbedingungen", "Datenschutzerklärung",
+                                               "Impressum", CrashReportSetting.cardTitle, CrashReportSetting.title]),
             ("advanced", ["docIndex.prewarmLevel"], ["Vorab einordnen"]),
         ]
         if StudoraAccountLink.available { expected[0].texts += ["StudiNow-Konto", InviteTexts.title] }

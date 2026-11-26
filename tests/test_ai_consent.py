@@ -132,9 +132,12 @@ def test_privacy_manifest_matches_the_app_store_privacy_section():
     # Geraete-ID seit Audit P46-04 (08.11.2026): die zufaellige Installationskennung geht als device_id an den Dienst
     assert set(kinds) == {"NSPrivacyCollectedDataTypeEmailAddress", "NSPrivacyCollectedDataTypeUserID",
                           "NSPrivacyCollectedDataTypeDeviceID", "NSPrivacyCollectedDataTypePurchaseHistory", "NSPrivacyCollectedDataTypeOtherUserContent",
-                          "NSPrivacyCollectedDataTypeProductInteraction"}
-    for t in kinds.values():
-        assert t["NSPrivacyCollectedDataTypeLinked"] is True and t["NSPrivacyCollectedDataTypeTracking"] is False
+                          "NSPrivacyCollectedDataTypeProductInteraction",
+                          # Absturzmeldung ohne Konto (25.11.2026, app/crash_reports.py): als einzige nicht verknuepft
+                          "NSPrivacyCollectedDataTypeCrashData"}
+    for name, t in kinds.items():
+        assert t["NSPrivacyCollectedDataTypeLinked"] is (name != "NSPrivacyCollectedDataTypeCrashData")
+        assert t["NSPrivacyCollectedDataTypeTracking"] is False
         assert t["NSPrivacyCollectedDataTypePurposes"] == ["NSPrivacyCollectedDataTypePurposeAppFunctionality"]
     reasons = {a["NSPrivacyAccessedAPIType"]: set(a["NSPrivacyAccessedAPITypeReasons"]) for a in m["NSPrivacyAccessedAPITypes"]}
     assert reasons == {"NSPrivacyAccessedAPICategoryUserDefaults": {"CA92.1"},
@@ -146,6 +149,7 @@ def test_privacy_manifest_matches_the_app_store_privacy_section():
     section = store.split("## App-Datenschutz", 1)[1].split("\n## ", 1)[0]
     for label in ("E-Mail-Adresse", "Nutzer-ID", "Geräte-ID", "Kaufverlauf", "Andere Nutzerinhalte", "Produktinteraktion"):
         assert re.search(rf"\| [^|\n]*{label} \| ja \| ja \| nein \| App-Funktionalität \|", section), label
+    assert re.search(r"\| [^|\n]*Absturzdaten \| ja \| nein \| nein \| App-Funktionalität \|", section)
     # keine weiteren Required-Reason-APIs im Code als die erklaerten
     code = "\n".join(p.read_text(encoding="utf-8") for base in ("apps/apple/UniFlow", "apps/apple/Packages/UniFlowCore/Sources")
                      for p in (ROOT / base).rglob("*.swift"))

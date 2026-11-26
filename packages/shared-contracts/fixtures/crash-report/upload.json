@@ -1,0 +1,93 @@
+{
+  "v": 1,
+  "install": "0123456789abcdef0123456789abcdef",
+  "reports": [
+    {
+      "id": "00000000000000000000000000000001",
+      "kind": "crash",
+      "at": "2026-11-24T08:15:00Z",
+      "app_version": "1.0.6",
+      "app_build": "45",
+      "device_class": "ipad",
+      "device_model": "iPad14,3",
+      "os_version": "iPhone OS 27.1 (24B83)",
+      "channel": "store",
+      "signal": 11,
+      "exception_type": 1,
+      "exception_code": 0,
+      "termination": "Namespace SIGNAL, Code 11 Segmentation fault: 11",
+      "frames": [
+        {"b": "UniFlow", "o": 165304, "u": "70B89F27-1634-3580-A695-57CDB41D7743"},
+        {"b": "UniFlow", "o": 81234, "u": "70B89F27-1634-3580-A695-57CDB41D7743"},
+        {"b": "SwiftUI", "o": 99000},
+        {"b": "UIKitCore", "o": 5120},
+        {"b": "dyld", "o": 24000}
+      ]
+    },
+    {
+      "id": "00000000000000000000000000000002",
+      "kind": "crash",
+      "at": "2026-11-24T08:15:00Z",
+      "app_version": "1.0.5",
+      "app_build": "44",
+      "device_class": "ipad",
+      "device_model": "iPad13,18",
+      "os_version": "iPhone OS 26.2 (23C52)",
+      "channel": "test",
+      "signal": 6,
+      "exception_type": 1,
+      "exception_code": 0,
+      "termination": "Namespace SIGNAL, Code 6 Abort trap: 6",
+      "exception_name": "NSInvalidArgumentException",
+      "frames": [
+        {"b": "libsystem_kernel.dylib", "o": 34000},
+        {"b": "libsystem_c.dylib", "o": 480000},
+        {"b": "CoreFoundation", "o": 1200000},
+        {"b": "UniFlow", "o": 204800, "u": "5E0F1A2B-3C4D-5E6F-7A8B-9C0D1E2F3A4B"}
+      ]
+    },
+    {
+      "id": "00000000000000000000000000000003",
+      "kind": "hang",
+      "at": "2026-11-24T08:15:00Z",
+      "app_version": "1.0.6",
+      "app_build": "45",
+      "device_class": "ipad",
+      "device_model": "iPad14,3",
+      "os_version": "iPhone OS 27.1 (24B83)",
+      "channel": "store",
+      "hang_seconds": 3,
+      "frames": [
+        {"b": "UniFlow", "o": 4096, "u": "70B89F27-1634-3580-A695-57CDB41D7743"},
+        {"b": "UniFlow", "o": 8192, "u": "70B89F27-1634-3580-A695-57CDB41D7743"},
+        {"b": "PDFKit", "o": 777000}
+      ]
+    },
+    {
+      "id": "00000000000000000000000000000004",
+      "kind": "exit",
+      "at": "2026-11-23T23:00:00Z",
+      "app_version": "1.0.6",
+      "app_build": "45",
+      "device_class": "ipad",
+      "device_model": "iPad14,3",
+      "os_version": "iPhone OS 27.1 (24B83)",
+      "channel": "store",
+      "reason": "memory_limit",
+      "count": 2
+    },
+    {
+      "id": "00000000000000000000000000000005",
+      "kind": "exit",
+      "at": "2026-11-23T23:00:00Z",
+      "app_version": "1.0.6",
+      "app_build": "45",
+      "device_class": "ipad",
+      "device_model": "iPad14,3",
+      "os_version": "iPhone OS 27.1 (24B83)",
+      "channel": "store",
+      "reason": "bad_access",
+      "count": 1
+    }
+  ]
+}

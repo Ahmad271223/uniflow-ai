@@ -134,7 +134,11 @@ struct SettingsPage: View {
         case .community:
             CommunitySettingsCard()                                      // Pseudonym, Lerngruppen, Sperrliste (Plus)
         case .help:
-            LegalSupportCard().frame(maxWidth: 720, alignment: .leading)
+            VStack(alignment: .leading, spacing: 16) {
+                LegalSupportCard()
+                CrashReportCard()                                        // Absturzberichte senden: Schalter (25.11.2026)
+            }
+            .frame(maxWidth: 720, alignment: .leading)
         case .advanced:
             // "dev" und "diag" klappen ihren Teil gleich auf
             if let d {

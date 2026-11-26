@@ -129,6 +129,8 @@ from . import sogo_api  # noqa: E402 - Uni-Mail und Uni-Kalender der LUH (SOGo),
 app.include_router(sogo_api.router)
 from . import studip_lecturers_api  # noqa: E402 - Lehrende und Kontakte (LUH, Stud.IP), nur lokal (/api/lecturers, docs/LEHRENDE-KONTAKTE-2026-11-06.md)
 app.include_router(studip_lecturers_api.router)
+from . import crash_reports  # noqa: E402 - Absturzmeldungen der Apple-Apps, ohne Konto (/api/diagnose/crashes, docs/ABSTURZMELDUNG-2026-11-25.md)
+app.include_router(crash_reports.router)
 db.init_db()
 
 
@@ -302,7 +304,8 @@ async def hosted_guard(request, call_next):
         if path != "/login" and not user:
             return RedirectResponse("/login", status_code=302)
         return await call_next(request)
-    if not path.startswith("/api/") or path in account_api.PUBLIC_PATHS or path in billing_api.PUBLIC or path in app_login_api.PUBLIC:
+    if (not path.startswith("/api/") or path in account_api.PUBLIC_PATHS or path in billing_api.PUBLIC or path in app_login_api.PUBLIC
+            or path in crash_reports.PUBLIC):
         return await call_next(request)
     why = hosted_unavailable(request.method, path)
     if why:
@@ -727,7 +730,7 @@ app.add_middleware(UploadLimit)
 # (320 MB) ganz in den Speicher - ohne Konto, also ohne Kontingent oder Ratenbremse. Anmelden, Registrieren, Reset,
 # Social Login und App-Login brauchen wenige KB (Token hoechstens 8 KB), Apple/Stripe-Benachrichtigungen einige 10 KB.
 PUBLIC_BODY_LIMITS = ((re.compile(r"^/api/(account/(register|login|login/[^/]+|password/reset-request|password/reset|verify-email)"
-                                  r"|app-login/token)$"), 64 << 10),
+                                  r"|app-login/token|diagnose/crashes)$"), 64 << 10),
                       (re.compile(r"^/api/billing/(apple/notifications|stripe/webhook)$"), 1 << 20))
 
 
