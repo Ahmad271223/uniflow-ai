@@ -307,6 +307,21 @@ Projekte wären nur dann einen zweiten Blick wert, wenn einmal echte Excel-Datei
   Web und Windows zeigen den Ersatztext; ändert dort jemand den Text, gewinnt beim nächsten Bearbeiten am iPad die
   Tabelle.
 
+### 6.4 Tests und Bilder (26.11.2026)
+
+- Kern: `SheetTests` 20 grün (Formeln, Bezüge umschreiben, Zeilen/Spalten, Sortieren, Filtern, Diagramm, Speichern,
+  Community-Prüfung). Ganze Kern-Sammlung: 1857 Tests, 0 Fehler, 16 übersprungen.
+- App, iPad-Simulator: `SheetAppTests` 7 grün (Seite und Export per Bildpunkt geprüft, Werkzeug + große Ansicht +
+  Sichern + ein Schritt zurück, Sperre ohne Pro AI, eigene Datei, Gitter mit echten Berührungen: antippen, Doppeltipp,
+  Zelle in die Formel tippen, Auswahl ziehen, mit dem Finger rollen). Zusammen mit elf benachbarten Editor-Klassen
+  (TextBlock, StickyNote, EditorPalette, EditorStepEFHK, EditorToolbarLayout, AuditRunde0910, IPhoneReader, EditorStep6,
+  BildGroesse, HardeningSolutionEditor, SolutionSideViewer): 142 grün (Lauf vor dem siebten Tabellen-Test).
+- App, iPhone-Simulator: 51 grün (SheetAppTests, TextBlockAppTests, StickyNoteAppTests, IPhoneReaderTests).
+- **Nicht gelaufen:** die ganze App-Testsammlung, die Mac-Tests (`tools/mac-test.sh`), nichts am echten Gerät.
+  Bildschirmtastatur, Stift und das Gefühl beim Tippen kann nur der Inhaber am iPad beurteilen.
+- Bilder: `~/Studora-Builds/textbloecke/bilder/23-ipad-tabelle-auf-der-seite.png`, `24-ipad-tabelle-grosse-ansicht.png`,
+  `25-ipad-tabelle-formel-filter-kreis.png`, `26-iphone-tabelle-lesen.png`.
+
 ## 7. Teil 5: Verweise auf Dokument + Seite
 
 Zweig `editor/verweise` (auf Teil 3). Nachtrag des Inhabers vom 25.11.2026.

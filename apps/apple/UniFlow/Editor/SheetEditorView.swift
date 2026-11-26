@@ -456,7 +456,8 @@ struct SheetFormulaField: UIViewRepresentable {
         f.smartQuotesType = .no
         f.smartDashesType = .no
         f.smartInsertDeleteType = .no
-        f.keyboardType = .numbersAndPunctuation
+        // gewoehnliche Tastatur: Faecher und Namen werden so oft getippt wie Zahlen
+        f.keyboardType = .default
         f.returnKeyType = .next
         f.placeholder = "Text, Zahl oder =Formel"
         f.clearButtonMode = .never

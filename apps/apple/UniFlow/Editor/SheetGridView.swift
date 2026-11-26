@@ -328,9 +328,20 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     override func pressesBegan(_ presses: Set<UIPress>, with event: UIPressesEvent?) {
         var handled = false
         for press in presses {
-            guard let key = press.key, !model.isEditing else { continue }
+            guard let key = press.key else { continue }
             let shift = key.modifierFlags.contains(.shift)
             if key.modifierFlags.contains(.command) || key.modifierFlags.contains(.control) { continue }
+            if model.isEditing {
+                // schnell getippt: Das Eingabefeld hat den Fokus noch nicht - die Zeichen gehen trotzdem in die Zelle
+                let chars = key.characters
+                if key.keyCode == .keyboardReturnOrEnter || key.keyCode == .keypadEnter { model.commitEditing(dCol: 0, dRow: 1); handled = true }
+                else if key.keyCode == .keyboardEscape { model.cancelEditing(); handled = true }
+                else if chars.count == 1, let ch = chars.first, !ch.isNewline, ch.unicodeScalars.allSatisfy({ $0.value >= 32 && !(0xF700...0xF8FF).contains($0.value) }) {
+                    model.editing = (model.editing ?? "") + chars
+                    handled = true
+                }
+                continue
+            }
             switch key.keyCode {
             case .keyboardUpArrow: model.move(dCol: 0, dRow: -1, extend: shift); handled = true
             case .keyboardDownArrow: model.move(dCol: 0, dRow: 1, extend: shift); handled = true

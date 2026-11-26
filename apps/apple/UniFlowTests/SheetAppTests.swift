@@ -377,6 +377,35 @@ final class SheetAppTests: XCTestCase {
         finger.lift()
         try await Task.sleep(nanoseconds: 500_000_000)
         XCTAssertEqual(model.selection.name, "C1:C4")
+
+        // der Punkt rechts unten an der Auswahl zieht sie groesser
+        model.select(SheetRef("A2")!)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let cell = grid.viewRect(grid.grid.rect(SheetRef("A2")!))
+        try await BildProbe.dragWindow(from: grid.convert(CGPoint(x: cell.maxX, y: cell.maxY), to: nil),
+                                       to: grid.convert(grid.center(of: SheetRef("B3")!), to: nil), in: window)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertEqual(model.selection.name, "A2:B3")
+    }
+
+    /// Mit dem Finger ueber die Zellen ziehen rollt die Tabelle; die Auswahl bleibt
+    func testFingerRolltDasGitter() async throws {
+        var big = Sheet(rows: 80, cols: 8)
+        for r in 0..<80 { big.set("\(r + 1)", at: SheetRef(col: 0, row: r)) }
+        let model = SheetEditorModel(sheet: big, title: "Lang")
+        let (grid, window) = gridWindow(model)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        model.select(SheetRef("B2")!)
+        try await Task.sleep(nanoseconds: 200_000_000)
+        try await BildProbe.dragWindow(from: grid.convert(CGPoint(x: 400, y: 420), to: nil), to: grid.convert(CGPoint(x: 400, y: 160), to: nil), in: window)
+        try await BildProbe.wait("gerollt") { grid.scroll.contentOffset.y > 100 }
+        XCTAssertEqual(model.selection.name, "B2", "Rollen waehlt nichts")
+        // weit unten waehlen: die Zelle kommt ins Bild
+        model.select(SheetRef("C75")!)
+        try await BildProbe.wait("Zelle im Bild") {
+            let r = grid.viewRect(grid.grid.rect(SheetRef("C75")!))
+            return grid.bounds.insetBy(dx: 0, dy: -1).contains(r)
+        }
     }
 
     func testSortierenFilternDiagrammKopierenUndFormat() {
