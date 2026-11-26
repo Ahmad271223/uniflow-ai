@@ -521,6 +521,8 @@ final class TextBlockAppTests: XCTestCase {
     /// ausgewaehlt mit Rahmen und Anfassern, Werkzeug "Auswählen", Leiste "Text" - und folgt dem Finger. Daneben
     /// gedrueckt passiert nichts. Bestellt sind 3 Sekunden; der Test stellt die Zeit kuerzer.
     func testLangesDrueckenGreiftDenBlock() async throws {
+        // am Mac gibt es das Halten zum Greifen nicht (dort zieht die Maus, Rechtsklick fuer das Menue: `holdAccepts`)
+        try XCTSkipIf(PDFEditorController.isMac, "Halten zum Greifen gibt es am Mac nicht")
         XCTAssertEqual(ObjectEditing.holdSeconds, 3, "bestellt: 3 Sekunden")
         let s = try await open()
         let page = try await overlay(s, key: s.blank)
@@ -575,6 +577,8 @@ final class TextBlockAppTests: XCTestCase {
     /// Wann das lange Druecken greifen darf: mit Objektwerkzeug immer, beim Schreiben nur der Finger, wenn er nicht
     /// selbst schreibt; der Stift nie (er schreibt).
     func testLangesDrueckenRegeln() async throws {
+        // am Mac gibt es das Halten zum Greifen nicht (dort zieht die Maus, Rechtsklick fuer das Menue: `holdAccepts`)
+        try XCTSkipIf(PDFEditorController.isMac, "Halten zum Greifen gibt es am Mac nicht")
         let s = try await open()
         _ = try await overlay(s, key: s.blank)
         let o = s.editor.objects
@@ -648,6 +652,8 @@ final class TextBlockAppTests: XCTestCase {
     /// Verschieben drumherum verzögert stark und Notizzettel geht nicht mit". Ein gewaehlter Zettel folgt dem Finger in
     /// jedem Schritt zusammen mit seinem Rahmen und steht nach dem Loslassen an der neuen Stelle.
     func testNotizzettelFolgtDemFingerBeimVerschieben() async throws {
+        // am Mac gibt es das Halten zum Greifen nicht (dort zieht die Maus, Rechtsklick fuer das Menue: `holdAccepts`)
+        try XCTSkipIf(PDFEditorController.isMac, "Halten zum Greifen gibt es am Mac nicht")
         let s = try await open()
         let page = try await overlay(s, key: s.blank)
         let o = StickyNote.note(id: "z", x: 250, y: 150, choice: StickyNote.Choice(color: "#ffd3e0", look: "tape", paper: "lined", size: "m"), page: (595, 842))
