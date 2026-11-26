@@ -249,7 +249,8 @@ final class SideSheetFoundAgainAppTests: XCTestCase {
         XCTAssertEqual(count, 3)
         let stroke: JSONValue = ["type": "stroke", "points": [60, 60, 300, 60], "color": "#000000", "width": 6]
         let page = SolutionPage(key: "p2", kind: .pdf, pdfIndex: 2, width: 960, height: 540, rotation: 0, objects: [stroke])
-        let withPDF = await pdf.solutionPreview(page, images: [:], width: 480, scale: 1)
+        let preview = await pdf.solutionPreview(page, images: [:], width: 480, scale: 1)
+        let withPDF = try XCTUnwrap(preview, "PDF-Seite vorhanden (seit 26.11.2026 nil, wenn sie sich nicht oeffnen laesst)")
         let blank = SolutionPreview.image(page, images: [:], width: 480, scale: 1)
         XCTAssertTrue(isBlue(withPDF, at: CGPoint(x: 240, y: 200)), "eigene PDF-Seite als Hintergrund")
         XCTAssertFalse(isBlue(blank, at: CGPoint(x: 240, y: 200)), "ohne eigene PDF: weiss")

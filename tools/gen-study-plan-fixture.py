@@ -226,6 +226,52 @@ CATALOG_VP = {
                    {"semester": 4, "title": "Proseminar", "areas": ["akademisches-arbeiten"], "lp": 5, "lp_max": None}],
 }
 
+# LSF Hildesheim (26.11.2026, echtes Konto; Faecher, Nummern und Noten erfunden): das Modulhandbuch nennt "Basismodul 1:
+# …", der Notenspiegel "BM 1: …" als Modulzeile mit Status "Prüfung vorhanden" und die Teilmodule darunter ("TM 1: …")
+CATALOG_LSF = {
+    "v": 1, "university": "hildesheim", "program": "Mathematik im Polyvalenten Zwei-Fächer-Bachelor", "degree": "B.A./B.Sc.",
+    "po": "2025", "catalog_term": "SS 2025", "code": "mathematik-lsf|b.a.-b.sc.|2025", "regular_semesters": 6, "total_lp": None,
+    "source": {"url": "https://modkat.example.invalid/mathematik-lsf.pdf", "fetched_at": "2026-11-04T09:00:00Z", "sha256": "0" * 64},
+    "areas": [{"id": "basismodule", "name": "Basismodule", "kind": "pflicht", "lp_required": None, "lp_max": None},
+              {"id": "aufbaumodule", "name": "Aufbaumodule", "kind": "pflicht", "lp_required": None, "lp_max": None}],
+    "modules": [
+        mod("basismodul-1", "Basismodul 1: Aufbau der Zahlbereiche", "basismodule", 15, 1, "WS+SS", code="MATH-B1"),
+        mod("basismodul-2", "Basismodul 2: Grundlagen der Mathematikdidaktik", "basismodule", 6, 2, "WS+SS", code="MATH-B2"),
+        mod("basismodul-3", "Basismodul 3: Geometrie", "basismodule", 7, 1, "WS+SS", code="MATH-B3"),
+        mod("aufbaumodul-1", "Aufbaumodul 1: Lineare Algebra", "aufbaumodule", 6, 3, "WS", code="MATH-A1"),
+        mod("aufbaumodul-2", "Aufbaumodul 2: Angewandte Mathematik", "aufbaumodule", 9, 4, "WS+SS", code="MATH-A2"),
+    ],
+}
+LSF_ABSCHLUSS = "Abschluss: [B5] Polyvalenter Zwei-Fächer-Bachelor Studiengang: [105] Mathematik PO-Version: 2025"
+
+
+def lsf(nr, text, semester, status, note="", credits="0", versuch="", datum=""):
+    return {"pruefungsnr": nr, "text": text, "semester": semester, "note": note, "status": status, "credits": credits,
+            "versuch": versuch, "datum": datum, "abschluss": LSF_ABSCHLUSS, "raw": ""}
+
+
+def lsf_grades():
+    """Gespeicherte Zeilen wie LSFClient.grades / qis.fetch_grades (Modulzeilen "Prüfung vorhanden" bleiben), bereinigt
+    wie study_plan.grade_rows"""
+    from app import grades_model
+    return grades_model.model([
+        {"pruefungsnr": None, "text": "Gesamtkonto: Mathematik", "semester": None, "note": "0,0", "status": None,
+         "credits": "24", "versuch": None, "datum": None, "abschluss": LSF_ABSCHLUSS, "raw": "Konto 10 | Mathematik | 0,0 |  | 24"},
+        lsf("4010", "BM 1: Aufbau der Zahlbereiche", "SoSe 26", "Prüfung vorhanden", credits="14"),
+        lsf("4011", "TM 1: Arithmetik und Algebra / 5105 Arithmetik", "WiSe 25/26", "nicht bestanden", "5,0", "0", "1", "13.02.2026"),
+        lsf("4011", "TM 1: Arithmetik und Algebra / 5105 Arithmetik", "WiSe 25/26", "bestanden", "3,3", "6", "2", "26.03.2026"),
+        lsf("4012", "TM 2: Analysis / 5110 Analysis", "SoSe 26", "bestanden", "", "8", "1", "27.07.2026"),
+        lsf("4013", "TM 3: Aufbau der Zahlbereiche / 5190 Mündliche Prüfung", "SoSe 26", "nicht bestanden", "5,0", "0", "1", "09.09.2026"),
+        lsf("94012", "SL: Übungen zu Arithmetik und Algebra / 5106 Übung", "WiSe 25/26", "bestanden", "", "0", "1", "06.02.2026"),
+        lsf("4020", "BM 2: Grundlagen der Mathematikdidaktik", "SoSe 26", "Prüfung vorhanden", credits="2"),
+        lsf("4021", "TM: Einführung in die Mathematikdidaktik / 5130 Einführung", "SoSe 26", "bestanden", "", "2", "1", "30.09.2026"),
+        lsf("4030", "BM 3: Geometrie", "WiSe 25/26", "bestanden", "2,0", "7"),
+        lsf("4031", "TM: Geometrie / 5300 Geometrie", "WiSe 25/26", "bestanden", "2,0", "7", "1", "20.02.2026"),
+        lsf("4040", "AM 1: Lineare Algebra", "WiSe 26/27", "Prüfung vorhanden", credits="0"),
+        lsf("4041", "TM: Lineare Algebra / 5400 Lineare Algebra", "WiSe 26/27", "angemeldet", "", "0", "1"),
+    ])
+
+
 ABSCHLUSS = "Technische Informatik (PO-Version 2017)"
 
 
@@ -473,6 +519,12 @@ CASES = [
          manual(1, "rechnerstrukturen", "Rechnerstrukturen", 5, "1,7", "SoSe 26"),
          manual(2, "eigen-1", "Spanisch A1", 4),
          manual(3, None, "Rhetorik", 3, "2,0")]},
+    # LSF Hildesheim (26.11.2026): Modulbezeichner und angefangene Module
+    {"name": "lsf_teilmodule", "catalog_code": "mathematik-lsf|b.a.-b.sc.|2025", "what": "Notenspiegel des LSF: 'BM 1: …' "
+     "gehoert zu 'Basismodul 1: …', die Teilmodule darunter auch (nichts 'nicht zugeordnet'); BM 1 angefangen (14 von 15 LP, "
+     "TM 3 nicht bestanden, der Fehlversuch von TM 1 zaehlt nicht mehr), BM 2 angefangen (2 von 6 LP, 'Angefangen – Rest "
+     "nachholen', im Semester nur die offenen 4 LP), BM 3 bestanden, AM 1 angemeldet; erreichte LP im Bereich",
+     "today": "2026-11-26", "settings": {}, "grades": lsf_grades},     # erst in build (app ist dann importierbar)
 ]
 
 NAMES = ["Programmieren I", "Übung zu Programmieren I", "Programmieren 1", "Vorlesung und Übung Mathematik II",
@@ -593,9 +645,11 @@ def build(check: bool) -> int:
 
         cases = []
         for c in CASES:
+            if callable(c["grades"]):
+                c = {**c, "grades": c["grades"]()}
             cat = {"TIBSc25": CATALOG_SLOTS, "ETBSc25": CATALOG_AREAS, "ETBSc17": CATALOG_AREAS_NO_LP,
                    "TIBSc26": CATALOG_FULL, "TIBSc22MAX": CATALOG_MAX, "ETBSc17X": CATALOG_OVERFULL,
-                   "INFBSc22X": CATALOG_VP}.get(c.get("catalog_code"), CATALOG)
+                   "INFBSc22X": CATALOG_VP, CATALOG_LSF["code"]: CATALOG_LSF}.get(c.get("catalog_code"), CATALOG)
             cases.append({**c, "expected": study_plan.build_plan(cat, c["grades"], c["settings"], c["today"])})
         picks = []
         for p in PICKS:
@@ -605,7 +659,8 @@ def build(check: bool) -> int:
         engine = {
             "generator": "tools/gen-study-plan-fixture.py", "catalog": CATALOG,
             "catalogs": {c["code"]: c for c in (CATALOG, CATALOG_INF, CATALOG_OLD, CATALOG_SLOTS, CATALOG_AREAS,
-                                                CATALOG_AREAS_NO_LP, CATALOG_FULL, CATALOG_MAX, CATALOG_OVERFULL, CATALOG_VP)},
+                                                CATALOG_AREAS_NO_LP, CATALOG_FULL, CATALOG_MAX, CATALOG_OVERFULL, CATALOG_VP,
+                                                CATALOG_LSF)},
             "cases": cases,
             "name_keys": [{"text": t, "key": study_plan.name_key(t)} for t in NAMES],
             "terms": [{"text": t, "term": study_plan.parse_term(t),

@@ -141,6 +141,7 @@ final class LSFRealLayoutTests: XCTestCase {
                 tr(["10", "Erstfach", "0,0", "", "12"]), tr(["4010", "BM 1: Grundlagen", "2,3", "bestanden", "6"]),
                 tr(["4011", "TM: Grundlagen I (V) / 3200 Grundlagen 1", "2,3", "bestanden", "3"]),
                 tr(["4012", "TM: Grundlagen II (Ü) / 3201 Grundlagen 2", "", "bestanden", "3"]),
+                tr(["5020", "BM 2: Anwendung", "", "Prüfung vorhanden", "6"]),
                 tr(["5021", "TM: Einführung / 5100 Einführung", "", "bestanden", "3"]),
                 tr(["5022", "TM: Anwendung / 5101 Anwendung", "", "bestanden", "3"]),
                 tr(["8992", "Vorläufige Gesamtnote aller Fächer", "2,3", "", "23"])]) + "</table>"
@@ -152,6 +153,7 @@ final class LSFRealLayoutTests: XCTestCase {
             tr(["4010", "BM 1: Grundlagen", "WiSe 25/26", "2,3", "bestanden", "6", "", "", ""]),
             tr(["4011", "TM: Grundlagen I (V) / 3200 Grundlagen 1", "WiSe 25/26", "2,3", "bestanden", "3", "(Klausur)", "1", "09.02.2026"]),
             tr(["4012", "TM: Grundlagen II (Ü) / 3201 Grundlagen 2", "WiSe 25/26", "", "bestanden", "3", "(Klausur)", "1", "09.02.2026"]),
+            tr(["5020", "BM 2: Anwendung", "SoSe 26", "", "Prüfung vorhanden", "6", "", "", ""]),
             tr(["5021", "TM: Einführung / 5100 Einführung", "SoSe 26", "", "bestanden", "3", "(Hausarbeit)", "1", "31.08.2026"]),
             tr(["5022", "TM: Anwendung / 5101 Anwendung", "SoSe 26", "", "bestanden", "3", "(Klausur)", "1", "20.07.2026"]),
             account("8992", "Vorläufige Gesamtnote aller Fächer", note: "2,3", lp: "23")]) + "</table>"
@@ -195,5 +197,27 @@ final class LSFRealLayoutTests: XCTestCase {
         XCTAssertEqual(psychology.map { $0["lp_counted"]?.double ?? -1 }, [2, 2], "zaehlen selbst, nicht unter dem Modul des anderen Teilfachs")
         XCTAssertTrue(psychology.allSatisfy { $0["modul_text"] == .null || $0["modul_text"] == nil })
         XCTAssertFalse(m.contains { $0["counted"] == .bool(true) && ($0["semester_norm"]?.string ?? "").isEmpty }, "jede zaehlende Leistung mit Semester")
+        // Modulzeile "Prüfung vorhanden" (26.11.2026): bleibt einmal (die kurze Fassung der Uebersicht faellt weg) und ist das
+        // Modul der Teilmodule darunter; sie zaehlt nicht selbst
+        XCTAssertEqual(rows.filter { $0.pruefungsnr == "5020" }.map { "\($0.text) \($0.status ?? "-") \($0.semester ?? "-")" },
+                       ["BM 2: Anwendung Prüfung vorhanden SoSe 26"])
+        XCTAssertEqual(m.filter { ["5021", "5022"].contains($0["pruefungsnr"]?.string ?? "") }.compactMap { $0["modul_text"]?.string },
+                       ["BM 2: Anwendung", "BM 2: Anwendung"])
+        XCTAssertEqual(m.first { $0["pruefungsnr"]?.string == "5020" }?["counted"], .bool(false))
+    }
+
+    /// Modulzeilen "Prüfung vorhanden" (echter Notenspiegel 26.11.2026): nur beim LSF (`modules`), nur mit Nummer und nie
+    /// eine Bereichszeile; ohne `modules` (QIS der LUH, Anmeldungen) bleibt es wie vorher
+    func testPendingModuleRowsStayOnlyInTheLSF() {
+        let rows = [[first], long,
+                    ["25010", "BM 1: Aufbau der Zahlbereiche", "SoSe 26", "", "Prüfung vorhanden", "14", "", "", ""],
+                    ["10010", "Pflichtmodule (mindestens 12 LP)", "", "", "Prüfung vorhanden", "6", "", "", ""],
+                    ["", "Vorläufige Gesamtnote aller Fächer", "", "3,45", "Prüfung vorhanden", "", "", "", ""],
+                    ["", "Ohne Nummer", "SoSe 26", "", "Prüfung vorhanden", "3", "", "", ""],
+                    ["22040", "M 4: Praktische Philosophie", "SoSe 26", "2,7", "Prüfung vorhanden", "3", "", "", ""]]
+        XCTAssertEqual(GradeRows.parse(rows: rows, modules: true).map(\.text),
+                       ["BM 1: Aufbau der Zahlbereiche", "Vorläufige Gesamtnote aller Fächer", "M 4: Praktische Philosophie"])
+        XCTAssertEqual(GradeRows.parse(rows: rows).map(\.text), ["Vorläufige Gesamtnote aller Fächer", "M 4: Praktische Philosophie"],
+                       "mit Note blieb die Zeile schon immer")
     }
 }

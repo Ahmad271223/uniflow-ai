@@ -101,8 +101,11 @@ struct StudyPlanModule: Identifiable, Equatable {
     /// eigener Eintrag: Arbeitsaufwand in Stunden und Inhalt (26.11.2026), nil ohne Angabe
     let workloadH: Int?
     let content: String?
+    /// angefangenes Modul (LSF "Prüfung vorhanden", 26.11.2026): schon erreichte LP der bestandenen Teilmodule
+    let lpPart: Double?
 
     init(_ v: JSONValue) {
+        lpPart = v.n("lp_part").flatMap { $0 > 0 ? $0 : nil }
         workloadH = v.i("workload_h").flatMap { $0 > 0 ? $0 : nil }
         content = v.s("content").flatMap { $0.isEmpty ? nil : $0 }
         id = v.s("id") ?? v.i("id").map(String.init) ?? UUID().uuidString

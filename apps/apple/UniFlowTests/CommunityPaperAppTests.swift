@@ -134,7 +134,11 @@ final class CommunityPaperAppTests: XCTestCase {
         // so zeigt es die Spalte daneben (SolutionSidePane): eigene PDF-Seite bzw. Papier des Absenders
         let layer = try SolutionSharing.layer(content, visible: true, pdf: try XCTUnwrap(own.originalPDF))
         var images: [UIImage] = []
-        for p in layer.pages { images.append(await own.offscreenPDF.solutionPreview(p, images: [:], width: 400, scale: 3)) }
+        for p in layer.pages {
+            // seit 26.11.2026 nil, wenn sich die PDF-Seite nicht oeffnen laesst (nie Striche auf Weiss)
+            let image = await own.offscreenPDF.solutionPreview(p, images: [:], width: 400, scale: 3)
+            images.append(try XCTUnwrap(image, "Seite \(p.key)"))
+        }
         let stats = images.map(Self.stats)
         XCTAssertTrue(stats[0].blue > 0.8 && stats[2].blue > 0.8 && stats[4].blue > 0.8, "Folien auf der eigenen PDF")
         XCTAssertLessThan(stats[1].blue, 0.01, "Blattseite nicht auf einer Folie")

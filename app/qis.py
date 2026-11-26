@@ -15,7 +15,7 @@ from pathlib import Path
 
 from playwright.sync_api import Page, sync_playwright
 
-from . import config, db, hildesheim, lsf, universities
+from . import config, db, grades_model, hildesheim, lsf, universities
 from .config import DATA_DIR, LOG_DIR
 
 QIS_BASE = "https://qis.verwaltung.uni-hannover.de"
@@ -150,10 +150,15 @@ def _header_map(cells: list[str]) -> list[str | None]:
     return out
 
 
-def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
+def parse_grade_rows(rows: list[list[str]], abschluss: str = "", modules: bool = False) -> list[dict]:
     """Zeilen einer Notenspiegel-Tabelle (Zellentexte) -> Leistungen. Ohne Browser, daher testbar.
     - Die Kopfzeile darf irgendwo stehen (Hildesheim: davor eine Zeile 'Abschluss: ...'); mehrere Abschnitte je Tabelle.
-    - Modul-Ueberschriften und Summen ohne Note und ohne Status werden uebersprungen."""
+    - Modul-Ueberschriften und Summen ohne Note und ohne Status werden uebersprungen.
+    - `modules` (LSF Hildesheim, 26.11.2026, echtes Konto): Modulzeilen "Prüfung vorhanden" ohne Note bleiben
+      ("25010 | BM 1: Aufbau der Zahlbereiche | SoSe 26 | | Prüfung vorhanden | 14": das Modul ist angefangen, 14 LP
+      sind erreicht). Ohne sie fehlte den Teilmodulen darunter ("TM 1: Arithmetik und Algebra …") ihr Modul: der
+      Studienverlauf zeigte "Basismodul 1" als offen und die Teilmodule als nicht zugeordnet. Bereichszeilen
+      ("Pflichtmodule (mindestens 12 LP)") und Zeilen ohne Nummer bleiben weg."""
     out: list[dict] = []
     mapped: list[str | None] | None = None
     ab = abschluss
@@ -178,7 +183,10 @@ def parse_grade_rows(rows: list[list[str]], abschluss: str = "") -> list[dict]:
         if not (rec.get("pruefungsnr") or "").strip() and cells[0].isascii() and cells[0].isdigit():
             rec["pruefungsnr"] = cells[0]          # Nummer in der ersten Spalte, Kopf unbekannt (12.11.2026)
         if (rec.get("status") or "").lower() == "prüfung vorhanden" and not rec.get("note"):
-            continue          # Modul-/Kontozeile ("Prüfung vorhanden"), keine eigene Leistung
+            nr = (rec.get("pruefungsnr") or "").strip()
+            if not (modules and nr.isascii() and nr.isdigit() and rec.get("text")
+                    and not grades_model.is_bereich_text(rec["text"])):
+                continue      # Bereichs-/Kontozeile ("Prüfung vorhanden"), keine eigene Leistung
         # Konto-Zeilen des LSF (ACCOUNT_PREFIX aus _ROW_CELLS_LSF_JS) bleiben auch ohne Note und Status: sie trennen die Faecher
         if rec.get("text") and (rec.get("note") or rec.get("status") or rec["text"].startswith("Gesamtkonto: ")):
             out.append(rec)
@@ -272,7 +280,7 @@ def _parse_tables(page: Page, abschluss: str, lsf: bool = False) -> list[dict]:
     for ti in range(tables.count()):
         trs = tables.nth(ti).locator("tr")
         rows = [trs.nth(ri).evaluate(_ROW_CELLS_LSF_JS if lsf else _ROW_CELLS_JS) for ri in range(trs.count())]
-        rows_out += parse_grade_rows(rows, abschluss)
+        rows_out += parse_grade_rows(rows, abschluss, modules=lsf)
     return rows_out
 
 

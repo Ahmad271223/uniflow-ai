@@ -369,10 +369,11 @@ enum SolutionSharing {
         }
     }
 
-    /// Meldung nach dem Ablegen einer empfangenen Loesung. Ansehen gehoert zum Lesen der Community (jeder Tarif); fehlt
-    /// die Community im Build, steht das dabei, statt "erscheint unter Ebenen" zu versprechen.
+    /// Meldung nach dem Ablegen einer empfangenen Loesung. Ansehen gehoert zum Lesen der Community; ohne das Recht steht
+    /// das dabei, statt das Ansehen zu versprechen. Seit 22.11.2026 liegt eine Loesung nicht mehr als Ebene ueber der
+    /// eigenen Seite, sie oeffnet sich neben dem Dokument – das sagt die Meldung (bis 26.11.2026 noch "unter „Ebenen“").
     static func receivedMessage(label: String, canView: Bool) -> String {
-        canView ? "\(label) gespeichert – sie erscheint in der passenden PDF unter „Ebenen“."
+        canView ? "\(label) gespeichert – öffne die passende PDF, dort öffnest du sie neben deinem Dokument."
             : "\(label) gespeichert – ansehen kannst du sie ab \(UFPlan.plus.name) (Community)."
     }
 

@@ -983,7 +983,8 @@ struct StudyPlanModuleCard: View {
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(StudyPlanText.lp(m.lp)).ufFont(12.48, 650).monospacedDigit().foregroundStyle(UF.text2).fixedSize()
+                    Text(m.lpPart.map { "\(StudyPlanText.number($0)) von \(StudyPlanText.lp(m.lp))" } ?? StudyPlanText.lp(m.lp))
+                        .ufFont(12.48, 650).monospacedDigit().foregroundStyle(UF.text2).fixedSize()
                 }
                 UFFlexWrap(gap: 5, rowGap: 5) {
                     StudyPlanTag(text: StudyPlanText.kind(m.kind), pair: StudyPlanText.kindPair(m.kind))
