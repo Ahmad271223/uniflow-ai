@@ -171,11 +171,12 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         XCTAssertEqual(StudyPlanEdit.customJSON(own, plan: p)["workload_h"], 150, "bleibt beim Aendern der Liste erhalten")
         XCTAssertEqual(StudyPlanEdit.customJSON(own, plan: p)["content"], "Grundlagen, Projekt")
         // Mehr-Faecher-Studiengang und bestanden je Semester aus der Antwort des Kerns
-        let combined = StudyPlan(["available": true, "semesters": [], "degree": ["name": "Zwei-Fächer-Bachelor", "lp_total": 180, "lp_done": 51,
+        let combined = StudyPlan(["available": true, "semesters": [], "degree": "B.A.", "degree_overview": ["name": "Zwei-Fächer-Bachelor", "lp_total": 180, "lp_done": 51,
             "official_lp": 51, "official_grade": "3,45", "subjects": [["label": "a", "program": "Mathematik", "po": "2025", "lp_done": 17, "passed": 7, "current": true],
                                                                        ["label": "b", "program": "Wirtschaft", "po": "2014", "lp_done": 12, "passed": 3, "current": false]]],
             "passed_terms": [["term": 4051, "name": "WiSe 25/26", "lp": 19, "rows": [["text": "TM 1: Arithmetik", "lp": 6, "note": "3,3", "program": "Mathematik"]]],
                              ["term": .null, "name": .null, "lp": 0, "rows": []]]])
+        XCTAssertEqual(combined.degree, "B.A.", "die Abschlussart des Katalogs bleibt neben dem Ueberblick erhalten")
         XCTAssertEqual(combined.degreeOverview?.progress, StudyPlanText.progress(51, 180))
         XCTAssertEqual(combined.degreeOverview?.official(source: "LSF"), "Laut LSF: 51 LP · vorläufige Gesamtnote 3,45")
         XCTAssertEqual(combined.degreeOverview?.subjects.map(\.program), ["Mathematik", "Wirtschaft"])
