@@ -322,6 +322,16 @@ Projekte wären nur dann einen zweiten Blick wert, wenn einmal echte Excel-Datei
 - Bilder: `~/Studora-Builds/textbloecke/bilder/23-ipad-tabelle-auf-der-seite.png`, `24-ipad-tabelle-grosse-ansicht.png`,
   `25-ipad-tabelle-formel-filter-kreis.png`, `26-iphone-tabelle-lesen.png`.
 
+### 6.5 Testfassung fürs iPad (vorbereitet, NICHT aufgespielt)
+
+- Eigener Zweig `test/ipad-editor-whisper-tabelle` @ `eaead2c6` = Stand auf dem iPad (`test/ipad-editor-whisper` @
+  `88e732c1`: Editor-Neuheiten, Whisper, Handballen-Abwehr, Korrektur „Schreiben zittert“) + `editor/tabelle`.
+  Ordner `~/Studora-Builds/wt-kombi-tabelle`, ohne Konflikte gemischt. `test/ipad-editor-whisper` selbst ist unberührt.
+- Im Simulator 64 Tests grün (Sheet, TextBlock, EditorHandballen, EditorAusschnittRundung, EditorPalette).
+- Gerätefassung gebaut: `~/Studora-Builds/dd-kombi-tabelle-geraet/Build/Products/Release-iphoneos/UniFlow.app`, 1.0.7 (49).
+- Aufspielen nur mit dem Okay des Inhabers; danach der Handballen-Sitzung Bescheid geben, damit ihre nächste Fassung
+  von diesem Zweig ausgeht.
+
 ## 7. Teil 5: Verweise auf Dokument + Seite
 
 Zweig `editor/verweise` (auf Teil 3). Nachtrag des Inhabers vom 25.11.2026.
