@@ -176,6 +176,22 @@ Kabel aufs iPad, er meldet sich im Anmeldefenster selbst an, ein Abgleich, dann 
 | Store | Texte, Bilder, Datenschutz | nichts geändert | Vor Freigabe: Store-Texte („LUH und Hildesheim“), Datenschutztext (Studierendenwerk Göttingen als Quelle). |
 | Medizin (UMG), go@med | – | nicht betrachtet | – |
 
-## 6. Testläufe der Gesamtsuiten
+## 6. Testläufe auf dem letzten Stand (f2e21505, 26.11.2026 abends)
 
-(wird nach den Läufen ergänzt)
+| Lauf | Ergebnis |
+|---|---|
+| Kern (`swift test`) | 1934 Tests, 0 Fehler (20 übersprungen) |
+| Python (`pytest tests`) | 4132 grün; 3 rot in `test_audit_p58_87_golive.py` – auf dem unveränderten `release/1.0.8-alles` genauso rot |
+| App iPad („Goettingen iPad“) | 85 Klassen, die geänderten Code berühren (728 Tests): nach den Anpassungen grün bis auf StoreKit-Preise in `AbnahmeTarifeAppTests`/`AbnahmeV1LUHReleaseAppTests`/`AboNurJahrAppTests` (Preise laden im Testlauf nicht, kein Bezug zu Göttingen) |
+| App iPhone („Goettingen iPhone“) | dieselben 85 Klassen: zusätzlich `StudyPlanManualAppTests.testEnterGradeOnPhone` und `UniversityLoginPolicyTests.testQISLoginPaneShowsTheHintAndKeepsNoPassword` rot – **auf dem unveränderten 1.0.8-Stand (51571948) im selben Simulator genauso rot** |
+| `GoettingenAppTests`, `MensaAppTests`, `ReleaseUniversitiesAppTests` | iPad und iPhone grün |
+| Mac (`tools/mac-test.sh`) | **nicht gelaufen**: zur selben Zeit lief der Mac-Lauf einer anderen Sitzung. Nachholen mit `tools/mac-test.sh -only-testing:UniFlowTests/GoettingenAppTests -only-testing:UniFlowTests/MensaAppTests` |
+| Gesamtlauf aller 2200 App-Tests | nicht zu Ende gelaufen (mehrere Sitzungen testeten gleichzeitig, nach 2 Stunden erst ein Zehntel); stattdessen die 85 Klassen oben |
+
+Für den Vergleich liegt eine Kopie von 51571948 unter `~/Studora-Builds/wt-goe-vergleich` (Bauordner
+`dd-goe-vergleich`); kann weg, wenn niemand sie mehr braucht.
+
+## 7. Einbinden in den nächsten Build
+
+`uni/goettingen` enthält `release/1.0.8-alles` bis 51571948 und lässt sich ohne Konflikte darauf mischen. Mischen und
+bauen macht die Build-Sitzung. Danach Pflicht: Abschnitt „Vor dem Einreichen“ oben (Server-Update nur mit Okay).
