@@ -8,6 +8,8 @@ import UniFlowCore
 /// Schalter ueber den Build, nicht ueber den Code: die Build-Einstellung `UF_INTAKE_OFFERED` (project.yml) landet als
 /// `UFIntakeOffered` in der Info.plist. Seit 18.11.2026 abends ("Ja, auch im Store"): Release (TestFlight, App Store)
 /// YES, Debug NO (Tests und Simulator schicken nie etwas).
+/// Seit 26.11.2026 (Inhaber: "Eingang abschalten") auch im Release NO: kein Build bietet den Eingang an, der Dienst
+/// nimmt nichts mehr an (503 intake_off).
 ///
 /// Entscheidung des Inhabers 18.11.2026 abends ("das soll direkt geschehen, wir schreiben das in die AGBs"): wo der Build
 /// den Eingang anbietet, ist er von selbst AN, ohne Zustimmungs-Dialog; Grundlage ist der Absatz in Nutzungsbedingungen und
