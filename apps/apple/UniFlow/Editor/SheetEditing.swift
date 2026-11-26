@@ -24,25 +24,33 @@ extension ObjectEditing {
         return (sel.key, id)
     }
 
-    /// Grosse Ansicht zum Bearbeiten oeffnen. `title`: Name im Kopf (Tabelle als eigene Datei: der Name des Dokuments).
+    /// Grosse Ansicht oeffnen: zum Bearbeiten mit Pro AI, sonst zum Ansehen (rollen, zoomen, kopieren) - eine lange
+    /// Tabelle passt nicht ganz auf die Seite. `title`: Name im Kopf (Tabelle als eigene Datei: der Name des Dokuments).
     func openSheet(key: String, id: String, title: String = "Tabelle") {
         guard let c = controller else { return }
-        guard richAllowed else { c.onHint?(Self.sheetLockedHint); return }
         guard c.presentedViewController == nil else { return }
+        let readOnly = !richAllowed
         endTextEditing()
         Task {
             guard let o = await objects(key).first(where: { $0["id"]?.string == id }), let sheet = SheetObject.sheet(o) else { return }
-            let model = SheetEditorModel(sheet: sheet, title: title)
-            // KI-Hilfe ueber den vorhandenen Weg der KI-Hilfe (Einwilligung und Credits regelt er selbst)
-            let api = c.store.api
-            model.askAI = { body in
-                let r = try await api.value("/api/ai/tutor", method: "POST", body: body)
-                return r.s("answer") ?? ""
+            guard c.presentedViewController == nil else { return }
+            let model = SheetEditorModel(sheet: sheet, title: title, readOnly: readOnly)
+            if !readOnly {
+                // KI-Hilfe ueber den vorhandenen Weg der KI-Hilfe (Einwilligung und Credits regelt er selbst)
+                let api = c.store.api
+                model.askAI = { [weak c] body in
+                    let r = try await api.value("/api/ai/tutor", method: "POST", body: body)
+                    c?.onAIResponse?(r)                      // neuer Credits-Stand fuer die Anzeigen der App
+                    return r.s("answer") ?? ""
+                }
+                model.explainAIError = { [weak c] error in c?.aiErrorText?(error) ?? error.localizedDescription }
             }
-            let view = SheetEditorView(model: model, onSave: { [weak self] s in
-                Task { await self?.saveSheet(s, key: key, id: id) }
-            }, onClose: { [weak c] in c?.dismiss(animated: true) })
-            let host = UIHostingController(rootView: view)
+            // "Fertig" schliesst die Ansicht selbst - auch wenn das Dokument darunter inzwischen gewechselt hat
+            let shown = SheetHostBox()
+            let host = UIHostingController(rootView: SheetEditorView(model: model, onSave: { [weak self] s in
+                await self?.saveSheet(s, key: key, id: id, original: o) ?? false
+            }, onClose: { shown.host?.dismiss(animated: true) }))
+            shown.host = host
             host.modalPresentationStyle = .fullScreen
             c.present(host, animated: true)
         }
@@ -57,7 +65,7 @@ extension ObjectEditing {
         Task {
             let list = await objects(key)
             if let o = list.first(where: { SheetObject.sheet($0)?.isDocument == true }), let id = o["id"]?.string {
-                if richAllowed { openSheet(key: key, id: id, title: title) }
+                openSheet(key: key, id: id, title: title)        // ohne Pro AI: zum Ansehen
                 return
             }
             guard SheetDocuments.pending.remove(fileID) != nil, richAllowed else { return }
@@ -73,13 +81,33 @@ extension ObjectEditing {
         }
     }
 
-    /// Tabelle zurueck auf die Seite schreiben (ein Rueckgaengig-Schritt)
+    /// Tabelle zurueck auf die Seite schreiben (ein Rueckgaengig-Schritt). Ist sie gewachsen, bleibt sie auf der Seite
+    /// (`SheetObject.fitted`). Ist das Objekt inzwischen von der Seite verschwunden (geloescht, Abgleich), kommt es
+    /// wieder hin (`original`: das Objekt beim Oeffnen). `true`, wenn die Tabelle danach so auf der Seite steht.
     @discardableResult
-    func saveSheet(_ sheet: Sheet, key: String, id: String) async -> Bool {
-        await commit(key) { list in
-            list.map { $0["id"]?.string == id && SheetObject.isSheet($0) ? SheetObject.saving(sheet, in: $0) : $0 }
+    func saveSheet(_ sheet: Sheet, key: String, id: String, original: JSONValue? = nil) async -> Bool {
+        guard let c = controller, c.writable else { return false }
+        let page = c.boundOverlay(forKey: key).map { (width: Double($0.geometry.pageSize.width), height: Double($0.geometry.pageSize.height)) }
+        func written(_ o: JSONValue) -> JSONValue {
+            let saved = SheetObject.saving(sheet, in: o)
+            return page.map { SheetObject.fitted(saved, page: $0) } ?? saved
         }
+        await commit(key) { list in
+            if list.contains(where: { $0["id"]?.string == id && SheetObject.isSheet($0) }) {
+                return list.map { $0["id"]?.string == id && SheetObject.isSheet($0) ? written($0) : $0 }
+            }
+            guard let original, !list.contains(where: { $0["id"]?.string == id }) else { return list }
+            return list + [written(original)]
+        }
+        // nicht dem Rueckgabewert trauen ("nichts geaendert" ist auch falsch): nachsehen, was auf der Seite steht
+        let now = await objects(key).first { $0["id"]?.string == id }
+        return now.flatMap(SheetObject.sheet) == Sheet(json: sheet.json)
     }
+}
+
+@MainActor
+final class SheetHostBox {
+    weak var host: UIViewController?
 }
 
 /// Tabellen als eigene Datei

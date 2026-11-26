@@ -8,8 +8,8 @@ import UniFlowCore
 /// die Diagramme. Oeffnet sich ueber dem Dokument; "Fertig" schreibt die Tabelle zurueck auf die Seite.
 struct SheetEditorView: View {
     @ObservedObject var model: SheetEditorModel
-    /// Zwischenstand sichern (App geht in den Hintergrund)
-    let onSave: (Sheet) -> Void
+    /// Tabelle auf die Seite schreiben ("Fertig", App geht in den Hintergrund); `false`: hat nicht geklappt
+    let onSave: (Sheet) async -> Bool
     let onClose: () -> Void
 
     @State private var showFilter = false
@@ -17,23 +17,55 @@ struct SheetEditorView: View {
     @State private var aiWish = ""
     @State private var titleChart: SheetChart?
     @State private var titleText = ""
+    @State private var saving = false
+    @State private var saveFailed = false
+    /// Die Bildschirmtastatur ist offen: Die Diagramme machen dem Gitter Platz
+    @State private var keyboardUp = false
+    @State private var chartsFolded = false
     @Environment(\.horizontalSizeClass) private var hSize
 
     var body: some View {
         VStack(spacing: 0) {
             header
-            formulaRow
-            hintRow
-            toolbar
+            if model.readOnly { readOnlyRow } else {
+                formulaRow
+                toolbar
+            }
             Divider()
             SheetGridHost(model: model)
                 .ignoresSafeArea(.container, edges: .horizontal)
-            if !model.sheet.charts.isEmpty { chartStrip }
+                // Hinweise liegen ueber dem unteren Rand des Gitters: Es rutscht nicht, wenn einer kommt oder geht,
+                // und die Buchstaben der Spalten bleiben frei
+                .overlay(alignment: .bottom) { hintRow }
+            if !model.sheet.charts.isEmpty, !keyboardUp { chartStrip }
         }
         .background(UF.bg.ignoresSafeArea())
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willResignActiveNotification)) { _ in
+            // Zwischenstand: Geht die App im Hintergrund verloren, steht die Arbeit schon auf der Seite
             model.commitEditing()
-            if model.changed { onSave(model.sheet) }
+            let s = model.sheet
+            if model.changed { Task { if await onSave(s) { model.markSaved(s) } } }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillShowNotification)) { note in
+            let h = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect)?.height ?? 0
+            keyboardUp = h > 120          // nicht bei der schmalen Leiste einer angeschlossenen Tastatur
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardUp = false }
+        .onChange(of: showAI) { _, open in
+            model.dialogOpen = open || titleChart != nil
+            // Fehler der KI auch zeigen, wenn das Feld schon zu ist
+            if !open, let e = model.aiError { model.notice = e; model.aiError = nil }
+        }
+        .onChange(of: model.aiError) { _, e in
+            if let e, !showAI { model.notice = e; model.aiError = nil }
+        }
+        .onChange(of: titleChart?.id) { _, id in model.dialogOpen = showAI || id != nil }
+        .alert("Die Tabelle konnte nicht gesichert werden", isPresented: $saveFailed) {
+            Button("Noch einmal versuchen") { finish() }
+            Button("Ohne Sichern schließen", role: .destructive) { onClose() }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Die Seite, auf der die Tabelle liegt, ist gerade nicht erreichbar. Deine Änderungen stehen noch hier.")
         }
         .alert("Titel des Diagramms", isPresented: Binding(get: { titleChart != nil }, set: { if !$0 { titleChart = nil } })) {
             TextField("Titel", text: $titleText)
@@ -53,22 +85,53 @@ struct SheetEditorView: View {
             Image(systemName: "tablecells").foregroundStyle(UF.accentText)
             Text(model.title).ufFont(16, 600).foregroundStyle(UF.text).lineLimit(1)
             Spacer(minLength: 8)
-            Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 34, height: 34) }
-                .disabled(!model.canUndo).accessibilityLabel("Widerrufen").accessibilityIdentifier("sheet.undo")
-            Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 34, height: 34) }
-                .disabled(!model.canRedo).accessibilityLabel("Wiederholen").accessibilityIdentifier("sheet.redo")
-            Button {
-                model.commitEditing()
-                if model.changed { onSave(model.sheet) }
-                onClose()
-            } label: { Text("Fertig").ufFont(15, 600).padding(.horizontal, 14).padding(.vertical, 7) }
+            if !model.readOnly {
+                Button { model.undo() } label: { Image(systemName: "arrow.uturn.backward").frame(width: 34, height: 34) }
+                    .disabled(!model.canUndo && !model.isEditing).accessibilityLabel("Widerrufen").accessibilityIdentifier("sheet.undo")
+                Button { model.redo() } label: { Image(systemName: "arrow.uturn.forward").frame(width: 34, height: 34) }
+                    .disabled(!model.canRedo).accessibilityLabel("Wiederholen").accessibilityIdentifier("sheet.redo")
+            }
+            Button { finish() } label: {
+                Group {
+                    if saving { ProgressView().tint(.white) } else { Text(model.readOnly ? "Schließen" : "Fertig").ufFont(15, 600) }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 7)
+            }
                 .background(Capsule().fill(UF.accent))
                 .foregroundStyle(.white)
+                .disabled(saving)
+                .keyboardShortcut(.return, modifiers: .command)
                 .accessibilityIdentifier("sheet.done")
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
         .background(UF.surface)
+    }
+
+    /// "Fertig": erst sichern, dann schliessen - schlaegt das Sichern fehl, bleibt die Tabelle offen
+    private func finish() {
+        guard !saving else { return }
+        model.cancelAI()
+        model.commitEditing()
+        guard model.changed else { onClose(); return }
+        saving = true
+        let s = model.sheet
+        Task {
+            let ok = await onSave(s)
+            saving = false
+            if ok { model.markSaved(s); onClose() } else { saveFailed = true }
+        }
+    }
+
+    private var readOnlyRow: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "lock.fill").font(.system(size: 12)).foregroundStyle(UF.muted)
+            Text("Nur ansehen. Bearbeiten, Formeln und Diagramme gibt es mit Pro AI.").ufFont(12.5).foregroundStyle(UF.text2)
+            Spacer()
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
+        .background(UF.surface)
+        .accessibilityIdentifier("sheet.readOnly")
     }
 
     // MARK: Eingabezeile
@@ -109,9 +172,19 @@ struct SheetEditorView: View {
     }
 
     @ViewBuilder private var hintRow: some View {
-        if let n = model.notice {
+        if model.aiBusy, !showAI {
+            HStack(spacing: 8) {
+                ProgressView().controlSize(.small)
+                Text("Die KI arbeitet an deiner Tabelle …").ufFont(12.5).foregroundStyle(UF.text2)
+                Spacer()
+                Button("Abbrechen") { model.cancelAI() }.ufFont(12.5, 600)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 5)
+            .background(UF.surface)
+            .accessibilityIdentifier("sheet.ai.busy")
+        } else if let n = model.notice {
             hint(n, UF.warn).task(id: n) {
-                try? await Task.sleep(nanoseconds: 3_500_000_000)
+                try? await Task.sleep(nanoseconds: UInt64(max(3.5, Double(n.count) / 14) * 1_000_000_000))
                 if model.notice == n { model.notice = nil }
             }
         } else if let n = model.info {
@@ -132,6 +205,7 @@ struct SheetEditorView: View {
         }
         .padding(.horizontal, 14).padding(.vertical, 5)
         .background(UF.surface)
+        .overlay(alignment: .top) { Rectangle().fill(UF.line).frame(height: 1) }
         .accessibilityIdentifier("sheet.hint")
     }
 
@@ -279,6 +353,13 @@ struct SheetEditorView: View {
                 .textFieldStyle(.roundedBorder)
                 .disabled(model.aiBusy)
                 .accessibilityIdentifier("sheet.ai.wish")
+                .onChange(of: aiWish) { _, w in
+                    // laenger geht nicht mit: lieber gleich sichtbar begrenzen als still abschneiden
+                    if w.count > SheetAI.wishLimit { aiWish = String(w.prefix(SheetAI.wishLimit)) }
+                }
+            if aiWish.count > SheetAI.wishLimit - 40 {
+                Text("Noch \(max(0, SheetAI.wishLimit - aiWish.count)) Zeichen").ufFont(11.5).foregroundStyle(UF.muted)
+            }
             VStack(alignment: .leading, spacing: 4) {
                 ForEach(SheetAI.examples, id: \.self) { e in
                     Button { aiWish = e } label: {
@@ -300,9 +381,12 @@ struct SheetEditorView: View {
                 Text("Deine Tabelle und dein Wunsch gehen an die KI. Das zählt wie eine Frage an die KI.")
                     .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
+                if model.aiBusy {
+                    Button("Abbrechen") { model.cancelAI() }.ufFont(13, 600).accessibilityIdentifier("sheet.ai.cancel")
+                }
                 Button {
-                    Task {
-                        if await model.runAI(wish: aiWish) {
+                    model.startAI(wish: aiWish) { ok in
+                        if ok {
                             showAI = false
                             aiWish = ""
                         }
@@ -322,7 +406,7 @@ struct SheetEditorView: View {
             }
         }
         .padding(14)
-        .frame(width: 360)
+        .frame(minWidth: 260, idealWidth: 360, maxWidth: 360)
         .presentationCompactAdaptation(.popover)
         .accessibilityIdentifier("sheet.ai.panel")
     }
@@ -366,6 +450,11 @@ struct SheetEditorView: View {
             }
             .ufFont(14, 600)
             .padding(12)
+            if model.sheet.filters.keys.contains(where: { $0 != model.active.col }) {
+                Divider()
+                Button("Filter in allen Spalten aufheben") { model.clearFilter(all: true) }
+                    .ufFont(13, 600).padding(12).accessibilityIdentifier("sheet.filter.clearAll")
+            }
         }
         .frame(width: 280)
         .presentationCompactAdaptation(.popover)
@@ -377,7 +466,15 @@ struct SheetEditorView: View {
     private var chartStrip: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text("Diagramme").ufFont(13, 600).foregroundStyle(UF.text2)
+                Button { chartsFolded.toggle() } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: chartsFolded ? "chevron.right" : "chevron.down").font(.system(size: 11, weight: .semibold))
+                        Text(model.sheet.charts.count == 1 ? "1 Diagramm" : "\(model.sheet.charts.count) Diagramme").ufFont(13, 600)
+                    }
+                    .foregroundStyle(UF.text2)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(chartsFolded ? "Diagramme zeigen" : "Diagramme einklappen").accessibilityIdentifier("sheet.charts.fold")
                 Spacer()
                 Text("Auf der Seite:").ufFont(12.5).foregroundStyle(UF.muted)
                 Picker("Auf der Seite", selection: Binding(get: { model.sheet.show }, set: { model.setShow($0) })) {
@@ -388,6 +485,7 @@ struct SheetEditorView: View {
                 .pickerStyle(.menu)
                 .accessibilityIdentifier("sheet.show")
             }
+            if !chartsFolded {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
                     ForEach(model.sheet.charts, id: \.id) { chart in
@@ -397,6 +495,7 @@ struct SheetEditorView: View {
                             .accessibilityIdentifier("sheet.chart.\(chart.kind)")
                     }
                 }
+            }
             }
         }
         .padding(.horizontal, 12)

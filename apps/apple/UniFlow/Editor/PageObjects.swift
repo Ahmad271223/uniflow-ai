@@ -331,7 +331,11 @@ final class PageObjectsView: UIView {
         }
         let sources = Set(others.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil }).sorted()
         let pictures = sources.map { src in images[src].map { "\(src)#\(ObjectIdentifier($0).hashValue)" } ?? src + "#-" }
-        let sig = (template ?? "") + "|" + (placeholder ?? "") + "|" + JSONValue.array(others).jsonString(sortedKeys: true) + "|" + pictures.joined(separator: ",")
+        // Pruefsumme statt des ganzen Texts: Eine grosse Tabelle (oder ein langer Textblock) wuerde sonst bei jeder
+        // Aenderung auf der Seite komplett in Text verwandelt, nur um zu sehen, ob sich etwas geaendert hat
+        var hasher = Hasher()
+        hasher.combine(others)
+        let sig = (template ?? "") + "|" + (placeholder ?? "") + "|\(others.count)#\(hasher.finalize())|" + pictures.joined(separator: ",")
         guard sig != signature else { return }
         signature = sig
         // erst die Ansichten, dann die uebrigen Ebenen: vorher wurden zuerst alle Ebenen entfernt, auch die der

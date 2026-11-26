@@ -18,6 +18,9 @@ final class EditorBridge: ObservableObject {
     @Published var objectMode = false
     @Published var objectTool: ObjectEditing.Tool = .select
     @Published var objectSelection = 0
+    /// Zaehlt bei jeder neuen Auswahl hoch - auch wenn die Anzahl gleich bleibt (Form gewaehlt, dann eine Tabelle):
+    /// Die Objektleiste zeigt sonst weiter die Knoepfe der vorigen Auswahl
+    @Published var objectSelectionStamp = 0
     /// Formatierung des gewaehlten bzw. gerade getippten Texts (Leiste "Text", `TextFormatBar`); nil = kein Text
     @Published var textFormat: TextFormat?
     /// Ein neuer Verweis wartet auf sein Ziel (Leiste: "Jetzt das Ziel antippen", "Abbrechen")
@@ -3674,6 +3677,7 @@ struct StatusLabel: View {
 }
 
 struct PDFEditorView: UIViewControllerRepresentable {
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     let store: DocumentStore
     let bridge: EditorBridge
     let pencilOnly: Bool
@@ -3713,6 +3717,18 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.correction = correction
         vc.shownCorrection = shownCorrection
         vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
+        // KI-Hilfe in der Tabelle: Credits-Stand uebernehmen wie die KI-Hilfe daneben; Fehler mit dem Weg zur Loesung
+        let account = studoraAccount
+        vc.onAIResponse = { r in account?.noteAIResponse(r) }
+        vc.aiErrorText = { error in
+            let text = error.localizedDescription
+            switch StudoraAccountLink.errorAction(error, account: account) {
+            case .credits?: return text + " Neue Credits gibt es in den Einstellungen unter „Konto“."
+            case .plans?: return text + " Die Tarife findest du in den Einstellungen unter „Konto“."
+            case .signIn?: return text + " Bitte melde dich in den Einstellungen mit deinem StudiNow-Konto an."
+            case nil: return text
+            }
+        }
         vc.onPageChange = { [weak bridge] i, key in
             bridge?.pageIndex = i
             bridge?.pageKey = key
@@ -3721,10 +3737,13 @@ struct PDFEditorView: UIViewControllerRepresentable {
         // darum dessen Auswahl (`EditorToolState.selectionChanged`), auch die im Dokument daneben
         if ownsToolPicker {
             vc.objects.onSelectionChange = { [weak vc] n in if let vc { vc.tools.selectionChanged(n, in: vc) } }
-            vc.tools.onActiveSelection = { [weak bridge] n in if let bridge, bridge.objectSelection != n { bridge.objectSelection = n } }
+            vc.tools.onActiveSelection = { [weak bridge] n in
+                guard let bridge else { return }
+                if bridge.objectSelection != n { bridge.objectSelection = n } else if n > 0 { bridge.objectSelectionStamp &+= 1 }
+            }
         } else {
             vc.objects.onSelectionChange = { [weak bridge, weak vc] n in
-                if let bridge, bridge.objectSelection != n { bridge.objectSelection = n }
+                if let bridge { if bridge.objectSelection != n { bridge.objectSelection = n } else if n > 0 { bridge.objectSelectionStamp &+= 1 } }
                 if let vc { vc.tools.selectionChanged(n, in: vc) }
             }
         }

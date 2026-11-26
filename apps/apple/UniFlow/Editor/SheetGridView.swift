@@ -6,12 +6,13 @@ import UniFlowCore
 /// auch bei 500 Zeilen. Rollen und Zoomen mit den Fingern; Antippen waehlt, Doppeltipp tippt, die zwei Punkte an der
 /// Auswahl ziehen sie groesser; im Kopf am Rand einer Spalte oder Zeile ziehen aendert ihre Groesse. Mit Tastatur:
 /// Pfeile, Eingabe, Tab, Entf, einfach lostippen.
-final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate {
+final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDelegate, UIEditMenuInteractionDelegate {
     static let headerWidth: CGFloat = 46
     static let headerHeight: CGFloat = 30
     static let zoomRange: ClosedRange<CGFloat> = 0.8...3
     static let accent = UIColor(hex: "#4f5bd5") ?? .systemBlue
     static let background = UIColor(hex: "#e9ecf2") ?? .systemGray5
+    static let headFont = UIFont.systemFont(ofSize: 12, weight: .medium)
 
     let model: SheetEditorModel
     let scroll = UIScrollView()
@@ -33,6 +34,13 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     private var dragBegan = false
     private var lastTouchIsPointer = false
     private var pinchStart: CGFloat = 1
+    /// Zweiter Tipp auf dieselbe Zelle kurz danach = Doppeltipp (ohne dass der erste Tipp darauf warten muss)
+    private var lastTap: (ref: SheetRef, time: TimeInterval)?
+    static let doubleTapTime: TimeInterval = 0.4
+    private var laidOutSize = CGSize.zero
+    private lazy var editMenu = UIEditMenuInteraction(delegate: self)
+    private var headLines: [String: SheetRender.Line] = [:]
+    private static let funnel = UIImage(systemName: "line.3.horizontal.decrease.circle.fill")?.withTintColor(accent, renderingMode: .alwaysOriginal)
     private lazy var pan = UIPanGestureRecognizer(target: self, action: #selector(panned(_:)))
 
     private final class Canvas: UIView {
@@ -65,16 +73,20 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         addSubview(canvas)
         addSubview(scroll)
 
-        let double = UITapGestureRecognizer(target: self, action: #selector(doubleTapped(_:)))
-        double.numberOfTapsRequired = 2
+        // ein Erkenner fuer Tipp und Doppeltipp: Der einfache Tipp wirkt sofort, statt die Doppeltipp-Frist abzuwarten
         let tap = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))
-        tap.require(toFail: double)
+        let long = UILongPressGestureRecognizer(target: self, action: #selector(longPressed(_:)))
+        long.minimumPressDuration = 0.45
+        let secondary = UITapGestureRecognizer(target: self, action: #selector(secondaryClicked(_:)))
+        secondary.buttonMaskRequired = .secondary
+        secondary.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.indirectPointer.rawValue)]
+        addInteraction(editMenu)
         pan.delegate = self
         pan.maximumNumberOfTouches = 1
         pan.allowedScrollTypesMask = []
         scroll.panGestureRecognizer.require(toFail: pan)
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))
-        for g in [tap, double, pan, pinch] as [UIGestureRecognizer] { scroll.addGestureRecognizer(g) }
+        for g in [tap, long, secondary, pan, pinch] as [UIGestureRecognizer] { scroll.addGestureRecognizer(g) }
         accessibilityIdentifier = "sheet.grid"
         isAccessibilityElement = false
 
@@ -90,6 +102,12 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         canvas.frame = bounds
         scroll.frame = bounds
         updateContentSize()
+        // die Tastatur ist aufgegangen (oder das Geraet gedreht): Die Zelle, in der getippt wird, bleibt im Bild
+        if bounds.size != laidOutSize {
+            let shrunk = bounds.height < laidOutSize.height
+            laidOutSize = bounds.size
+            if shrunk || model.isEditing { reveal(model.active) }
+        }
         canvas.setNeedsDisplay()
     }
 
@@ -108,15 +126,18 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
             shownRevision = model.revision
             hiddenRows = model.hidden
             grid = SheetRender.Grid(model.sheet, hidden: hiddenRows)
-            cache.texts = [:]
+            cache.lines = [:]
             updateContentSize()
         }
         if model.selection != shownSelection {
             shownSelection = model.selection
-            reveal(model.corner)
+            // ganze Spalte, Zeile oder alles gewaehlt: nicht ans Ende springen
+            let sel = model.selection, s = model.sheet
+            reveal(model.corner, horizontal: !(sel.cols.count == s.cols && s.cols > 1), vertical: !(sel.rows.count == s.rows && s.rows > 1))
         }
-        // mit Tastatur: Pfeile und Lostippen gehen an das Gitter, solange nicht im Eingabefeld getippt wird
-        if !model.isEditing, window != nil, !isFirstResponder { becomeFirstResponder() }
+        // mit Tastatur: Pfeile und Lostippen gehen an das Gitter, solange nicht im Eingabefeld getippt wird - und
+        // kein Dialog (KI-Wunsch, Titel) gerade die Tastatur hat
+        if !model.isEditing, !model.dialogOpen, window != nil, !isFirstResponder { becomeFirstResponder() }
         canvas.setNeedsDisplay()
     }
 
@@ -147,14 +168,18 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         return CGPoint(x: v.midX, y: v.midY)
     }
 
-    private func reveal(_ r: SheetRef) {
-        guard bounds.width > 0 else { return }
+    private func reveal(_ r: SheetRef, horizontal: Bool = true, vertical: Bool = true) {
+        guard bounds.width > 0, horizontal || vertical else { return }
         let c = grid.rect(r)
         guard !c.isNull else { return }
         let cr = CGRect(x: Self.headerWidth + c.minX * zoom, y: Self.headerHeight + c.minY * zoom, width: c.width * zoom, height: c.height * zoom)
         var off = offset
-        if cr.minX < off.x + Self.headerWidth { off.x = cr.minX - Self.headerWidth } else if cr.maxX > off.x + bounds.width { off.x = cr.maxX - bounds.width + 8 }
-        if cr.minY < off.y + Self.headerHeight { off.y = cr.minY - Self.headerHeight } else if cr.maxY > off.y + bounds.height { off.y = cr.maxY - bounds.height + 8 }
+        if horizontal {
+            if cr.minX < off.x + Self.headerWidth { off.x = cr.minX - Self.headerWidth } else if cr.maxX > off.x + bounds.width { off.x = cr.maxX - bounds.width + 8 }
+        }
+        if vertical {
+            if cr.minY < off.y + Self.headerHeight { off.y = cr.minY - Self.headerHeight } else if cr.maxY > off.y + bounds.height { off.y = cr.maxY - bounds.height + 8 }
+        }
         off.x = max(0, off.x)
         off.y = max(0, off.y)
         if off != offset { scroll.setContentOffset(off, animated: false) }
@@ -222,7 +247,14 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         let shift = g.modifierFlags.contains(.shift)
         switch target(at: p, forDrag: false) {
         case .cell(let r):
-            if model.isFormulaEditing, r != model.active { model.insertReference(r); return }
+            if model.isFormulaEditing, r != model.active { lastTap = nil; model.insertReference(r); return }
+            let now = ProcessInfo.processInfo.systemUptime
+            if let l = lastTap, l.ref == r, now - l.time < Self.doubleTapTime, !shift {
+                lastTap = nil
+                beginEditing(at: r)
+                return
+            }
+            lastTap = (r, now)
             model.commitEditing()
             model.select(r, extend: shift)
         case .colHeader(let c):
@@ -239,11 +271,39 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         }
     }
 
-    @objc private func doubleTapped(_ g: UITapGestureRecognizer) {
-        guard case .cell(let r) = target(at: g.location(in: self), forDrag: false) else { return }
+    private func beginEditing(at r: SheetRef) {
         model.commitEditing()
         model.select(r)
         model.beginEditing()
+    }
+
+    // MARK: Menue an der Zelle (langes Druecken, Rechtsklick)
+
+    @objc private func longPressed(_ g: UILongPressGestureRecognizer) {
+        if g.state == .began { showMenu(at: g.location(in: self)) }
+    }
+
+    @objc private func secondaryClicked(_ g: UITapGestureRecognizer) { showMenu(at: g.location(in: self)) }
+
+    private func showMenu(at p: CGPoint) {
+        guard case .cell(let r) = target(at: p, forDrag: false) else { return }
+        if !model.selection.contains(r) {
+            model.commitEditing()
+            model.select(r)
+        }
+        editMenu.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: p))
+    }
+
+    func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration,
+                             suggestedActions: [UIMenuElement]) -> UIMenu? {
+        let m = model
+        var items = [UIAction(title: "Kopieren", image: UIImage(systemName: "doc.on.doc")) { _ in m.copy() }]
+        if !m.readOnly {
+            items.insert(UIAction(title: "Ausschneiden", image: UIImage(systemName: "scissors")) { _ in m.cut() }, at: 0)
+            items.append(UIAction(title: "Einfügen", image: UIImage(systemName: "doc.on.clipboard")) { _ in m.paste() })
+            items.append(UIAction(title: "Inhalt löschen", image: UIImage(systemName: "delete.left"), attributes: .destructive) { _ in m.clearContents() })
+        }
+        return UIMenu(children: items)
     }
 
     @objc private func panned(_ g: UIPanGestureRecognizer) {
@@ -270,11 +330,9 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
             switch drag {
             case .handle, .cell: model.select(grid.nearest(t), extend: true)
             case .colEdge(let c):
-                model.resizeLive(col: c, row: nil, to: Double(dragStartSize + g.translation(in: self).x / zoom), begin: dragBegan)
-                dragBegan = false
+                if model.resizeLive(col: c, row: nil, to: Double(dragStartSize + g.translation(in: self).x / zoom), begin: dragBegan) { dragBegan = false }
             case .rowEdge(let r):
-                model.resizeLive(col: nil, row: r, to: Double(dragStartSize + g.translation(in: self).y / zoom), begin: dragBegan)
-                dragBegan = false
+                if model.resizeLive(col: nil, row: r, to: Double(dragStartSize + g.translation(in: self).y / zoom), begin: dragBegan) { dragBegan = false }
             default: break
             }
         default:
@@ -306,13 +364,36 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
             c.discoverabilityTitle = title
             return c
         }
-        return [
+        // Pfeile und Tab als Kuerzel: Sie wiederholen sich beim Gedrueckthalten, und Tab bleibt im Gitter
+        var moves: [UIKeyCommand] = []
+        for input in [UIKeyCommand.inputUpArrow, UIKeyCommand.inputDownArrow, UIKeyCommand.inputLeftArrow, UIKeyCommand.inputRightArrow, "\t"] {
+            for flags in [UIKeyModifierFlags(), .shift] {
+                let c = UIKeyCommand(input: input, modifierFlags: flags, action: #selector(keyMove(_:)))
+                c.wantsPriorityOverSystemBehavior = true
+                moves.append(c)
+            }
+        }
+        return moves + [
             cmd("c", .command, #selector(keyCopy), "Kopieren"), cmd("x", .command, #selector(keyCut), "Ausschneiden"),
             cmd("v", .command, #selector(keyPaste), "Einfügen"), cmd("z", .command, #selector(keyUndo), "Widerrufen"),
             cmd("z", [.command, .shift], #selector(keyRedo), "Wiederholen"), cmd("b", .command, #selector(keyBold), "Fett"),
             cmd("i", .command, #selector(keyItalic), "Kursiv"), cmd("d", .command, #selector(keyFillDown), "Nach unten ausfüllen"),
             cmd("a", .command, #selector(keySelectAll), "Alles auswählen"),
         ]
+    }
+
+    @objc private func keyMove(_ c: UIKeyCommand) {
+        let shift = c.modifierFlags.contains(.shift)
+        var d = (col: 0, row: 0)
+        switch c.input {
+        case UIKeyCommand.inputUpArrow: d.row = -1
+        case UIKeyCommand.inputDownArrow: d.row = 1
+        case UIKeyCommand.inputLeftArrow: d.col = -1
+        case UIKeyCommand.inputRightArrow: d.col = 1
+        default: d.col = shift ? -1 : 1                       // Tab
+        }
+        if c.input == "\t" || model.isEditing { model.commitEditing(dCol: d.col, dRow: d.row) }
+        else { model.move(dCol: d.col, dRow: d.row, extend: shift) }
     }
 
     @objc private func keyCopy() { model.copy() }
@@ -336,6 +417,7 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
                 let chars = key.characters
                 if key.keyCode == .keyboardReturnOrEnter || key.keyCode == .keypadEnter { model.commitEditing(dCol: 0, dRow: 1); handled = true }
                 else if key.keyCode == .keyboardEscape { model.cancelEditing(); handled = true }
+                else if [.keyboardUpArrow, .keyboardDownArrow, .keyboardLeftArrow, .keyboardRightArrow, .keyboardTab].contains(key.keyCode) {}   // `keyMove`
                 else if chars.count == 1, let ch = chars.first, !ch.isNewline, ch.unicodeScalars.allSatisfy({ $0.value >= 32 && !(0xF700...0xF8FF).contains($0.value) }) {
                     model.editing = (model.editing ?? "") + chars
                     handled = true
@@ -343,12 +425,8 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
                 continue
             }
             switch key.keyCode {
-            case .keyboardUpArrow: model.move(dCol: 0, dRow: -1, extend: shift); handled = true
-            case .keyboardDownArrow: model.move(dCol: 0, dRow: 1, extend: shift); handled = true
-            case .keyboardLeftArrow: model.move(dCol: -1, dRow: 0, extend: shift); handled = true
-            case .keyboardRightArrow: model.move(dCol: 1, dRow: 0, extend: shift); handled = true
+            case .keyboardUpArrow, .keyboardDownArrow, .keyboardLeftArrow, .keyboardRightArrow, .keyboardTab: break   // `keyMove`
             case .keyboardReturnOrEnter, .keypadEnter: model.commitEditing(dCol: 0, dRow: shift ? -1 : 1); handled = true
-            case .keyboardTab: model.commitEditing(dCol: shift ? -1 : 1, dRow: 0); handled = true
             case .keyboardDeleteOrBackspace, .keyboardDeleteForward: model.clearContents(); handled = true
             case .keyboardF2: model.beginEditing(); handled = true
             case .keyboardEscape: handled = true
@@ -420,11 +498,15 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
         // Kopf
         UIGraphicsPushContext(ctx)
         defer { UIGraphicsPopContext() }
-        let headFont = UIFont.systemFont(ofSize: 12, weight: .medium)
         func label(_ text: String, in rect: CGRect, on: Bool) {
-            let a = NSAttributedString(string: text, attributes: [.font: headFont, .foregroundColor: on ? Self.accent : UIColor.darkGray])
-            let size = a.size()
-            a.draw(at: CGPoint(x: rect.midX - size.width / 2, y: rect.midY - size.height / 2))
+            let key = (on ? "1" : "0") + text
+            let l: SheetRender.Line
+            if let hit = headLines[key] { l = hit } else {
+                if headLines.count > 1_200 { headLines = [:] }
+                l = SheetRender.line(text, font: Self.headFont, color: on ? Self.accent : UIColor.darkGray)
+                headLines[key] = l
+            }
+            l.draw(at: CGPoint(x: rect.midX - l.size.width / 2, y: rect.midY - l.size.height / 2), in: ctx)
         }
         if let range = grid.range(in: visible) {
             ctx.saveGState()
@@ -438,7 +520,7 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
                 ctx.setLineWidth(1)
                 ctx.stroke(r)
                 label(SheetRef.colName(c), in: r, on: on)
-                if model.isFiltered(c), let funnel = UIImage(systemName: "line.3.horizontal.decrease.circle.fill")?.withTintColor(Self.accent, renderingMode: .alwaysOriginal) {
+                if model.isFiltered(c), let funnel = Self.funnel {
                     funnel.draw(in: CGRect(x: r.maxX - 16, y: r.midY - 6.5, width: 13, height: 13))
                 }
             }
@@ -470,11 +552,51 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     }
 }
 
+// MARK: - Bedienungshilfen
+
+/// VoiceOver: jede sichtbare Zelle ist ein Element ("B3: 12,5"); Aktivieren waehlt sie
+extension SheetGridView {
+    final class CellElement: UIAccessibilityElement {
+        var activate: (() -> Void)?
+        override func accessibilityActivate() -> Bool { activate?(); return true }
+    }
+
+    override var accessibilityElements: [Any]? {
+        get {
+            let area = CGRect(x: offset.x / zoom, y: offset.y / zoom, width: (bounds.width - Self.headerWidth) / zoom, height: (bounds.height - Self.headerHeight) / zoom)
+            guard let range = grid.range(in: area) else { return [] }
+            var out: [Any] = []
+            let sel = model.selection
+            for row in range.rows where !model.hidden.contains(row) {
+                for col in range.cols {
+                    guard out.count < 400 else { return out }
+                    let r = SheetRef(col: col, row: row)
+                    let e = CellElement(accessibilityContainer: self)
+                    let shown = model.sheet.display(r, model.calc)
+                    e.accessibilityLabel = r.name + ": " + (shown.isEmpty ? "leer" : shown)
+                    if SheetFormula.isFormula(model.sheet.raw(r)) { e.accessibilityHint = "Formel " + model.sheet.raw(r) }
+                    e.accessibilityTraits = sel.contains(r) ? [.button, .selected] : .button
+                    e.accessibilityFrameInContainerSpace = viewRect(grid.rect(r))
+                    e.accessibilityIdentifier = "sheet.cell." + r.name
+                    e.activate = { [weak self] in
+                        self?.model.commitEditing()
+                        self?.model.select(r)
+                    }
+                    out.append(e)
+                }
+            }
+            return out
+        }
+        set {}
+    }
+}
+
 extension SheetEditorModel {
-    /// Spalte oder Zeile am Kopf groesser/kleiner ziehen: ein Rueckgaengig-Schritt fuer das ganze Ziehen
-    func resizeLive(col: Int?, row: Int?, to v: Double, begin: Bool) {
-        if begin { rememberForUndo() }
-        changeQuietly { s in
+    /// Spalte oder Zeile am Kopf groesser/kleiner ziehen: ein Rueckgaengig-Schritt fuer das ganze Ziehen (gemerkt
+    /// erst, wenn sich wirklich etwas aendert - bloss anfassen hinterlaesst keinen Schritt)
+    @discardableResult
+    func resizeLive(col: Int?, row: Int?, to v: Double, begin: Bool) -> Bool {
+        changeLive(first: begin) { s in
             if let col { s.setWidth(v, col: col) }
             if let row { s.setHeight(v, row: row) }
         }

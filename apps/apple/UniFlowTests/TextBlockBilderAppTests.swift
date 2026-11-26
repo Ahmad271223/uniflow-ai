@@ -703,7 +703,7 @@ final class TextBlockBilderAppTests: XCTestCase {
         model.addChart("pie")
         if let id = model.sheet.charts.last?.id { model.updateChart(id) { $0.title = "Leistungspunkte je Fach"; $0.range = SheetRange("A1:C5")! } }
         model.select(SheetRef("D7")!)
-        let view = SheetEditorView(model: model, onSave: { _ in }, onClose: {})
+        let view = SheetEditorView(model: model, onSave: { _ in true }, onClose: {})
         let env2 = try hostWithEnvironment(view, api: s.api, size: CGSize(width: 1180, height: 820))
         env2.pump(1.0)
         model.beginEditing()
@@ -719,7 +719,7 @@ final class TextBlockBilderAppTests: XCTestCase {
         ai.askAI = { _ in
             #"{"neu":true,"zellen":{"A1":"Woche","B1":"Thema","C1":"Stunden","D1":"Erledigt","A2":"1","B2":"Folgen und Reihen","C2":"6","D2":"ja","A3":"2","B3":"Differentialrechnung","C3":"8","D3":"ja","A4":"3","B4":"Integralrechnung","C4":"8","D4":"nein","A5":"4","B5":"Altklausuren","C5":"10","D5":"nein","A6":"Summe","C6":"=SUMME(C2:C5)","D6":"=ZÄHLENWENN(D2:D5;\"ja\")&\" von 4\""},"diagramme":[{"art":"balken","bereich":"B1:C5","titel":"Stunden je Thema"}],"hinweis":"In C6 steht die Summe der Stunden."}"#
         }
-        let env3 = try hostWithEnvironment(SheetEditorView(model: ai, onSave: { _ in }, onClose: {}), api: s.api, size: CGSize(width: 1180, height: 820))
+        let env3 = try hostWithEnvironment(SheetEditorView(model: ai, onSave: { _ in true }, onClose: {}), api: s.api, size: CGSize(width: 1180, height: 820))
         env3.pump(1.0)
         XCTAssertTrue(button("KI hilft bei der Tabelle", in: env3.window), "Knopf KI in der Leiste")
         XCTAssertTrue(press("KI hilft bei der Tabelle", in: env3.window))

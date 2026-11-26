@@ -65,9 +65,51 @@ enum SheetRender {
         }
     }
 
-    /// Gemerkte Texte je Zelle (das Gitter der grossen Ansicht zeichnet bei jedem Rollen neu)
+    /// Eine fertig gesetzte Textzeile: einmal gesetzt, beliebig oft gezeichnet (das Gitter der grossen Ansicht
+    /// zeichnet bei jedem Bild des Rollens neu - neu setzen waere dafuer zu teuer)
+    struct Line {
+        let line: CTLine
+        let size: CGSize
+        let ascent: CGFloat
+
+        var isEmpty: Bool { size.width <= 0 }
+
+        /// `p`: linke obere Ecke (Kontext mit Ursprung links oben, wie ueberall in UIKit)
+        func draw(at p: CGPoint, in ctx: CGContext) {
+            ctx.textMatrix = CGAffineTransform(scaleX: 1, y: -1)
+            ctx.textPosition = CGPoint(x: p.x, y: p.y + ascent)
+            CTLineDraw(line, ctx)
+        }
+    }
+
+    static func line(_ text: String, font: UIFont, color: UIColor) -> Line {
+        let a = NSAttributedString(string: text, attributes: [
+            NSAttributedString.Key(kCTFontAttributeName as String): font,
+            NSAttributedString.Key(kCTForegroundColorAttributeName as String): color.cgColor,
+        ])
+        let l = CTLineCreateWithAttributedString(a)
+        var ascent: CGFloat = 0, descent: CGFloat = 0, leading: CGFloat = 0
+        let w = CGFloat(CTLineGetTypographicBounds(l, &ascent, &descent, &leading))
+        return Line(line: l, size: CGSize(width: w.rounded(.up), height: ascent + descent), ascent: ascent)
+    }
+
+    /// Gemerkte Zeilen je Zelle
     final class Cache {
-        var texts: [SheetRef: (text: NSAttributedString, size: CGSize)] = [:]
+        var lines: [SheetRef: Line] = [:]
+    }
+
+    private static let colorLock = NSLock()
+    private static var colors: [String: UIColor] = [:]
+
+    /// Farbe aus `#rrggbb`, gemerkt (jede Zelle mit Farbe fragt bei jedem Bild)
+    static func color(_ hex: String) -> UIColor? {
+        colorLock.lock()
+        defer { colorLock.unlock() }
+        if let hit = colors[hex] { return hit }
+        guard let c = UIColor(hex: hex) else { return nil }
+        if colors.count > 200 { colors = [:] }
+        colors[hex] = c
+        return c
     }
 
     static func font(_ st: SheetStyle, header: Bool) -> UIFont {
@@ -77,10 +119,10 @@ enum SheetRender {
         return UIFont(descriptor: d, size: size)
     }
 
-    static func attributed(_ text: String, _ s: Sheet, _ r: SheetRef, isError: Bool) -> NSAttributedString {
+    static func line(_ text: String, _ s: Sheet, _ r: SheetRef, isError: Bool) -> Line {
         let st = s.style(r)
-        let color = isError && st.color == nil ? errorColor : (st.color.flatMap { UIColor(hex: $0) } ?? textColor)
-        return NSAttributedString(string: text, attributes: [.font: font(st, header: s.header && r.row == 0), .foregroundColor: color])
+        let color = isError && st.color == nil ? errorColor : (st.color.flatMap { SheetRender.color($0) } ?? textColor)
+        return line(text, font: font(st, header: s.header && r.row == 0), color: color)
     }
 
     /// Zellen im Ausschnitt `clip` zeichnen (Ursprung der Tabelle = Ursprung des Kontexts). `editing`: Diese Zelle zeigt
@@ -97,7 +139,7 @@ enum SheetRender {
         for row in rows {
             for col in visible.cols {
                 let r = SheetRef(col: col, row: row)
-                if let fill = s.styles[r]?.fill.flatMap({ UIColor(hex: $0) }) {
+                if let fill = s.styles[r]?.fill.flatMap({ SheetRender.color($0) }) {
                     ctx.setFillColor(fill.cgColor)
                     ctx.fill(grid.rect(r))
                 } else if s.header, row == 0 {
@@ -120,7 +162,6 @@ enum SheetRender {
         ctx.move(to: CGPoint(x: left, y: bottom)); ctx.addLine(to: CGPoint(x: right, y: bottom))
         ctx.strokePath()
         // Text
-        UIGraphicsPushContext(ctx)
         let pad = CGFloat(Sheet.cellPadding)
         for row in rows {
             for col in visible.cols {
@@ -128,19 +169,17 @@ enum SheetRender {
                 let cell = grid.rect(r)
                 let typed = editing?.ref == r ? editing?.text : nil
                 guard typed != nil || s.cells[r] != nil else { continue }
-                let entry: (text: NSAttributedString, size: CGSize)
+                let entry: Line
                 if let typed {
-                    let a = NSAttributedString(string: typed, attributes: [.font: font(s.style(r), header: false), .foregroundColor: textColor])
-                    entry = (a, a.size())
-                } else if let hit = cache?.texts[r] {
+                    entry = line(typed, font: font(s.style(r), header: false), color: textColor)
+                } else if let hit = cache?.lines[r] {
                     entry = hit
                 } else {
                     let v = calc.value(r)
-                    let a = attributed(s.display(r, calc), s, r, isError: v.error != nil)
-                    entry = (a, a.size())
-                    cache?.texts[r] = entry
+                    entry = line(s.display(r, calc), s, r, isError: v.error != nil)
+                    cache?.lines[r] = entry
                 }
-                guard entry.text.length > 0 else { continue }
+                guard !entry.isEmpty else { continue }
                 let inner = cell.insetBy(dx: pad, dy: 0)
                 guard inner.width > 2 else { continue }
                 var x = inner.minX
@@ -151,11 +190,10 @@ enum SheetRender {
                 }
                 ctx.saveGState()
                 ctx.clip(to: cell.insetBy(dx: 1, dy: 0.5))
-                entry.text.draw(at: CGPoint(x: x, y: cell.midY - entry.size.height / 2))
+                entry.draw(at: CGPoint(x: x, y: cell.midY - entry.size.height / 2), in: ctx)
                 ctx.restoreGState()
             }
         }
-        UIGraphicsPopContext()
         // Rahmen der Zellen
         ctx.setStrokeColor(borderColor.cgColor)
         ctx.setLineWidth(1.2)
@@ -223,22 +261,10 @@ enum SheetRender {
         }
     }
 
-    private static let lock = NSLock()
-    private static var sizes: [JSONValue: CGSize] = [:]
-
-    /// Groesse des Kastens auf der Seite. Gemerkt je Inhalt: Die Frage kommt bei jedem Antippen fuer jedes Textobjekt.
+    /// Groesse des Kastens auf der Seite. Die Frage kommt bei jedem Antippen fuer jedes Textobjekt: Sie liest die
+    /// Groesse, die beim Sichern ins Objekt geschrieben wurde (`SheetObject.storedBox`), statt die Tabelle zu rechnen.
     static func size(_ o: JSONValue) -> CGSize {
-        let key: JSONValue = .array([o["sheet"] ?? .null, o["width"] ?? .null])
-        lock.lock()
-        let hit = sizes[key]
-        lock.unlock()
-        if let hit { return hit }
-        let size = Prepared(o)?.size ?? CGSize(width: 1, height: 1)
-        lock.lock()
-        if sizes.count > 48 { sizes.removeAll() }
-        sizes[key] = size
-        lock.unlock()
-        return size
+        SheetObject.size(o).map { CGSize(width: CGFloat($0.width), height: CGFloat($0.height)) } ?? CGSize(width: 1, height: 1)
     }
 
     static func draw(_ o: JSONValue, in ctx: CGContext) { Prepared(o)?.draw(in: ctx) }
@@ -412,12 +438,14 @@ enum SheetChartRender {
 
 // MARK: - Ansicht auf der Seite
 
-/// Tabelle als Kasten auf der Seite (`PageObjectsView`). Zeichnet nur den sichtbaren Ausschnitt; die Aufloesung ist
-/// begrenzt, damit eine grosse Tabelle beim Hineinzoomen keinen riesigen Speicher belegt (Vorgabe: Editor bleibt fluessig).
+/// Tabelle als Kasten auf der Seite (`PageObjectsView`). Die Aufloesung ist begrenzt, damit eine grosse Tabelle beim
+/// Hineinzoomen keinen riesigen Speicher belegt (Vorgabe: Editor bleibt fluessig).
 final class SheetBoxView: UIView {
-    /// Hoechstens so viele Bildpunkte fuer einen Kasten (rund 32 MB)
-    static let pixelBudget: CGFloat = 8_000_000
+    /// Hoechstens so viele Bildpunkte fuer einen Kasten (rund 16 MB)
+    static let pixelBudget: CGFloat = 4_000_000
     private var prepared: SheetRender.Prepared?
+    /// Aufloesung, die die Seite fuer diesen Zoom haben moechte (vor der Grenze)
+    private var wantedScale: CGFloat = UIScreen.main.scale
 
     init(object: JSONValue) {
         super.init(frame: .zero)
@@ -434,12 +462,15 @@ final class SheetBoxView: UIView {
     func show(_ o: JSONValue) {
         prepared = SheetRender.Prepared(o)
         bounds = CGRect(origin: .zero, size: prepared?.size ?? CGSize(width: 1, height: 1))
+        // die Grenze gilt auch, wenn der Kasten groesser geworden ist (mehr Zeilen, Diagramm dazu)
+        contentScaleFactor = wantedScale
         setNeedsDisplay()
     }
 
     override var contentScaleFactor: CGFloat {
         get { super.contentScaleFactor }
         set {
+            wantedScale = newValue
             let area = max(1, bounds.width * bounds.height)
             // eine riesige Tabelle wird groeber gezeichnet (auch unter 1), statt Hunderte MB zu belegen
             super.contentScaleFactor = max(0.1, min(newValue, (SheetBoxView.pixelBudget / area).squareRoot()))

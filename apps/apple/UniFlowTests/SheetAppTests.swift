@@ -224,6 +224,8 @@ final class SheetAppTests: XCTestCase {
         t.set("=2*21", at: SheetRef("B1")!)
         let saved = await s.editor.objects.saveSheet(t, key: s.blank, id: id)
         XCTAssertTrue(saved)
+        let same = await s.editor.objects.saveSheet(t, key: s.blank, id: id)
+        XCTAssertTrue(same, "derselbe Stand noch einmal: steht auf der Seite, also gesichert")
         let after = await s.store.objects(forPageKey: s.blank).first
         XCTAssertEqual(after?["text"], "Fach\t42")
         XCTAssertEqual(after.flatMap(SheetObject.sheet)?.raw(SheetRef("B1")!), "=2*21")
@@ -263,10 +265,29 @@ final class SheetAppTests: XCTestCase {
         await s.store.flush()
         try await BildProbe.wait("Tabelle gezeigt (ansehen geht in jedem Tarif)") { page.objectsView.subviews.contains { $0 is SheetBoxView } }
 
+        // oeffnen geht - zum Ansehen (eine lange Tabelle passt nicht ganz auf die Seite); aendern geht nicht
         s.editor.objects.openSheet(key: s.blank, id: "t")
-        try await Task.sleep(nanoseconds: 300_000_000)
-        XCTAssertEqual(hints.last, ObjectEditing.sheetLockedHint)
-        XCTAssertNil(s.editor.presentedViewController)
+        try await BildProbe.wait("grosse Ansicht zum Ansehen") { s.editor.presentedViewController is UIHostingController<SheetEditorView> }
+        let host = try XCTUnwrap(s.editor.presentedViewController as? UIHostingController<SheetEditorView>)
+        let m = host.rootView.model
+        XCTAssertTrue(m.readOnly)
+        XCTAssertNil(m.askAI, "keine KI ohne Pro AI")
+        let before = m.sheet
+        m.beginEditing("x")
+        XCTAssertFalse(m.isEditing)
+        m.select(SheetRange("A1:C4")!)
+        m.clearContents()
+        m.toggleBold()
+        m.sort(ascending: false)
+        m.cut()
+        m.paste()
+        m.insertRows(below: true)
+        XCTAssertEqual(m.sheet, before, "nichts laesst sich aendern")
+        XCTAssertFalse(m.changed)
+        m.copy()
+        XCTAssertEqual(UIPasteboard.general.string?.hasPrefix("Fach\t"), true, "kopieren geht")
+        s.editor.dismiss(animated: false)
+        try await BildProbe.wait("zu") { s.editor.presentedViewController == nil }
 
         hints = []
         s.editor.choose(.select)
@@ -371,9 +392,9 @@ final class SheetAppTests: XCTestCase {
         XCTAssertEqual(model.active, SheetRef("B5"))
         XCTAssertTrue(model.changed)
         model.undo()
-        XCTAssertEqual(model.sheet.rows, 4)
-        model.undo()
+        XCTAssertEqual(model.sheet.rows, 4, "Text und neue Zeile sind ein Schritt")
         XCTAssertEqual(model.sheet.raw(SheetRef("B4")!), "")
+        XCTAssertEqual(model.active, SheetRef("B4"), "die Auswahl von vorher ist zurueck")
         XCTAssertFalse(model.changed)
         model.redo()
         XCTAssertEqual(model.sheet.raw(SheetRef("B4")!), "=B2+B3")
@@ -384,7 +405,7 @@ final class SheetAppTests: XCTestCase {
         try await Task.sleep(nanoseconds: 40_000_000)
         finger.lift()
         try await Task.sleep(nanoseconds: 500_000_000)
-        XCTAssertEqual(model.selection.name, "C1:C4")
+        XCTAssertEqual(model.selection.name, "C1:C5")
 
         // der Punkt rechts unten an der Auswahl zieht sie groesser
         model.select(SheetRef("A2")!)
@@ -394,6 +415,238 @@ final class SheetAppTests: XCTestCase {
                                        to: grid.convert(grid.center(of: SheetRef("B3")!), to: nil), in: window)
         try await Task.sleep(nanoseconds: 300_000_000)
         XCTAssertEqual(model.selection.name, "A2:B3")
+    }
+
+    // MARK: Befunde der Durchsicht vom 26.11.2026
+
+    func testFertigSichertAuchNachZwischenstandUndWiderrufen() {
+        let m = SheetEditorModel(sheet: table(), title: "T")
+        let start = m.sheet
+        m.select(SheetRef("A2")!)
+        m.beginEditing("Analysis")
+        m.commitEditing()
+        XCTAssertTrue(m.changed)
+        m.markSaved(m.sheet)                 // Zwischenstand steht auf der Seite (App ging in den Hintergrund)
+        XCTAssertFalse(m.changed)
+        m.undo()
+        XCTAssertEqual(m.sheet, start)
+        XCTAssertTrue(m.changed, "auf der Seite steht noch der Zwischenstand: Fertig muss sichern")
+    }
+
+    func testLaufendeEingabeLandetInIhrerZelleUndWiderrufenVerwirftNurDasGetippte() {
+        let m = SheetEditorModel(sheet: table(), title: "T")
+        func raw(_ n: String) -> String { m.sheet.raw(SheetRef(n)!) }
+        // tippen, dann sortieren: Die 7 gehoert zu Physik (B3), auch wenn Physik danach in Zeile 2 steht
+        m.select(SheetRef("B3")!)
+        m.beginEditing("7")
+        m.sort(ascending: false)
+        XCTAssertFalse(m.isEditing)
+        XCTAssertEqual([raw("A2"), raw("B2")], ["Physik", "7"])
+        m.undo(); m.undo()
+        XCTAssertEqual(raw("B3"), "2,3")
+
+        // tippen, dann Zeile darueber einfuegen: Der Text bleibt bei seiner Zeile
+        m.select(SheetRef("A2")!)
+        m.beginEditing("Analysis")
+        m.insertRows(below: false)
+        XCTAssertEqual(raw("A2"), "")
+        XCTAssertEqual(raw("A3"), "Analysis")
+        m.undo(); m.undo()
+
+        // "Widerrufen" waehrend des Tippens verwirft nur das Getippte
+        let before = m.sheet
+        m.select(SheetRef("A2")!)
+        m.beginEditing("falsch")
+        m.undo()
+        XCTAssertFalse(m.isEditing)
+        XCTAssertEqual(m.sheet, before)
+
+        // "Inhalt loeschen" waehrend des Tippens leert die Zelle
+        m.beginEditing("halb")
+        m.clearContents()
+        XCTAssertFalse(m.isEditing)
+        XCTAssertEqual(raw("A2"), "")
+
+        // Eingabe in einer leeren letzten Zeile laesst die Tabelle nicht endlos wachsen
+        let rows = m.sheet.rows
+        m.select(SheetRef(col: 0, row: rows - 1))
+        m.commitEditing(dCol: 0, dRow: 1)
+        m.commitEditing(dCol: 0, dRow: 1)
+        m.commitEditing(dCol: 0, dRow: 1)
+        XCTAssertLessThanOrEqual(m.sheet.rows, rows + 1)
+    }
+
+    func testFilterAktionenTreffenNurSichtbareZeilen() {
+        var t = Sheet(rows: 7, cols: 2)
+        for (i, v) in ["Fach", "Mathe", "Physik", "Mathe", "Physik", "Mathe", "Chemie"].enumerated() {
+            t.set(v, at: SheetRef(col: 0, row: i))
+            t.set(i == 0 ? "LP" : "\(i)", at: SheetRef(col: 1, row: i))
+        }
+        let m = SheetEditorModel(sheet: t, title: "T")
+        func col(_ c: Int) -> [String] { (0..<m.sheet.rows).map { m.sheet.raw(SheetRef(col: c, row: $0)) } }
+        m.select(SheetRef("A3")!)
+        m.toggleFilter("Physik")
+        XCTAssertEqual(m.hidden, [2, 4])
+        XCTAssertEqual(m.active, SheetRef("A4"), "die aktive Zelle war versteckt: weiter zur naechsten sichtbaren")
+
+        m.select(SheetRange("B2:B6")!)
+        m.clearContents()
+        XCTAssertEqual(col(1), ["LP", "", "2", "", "4", "", "6"], "die versteckten Zeilen behalten ihren Inhalt")
+        m.undo()
+        m.toggleBold()
+        XCTAssertEqual((1...5).map { m.sheet.style(SheetRef(col: 1, row: $0)).bold }, [true, false, true, false, true])
+        m.undo()
+        m.copy()
+        XCTAssertEqual(UIPasteboard.general.string, "1\n3\n5", "kopiert wird, was man sieht")
+        m.fillDown()
+        XCTAssertEqual(col(1), ["LP", "1", "2", "1", "4", "1", "6"])
+        m.undo()
+
+        m.select(SheetRange("A2:A6")!)
+        m.deleteRows()
+        XCTAssertEqual(col(0), ["Fach", "Physik", "Physik", "Chemie"], "geloescht sind nur die sichtbaren Zeilen")
+        m.undo()
+        XCTAssertEqual(m.sheet.rows, 7)
+        m.clearFilter(all: true)
+        XCTAssertTrue(m.hidden.isEmpty)
+    }
+
+    func testAusschneidenEinfuegenUndRueckgaengigOhneLeereSchritte() {
+        let m = SheetEditorModel(sheet: table(), title: "T")
+        func raw(_ n: String) -> String { m.sheet.raw(SheetRef(n)!) }
+        // ausschneiden und woanders einsetzen: Die Formel zeigt weiter auf dieselben Zellen
+        m.select(SheetRef("C4")!)
+        m.cut()
+        XCTAssertEqual(raw("C4"), "")
+        m.select(SheetRef("B4")!)
+        m.paste()
+        XCTAssertEqual(raw("B4"), "=SUMME(C2:C3)")
+        // noch einmal einsetzen: jetzt eine gewoehnliche Kopie, die Bezuege wandern mit
+        m.select(SheetRef("B3")!)
+        m.paste()
+        XCTAssertEqual(raw("B3"), "=SUMME(B1:B2)")
+
+        // Spaltenrand nur anfassen: kein Schritt
+        let plain = SheetEditorModel(sheet: table(), title: "T")
+        XCTAssertFalse(plain.resizeLive(col: 0, row: nil, to: Sheet.defaultColWidth, begin: true))
+        XCTAssertFalse(plain.canUndo)
+        XCTAssertTrue(plain.resizeLive(col: 0, row: nil, to: 120, begin: true))
+        XCTAssertTrue(plain.resizeLive(col: 0, row: nil, to: 140, begin: false))
+        plain.undo()
+        XCTAssertEqual(plain.sheet.width(0), Sheet.defaultColWidth)
+        XCTAssertFalse(plain.canUndo)
+    }
+
+    func testKopfAntippenSpringtNichtAnsEndeUndTippWirktSofort() async throws {
+        var big = Sheet(rows: 120, cols: 30)
+        for r in 0..<120 { big.set("\(r + 1)", at: SheetRef(col: 0, row: r)) }
+        let model = SheetEditorModel(sheet: big, title: "Gross")
+        let (grid, window) = gridWindow(model)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let head = grid.convert(CGPoint(x: grid.center(of: SheetRef("C1")!).x, y: SheetGridView.headerHeight / 2), to: nil)
+        var finger = TestFinger(at: head, in: window)
+        try await Task.sleep(nanoseconds: 40_000_000)
+        finger.lift()
+        try await BildProbe.wait("Spalte gewaehlt") { model.selection.name == "C1:C120" }
+        try await Task.sleep(nanoseconds: 200_000_000)
+        XCTAssertEqual(grid.scroll.contentOffset.y, 0, "die Ansicht bleibt oben")
+
+        // ein einfacher Tipp waehlt sofort (frueher erst nach der Doppeltipp-Frist)
+        let p = grid.convert(grid.center(of: SheetRef("B3")!), to: nil)
+        finger = TestFinger(at: p, in: window)
+        try await Task.sleep(nanoseconds: 40_000_000)
+        finger.lift()
+        try await Task.sleep(nanoseconds: 120_000_000)
+        XCTAssertEqual(model.active, SheetRef("B3"))
+        XCTAssertFalse(model.isEditing)
+
+        // VoiceOver: jede sichtbare Zelle ist ein Element
+        let cells = (grid.accessibilityElements ?? []).compactMap { $0 as? UIAccessibilityElement }
+        XCTAssertTrue(cells.contains { $0.accessibilityLabel == "A1: 1" })
+        XCTAssertTrue(cells.contains { $0.accessibilityLabel == "B3: leer" && $0.accessibilityTraits.contains(.selected) })
+        XCTAssertLessThanOrEqual(cells.count, 400)
+    }
+
+    func testKIAntwortVerfaelltNichtUndGleicherInhaltVersprichtNichts() async throws {
+        let m = SheetEditorModel(sheet: table(), title: "KI")
+        let gate = AsyncStream<Void>.makeStream()
+        m.askAI = { _ in
+            for await _ in gate.stream { break }
+            return #"{"zellen":{"D1":"Bestanden","D2":"ja","D3":"ja"}}"#
+        }
+        var result: Bool?
+        m.startAI(wish: "Spalte Bestanden") { result = $0 }
+        try await BildProbe.wait("Anfrage laeuft") { m.aiBusy }
+        // waehrend die KI arbeitet, tippt der Nutzer weiter: Die Antwort kommt trotzdem hinein
+        m.select(SheetRef("A2")!)
+        m.beginEditing("Analysis")
+        m.commitEditing()
+        gate.continuation.yield()
+        try await BildProbe.wait("Antwort eingesetzt") { result != nil }
+        XCTAssertEqual(result, true)
+        XCTAssertEqual(m.sheet.raw(SheetRef("D3")!), "ja")
+        XCTAssertEqual(m.sheet.raw(SheetRef("A2")!), "Analysis", "das inzwischen Getippte bleibt")
+        m.undo()
+        XCTAssertEqual(m.sheet.raw(SheetRef("D3")!), "", "ein Schritt nimmt nur die KI zurueck")
+        XCTAssertEqual(m.sheet.raw(SheetRef("A2")!), "Analysis")
+        m.redo()
+
+        // dieselbe Antwort noch einmal: nichts geaendert, kein Versprechen "Widerrufen"
+        m.info = nil
+        m.askAI = { _ in #"{"zellen":{"D1":"Bestanden","D2":"ja","D3":"ja"}}"# }
+        let again = await m.runAI(wish: "noch einmal")
+        XCTAssertFalse(again)
+        XCTAssertEqual(m.aiError, SheetEditorModel.aiSame)
+        XCTAssertNil(m.info)
+
+        // abbrechen: Die Antwort wird nicht mehr eingesetzt, keine Fehlermeldung
+        let gate2 = AsyncStream<Void>.makeStream()
+        m.askAI = { _ in
+            for await _ in gate2.stream { break }
+            return #"{"neu":true,"zellen":{"A1":"weg","A2":"weg"}}"#
+        }
+        let before = m.sheet
+        var cancelled: Bool?
+        m.startAI(wish: "alles neu") { cancelled = $0 }
+        try await BildProbe.wait("laeuft") { m.aiBusy }
+        m.cancelAI()
+        gate2.continuation.yield()
+        try await BildProbe.wait("beendet") { cancelled != nil }
+        XCTAssertEqual(cancelled, false)
+        XCTAssertEqual(m.sheet, before)
+        XCTAssertNil(m.aiError)
+        XCTAssertFalse(m.aiBusy)
+    }
+
+    func testTabelleBleibtAufDerSeiteUndKommtZurueckWennSieFehlt() async throws {
+        let s = try await open()
+        _ = try await overlay(s, key: s.blank)
+        let o = SheetObject.object(id: "t", x: 60, y: 600, sheet: table(), page: (595, 842))
+        await s.store.editObjects(pageKey: s.blank) { $0 + [o] }
+        await s.store.flush()
+        // viele Zeilen dazu: Die Tabelle rueckt nach oben und wird kleiner, statt unten aus der Seite zu laufen
+        var long = table()
+        long.insertRows(at: long.rows, count: 60)
+        for r in 0..<long.rows { long.set("Zeile \(r + 1)", at: SheetRef(col: 0, row: r)) }
+        let ok = await s.editor.objects.saveSheet(long, key: s.blank, id: "t", original: o)
+        XCTAssertTrue(ok)
+        let placed = await s.store.objects(forPageKey: s.blank).first { $0["id"] == "t" }
+        let box = try XCTUnwrap(placed.flatMap(SheetObject.size))
+        let y = try XCTUnwrap(placed?["y"]?.double), x = try XCTUnwrap(placed?["x"]?.double)
+        XCTAssertLessThanOrEqual(y + box.height, 842, "ganz auf der Seite")
+        XCTAssertLessThanOrEqual(x + box.width, 595)
+        XCTAssertGreaterThanOrEqual(y, 0)
+
+        // das Objekt ist inzwischen von der Seite verschwunden: "Fertig" legt es wieder hin
+        await s.store.editObjects(pageKey: s.blank) { $0.filter { $0["id"] != "t" } }
+        let back = await s.editor.objects.saveSheet(table(), key: s.blank, id: "t", original: o)
+        XCTAssertTrue(back)
+        let again = await s.store.objects(forPageKey: s.blank).first { $0["id"] == "t" }
+        XCTAssertEqual(again.flatMap(SheetObject.sheet)?.raw(SheetRef("A2")!), "Mathe")
+        // ohne das Objekt von vorher: ehrlich "nicht gesichert"
+        await s.store.editObjects(pageKey: s.blank) { $0.filter { $0["id"] != "t" } }
+        let lost = await s.editor.objects.saveSheet(table(), key: s.blank, id: "t")
+        XCTAssertFalse(lost)
     }
 
     // MARK: KI-Hilfe

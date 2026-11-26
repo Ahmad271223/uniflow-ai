@@ -250,6 +250,14 @@ public struct Sheet: Equatable, Sendable {
         public var cells: [SheetRef: String]      // Lage im Ausschnitt (ab 0/0)
         public var styles: [SheetRef: SheetStyle]
 
+        public init(origin: SheetRef, rows: Int, cols: Int, cells: [SheetRef: String] = [:], styles: [SheetRef: SheetStyle] = [:]) {
+            self.origin = origin
+            self.rows = rows
+            self.cols = cols
+            self.cells = cells
+            self.styles = styles
+        }
+
         /// Werte mit Tabulator und Zeilenumbruch (Zwischenablage fuer andere Apps)
         public func plainText(_ value: (SheetRef) -> String) -> String {
             (0..<rows).map { r in (0..<cols).map { c in value(SheetRef(col: origin.col + c, row: origin.row + r)) }.joined(separator: "\t") }
@@ -685,11 +693,56 @@ public enum SheetObject {
         return min(20, max(0.05, w / layout.width))
     }
 
+    /// Natuerliche Groesse, wie `saving` sie ins Objekt geschrieben hat (`sheet.box`): Damit kostet die Frage nach der
+    /// Groesse nichts - sie kommt bei jedem Antippen der Seite fuer jedes Objekt.
+    static func storedBox(_ o: JSONValue) -> (width: Double, height: Double)? {
+        guard let b = o["sheet"]?["box"]?.array, b.count == 2, let w = b[0].double, let h = b[1].double,
+              w.isFinite, h.isFinite, w >= 1, h >= 1, w < 1e6, h < 1e6 else { return nil }
+        return (w, h)
+    }
+
     /// Groesse auf der Seite (Punkte)
     public static func size(_ o: JSONValue) -> (width: Double, height: Double)? {
+        guard isSheet(o) else { return nil }
+        if let box = storedBox(o) {
+            guard let w = o["width"]?.double, w.isFinite, w > 0 else { return box }
+            let k = min(20, max(0.05, w / box.width))
+            return (box.width * k, box.height * k)
+        }
         guard let s = sheet(o) else { return nil }
         let l = layout(s, s.calc()), k = scale(o, l)
         return (l.width * k, l.height * k)
+    }
+
+    /// Kleinster Massstab, auf den eine Tabelle von selbst schrumpft, damit sie auf die Seite passt (Schrift 5 pt)
+    public static let minFitScale = 5.0 / Sheet.fontSize
+
+    /// Tabelle auf der Seite halten, wenn sie gewachsen ist: erst nach links/oben ruecken, dann kleiner zeichnen (bis
+    /// `minFitScale`). Was dann noch uebersteht, zeigt die grosse Ansicht.
+    public static func fitted(_ o: JSONValue, page: (width: Double, height: Double), margin: Double = 8) -> JSONValue {
+        guard var obj = o.object, let size = size(o), let x = o["x"]?.double, let y = o["y"]?.double,
+              page.width.isFinite, page.height.isFinite, page.width > 4 * margin, page.height > 4 * margin else { return o }
+        var w = size.width, h = size.height
+        let roomW = page.width - 2 * margin, roomH = page.height - 2 * margin
+        if w > roomW || h > roomH {
+            let now = scaleFactor(o, size)
+            let next = min(now, max(minFitScale, now * min(roomW / w, roomH / h)))
+            w *= next / now
+            h *= next / now
+        }
+        obj["width"] = .number(PageRotation.round2(max(widthRange.lowerBound, w)))
+        if x + w > page.width - margin { obj["x"] = .number(PageRotation.round2(max(margin, page.width - margin - w))) }
+        if y + h > page.height - margin { obj["y"] = .number(PageRotation.round2(max(margin, page.height - margin - h))) }
+        return .object(obj)
+    }
+
+    /// Massstab eines Objekts aus seiner Groesse auf der Seite
+    private static func scaleFactor(_ o: JSONValue, _ size: (width: Double, height: Double)) -> Double {
+        guard let box = storedBox(o) else {
+            guard let s = sheet(o) else { return 1 }
+            return scale(o, layout(s, s.calc()))
+        }
+        return size.width / box.width
     }
 
     /// Neue Tabelle: linke obere Ecke am Tippunkt, ganz auf der Seite, wenn `page` bekannt ist
@@ -712,13 +765,15 @@ public enum SheetObject {
     public static func saving(_ s: Sheet, in o: JSONValue, keepScale: Bool = true) -> JSONValue {
         guard o["type"]?.string == "text", var obj = o.object else { return o }
         let calc = s.calc(), l = layout(s, calc)
-        if keepScale, let old = sheet(o) {
-            let k = scale(o, layout(old, old.calc()))
+        if keepScale, isSheet(o), let now = size(o) {
+            let k = scaleFactor(o, now)
             obj["width"] = .number(PageRotation.round2(min(widthRange.upperBound, max(widthRange.lowerBound, l.width * k))))
         } else if obj["width"]?.double == nil {
             obj["width"] = .number(PageRotation.round2(l.width))
         }
-        obj["sheet"] = s.json
+        var json = s.json.object ?? [:]
+        json["box"] = .array([.number(PageRotation.round2(l.width)), .number(PageRotation.round2(l.height))])
+        obj["sheet"] = .object(json)
         obj["text"] = .string(s.fallbackText(calc))
         // aeltere Apps: kleine Schrift, damit die Spalten des Ersatztexts halbwegs passen
         obj["fontSize"] = .number(Sheet.fontSize)

@@ -985,6 +985,9 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var onAskAI: ((TutorAttachment?) -> Void)?
     /// Kurzer Hinweis unten im Editor (z. B. was "Auswählen" greift, wie "Bereich an KI" geht)
     var onHint: ((String) -> Void)?
+    /// KI-Hilfe in der Tabelle: Antwort des Dienstes (traegt den neuen Credits-Stand) bzw. ein Fehler in Worten
+    var onAIResponse: ((JSONValue) -> Void)?
+    var aiErrorText: ((Error) -> String)?
     /// KI verbunden (`ufAIEnabled`); traegt "Schwebend" dann "KI fragen" am Rand der Palette
     var aiAvailable = false {
         didSet { if aiAvailable != oldValue { updateFloatingPalette() } }
