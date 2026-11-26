@@ -233,7 +233,19 @@ Karteikarten, KI, Community, alle Einstellungen, Hochschulwahl mit Göttingen-Te
 Nicht geändert, nur bemerkt: Im Modul steht der Reiter „Aufzeichnungen“ auch in Göttingen (darin der Hinweis auf
 Mediacast); „Aktuelle Lehrwoche“ zählt wie überall die letzte Woche mit Dateien.
 
-## 6a. Testläufe auf dem letzten Stand (c8624807, 26.11.2026 abends)
+## 6a. Abgabe für 1.0.8 (fbd40438, 27.11.2026 nachts): release/1.0.8-alles bis d2e5edbb eingemischt + Hinweis
+
+| Lauf | Ergebnis |
+|---|---|
+| Kern (`swift test`, auf 1e8b635c) | 1949 Tests, 0 Fehler (20 übersprungen) |
+| Python ohne Lasttests (auf 79280a15) | 4129 grün; rot: `test_audit_p58_87_golive.py::test_p84_03…backup` (alt) und `test_web_overview.py::test_overview_answers_what_to_do_today` (allein grün, hängt an Uhrzeit/Reihenfolge) |
+| Python-Auswahl (auf 1e8b635c) | `test_wake_push`, `test_goettingen`, `test_site`, `test_release_texts`, `test_holidays`, `test_rooms`, `test_studip_lecturers`: 173 grün |
+| App iPad + iPhone (auf 75f57230, 76 Klassen zu Göttingen, Hochschulwahl, Uni & Noten, Stundenplan, Mensa, Lehrende, Raumfinder; 544 Tests je Gerät) | rot nur StoreKit (`AbnahmeTarife…`, `AbnahmeV1LUHRelease…`, `StoreScreenshotFinalTests.testTarifPruefung`, `KIAbnahmeLUHAppTests.test3…` – Preise/Kauf laden nur im Gesamtlauf; im ganzen iPad-Lauf alle grün) und am iPhone die zwei, die auf 1.0.8 genauso rot sind (`BackArrow…`, `StudyPlanManual…OnPhone`) |
+| App iPad + iPhone (auf 1e8b635c): `GoettingenAppTests`, `ReleaseUniversitiesAppTests`, `MensaAppTests`, `LecturersAppTests`, `TextBlockAppTests`, `AutoSyncAppTests`, `SyncAllPortalsTests`, `WakePushAppTests`, `MacTestIsolationTests` | 84 Tests je Gerät grün bis auf den neuen Hinweis-Test; der ist in fbd40438 berichtigt, danach `GoettingenAppTests` (8) auf iPad und iPhone grün |
+| Mac | zuletzt auf c8624807 (28 Tests grün); auf dem Abgabestand nicht wiederholt |
+| Bildschirmfoto „Uni & Noten“ mit dem Hinweis | `~/Studora-Builds/goettingen/hinweis/services.png` |
+
+## 6b. Testläufe auf dem Stand c8624807 (26.11.2026 abends)
 
 | Lauf | Ergebnis |
 |---|---|
@@ -245,7 +257,7 @@ Mediacast); „Aktuelle Lehrwoche“ zählt wie überall die letzte Woche mit Da
 | App iPhone, alle Tests (neuer Stand) | siehe unten |
 | Mac (`tools/mac-test.sh`, eigener Bauordner `dd-goe-mac`) | `MacTestIsolationTests`, `GoettingenAppTests`, `MensaAppTests`, `ReleaseUniversitiesAppTests`, `LecturersAppTests`: 28 Tests, alle grün |
 
-## 6b. Frühere Testläufe (f2e21505, 26.11.2026 abends)
+## 6c. Frühere Testläufe (f2e21505, 26.11.2026 abends)
 
 | Lauf | Ergebnis |
 |---|---|
@@ -262,5 +274,5 @@ Für den Vergleich liegt eine Kopie von 51571948 unter `~/Studora-Builds/wt-goe-
 
 ## 7. Einbinden in den nächsten Build
 
-`uni/goettingen` enthält `release/1.0.8-alles` bis 51571948 und lässt sich ohne Konflikte darauf mischen. **Nicht in
-Build 50.** In welchen späteren Build, entscheidet der Inhaber; mischen und bauen macht dann die jeweilige Build-Sitzung. Danach Pflicht: Abschnitt „Vor dem Einreichen“ oben (Server-Update nur mit Okay).
+`uni/goettingen` enthält `release/1.0.8-alles` bis d2e5edbb und lässt sich ohne Konflikte darauf mischen. **Nicht in
+Build 50, sondern in 1.0.8 / Build 51** (Inhaber 26.11.2026: „Noch in 1.0.8“). Mischen und bauen macht die Build-Sitzung. Danach Pflicht: Abschnitt „Vor dem Einreichen“ oben (Server-Update nur mit Okay, laut Inhaber erst direkt vor der Veröffentlichung; Test mit echtem Göttinger Konto am gemischten Stand).
