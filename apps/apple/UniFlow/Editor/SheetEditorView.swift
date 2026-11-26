@@ -13,6 +13,8 @@ struct SheetEditorView: View {
     let onClose: () -> Void
 
     @State private var showFilter = false
+    @State private var showAI = false
+    @State private var aiWish = ""
     @State private var titleChart: SheetChart?
     @State private var titleText = ""
     @Environment(\.horizontalSizeClass) private var hSize
@@ -112,6 +114,12 @@ struct SheetEditorView: View {
                 try? await Task.sleep(nanoseconds: 3_500_000_000)
                 if model.notice == n { model.notice = nil }
             }
+        } else if let n = model.info {
+            // was die KI gebaut hat: bleibt laenger stehen, damit man es lesen kann
+            hint(n, UF.accentText).task(id: n) {
+                try? await Task.sleep(nanoseconds: UInt64(max(6, Double(n.count) / 14) * 1_000_000_000))
+                if model.info == n { model.info = nil }
+            }
         } else if !model.isEditing, let e = model.activeError {
             hint("\(e.rawValue)  \(e.hint)", UF.bad)
         }
@@ -144,6 +152,17 @@ struct SheetEditorView: View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 2) {
                 let st = model.activeStyle
+                if model.askAI != nil {
+                    Button { showAI = true } label: {
+                        Label("KI", systemImage: "sparkles").labelStyle(.titleAndIcon).ufFont(13.5, 600)
+                            .padding(.horizontal, 10).frame(height: 32)
+                            .background(RoundedRectangle(cornerRadius: 8).fill(UF.accentSoft))
+                            .foregroundStyle(UF.accentText)
+                    }
+                    .accessibilityLabel("KI hilft bei der Tabelle").accessibilityIdentifier("sheet.ai")
+                    .popover(isPresented: $showAI) { aiPanel }
+                    sep
+                }
                 Button { model.toggleBold() } label: { icon("bold", on: st.bold) }
                     .accessibilityLabel("Fett").accessibilityIdentifier("sheet.bold")
                 Button { model.toggleItalic() } label: { icon("italic", on: st.italic) }
@@ -243,6 +262,69 @@ struct SheetEditorView: View {
 
     static func chartIcon(_ kind: String) -> String {
         kind == "pie" ? "chart.pie" : kind == "line" ? "chart.xyaxis.line" : "chart.bar"
+    }
+
+    // MARK: KI-Hilfe
+
+    private var aiPanel: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                Image(systemName: "sparkles").foregroundStyle(UF.accentText)
+                Text("KI hilft bei der Tabelle").ufFont(15, 600).foregroundStyle(UF.text)
+            }
+            Text("Schreib, was du brauchst: eine neue Tabelle, eine Formel oder ein Diagramm. Die KI sieht deine Tabelle und baut es hinein.")
+                .ufFont(13, lh: 1.4).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            TextField("z. B. Notenübersicht mit Schnitt", text: $aiWish, axis: .vertical)
+                .lineLimit(2...4)
+                .textFieldStyle(.roundedBorder)
+                .disabled(model.aiBusy)
+                .accessibilityIdentifier("sheet.ai.wish")
+            VStack(alignment: .leading, spacing: 4) {
+                ForEach(SheetAI.examples, id: \.self) { e in
+                    Button { aiWish = e } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "text.badge.plus").font(.system(size: 12))
+                            Text(e).ufFont(12.5).multilineTextAlignment(.leading)
+                        }
+                        .foregroundStyle(UF.accentText)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(model.aiBusy)
+                }
+            }
+            if let e = model.aiError {
+                Text(e).ufFont(12.5, lh: 1.35).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("sheet.ai.error")
+            }
+            HStack(alignment: .center, spacing: 10) {
+                Text("Deine Tabelle und dein Wunsch gehen an die KI. Das zählt wie eine Frage an die KI.")
+                    .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                Button {
+                    Task {
+                        if await model.runAI(wish: aiWish) {
+                            showAI = false
+                            aiWish = ""
+                        }
+                    }
+                } label: {
+                    Group {
+                        if model.aiBusy { ProgressView().tint(.white) } else { Text("Los").ufFont(14, 600) }
+                    }
+                    .frame(minWidth: 44)
+                    .padding(.horizontal, 12).padding(.vertical, 7)
+                }
+                .background(Capsule().fill(UF.accent))
+                .foregroundStyle(.white)
+                .disabled(model.aiBusy || aiWish.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .opacity(aiWish.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1)
+                .accessibilityLabel("KI starten").accessibilityIdentifier("sheet.ai.go")
+            }
+        }
+        .padding(14)
+        .frame(width: 360)
+        .presentationCompactAdaptation(.popover)
+        .accessibilityIdentifier("sheet.ai.panel")
     }
 
     // MARK: Filter

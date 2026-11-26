@@ -33,6 +33,12 @@ extension ObjectEditing {
         Task {
             guard let o = await objects(key).first(where: { $0["id"]?.string == id }), let sheet = SheetObject.sheet(o) else { return }
             let model = SheetEditorModel(sheet: sheet, title: title)
+            // KI-Hilfe ueber den vorhandenen Weg der KI-Hilfe (Einwilligung und Credits regelt er selbst)
+            let api = c.store.api
+            model.askAI = { body in
+                let r = try await api.value("/api/ai/tutor", method: "POST", body: body)
+                return r.s("answer") ?? ""
+            }
             let view = SheetEditorView(model: model, onSave: { [weak self] s in
                 Task { await self?.saveSheet(s, key: key, id: id) }
             }, onClose: { [weak c] in c?.dismiss(animated: true) })

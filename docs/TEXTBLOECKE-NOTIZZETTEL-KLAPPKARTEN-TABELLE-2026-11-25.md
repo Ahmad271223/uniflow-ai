@@ -332,6 +332,36 @@ Projekte wären nur dann einen zweiten Blick wert, wenn einmal echte Excel-Datei
 - Aufspielen nur mit dem Okay des Inhabers; danach der Handballen-Sitzung Bescheid geben, damit ihre nächste Fassung
   von diesem Zweig ausgeht.
 
+### 6.6 KI-Hilfe für Tabellen und Diagramme (26.11.2026)
+
+Auftrag des Inhabers (26.11.2026): „soll auch Diagramme durch KI und Tabellen mit Hilfe KI machen können … für Pro AI
+Nutzer“.
+
+- **Bedienung:** In der großen Ansicht steht vorn in der Leiste der Knopf **KI**. Antippen → Wunsch in eigenen Worten
+  tippen (oder einen der vier Vorschläge antippen) → „Los“. Die KI bekommt die Tabelle und den Wunsch und baut Zellen
+  (Text, Zahlen, Formeln) und Diagramme hinein. Unter der Eingabezeile steht danach, was sie getan hat. Alles
+  zusammen ist **ein** Schritt: „Widerrufen“ nimmt es zurück.
+- **Beispiele:** „Notenübersicht mit Schnitt“, „Lernplan für 4 Wochen“, „Rechne in Spalte D Note mal LP aus“,
+  „Mach aus dieser Tabelle ein Kreisdiagramm“.
+- **Tarif:** Die große Ansicht gibt es nur mit Pro AI, damit auch die KI-Hilfe. Jede Anfrage zählt wie eine Frage an
+  die KI (Credits wie bisher, es werden keine Beträge gezeigt). Die Einwilligung zur KI fragt der vorhandene Weg ab.
+- **Technik:** Kein neuer Weg im Dienst, **kein Server-Update**: Die App schickt eine gewöhnliche Frage an die
+  KI-Hilfe (`POST /api/ai/tutor`, Modus `ask`; Tabelle im Seiteninhalt, Auftrag als Frage – beides in den Grenzen von
+  `AIPrompts.tutor`: Frage ≤ 1000 Zeichen, Inhalt ≤ 9000). Der Auftrag verlangt ein JSON-Objekt
+  `{neu, zellen, diagramme, hinweis}`. Gelesen wird großzügig (`SheetAI.parse`: JSON, auch in Markdown-Zäunen oder mit
+  Sätzen drumherum; Zeilenlisten; ersatzweise eine Markdown-Tabelle), eingesetzt streng (`SheetAI.apply`: nur Zellen in
+  den Grenzen, Formeln rechnet das eigene Rechenwerk, unbekannte Funktionen werden gezählt und gemeldet).
+  Dateien: `UniFlowCore/SheetAI.swift`, `SheetEditorModel.runAI`, `SheetEditorView.aiPanel`, `SheetEditing.openSheet`.
+- **Tests:** `SheetAITests` 3 (Auftrag passt in die Grenzen, sechs Arten von Antworten, Einsetzen), `SheetAppTests`
+  jetzt 8 (KI baut Tabelle + Diagramm in einem Schritt, Diagramm aus vorhandener Tabelle, unbrauchbare Antwort,
+  Fehler des Dienstes; die große Ansicht hängt am echten Weg der KI-Hilfe). Bilder `27-ipad-tabelle-ki-wunsch.png`,
+  `28-ipad-tabelle-ki-ergebnis.png`.
+- **Ehrlich:** Im Simulator gibt es keine KI. Die Tests und Bild 28 arbeiten mit einer **vorgegebenen** Antwort. Wie gut
+  die echte KI den Auftrag befolgt (sie ist als Tutor eingestellt und schreibt sonst Erklärungen), zeigt erst der Test
+  am iPad. Verlässlicher wäre eine eigene Aufgabe „Tabelle“ im Dienst mit festem Antwort-Format – das wäre ein
+  Server-Update und braucht das Okay des Inhabers. Der Credits-Stand in der App aktualisiert sich erst bei der
+  nächsten Anzeige (die große Ansicht hat keinen Zugriff auf die Kostenzeile).
+
 ## 7. Teil 5: Verweise auf Dokument + Seite
 
 Zweig `editor/verweise` (auf Teil 3). Nachtrag des Inhabers vom 25.11.2026.

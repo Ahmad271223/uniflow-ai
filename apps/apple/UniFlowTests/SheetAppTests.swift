@@ -206,6 +206,14 @@ final class SheetAppTests: XCTestCase {
         XCTAssertEqual(s.editor.objects.selectedSheet?.id, id)
         let shown = await s.store.objects(forPageKey: s.blank)
         XCTAssertNil(s.editor.objects.selectionFormat(shown), "keine Text-Leiste fuer eine Tabelle")
+        // die KI-Hilfe haengt am vorhandenen Weg der KI-Hilfe; ohne KI im Testaufbau kommt dessen Meldung zurueck
+        let host = try XCTUnwrap(s.editor.presentedViewController as? UIHostingController<SheetEditorView>)
+        let opened = host.rootView.model
+        XCTAssertNotNil(opened.askAI)
+        let built = await opened.runAI(wish: "Notenübersicht")
+        XCTAssertFalse(built)
+        XCTAssertEqual(opened.aiError, "KI-Funktionen gibt es in dieser Version nicht.")
+        XCTAssertFalse(opened.changed)
 
         s.editor.dismiss(animated: false)
         try await BildProbe.wait("grosse Ansicht zu") { s.editor.presentedViewController == nil }
@@ -386,6 +394,67 @@ final class SheetAppTests: XCTestCase {
                                        to: grid.convert(grid.center(of: SheetRef("B3")!), to: nil), in: window)
         try await Task.sleep(nanoseconds: 300_000_000)
         XCTAssertEqual(model.selection.name, "A2:B3")
+    }
+
+    // MARK: KI-Hilfe
+
+    private final class Asked {
+        var bodies: [JSONValue] = []
+        var answer = ""
+    }
+
+    func testKIBautTabelleUndDiagrammInEinemSchritt() async throws {
+        let m = SheetEditorModel(sheet: Sheet(), title: "KI")
+        let asked = Asked()
+        asked.answer = "Gern!\n```json\n{\"neu\":true,\"zellen\":{\"A1\":\"Fach\",\"B1\":\"Note\",\"A2\":\"Mathe\",\"B2\":1.7,\"A3\":\"Physik\",\"B3\":\"2,3\",\"A4\":\"Schnitt\",\"B4\":\"=MITTELWERT(B2:B3)\"},\"diagramme\":[{\"art\":\"balken\",\"bereich\":\"A1:B3\",\"titel\":\"Noten\"}],\"hinweis\":\"Der Schnitt steht in B4.\"}\n```"
+        m.askAI = { body in
+            await MainActor.run { asked.bodies.append(body) }
+            return await MainActor.run { asked.answer }
+        }
+        let ok = await m.runAI(wish: "  Notenübersicht mit Schnitt ")
+        XCTAssertTrue(ok)
+        XCTAssertEqual(asked.bodies.first?["mode"], "ask")
+        XCTAssertTrue(asked.bodies.first?["question"]?.string?.contains("»Notenübersicht mit Schnitt«") == true)
+        XCTAssertTrue(asked.bodies.first?["page_text"]?.string?.contains("(noch leer)") == true)
+        XCTAssertEqual(m.calc.value(SheetRef("B4")!), .number(2))
+        XCTAssertEqual(m.sheet.charts.map(\.kind), ["bar"])
+        XCTAssertEqual(m.selection.name, "A1:B4", "das Neue ist gewaehlt")
+        XCTAssertEqual(m.info, "Die KI hat 8 Zellen gefüllt und 1 Diagramm angelegt. Der Schnitt steht in B4. Mit „Widerrufen“ nimmst du es zurück.")
+        XCTAssertFalse(m.aiBusy)
+        m.undo()
+        XCTAssertTrue(m.sheet.cells.isEmpty && m.sheet.charts.isEmpty, "ein Schritt nimmt alles zurueck")
+        m.redo()
+
+        // Diagramm aus der vorhandenen Tabelle: die KI sieht die Zellen
+        asked.answer = "{\"diagramme\":[{\"art\":\"kreis\",\"bereich\":\"A1:B3\",\"titel\":\"Anteile\"}]}"
+        let chart = await m.runAI(wish: "Mach ein Kreisdiagramm")
+        XCTAssertTrue(chart)
+        XCTAssertTrue(asked.bodies.last?["page_text"]?.string?.contains("B4\t=MITTELWERT(B2:B3)") == true)
+        XCTAssertEqual(m.sheet.charts.map(\.kind), ["bar", "pie"])
+        XCTAssertEqual(m.sheet.cells.count, 8, "die Zellen bleiben")
+
+        // nichts Brauchbares: Tabelle bleibt, Meldung in einfachen Worten
+        let before = m.sheet
+        asked.answer = "Das kann ich leider nicht."
+        let nothing = await m.runAI(wish: "irgendwas")
+        XCTAssertFalse(nothing)
+        XCTAssertEqual(m.aiError, SheetEditorModel.aiNothing)
+        XCTAssertEqual(m.sheet, before)
+
+        // Fehler des Dienstes (z. B. Credits aufgebraucht): seine Meldung
+        struct Boom: LocalizedError { var errorDescription: String? { "Credits für diesen Monat aufgebraucht – am 1. gibt es neue." } }
+        m.askAI = { _ in throw Boom() }
+        let failed = await m.runAI(wish: "noch eins")
+        XCTAssertFalse(failed)
+        XCTAssertEqual(m.aiError, "Credits für diesen Monat aufgebraucht – am 1. gibt es neue.")
+        XCTAssertFalse(m.aiBusy)
+        XCTAssertEqual(m.sheet, before)
+
+        let empty = await m.runAI(wish: "   ")
+        XCTAssertFalse(empty)
+        m.askAI = nil
+        let off = await m.runAI(wish: "ohne KI")
+        XCTAssertFalse(off)
     }
 
     /// Mit dem Finger ueber die Zellen ziehen rollt die Tabelle; die Auswahl bleibt

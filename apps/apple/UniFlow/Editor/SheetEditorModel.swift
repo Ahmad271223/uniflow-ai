@@ -18,6 +18,13 @@ final class SheetEditorModel: ObservableObject {
     @Published private(set) var canRedo = false
     /// Kurzer Hinweis unter der Leiste (z. B. "Mehr Zeilen gehen nicht")
     @Published var notice: String?
+    /// Gute Nachricht unter der Leiste (was die KI gebaut hat)
+    @Published var info: String?
+    /// KI-Hilfe (26.11.2026, ab Pro AI): schickt den Rumpf an die KI-Hilfe und liefert ihre Antwort; nil = keine KI
+    var askAI: ((JSONValue) async throws -> String)?
+    @Published private(set) var aiBusy = false
+    @Published var aiError: String?
+    static let aiNothing = "Die KI hat nichts geliefert, das in die Tabelle passt. Schreib den Wunsch bitte etwas genauer."
 
     let title: String
     private(set) var calc: SheetCalc
@@ -317,6 +324,36 @@ final class SheetEditorModel: ObservableObject {
         let g = selection
         guard g.rows.count > 1 else { notice = "Erst mehrere Zeilen auswählen: Die oberste wird nach unten übernommen."; return }
         change { $0.fillDown(g) }
+    }
+
+    // MARK: KI-Hilfe
+
+    /// Wunsch an die KI: Sie bekommt die Tabelle und liefert Zellen und Diagramme; alles zusammen ist ein Schritt, den
+    /// "Widerrufen" zuruecknimmt. `true`, wenn etwas eingesetzt wurde.
+    @discardableResult
+    func runAI(wish: String) async -> Bool {
+        let w = wish.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !w.isEmpty, !aiBusy, let askAI else { return false }
+        commitEditing()
+        aiBusy = true
+        aiError = nil
+        defer { aiBusy = false }
+        let before = sheet, at = selection.from
+        do {
+            let answer = try await askAI(SheetAI.requestBody(wish: w, sheet: before, selection: selection))
+            guard let plan = SheetAI.parse(answer) else { aiError = Self.aiNothing; return false }
+            // die Antwort gilt fuer den Stand, den die KI gesehen hat
+            guard sheet == before else { aiError = "Die Tabelle hat sich inzwischen geändert. Bitte noch einmal."; return false }
+            var outcome = SheetAI.Outcome()
+            change { outcome = SheetAI.apply(plan, to: &$0, at: at) }
+            guard outcome.cells > 0 || outcome.charts > 0 else { aiError = Self.aiNothing; return false }
+            if let f = outcome.filled { select(f) }
+            info = outcome.summary + (plan.note.isEmpty ? "" : " " + plan.note) + " Mit „Widerrufen“ nimmst du es zurück."
+            return true
+        } catch {
+            aiError = error.localizedDescription
+            return false
+        }
     }
 
     // MARK: Diagramme
