@@ -4,7 +4,7 @@
 
 ## 1. Geltung und Vertragspartner
 
-Diese Bedingungen gelten für die Nutzung der StudiNow-Apps (iPad und Mac, Android, Windows), der Web-Oberfläche und
+Diese Bedingungen gelten für die Nutzung der StudiNow-Apps (iPhone, iPad und Mac, Android, Windows), der Web-Oberfläche und
 des gehosteten StudiNow-Dienstes. Anbieter ist IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih),
 Vahrenwalder Straße 30, 30165 Hannover, E-Mail support@studinow.app („wir“). Mit dem Anlegen
 eines Kontos oder der Nutzung der App stimmst du diesen Bedingungen zu. Für den Kauf der App und des Abos über den
@@ -13,26 +13,27 @@ App Store oder Google Play gelten zusätzlich die Bedingungen von Apple bzw. Goo
 ## 2. Was StudiNow leistet
 
 StudiNow ist eine Lern-App für Studierende: Sie ruft Dateien, Termine, Fristen und Ankündigungen aus den Systemen
-deiner Hochschule ab, zeigt sie in Bibliothek, Stundenplan und Lernkalender und lässt dich Dokumente lesen und – mit
-Plus – mit dem Stift beschreiben, Karteikarten führen, Wochentests erstellen, in der Community deines Kurses mitmachen
-und Lösungen zu Übungsblättern mit anderen teilen. StudiNow Pro AI enthält zusätzlich die KI von StudiNow über den StudiNow-Dienst.
+deiner Hochschule ab, zeigt sie in Bibliothek und Stundenplan und lässt dich Dokumente lesen und – mit
+Plus – mit dem Stift beschreiben, Karteikarten führen, in der Community deines Kurses mitmachen
+und Lösungen zu Übungsblättern mit anderen teilen. StudiNow Pro AI enthält zusätzlich die KI von StudiNow über den
+StudiNow-Dienst, zum Beispiel für Erklärungen und Wochentests.
 
 | Funktion | Free | Plus | Pro AI |
 |---|:---:|:---:|:---:|
 | Konto, Hochschule verbinden, Kurse, Ordner und neue Dateien abgleichen | ✓ | ✓ | ✓ |
 | Dokumente öffnen, lesen, durchsuchen; Bibliothek, Ordner, Favoriten | ✓ | ✓ | ✓ |
-| Module, Stundenplan, Lernkalender, Lernplanung, Aufgaben, Zeitmesser | ✓ | ✓ | ✓ |
+| Module, Stundenplan, Noten, Uni-Mail, Mensa und Raumfinder (je nach Hochschule) | ✓ | ✓ | ✓ |
 | Fristen und Ankündigungen der Lehrenden, Feiertage und vorlesungsfreie Zeit im Kalender | ✓ | ✓ | ✓ |
-| Lernstand je Modul aus deinen eigenen Tests, Karteikarten und Aufgaben | ✓ | ✓ | ✓ |
+| Lernstand je Modul aus deinen eigenen Karteikarten und Tests | – | ✓ | ✓ |
 | Vorhandene Notizen ansehen und als PDF exportieren | ✓ | ✓ | ✓ |
-| Dein eigenes ChatGPT verbinden und zu deinen Unterlagen fragen, dazu der KI-Lernplan (iPad: mit deinem eigenen OpenAI-Schlüssel, Abrechnung bei OpenAI; Datenschutz Abschnitt 8a) | ✓ | ✓ | ✓ |
 | Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ | ✓ |
 | Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
 | Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung, auch bei neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | – | ✓ |
-| Wochentests aus deinen Unterlagen erstellen (über dein eigenes ChatGPT oder den StudiNow-Dienst, Abschnitt 5a) | – | ✓ | ✓ |
+| Wochentests aus deinen Unterlagen erstellen (mit der KI von StudiNow, Abschnitt 5a) | – | – | ✓ |
 | Community deines Kurses: lesen, beitreten, Fragen stellen, Lösungen und Karteikarten-Stapel teilen und vergleichen | – | ✓ | ✓ |
-| Abgleich zwischen eigenen Geräten über den StudiNow-Dienst (sobald verfügbar) | – | ✓ | ✓ |
+| Fragen an die KI mit gekauften Credits (KI-Chat) | – | ✓ | ✓ |
+| Notizen auf Hochschul-Dokumenten zwischen eigenen Geräten abgleichen (über den StudiNow-Dienst; eigene Dokumente und Notizblätter bleiben nur auf dem Gerät) | – | – | ✓ |
 | KI von StudiNow ohne eigenes ChatGPT-Konto (Erklärungen, Zusammenfassungen, Karteikarten aus Dokumenten) mit Credits, nur mit dem StudiNow-Dienst | – | – | ✓ |
 
 Welche Funktionen in deiner App-Version verfügbar sind, zeigt die App selbst an; was nicht freigeschaltet ist,
@@ -69,7 +70,7 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   StudiNow Free, es sei denn, du schließt ein Abo ab; die Probe wird nie von selbst kostenpflichtig.
 - **Web und Windows:** Die Web-Oberfläche und die Windows-App nutzt du immer mit deinem StudiNow-Konto. Dort gibt es
   keinen Free-Tarif zum Arbeiten: Nach der Probe brauchst du StudiNow Plus oder Pro AI; ohne aktives Abo kannst du dort
-  deine Daten nur ansehen und exportieren, gelöscht wird nichts. Free bleibt in der iPad-App nutzbar. Die Windows-App
+  deine Daten nur ansehen und exportieren, gelöscht wird nichts. Free bleibt in der App für iPhone, iPad und Mac nutzbar. Die Windows-App
   prüft dein Abo beim Dienst; ohne Internet gilt der zuletzt geprüfte Stand bis zu 7 Tage.
 - **Abschluss im Web und unter Windows:** über unseren Zahlungsdienstleister Stripe (die Windows-App öffnet die
   Bezahlseite in deinem Browser), sobald wir ihn eingerichtet haben; Kündigen und Wechseln im Kundenportal von Stripe.
@@ -105,25 +106,14 @@ Mit StudiNow-Konto gelten im Dienst monatliche Grenzen, die die App anzeigt:
 
 | Je Kalendermonat | Free | Plus | Pro AI |
 |---|:---:|:---:|:---:|
-| Neue KI-Tests von StudiNow (Wochentests, Testbibliothek) | – | 4 | 20 |
-| Tests aus der gemeinsamen Testbibliothek | – | 4 | unbegrenzt (Fair Use: 300) |
-| Karteikarten-Stapel von StudiNow übernehmen (fertige Wochenstapel, geteilte Stapel) | – | 4 | unbegrenzt (Fair Use: 300) |
-| Credits für die KI von StudiNow | – | – | 100 |
+| Neue KI-Tests von StudiNow (Wochentests) | – | – | 20 |
+| Geteilte Tests anderer aus deinem Kurs | – | – | unbegrenzt (Fair Use: 300) |
+| Geteilte Karteikarten-Stapel aus der Community übernehmen | – | 4 | unbegrenzt (Fair Use: 300) |
+| Credits für die KI von StudiNow | – | – | 80 |
 
 Ein gemeinsamer Wochentest, den andere schon erstellt haben, zählt nicht; derselbe Karteikarten-Stapel zählt im Monat
 nur einmal. Die Testliste im Dienst zeigt in Free und
 Plus die letzten 10 Tests, in Pro AI alle; ältere Tests bleiben gespeichert und zählen weiter für den Lernstand.
-- **Probeklausuren:** Eine Probeklausur aus dem Klausur-Generator kostet 15 Credits. Kann sie nicht erstellt werden,
-  wird nichts abgebucht. Probeklausuren sind eine Lernhilfe, von einer KI erstellt und geprüft, aber nicht fehlerfrei;
-  sie sagen nichts darüber, was in deiner echten Klausur drankommt.
-- **Antworten aus der StudiNow-Wissensbank und gemerkte KI-Antworten** (Pro AI, Leibniz Universität Hannover): Eine
-  Antwort aus der Wissensbank und eine gemerkte KI-Antwort kosten je 1 Credit. Eine KI-Antwort mit Wissen aus der
-  Wissensbank wird wie jede KI-Antwort berechnet. Fragst du dieselbe Stelle noch einmal, bekommst du eine neue
-  KI-Antwort, die wie üblich berechnet wird. Auch Antworten aus der Wissensbank und gemerkte KI-Antworten können
-  Fehler enthalten; Lösungen mit dem Hinweis „KI-Lösung, ungeprüft“ sind nicht mit einer offiziellen Musterlösung
-  verglichen.
-
-Wochentests über dein eigenes ChatGPT laufen auf deinem Gerät und kosten keine Credits.
 
 ## 6. Deine Inhalte und die Inhalte deiner Hochschule
 

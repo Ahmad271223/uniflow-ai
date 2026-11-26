@@ -36,7 +36,9 @@ def test_all_release_files_exist_and_are_marked_as_drafts():
             # 18.11.2026 (Erinnerungen ab Pro AI), Datenschutz 18.11.2026 (YouTube neben dem Dokument, 1.0.6)
             # Konto loeschen 24.11.2026 (Probe nur einmal, app/trial_claims.py)
             # Datenschutz und Nutzungsbedingungen 26.11.2026 (Datei-Eingang abgeschaltet)
-            stand = {"NUTZUNGSBEDINGUNGEN.md": "26.11.2026", "DATENSCHUTZ.md": "26.11.2026", "KONTO-LOESCHEN.md": "24.11.2026"}
+            # Impressum 26.11.2026 (ohne die Anmerkung zur eingestellten EU-Plattform)
+            stand = {"NUTZUNGSBEDINGUNGEN.md": "26.11.2026", "DATENSCHUTZ.md": "26.11.2026", "KONTO-LOESCHEN.md": "24.11.2026",
+                     "IMPRESSUM.md": "26.11.2026"}
             assert f"Stand {stand.get(f, '14.11.2026')}" in text and "Entwurf, Stand" not in text, f
             continue
         assert re.search(r"Entw(urf|ürfe)", text) and "26.10.2026" in text, f
