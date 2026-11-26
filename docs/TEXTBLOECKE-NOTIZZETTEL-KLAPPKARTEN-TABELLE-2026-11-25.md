@@ -495,3 +495,108 @@ Notizzettel geht nicht mit“.
 - Tests danach: `TextBlockAppTests` 26 grün (iPad und iPhone), dazu 84 weitere Editor-Tests am iPad grün.
 - Die korrigierte gemeinsame Fassung (`test/ipad-editor-whisper` @ `7c658ec5`) liegt seit 25.11.2026, 18:28 auf dem
   iPad des Inhabers (sein Okay „Ja, aufspielen“). Seine Antwort zum Nachlaufen steht aus.
+
+## 12. Durchsicht am 26.11.2026 („teste das komplett einmal durch … ist etwas schlecht gelöst vllt“)
+
+Auftrag des Inhabers nach dem Bau der Tabelle. Vorgehen: alle Tests laufen lassen, dazu drei unabhängige Durchsichten
+des Codes (Rechenkern der Tabelle, Tabelle in der App, Textblöcke bis Verweise), jede Meldung am Code nachgeprüft,
+dann behoben und mit einem eigenen Test belegt. Antwort des Inhabers zur Preisfrage am selben Tag: „nein das zu pro ai
+mit rein“ – die Tabelle gehört zu Pro AI, kein Einzelverkauf.
+
+Commits auf `editor/tabelle`: `ee7e670b` (Rechenkern), `27a05dc3` (Tabelle in der App), danach Textblöcke/Karten/Verweise.
+
+### 12.1 Rechenkern der Tabelle – behoben
+
+- **Absturz:** `=KGRÖSSTE(A1:A5;1E20)`, `=SVERWEIS(1;A1:B2;1E20)` (riesige Zahl als Stelle) stürzten ab → jetzt `#ZAHL!`
+  bzw. `#BEZUG!`. „Unendlich“ ist `#ZAHL!`, keine Zahl mehr.
+- **Kleiner Stapel am iPad:** Formeln, die aufeinander aufbauen (laufende Summe über 500 Zeilen), wurden ineinander
+  gerechnet. Der Test auf einem Faden mit 512 KB (so groß wie Hintergrundfäden am iPad) ist vor der Korrektur
+  abgestürzt. Jetzt der Reihe nach (`SheetCalc.settle`, eigener Stapel); Klammern/Funktionen höchstens 40 tief
+  (`SheetFormula.maxNesting`), die große Rechenfunktion liegt nicht mehr im Verschachtelungsweg. Damit ist auch das
+  falsche `#ZIRKEL!` bei langen Ketten weg; `=WENNFEHLER(A1;0)` in A1 ist jetzt ein Kreis.
+- **Zahlen:** „1.500“ ist 1500, „1.000.000“ eine Million (vorher 1,5 bzw. Text). Was mit Punkt oder Exponent getippt
+  wird („14.30“, „1E3“), bleibt so stehen und rechnet trotzdem (vorher wurde aus „14.30“ in der Anzeige „14,3“).
+- **Prozent/Euro klebten an der Zelle:** „50 %“, danach „7“ ergab „700 %“ → jetzt „7 %“; „3,20 €“ wechselt das Format.
+- **Runden/Vergleichen:** `=AUFRUNDEN(0,1+0,2;1)` war 0,4, `=3*0,1=0,3` war FALSCH → richtig (auch SVERWEIS,
+  ZÄHLENWENN, RANG).
+- **Englische Schreibweise:** `=IF(A1>50,1,0)` und `=SUM(10,20,30)` rechneten still falsch → richtig; deutsch bleibt
+  deutsch (`=MAX(1,2)` ist 1,2). Anführungszeichen der iPad-Tastatur („…“) und `≤ ≥ ≠` gehen.
+- **Neu:** ZÄHLENWENNS, SUMMEWENNS, MITTELWERTWENNS, WENNS, WENNNV, ISTNV, INDEX, VERGLEICH.
+- **Sortieren** lässt Summen-/Schnitt-Zeilen am Ende unten stehen (vorher landete der Schnitt mitten in den Daten und
+  zeigte `#ZIRKEL!`). **Ausschneiden + Einfügen** lässt die Formel auf dieselben Zellen zeigen; Einfügen am Rand lässt
+  die Tabelle wachsen; Bezüge über Zeile 500 hinaus gehen beim Kopieren nicht mehr kaputt.
+- **Diagramm:** eine Zählung in der ersten Spalte (Semester 1, 2, 3; Jahre) ist die Beschriftung, keine Datenreihe.
+- **KI:** `"neu": true` ohne neue Zellen leert die Tabelle nicht mehr; ersetzt die KI den Inhalt, steht es in der
+  Meldung; alle Formelfehler der KI werden gezählt (auch `#ZIRKEL!`); eine fast gültige oder abgeschnittene Antwort
+  wird gerettet (Zellen einzeln gelesen); eine verirrte Zelle „AZ500“ bläht die Tabelle nicht mehr auf; Diagramme
+  neben der Tabelle entfallen. Der Auftrag an die KI verlangt jetzt jeden Wert in Anführungszeichen und höchstens
+  40 × 8 Zellen (60 × 12 passte nicht in die Antwortlänge des Dienstes).
+
+Bewusst offen: Kriterium aus einer leeren Zelle und Summenbereich anderer Form bei SUMMEWENN; der Filter merkt sich
+Anzeigetexte (nach Formatwechsel greift ein Eintrag nicht mehr – „Alles zeigen“ hilft).
+
+### 12.2 Tabelle in der App – behoben
+
+- **„Fertig“ sicherte in einem Fall nicht** (Zwischenstand beim Verlassen der App, dann alles widerrufen) → verglichen
+  wird jetzt mit dem Stand auf der Seite. „Fertig“ prüft, ob die Tabelle wirklich auf der Seite steht, und bleibt
+  sonst offen (Meldung mit „Noch einmal“ / „Ohne Sichern schließen“). Ist das Objekt von der Seite verschwunden,
+  legt „Fertig“ es wieder hin.
+- **Eingabe landete in der falschen Zelle:** tippen, dann Sortieren / Zeile einfügen / löschen → das Getippte wird
+  vorher übernommen. „Widerrufen“ beim Tippen verwirft nur das Getippte. Text + neue Zeile sind ein Schritt; ein
+  bloß angefasster Spaltenrand hinterlässt keinen Schritt; Widerrufen stellt die Auswahl wieder her.
+- **Filter:** Löschen, Aussehen, Ausfüllen, Kopieren und „Zeilen löschen“ treffen nur sichtbare Zeilen; die aktive
+  Zelle ist nie versteckt; „Filter in allen Spalten aufheben“.
+- **KI:** Antwort verfällt nicht mehr, wenn man inzwischen weitertippt (ein Schritt); „Abbrechen“; Anzeige „Die KI
+  arbeitet …“ auch bei geschlossenem Feld; gleiche Antwort verspricht kein „Widerrufen“; Credits-Stand wird
+  übernommen; Fehler nennen den Weg (Einstellungen → Konto); der Wunsch ist sichtbar auf 240 Zeichen begrenzt.
+- **Ohne Pro AI** öffnet sich die große Ansicht jetzt zum **Ansehen** (rollen, zoomen, kopieren) – vorher kam nur ein
+  Hinweis, und eine lange Tabelle war auf der Seite nicht ganz zu sehen. Ändern geht weiter nur mit Pro AI.
+- **Tabelle bleibt auf der Seite:** wächst sie, rückt sie nach oben/links und wird notfalls kleiner (bis Schrift 5 pt).
+- **Bedienung:** Tipp wirkt sofort (vorher 0,3 s Wartezeit); Kopf antippen springt nicht ans Ende; die Zelle, in der
+  getippt wird, bleibt über der Tastatur im Bild; Diagrammleiste klappt ein und weicht der Tastatur; Hinweise liegen
+  am unteren Rand über dem Gitter (es rutscht nicht mehr); Menü an der Zelle (langes Drücken, Rechtsklick);
+  Pfeiltasten wiederholen beim Halten, Tab bleibt im Gitter, ⌘⏎ = Fertig; VoiceOver liest die Zellen; die
+  Objektleiste zeigt „Bearbeiten“ auch, wenn vorher eine Form gewählt war.
+- **Schneller, weniger Speicher:** Textzeilen werden einmal gesetzt und beim Rollen nur gezeichnet; die Größe des
+  Kastens steht im Objekt (`sheet.box`) statt bei jedem Antippen gerechnet zu werden; der Seitenvergleich nutzt eine
+  Prüfsumme statt des ganzen Texts; höchstens 16 MB Bild je Tabelle (vorher 32), Grenze gilt auch nach dem Wachsen;
+  Rückgängig hält höchstens 300 000 Zellen.
+- **Tarif:** Tabellen, Klappkarten und Verweise lassen sich ohne Pro AI nicht mehr duplizieren oder einfügen; eine
+  kopierte Tabelle ist nie die „Tabelle als eigene Datei“.
+
+Bewusst offen: Wird dieselbe Tabelle auf zwei Geräten zugleich bearbeitet, gewinnt das letzte „Fertig“ (wie bei allen
+Objekten). Ändert sich irgendein Objekt der Seite, werden weiter alle Objekt-Bilder der Seite neu gebaut (bei sehr
+großen Tabellen spürbar). Eine neue Tabellen-Datei heißt „Tabelle“ (umbenennen in der Bibliothek).
+
+### 12.3 Textblöcke, Notizzettel, Klappkarten, Verweise – behoben
+
+- **Text ging verloren:** Doppeltipp auf ein Wort im Text, den man gerade tippt, begann das Tippen mit dem alten Text
+  neu. Tipp und Doppeltipp im Text gehören jetzt der Textansicht (Schreibmarke setzen, Wort markieren).
+- **Zwischenstand:** Geht die App beim Tippen in den Hintergrund, steht der Text schon auf der Seite.
+- **Text lief aus der Seite** (unten, rechts) und war dann unsichtbar → der Block rückt zurück auf die Seite.
+- **Aufliegende Hand:** Solange der Stift in den letzten 3 s geschrieben hat, greift das Halten keinen Block.
+- **Klappkarten:** Unter einer aufgedeckten Karte schreibt der Stift („Nur Stift“); das Werkzeug stapelt keine Karte
+  auf eine vorhandene; „Auswählen“ trifft die Karte, die man sieht; „Meine Notizen ausblenden“ blendet auch Karten
+  und Verweise aus.
+- **Verweise:** Notizbuch/Whiteboard als Ziel öffnet (vorher nie); fehlt die Zielseite, sagt die App es; ein
+  hängender Entwurf schluckt keine Tipps mehr; **geteilte Lösungen tragen keine Verweise** mehr (sie führten beim
+  Empfänger nirgends hin, und Datei-ID und Titel der eigenen Dokumente gingen mit).
+- **Listen:** „12. November“ ist keine Liste (vorher kam „13. “); Eingabetaste gleich hinter dem Listenzeichen löscht
+  es nicht mehr, wenn dahinter Text steht.
+- **Ältere Apps/Web:** große Schrift auf Linien bekam einen Zeilenabstand unter 1 (Zeilen ineinander) → ganze Linien.
+- **Speicher:** höchstens 32 MB Bild je Textblock/Zettel/Karte (ein seitengroßer Block belegte bei starkem Zoom über 100 MB).
+
+Bewusst offen bzw. am iPad zu prüfen:
+- Ob die Tastatur einen Block in der unteren Bildschirmhälfte verdeckt (im Simulator rollt die Seite nicht von selbst).
+- Ziehen im Text verschiebt den Block (so am 25.11. nach der Rückmeldung des Inhabers gebaut) – Text mit dem Finger
+  markieren durch Ziehen geht dadurch nicht, nur per Doppeltipp.
+- 3 Sekunden Halten ohne Rückmeldung währenddessen (die 3 s sind seine Vorgabe).
+- Namen: Werkzeug „Haftnotiz“, Einstellungen „Notizzettel“, Menü „Zettel“; Titel „Text wie in Word“ nennt eine
+  fremde Marke (Entscheidung des Inhabers).
+- Größe eines langen Blocks ziehen setzt den Text mehrfach je Bild; jeder Knopf der Leiste baut die Seite neu.
+- Verweis folgen: Free bekommt die Tarifwahl für die geteilte Ansicht; am iPhone öffnet ein fremdes Ziel nicht.
+- Farbe und Schriftgröße ganzer Textfelder gehen (wie in 1.0.7) ohne Pro AI.
+
+### 12.4 Prüfläufe nach den Korrekturen
+
+Siehe Abschnitt 12.5 (wird nach dem ganzen Lauf ergänzt).
