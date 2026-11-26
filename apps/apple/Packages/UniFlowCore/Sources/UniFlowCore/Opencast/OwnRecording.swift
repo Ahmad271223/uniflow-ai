@@ -222,7 +222,24 @@ public enum OwnRecordingStore {
         );
         """
 
-    public static func ensureTables(_ c: SQLiteConnection) throws { try c.executeScript(tables) }
+    /// Spalten, die spaeter dazukamen (1.0.8, docs/WHISPER-MITSCHRIFT.md): womit die Mitschrift erkannt wurde
+    /// ("apple" | "whisper", NULL = alt, also Apple) und zu welcher Uni-Aufzeichnung sie gehoert (`opencast_videos.id`;
+    /// dann gibt es keine eigene Tondatei, der Ton kommt aus dem geladenen Video).
+    static let addedColumns: [(String, String)] = [("transcript_engine", "TEXT"), ("source_video_id", "TEXT")]
+    public static let engines: Set<String> = ["apple", "whisper"]
+
+    public static func ensureTables(_ c: SQLiteConnection) throws {
+        try c.executeScript(tables)
+        let have = Set(try c.columnNames("own_recordings"))
+        for (name, type) in addedColumns where !have.contains(name) {
+            try c.execute("ALTER TABLE own_recordings ADD COLUMN \(name) \(type)")
+        }
+    }
+
+    /// Gibt es die Spalte `source_video_id` schon? (Lesen darf nichts anlegen; alte Datenbanken haben sie noch nicht.)
+    static func hasVideoColumn(_ c: SQLiteConnection) throws -> Bool {
+        try c.columnNames("own_recordings").contains("source_video_id")
+    }
 
     static func tableExists(_ c: SQLiteConnection) throws -> Bool {
         try c.queryOne("SELECT 1 FROM sqlite_master WHERE type='table' AND name='own_recordings'") != nil
@@ -239,12 +256,31 @@ public enum OwnRecordingStore {
         return .object(o)
     }
 
+    /// Eigene Aufnahmen (neueste zuerst). Mitschriften zu Uni-Aufzeichnungen (`source_video_id`) stehen beim Video und
+    /// nicht in dieser Liste.
     public static func list(_ c: SQLiteConnection, moduleID: Int? = nil) throws -> [JSONValue] {
         guard try tableExists(c) else { return [] }
+        let own = try hasVideoColumn(c) ? "r.source_video_id IS NULL" : "1=1"
         if let moduleID {
-            return try c.rows(select + " WHERE r.module_id=? ORDER BY r.recorded_at DESC, r.id", [.integer(Int64(moduleID))]).map(row)
+            return try c.rows(select + " WHERE r.module_id=? AND \(own) ORDER BY r.recorded_at DESC, r.id", [.integer(Int64(moduleID))]).map(row)
         }
-        return try c.rows(select + " ORDER BY r.recorded_at DESC, r.id").map(row)
+        return try c.rows(select + " WHERE \(own) ORDER BY r.recorded_at DESC, r.id").map(row)
+    }
+
+    /// Mitschrift zu einer Uni-Aufzeichnung (hoechstens eine je Video), nil ohne
+    public static func forVideo(_ c: SQLiteConnection, videoID: String) throws -> JSONValue? {
+        guard try tableExists(c), try hasVideoColumn(c) else { return nil }
+        return try c.rows(select + " WHERE r.source_video_id=? ORDER BY r.updated_at DESC, r.id LIMIT 1", [.text(videoID)]).first.map(row)
+    }
+
+    /// Kennungen der Uni-Aufzeichnungen mit Mitschrift und ihr Stand (fuer die Marke am Video)
+    public static func videoStatuses(_ c: SQLiteConnection) throws -> [String: String] {
+        guard try tableExists(c), try hasVideoColumn(c) else { return [:] }
+        var out: [String: String] = [:]
+        for r in try c.rows("SELECT source_video_id, transcript_status FROM own_recordings WHERE source_video_id IS NOT NULL ORDER BY updated_at") {
+            if let v = r["source_video_id"]?.string { out[v] = r["transcript_status"]?.string ?? "none" }
+        }
+        return out
     }
 
     public static func get(_ c: SQLiteConnection, id: String) throws -> JSONValue? {
@@ -254,7 +290,8 @@ public enum OwnRecordingStore {
 
     /// Spalten, die PATCH aendern darf (Werte schon geprueft)
     public static let patchable: Set<String> = ["module_id", "course_id", "title", "event_title", "event_id", "duration",
-                                                "transcript", "transcript_status", "transcript_path", "language"]
+                                                "transcript", "transcript_status", "transcript_path", "language",
+                                                "transcript_engine"]
 
     public static func insert(_ c: SQLiteConnection, id: String, values: [String: SQLiteValue], now: String) throws {
         try ensureTables(c)
@@ -270,6 +307,7 @@ public enum OwnRecordingStore {
     /// Felder aendern; false, wenn es die Aufnahme nicht gibt
     public static func update(_ c: SQLiteConnection, id: String, values: [String: SQLiteValue], now: String) throws -> Bool {
         guard try tableExists(c) else { return false }
+        if values.keys.contains("transcript_engine") { try ensureTables(c) }
         var sets = ["updated_at=?"], params: [SQLiteValue] = [.text(now)]
         for (k, v) in values.sorted(by: { $0.key < $1.key }) where patchable.contains(k) {
             sets.append("\(k)=?")

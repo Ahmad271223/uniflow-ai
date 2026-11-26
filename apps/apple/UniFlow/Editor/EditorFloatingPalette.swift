@@ -280,6 +280,8 @@ final class EditorFloatingPalette: NSObject, PKToolPickerObserver {
             .shape: item(.shape, color: UIColor(hex: "#e5322d"), widths: EditorToolState.Tool.shape.widths),
             .text: item(.text, color: UIColor(hex: "#1d2130")),
             .sticky: item(.sticky),
+            .cover: item(.cover),
+            .link: item(.link),
             .select: item(.select),
             .markup: item(.markup),
             .area: item(.area),

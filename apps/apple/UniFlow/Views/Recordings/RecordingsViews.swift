@@ -216,6 +216,7 @@ struct RecordingRow: View {
                 }
             }
             RecordingDownloadControl(entry: entry, library: library)
+            VideoTranscriptControl(entry: entry, library: library)       // Mitschrift der geladenen Datei (1.0.8)
         }
     }
 }

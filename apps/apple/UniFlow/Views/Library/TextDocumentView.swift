@@ -213,7 +213,9 @@ struct AudioTranscriptPrompt: View {
         VStack(spacing: 14) {
             UFIcon("play", size: 36).foregroundStyle(UF.muted)
             Text("Noch kein Transkript").ufFont(17.6, 700).foregroundStyle(UF.text)
-            Text("Die Aufnahme wird auf dem iPad in Text umgewandelt (Spracherkennung des Geräts, ohne Internet). Der Text liegt danach neben der Datei und dient der Suche, der KI-Hilfe und den Wochentests. Die Aufnahme selbst verlässt das Gerät nicht. Das dauert etwa so lange wie ein Fünftel der Aufnahme; die Qualität hängt von Aufnahme und Sprache ab.")
+            Text(AudioTranscriber.usesWhisper
+                 ? "Die Aufnahme wird auf dem iPad in Text umgewandelt (mit dem geladenen Sprachmodell, ohne Internet). Der Text liegt danach neben der Datei und dient der Suche, der KI-Hilfe und den Wochentests. Die Aufnahme selbst verlässt das Gerät nicht. Das kann je nach Gerät und Länge einige Minuten dauern; StudiNow muss dabei geöffnet bleiben."
+                 : "Die Aufnahme wird auf dem iPad in Text umgewandelt (Spracherkennung des Geräts, ohne Internet). Der Text liegt danach neben der Datei und dient der Suche, der KI-Hilfe und den Wochentests. Die Aufnahme selbst verlässt das Gerät nicht. Das dauert etwa so lange wie ein Fünftel der Aufnahme; die Qualität hängt von Aufnahme und Sprache ab.")
                 .ufFont(13.6, lh: 1.5).foregroundStyle(UF.text2).multilineTextAlignment(.center).frame(maxWidth: 520)
             switch transcriber.state {
             case .running(let p):

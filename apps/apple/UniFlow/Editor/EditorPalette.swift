@@ -24,7 +24,20 @@ enum EditorPalette {
     static let areaID = "de.studinow.palette.area"
     /// Reihenfolge der Objektwerkzeuge: "Bereich an KI" vorn (Wunsch des Inhabers), dann Form und Text (am haeufigsten),
     /// Haftnotiz, Auswaehlen, Text markieren
-    static let customIDs = [areaID, shapeID, textID, stickyID, selectID, markupID]
+    static let coverID = "de.studinow.palette.cover"
+    static let linkID = "de.studinow.palette.link"
+    static let customIDs = [areaID, shapeID, textID, stickyID, coverID, linkID, selectID, markupID]
+
+    /// Klappkarte, die das Werkzeug als Naechstes anlegt (Farbe, Muster, Groesse beim Antippen), je Geraet gemerkt
+    static let coverKey = "UFEditorCoverChoice"
+    static var coverChoice: FlipCover.Choice {
+        get {
+            let parts = (UserDefaults.standard.string(forKey: coverKey) ?? "").components(separatedBy: "|")
+            guard parts.count == 3 else { return FlipCover.Choice() }
+            return FlipCover.Choice(color: parts[0], pattern: parts[1], size: parts[2])
+        }
+        set { UserDefaults.standard.set([newValue.color, newValue.pattern, newValue.size].joined(separator: "|"), forKey: coverKey) }
+    }
 
     static let areaTitle = "Bereich an KI"
 
@@ -56,6 +69,17 @@ enum EditorPalette {
         set { UserDefaults.standard.set(newValue.rawValue, forKey: shapeKey) }
     }
 
+    /// Zettel, den das Werkzeug "Haftnotiz" als Naechstes anlegt (Farbe, Aussehen, Papier, Groesse), je Geraet gemerkt
+    static let stickyKey = "UFEditorStickyChoice"
+    static var stickyChoice: StickyNote.Choice {
+        get {
+            let parts = (UserDefaults.standard.string(forKey: stickyKey) ?? "").components(separatedBy: "|")
+            guard parts.count == 4 else { return StickyNote.Choice() }
+            return StickyNote.Choice(color: parts[0], look: parts[1], paper: parts[2], size: parts[3])
+        }
+        set { UserDefaults.standard.set([newValue.color, newValue.look, newValue.paper, newValue.size].joined(separator: "|"), forKey: stickyKey) }
+    }
+
     static var selectTool: ObjectEditing.Tool {
         get { UserDefaults.standard.string(forKey: selectKey).flatMap(ObjectEditing.Tool.init(rawValue:)).flatMap { selectChoices.contains($0) ? $0 : nil } ?? .select }
         set { UserDefaults.standard.set(newValue.rawValue, forKey: selectKey) }
@@ -68,6 +92,8 @@ enum EditorPalette {
         case selectID: return select
         case textID: return .text
         case stickyID: return .sticky
+        case coverID: return .cover
+        case linkID: return .link
         case shapeID: return shape
         case markupID: return .markup
         case areaID: return .area
@@ -81,6 +107,8 @@ enum EditorPalette {
         case .select, .lasso: return selectID
         case .text: return textID
         case .sticky: return stickyID
+        case .cover: return coverID
+        case .link: return linkID
         case .rect, .ellipse, .line, .arrow: return shapeID
         case .markup: return markupID
         case .area: return areaID

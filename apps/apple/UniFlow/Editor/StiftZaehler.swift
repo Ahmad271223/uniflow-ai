@@ -50,6 +50,10 @@ enum StiftZaehler {
         case zoomstufeGewechselt
         case ausschnittBeimScrollen
         case ausschnittNachStrich
+        /// Handballen-Abwehr (`PalmRejection.swift`): Scrollen und Zoomen mit der Hand gesperrt (Stift liegt auf oder
+        /// Handballen erkannt) / dabei die Seite an die Stelle vor dem Auflegen der Hand zurueckgesetzt
+        case handGesperrt
+        case handRutscherZurueck
     }
 
     /// Zustand hinter einem Schloss (gezaehlt wird vom Hauptthread, geschrieben daneben)

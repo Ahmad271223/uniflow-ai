@@ -18,6 +18,17 @@ final class EditorBridge: ObservableObject {
     @Published var objectMode = false
     @Published var objectTool: ObjectEditing.Tool = .select
     @Published var objectSelection = 0
+    /// Formatierung des gewaehlten bzw. gerade getippten Texts (Leiste "Text", `TextFormatBar`); nil = kein Text
+    @Published var textFormat: TextFormat?
+    /// Ein neuer Verweis wartet auf sein Ziel (Leiste: "Jetzt das Ziel antippen", "Abbrechen")
+    @Published var linkPending = false
+    /// Verweis auf ein anderes Dokument angetippt: daneben oeffnen bzw. dorthin springen
+    @Published var linkRequest: LinkRequest?
+
+    struct LinkRequest: Equatable {
+        let id = UUID()
+        let target: PageLink.Target
+    }
     @Published var textSelected = false
     /// Markierter PDF-Text soll an die KI-Hilfe (Leiste "Text markieren": "KI erklärt", "KI löst")
     @Published var tutorRequest: TutorRequest?
@@ -949,6 +960,7 @@ struct DocumentView: View {
             Task { await reloadSolutionLayers() }
         }
         .onChange(of: entitlements.plan) { _, _ in Task { await reloadSolutionLayers() } }
+        .onChange(of: bridge.linkRequest) { _, r in if let r { openLink(r.target) } }
         .ufSheet(item: Binding(get: { exportFile?.purpose == .save ? exportFile : nil }, set: { exportFile = $0 })) { f in
             // Sichern: Ordner waehlen (iPad: Dateien, Mac: Fenster "Sichern"), die PDF wird dorthin kopiert
             ExportToFolderView(url: f.url) { exportFile = nil }
@@ -1286,6 +1298,30 @@ struct DocumentView: View {
             .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             .padding(.top, 8)
             .help("Gemeinsame Begriffe: \(s.terms.joined(separator: ", "))")
+        }
+    }
+
+    /// Verweis auf ein anderes Dokument: daneben oeffnen (geteilte Ansicht, ab Plus) und zur Stelle springen. Ist es
+    /// schon daneben offen, nur springen.
+    private func openLink(_ t: PageLink.Target) {
+        guard entitlements.allows(.splitView) else { lockedFeature = .splitView; return }
+        if companion?.file.id != t.file {
+            solutionSide = nil
+            webSide = nil
+            companion = Companion(file: libFile(id: t.file, title: t.title), pdfPage: t.pdfPage, request: UUID().uuidString)
+        }
+        Task { @MainActor in
+            // das Dokument daneben braucht einen Moment (laden, Seiten aufbauen): dann zur Stelle
+            for _ in 0..<120 {
+                if let main = bridge.controller, let side = tools.tools.otherEditor(than: main), side.store.file.id == t.file,
+                   side.store.layout != nil, side.showLinkTarget(t) { return }
+                if companion?.file.id != t.file { return }                // inzwischen etwas anderes geoeffnet
+                if companionStore?.file.id == t.file, companionStore?.errorMessage != nil {
+                    bridge.hint = .init(text: ObjectEditing.linkMissingHint(t))
+                    return
+                }
+                try? await Task.sleep(nanoseconds: 100_000_000)
+            }
         }
     }
 
@@ -3321,6 +3357,8 @@ struct PageTrashSheet: View {
 /// Werkzeugleiste oben (`EditorToolbar`).
 struct ObjectToolbar: View {
     @ObservedObject var bridge: EditorBridge
+    /// Tarif: Textbloecke "wie Word" ab Pro AI (`UFRichNotes`), sonst die Leiste mit Schloss
+    @ObservedObject private var entitlements = Entitlements.shared
     private let colors: [(String, String)] = [("#e5322d", "Rot"), ("#1d2130", "Schwarz"), ("#2f7fd1", "Blau"), ("#2e9e5b", "Grün"),
                                               ("#f5d90a", "Gelb"), ("#fff7a8", "Notizgelb")]
 
@@ -3340,6 +3378,26 @@ struct ObjectToolbar: View {
                 }
                 .padding(8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+            }
+            if bridge.objectTool == .link {
+                // Verweis: zwei Schritte, und der Weg zurueck
+                HStack(spacing: 10) {
+                    Image(systemName: "link").accessibilityHidden(true)
+                    Text(bridge.linkPending ? "Jetzt das Ziel antippen – im Dokument daneben oder auf einer anderen Seite"
+                                            : "Stelle antippen oder über ein Wort ziehen")
+                        .font(.callout)
+                    if bridge.linkPending {
+                        Button("Abbrechen") { bridge.controller?.objects.cancelLink() }
+                            .buttonStyle(.bordered)
+                            .accessibilityIdentifier("objects.link.cancel")
+                    }
+                    Button("Fertig") { bridge.finishObjectTools() }
+                        .buttonStyle(.borderedProminent)
+                        .accessibilityIdentifier("objects.link.done")
+                }
+                .padding(8)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .accessibilityIdentifier("objects.link.bar")
             }
             if bridge.objectTool == .markup {
                 HStack(spacing: 8) {
@@ -3366,7 +3424,19 @@ struct ObjectToolbar: View {
                 .padding(8)
                 .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
             }
-            if bridge.objectSelection > 0 { selectionActions }
+            if let format = bridge.textFormat, let locked = UFRichNotes.lockedPlan(plan: entitlements.plan) {
+                // ohne Pro AI: sichtbar mit Schloss (Antippen oeffnet die Tarifwahl); daneben die Knoepfe wie bisher
+                HStack(spacing: 8) {
+                    if bridge.objectSelection > 0, !format.editing { selectionActions }
+                    TextFormatLockedBar(plan: locked)
+                }
+            } else if let format = bridge.textFormat {
+                // Text gewaehlt oder wird getippt: Leiste wie in Word (fett, Schrift, Groesse, markieren ...)
+                TextFormatBar(format: format, canDelete: bridge.objectSelection > 0 && !format.editing,
+                              objects: { [weak bridge] in bridge?.selectionObjects })
+            } else if bridge.objectSelection > 0 {
+                selectionActions
+            }
         }
     }
 
@@ -3382,6 +3452,30 @@ struct ObjectToolbar: View {
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
             Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+            if let cover = bridge.selectionObjects?.selectedCovers {
+                // Klappkarten gewaehlt: Farbe, Muster, Groesse
+                Menu {
+                    Menu("Farbe") {
+                        ForEach(FlipCover.colors, id: \.hex) { c in
+                            Button { bridge.selectionObjects?.restyleCovers { $0.color = c.hex } } label: { Label { Text(c.title) } icon: { TextFormatBar.dot(c.hex) } }
+                        }
+                    }
+                    Menu("Muster") {
+                        ForEach(FlipCover.patterns, id: \.id) { p in
+                            Button { bridge.selectionObjects?.restyleCovers { $0.pattern = p.id } } label: {
+                                if cover.pattern == p.id { Label(p.title, systemImage: "checkmark") } else { Text(p.title) }
+                            }
+                        }
+                    }
+                    Menu("Größe") {
+                        ForEach(FlipCover.sizes, id: \.id) { s in
+                            Button(s.title) { bridge.selectionObjects?.restyleCovers { $0.size = s.id } }
+                        }
+                    }
+                } label: { Image(systemName: "eye.slash").frame(width: 30, height: 30) }
+                    .accessibilityLabel("Klappkarte gestalten")
+                    .accessibilityIdentifier("objects.cover")
+            }
             Button(role: .destructive) { bridge.selectionObjects?.deleteSelection() } label: {
                 Image(systemName: "trash").frame(width: 30, height: 30)
             }
@@ -3629,6 +3723,12 @@ struct PDFEditorView: UIViewControllerRepresentable {
                 if let vc { vc.tools.selectionChanged(n, in: vc) }
             }
         }
+        vc.objects.onTextFormat = { [weak vc] f in if let vc { vc.tools.textFormatChanged(f, in: vc) } }
+        if ownsToolPicker {
+            vc.tools.onActiveTextFormat = { [weak bridge] f in if let bridge, bridge.textFormat != f { bridge.textFormat = f } }
+        }
+        vc.objects.onLinkPending = { [weak bridge] on in if bridge?.linkPending != on { bridge?.linkPending = on } }
+        if ownsToolPicker { vc.onOpenLink = { [weak bridge] t in bridge?.linkRequest = .init(target: t) } }
         vc.objects.onToolChange = { [weak bridge] t in bridge?.objectTool = t }
         vc.onObjectModeChange = { [weak bridge] on, t in
             if bridge?.objectMode != on { bridge?.objectMode = on }

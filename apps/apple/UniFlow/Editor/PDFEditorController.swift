@@ -48,6 +48,8 @@ final class PageInkView: UIView {
     let geometry: PageGeometry
     let content = UIView()
     let objectsView: PageObjectsView
+    /// Klappkarten (`FlipCover`): eigene Schicht ueber der Zeichenflaeche, sie verdecken auch die Handschrift
+    let coversView: PageObjectsView
     let canvas = InkCanvasView()
     /// Rohpunkte des Pencil fuer die einstellbare Glaettung (`PencilSmoothing`)
     let rawRecorder = RawPencilRecorder()
@@ -107,6 +109,8 @@ final class PageInkView: UIView {
         self.geometry = geometry
         let rect = CGRect(origin: .zero, size: geometry.pageSize)
         objectsView = PageObjectsView(frame: rect)
+        coversView = PageObjectsView(frame: rect, kind: .covers)
+        objectsView.top = coversView
         super.init(frame: rect)
         backgroundColor = .clear
         isOpaque = false
@@ -130,6 +134,7 @@ final class PageInkView: UIView {
         content.addSubview(foreignView)
         content.addSubview(objectsView)
         content.addSubview(canvas)
+        content.addSubview(coversView)
         canvas.addGestureRecognizer(rawRecorder)
         canvas.addGestureRecognizer(touchTracker)
         addSubview(content)
@@ -195,7 +200,7 @@ final class PageInkView: UIView {
         let center = CGPoint(x: w.midX, y: w.midY)
         let zoomChanges = abs(z - c.zoomScale) > 0.001
         guard zoomChanges || c.bounds.size != boundsSize || c.center != center
-              || abs(c.contentOffset.x - offset.x) > 0.01 || abs(c.contentOffset.y - offset.y) > 0.01 else { return }
+              || abs(c.contentOffset.x - offset.x) > offsetRounding || abs(c.contentOffset.y - offset.y) > offsetRounding else { return }
         c.transform = .identity
         if zoomChanges {
             c.minimumZoomScale = min(z, c.zoomScale)
@@ -335,10 +340,10 @@ final class PageInkView: UIView {
         inkLayout = l
         let z = min(max(1, l.zoom), Self.maxCanvasZoom)
         let zoomChanges = !isDrawing && abs(z - canvas.zoomScale) > 0.001
-        let moves = !isDrawing && !zoomChanges && !Self.same(l.window, inkWindow)
+        let moves = !isDrawing && !zoomChanges && !Self.same(l.window, inkWindow, zoom: z)
         func changes(_ c: PKCanvasView) -> (zoom: Bool, move: Bool) {
             let zoom = abs(z - c.zoomScale) > 0.001
-            return (zoom, !zoom && !Self.same(l.window, Self.window(of: c)))
+            return (zoom, !zoom && !Self.same(l.window, Self.window(of: c), zoom: z))
         }
         var zoomed: [PKCanvasView] = zoomChanges ? [canvas] : [], moved: [PKCanvasView] = moves ? [canvas] : []
         for c in [foreignInk, correctionView?.ink].compactMap({ $0 }) {
@@ -364,9 +369,21 @@ final class PageInkView: UIView {
         Self.place(canvas, pageSize: geometry.pageSize, layout: l)
     }
 
-    private static func same(_ a: CGRect, _ b: CGRect) -> Bool {
-        abs(a.minX - b.minX) < 0.01 && abs(a.minY - b.minY) < 0.01 && abs(a.width - b.width) < 0.01 && abs(a.height - b.height) < 0.01
+    /// Zeigt die Zeichenflaeche schon diesen Ausschnitt? Die LAGE darf um die Rundung der Zeichenflaeche abweichen:
+    /// UIScrollView legt `contentOffset` auf ganze Bildpunkte (halbe Punkte am 2x-Bildschirm). Bei einem Zoom, der kein
+    /// rundes Vielfaches ist (mit zwei Fingern gewaehlt, z. B. 5,37), liest sich der Ausschnitt darum um bis zu
+    /// 0,25 / Zoom Seitenpunkte versetzt zurueck. Bis 25.11.2026 galt nur 0,01 als gleich: Nach JEDEM Strich wurde die
+    /// Zeichenflaeche unter einem Deckbild neu eingehaengt, obwohl die Seite still stand (Meldung des Inhabers
+    /// "Schreiben zittert etwas"; Zaehler seines iPads: 47-mal bei 44 Strichen; `EditorAusschnittRundungTests`).
+    /// Ein echter Wechsel verschiebt den Ausschnitt um mindestens einen ganzen Punkt (`window(around:in:margin:keeping:)`).
+    private static func same(_ a: CGRect, _ b: CGRect, zoom z: CGFloat) -> Bool {
+        let slack = max(0.01, offsetRounding / max(z, 1))
+        return abs(a.minX - b.minX) < slack && abs(a.minY - b.minY) < slack && abs(a.width - b.width) < 0.01 && abs(a.height - b.height) < 0.01
     }
+
+    /// So weit (Punkte der Zeichenflaeche) rundet UIScrollView `contentOffset` hoechstens: ein halber Bildpunkt am
+    /// 1x-Bildschirm, mit etwas Luft
+    private static let offsetRounding: CGFloat = 0.55
 
     /// Text und Bilder der Objekte hoechstens so fein wie bis 1.0.7 (eine Textansicht kostet Bildpunkte im Quadrat
     /// des Faktors; Formen und Vorlage sind Vektor-Ebenen und bleiben ohnehin scharf)
@@ -1125,6 +1142,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     /// Schreiben gerade moeglich (eigene Notizen eingeblendet und Tarif mit Schreiben)
     var writable: Bool { ownNotesVisible && canEdit }
 
+    /// Tarif erlaubt die neuen Schreibfunktionen (`UFRichNotes`, ab Pro AI): Textbloecke "wie Word" anlegen und
+    /// formatieren, langes Druecken greift. Sonst wie in 1.0.7 (einfaches Textfeld). `richNotesOverride`: fuer Tests.
+    var richNotesOverride: Bool?
+    var richNotes: Bool { writable && (richNotesOverride ?? UFRichNotes.allowed(plan: Entitlements.shared.plan)) }
+
     /// Sichtbarkeit der eigenen Notizen und Eingabe der Canvas fuer ein Overlay
     private func applyOwnNotes(to overlay: PageInkView) {
         overlay.setOwnNotesVisible(ownNotesVisible)
@@ -1156,6 +1178,18 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
 
     /// Schreibt der Finger (am Mac: die Maus) gerade nicht, sondern blaettert?
     var effectivePencilOnly: Bool { pointerConfig.panMinimumTouches == 1 }
+
+    // Handballen-Abwehr beim Scrollen und Zoomen (`PalmRejection.swift`)
+    /// Sieht Stift und Hand auf der PDF-Ansicht
+    let handWatcher = HandWatcher()
+    /// Was gerade aufliegt
+    var palmState = PalmRejection.State()
+    /// Stelle und Zoom beim Auflegen der Hand
+    var handStart: HandStart?
+    /// Bestellte Pruefung, ob die Sperre enden kann
+    var handUnlockCheck: DispatchWorkItem?
+    /// Scrollen und Zoomen mit der Hand sind gerade gesperrt
+    var handGesturesLocked = false
 
     /// Verlauf fuer den Ansichtsmodus: leer und ohne Eintraege, damit Rueckgaengig ueber das System (Cmd-Z,
     /// Wischen mit drei Fingern, Leiste) nichts zuruecknimmt und nichts schreibt.
@@ -1202,6 +1236,12 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     var editUndo: UndoManager { documentUndo }
     /// Objekt-Werkzeuge (Editor-Schritt 6); eingeschaltet nimmt die Canvas keine Eingabe an
     private(set) lazy var objects = ObjectEditing(controller: self)
+    /// Klappkarten auf- und zudecken (`FlipCovers.swift`)
+    let coverTapper = CoverTapper()
+    /// Ziel eines neuen Verweises antippen (`PageLinks.swift`)
+    private(set) lazy var linkTargetPicker = LinkTargetPicker(controller: self)
+    /// Verweis auf ein anderes Dokument angetippt: daneben oeffnen bzw. dorthin springen (Hauptdokument)
+    var onOpenLink: ((PageLink.Target) -> Void)?
     /// Rechtsklick-Menue, Ziehen und Ablegen, Mauszeiger (10.11.2026)
     private(set) lazy var mouseSupport = EditorMouseSupport(controller: self)
     /// "Bild einfügen …" aus Kontextmenue oder Menueleiste: die Dokumentansicht zeigt die Auswahl (Fotos oder Dateien)
@@ -1314,6 +1354,20 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
         store.imagesInUse = { [weak self] in self?.imageSourcesInUse ?? [] }
         // Rechtsklick (Mac), Ziehen von Bildern hinein, Mauszeiger je Werkzeug (`EditorMouseSupport.swift`)
         mouseSupport.install(on: pdfView)
+        // langes Druecken auf einen Textblock greift ihn (`TextBlockEditing.swift`)
+        objects.installHold()
+        // Klappkarten: Antippen deckt auf und verdeckt wieder - beim Schreiben und Lesen; mit einem Objektwerkzeug
+        // waehlt Antippen die Karte aus
+        coverTapper.isEnabled = { [weak self] in self.map { !$0.objects.isActive && $0.freezeMode == .off } ?? false }
+        coverTapper.layersProvider = { [weak self] in
+            guard let self else { return [] }
+            // eigene Seiten, darueber die Schichten eingeblendeter Loesungen
+            return self.allOverlays.flatMap { [$0.coversView] + $0.foreignLayerViews.map(\.coversView) }
+        }
+        coverTapper.onLink = { [weak self] t in self?.followLink(t) }
+        coverTapper.install(on: pdfView)
+        // Verweis anlegen: das Ziel wird in diesem Dokument angetippt (auch wenn es das Dokument daneben ist)
+        linkTargetPicker.install(on: pdfView)
         // geteilte Ansicht: Bilder und "Einfügen" gehen in den Editor, in dem zuletzt gearbeitet wurde (`ActiveEditor.swift`)
         installActiveEditorMarker()
     }
@@ -1507,6 +1561,7 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             trackpadPageSwipe = swipe
         }
         scroll.delaysContentTouches = false
+        installPalmRejection()
         applyFreezeGestures()
     }
 
@@ -2918,6 +2973,12 @@ extension PDFEditorController: UIPencilInteractionDelegate {
         setPaletteObjectToolActive(true)
         guard ownsToolPicker else { sideObjectTool(tool); return }
         guard writable || tool == .area else {
+            DispatchQueue.main.async { [weak self] in self?.tools.selectLastInk() }
+            return
+        }
+        // Klappkarten anlegen: ab Pro AI (`UFRichNotes`); aufklappen kann sie jeder
+        if tool == .cover || tool == .link, !richNotes {
+            onHint?(tool == .link ? ObjectEditing.linkLockedHint : ObjectEditing.coverLockedHint)
             DispatchQueue.main.async { [weak self] in self?.tools.selectLastInk() }
             return
         }

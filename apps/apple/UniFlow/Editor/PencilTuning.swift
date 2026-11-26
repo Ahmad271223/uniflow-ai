@@ -8,6 +8,16 @@ enum PencilTuning {
     /// Jetzt einmal beim Absetzen (`canvasViewDidEndUsingTool`), wie beim Stift. Die Sicherung sofort beim Absetzen
     /// (Audit P60/P61: Strich uebersteht einen Abbruch 0 ms danach) bleibt unveraendert.
     static var saveOnLift = true
+    /// Handballen-Abwehr (Meldung des Inhabers 25.11.2026, `PalmRejection.swift`): Solange der Stift aufliegt und kurz
+    /// danach, und solange eine sehr grosse Auflageflaeche aufliegt, scrollt und zoomt die Hand nicht. `false`: wie
+    /// bis 1.0.7 - jede Beruehrung der Hand scrollt und zoomt.
+    static var palmRejection = true
+    /// Regel "sehr grosse Auflageflaeche ist kein Finger" der Handballen-Abwehr: AUS. Auf dem iPad des Inhabers (A16)
+    /// gemessen 25.11.2026: Das Geraet meldet die Auflage in Stufen von rund 10 pt (21/31/42/52/63); die Hand beim
+    /// Schreiben lag mit 31-52 pt auf, zwei Finger beim Zoomen und flache Finger beim Wischen mit bis zu 63 pt. Die
+    /// Bereiche ueberlappen: Mit der Grenze 45 pt ging Zoomen nicht mehr (seine Meldung nach dem Aufspielen). Die Auflage
+    /// steht weiter im Ablauf-Protokoll. `true` nur zum Messen.
+    static var palmByRadius = false
     /// Nach einem Zoom nur die sichtbaren Seiten in der neuen Schaerfe anlegen. Vorher auch die geparkten (bis 6
     /// unsichtbare Seiten, gezoomt bis ~130 MB je Seite); sie bekommen den Zoom ohnehin beim Wiederanzeigen.
     static var rescaleVisibleOnly = true

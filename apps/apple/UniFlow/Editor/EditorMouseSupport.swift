@@ -186,7 +186,7 @@ final class EditorMouseSupport: NSObject, UIContextMenuInteractionDelegate, UIDr
         if c.objects.isActive {
             switch c.objects.tool {
             case .text, .sticky: return .beam
-            case .rect, .ellipse, .line, .arrow, .lasso, .area: return .cross
+            case .rect, .ellipse, .line, .arrow, .lasso, .area, .cover, .link: return .cross
             default: return nil
             }
         }
@@ -208,11 +208,12 @@ extension PDFEditorController {
         guard writable else { return }
         choose(.select)
         let id = PageOrder.uid()
-        let o = sticky ? PageObjectEdit.sticky(id: id, x: Double(p.x), y: Double(p.y)) : PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y))
-        Task {
-            await objects.commit(key) { $0 + [o] }
-            objects.beginTextEditing(key: key, id: id, isNew: true)
-        }
+        let o: JSONValue
+        if sticky { o = objects.newSticky(id: id, on: boundOverlay(forKey: key), at: p) }
+        else if let overlay = boundOverlay(forKey: key) { o = objects.newBlock(id: id, on: overlay, at: p) }
+        else if richNotes { o = TextBlock.block(id: id, x: Double(p.x), y: Double(p.y), template: objects.template(forKey: key)) }
+        else { o = PageObjectEdit.text(id: id, x: Double(p.x), y: Double(p.y)) }
+        objects.beginNewText(o, key: key)
     }
 
     // MARK: Bearbeiten-Menue (Cmd-C/X/V/D, Entf) auf der Auswahl

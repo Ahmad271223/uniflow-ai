@@ -4,7 +4,10 @@
   Datenschutz-Manifest der App, Stand 08.11.2026 (Build 27; Build 25 traegt den Stand vom 07.11. ohne Geraete-ID). Muss mit dem Abschnitt "App-Datenschutz" in
   docs/release/APP-STORE.md uebereinstimmen; Test: AIConsentAppTests.testPrivacyManifestMatchesTheApp und
   tests/test_release_texts.py. Kein Tracking, keine Tracking-Domains, keine Werbung, keine Analyse-SDKs.
-  Fremd-Pakete gibt es keine; UniFlowCore (eigenes Paket, statisch in die App gebaut) ist hier mit erfasst.
+  UniFlowCore (eigenes Paket, statisch in die App gebaut) ist hier mit erfasst. Einziges Fremd-Paket ist seit 1.0.8
+  WhisperKit 1.1.1 (Spracherkennung auf dem Geraet, docs/WHISPER-MITSCHRIFT.md): es bringt kein eigenes Manifest mit,
+  erhebt keine Daten und nutzt keine APIs mit Begruendungspflicht (geprueft im Quelltext der Version). Der einmalige
+  Download des Sprachmodells geht an huggingface.co (kein Tracking, keine Daten des Nutzers ausser der IP-Adresse des Abrufs).
 
   Erfasste Daten (alle mit der Identitaet verknuepft, nie Tracking, nur App-Funktionalitaet):
   - E-Mail-Adresse: nur mit StudiNow-Konto (Mit Apple anmelden bzw. Registrierung), StudoraAccountLink.swift
@@ -28,7 +31,8 @@
   - Datei-Zeitstempel und -Groesse (C617.1): Dateien im App-Container (ResponseCache/RemoteData, Inbox der Loesungen,
     Downloads, Diagnose, Groesse der App-Datei)
   - Datei-Groesse ausgewaehlter Dateien (3B52.1): Loesungspaket aus Dateien-App/Teilen (SolutionSharing.importFile)
-  - Freier Speicher (E174.1): vor dem Schreiben pruefen, ob eine Datei Platz hat (DeviceStorage)
+  - Freier Speicher (E174.1): vor dem Schreiben pruefen, ob eine Datei Platz hat (DeviceStorage; vor dem Laden eines
+    Sprachmodells WhisperModelStore.freeBytes)
   - Systemstartzeit / laufende Systemuhr (35F9.1): nur verstrichene Zeit innerhalb der App messen
     (DispatchTime.uptimeNanoseconds in DocumentStore, CLOCK_MONOTONIC im Zeitmesser StudyTimer); nie als Kennung
   Keine aktiven Tastaturen.

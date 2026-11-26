@@ -36,13 +36,17 @@ final class EditorToolState: ObservableObject {
         /// `fountain` (Fueller, 17.11.2026): Tinte "fountainPen" - duenner Grundstrich, der mit dem Druck anschwillt
         case pen, fineliner, fountain, marker, eraser, lasso
         case select, text, sticky, shape, markup, area
+        /// Klappkarte zum Abfragen (25.11.2026, ab Pro AI)
+        case cover
+        /// Verweis auf Dokument + Seite (25.11.2026, ab Pro AI)
+        case link
 
         var id: String { rawValue }
 
         /// Werkzeuge der Zeichenflaeche (PencilKit) in der Reihenfolge der Leiste
         static let canvasTools: [Tool] = [.pen, .fineliner, .fountain, .marker, .eraser, .lasso]
         /// Objektwerkzeuge in der Reihenfolge der Leiste ("Bereich an KI" vorn wie in der Palette, Wunsch des Inhabers)
-        static let objectTools: [Tool] = [.area, .select, .text, .sticky, .shape, .markup]
+        static let objectTools: [Tool] = [.area, .select, .text, .sticky, .cover, .link, .shape, .markup]
 
         var isInk: Bool { self == .pen || self == .fineliner || self == .fountain || self == .marker }
         /// Schreibstift (ohne Textmarker): seine Farbe und Staerke gelten auch fuer Objekte (`lastPen`)
@@ -99,6 +103,8 @@ final class EditorToolState: ObservableObject {
             case .select: return "Auswählen"
             case .text: return "Text"
             case .sticky: return "Haftnotiz"
+            case .cover: return "Klappkarte"
+            case .link: return "Verweis"
             case .shape: return "Form"
             case .markup: return "Text markieren"
             case .area: return EditorPalette.areaTitle
@@ -117,6 +123,8 @@ final class EditorToolState: ObservableObject {
             case .select: return EditorPalette.selectTool.systemImage
             case .text: return "textformat"
             case .sticky: return "note.text"
+            case .cover: return ObjectEditing.Tool.cover.systemImage
+            case .link: return ObjectEditing.Tool.link.systemImage
             case .shape: return EditorPalette.shapeTool.systemImage
             case .markup: return "underline"
             case .area: return ObjectEditing.Tool.area.systemImage
@@ -129,6 +137,8 @@ final class EditorToolState: ObservableObject {
             case .select: return EditorPalette.selectID
             case .text: return EditorPalette.textID
             case .sticky: return EditorPalette.stickyID
+            case .cover: return EditorPalette.coverID
+            case .link: return EditorPalette.linkID
             case .shape: return EditorPalette.shapeID
             case .markup: return EditorPalette.markupID
             case .area: return EditorPalette.areaID
@@ -147,6 +157,8 @@ final class EditorToolState: ObservableObject {
             case .select, .lasso: return .select
             case .text: return .text
             case .sticky: return .sticky
+            case .cover: return .cover
+            case .link: return .link
             case .rect, .ellipse, .line, .arrow: return .shape
             case .markup: return .markup
             case .area: return .area
@@ -408,6 +420,17 @@ final class EditorToolState: ObservableObject {
     func selectionChanged(_ count: Int, in editor: PDFEditorController) {
         guard activeEditor === editor || (activeEditor == nil && editor.ownsToolPicker) else { return }
         onActiveSelection?(count)
+    }
+
+    /// Ein neuer Verweis wartet auf sein Ziel (`LinkPick`): beide Haelften der geteilten Ansicht sehen ihn
+    var linkPick: LinkPick?
+
+    /// Formatierung des gewaehlten bzw. gerade getippten Texts im Editor, in dem gearbeitet wird (Leiste "Text")
+    var onActiveTextFormat: ((TextFormat?) -> Void)?
+
+    func textFormatChanged(_ format: TextFormat?, in editor: PDFEditorController) {
+        guard activeEditor === editor || (activeEditor == nil && editor.ownsToolPicker) else { return }
+        onActiveTextFormat?(format)
     }
 
     /// Zurueck zum letzten Stift (aus Objektwerkzeugen, "Fertig")
@@ -859,7 +882,7 @@ struct EditorToolbar: View {
         .help(t.title)
     }
 
-    private func hasOptions(_ t: EditorToolState.Tool) -> Bool { t == .eraser || t == .shape || t == .select }
+    private func hasOptions(_ t: EditorToolState.Tool) -> Bool { t == .eraser || t == .shape || t == .select || t == .sticky || t == .cover }
 
     @ViewBuilder private func optionMenu(_ t: EditorToolState.Tool) -> some View {
         switch t {
@@ -1206,6 +1229,11 @@ struct EditorToolOptions: View {
                 }
                 .pickerStyle(.segmented)
                 .accessibilityIdentifier("toolbar.selectKind")
+            case .sticky:
+                // Notizzettel: Farbe, Aussehen, Papier, Groesse des naechsten Zettels (ab Pro AI, sonst Schloss)
+                StickyNoteOptions()
+            case .cover:
+                CoverOptions()
             default:
                 EmptyView()
             }

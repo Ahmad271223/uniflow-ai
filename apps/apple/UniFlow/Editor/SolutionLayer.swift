@@ -127,7 +127,10 @@ enum SolutionPreview {
             // Canvas des Absenders und in der Spalte daneben. Bis 22.11.2026 kam sie aus der Vektor-Routine des
             // PDF-Exports in der gespeicherten Breite: ein 3-pt-Stift ist bei PencilKit rund 2 pt breit, die Schrift
             // sah in der Vorschau (Kommentare der Community) darum fetter aus als im Dokument (Meldung des Inhabers).
-            PageRenderer.drawObjects(page.objects.filter { $0["type"]?.string != "stroke" }, images: images, in: ctx.cgContext)
+            PageRenderer.drawObjects(page.objects.filter { $0["type"]?.string != "stroke" && !TopObjects.isTop($0) }, images: images, in: ctx.cgContext)
+            // Klappkarten liegen ueber der Handschrift (unten, nach den Strichen)
+            let covers = page.objects.filter(TopObjects.isTop)
+            defer { if !covers.isEmpty { PageRenderer.drawObjects(covers, images: images, in: ctx.cgContext) } }
             let ink = Self.ink(page.objects)
             if !ink.strokes.isEmpty {
                 let area = CGRect(x: 0, y: 0, width: size.width, height: min(size.height, out.height / s))
@@ -182,6 +185,8 @@ final class ForeignLayerView: UIView {
     let mapping: CGAffineTransform
     private let content = UIView()
     private let objectsView: PageObjectsView
+    /// Klappkarten der fremden Seite, ueber ihrer Handschrift (Antippen deckt auf, `CoverTapper`)
+    let coversView: PageObjectsView
     /// Striche der fremden Seite, nur Anzeige (keine Eingabe, kein Werkzeug)
     let ink = PKCanvasView()
 
@@ -201,6 +206,9 @@ final class ForeignLayerView: UIView {
         let t = SolutionGeometry.transform(width: pw, height: ph, from: page.rotation, to: targetRotation)
         mapping = CGAffineTransform(a: t.a, b: t.b, c: t.c, d: t.d, tx: t.tx, ty: t.ty)
         objectsView = PageObjectsView(frame: source)
+        coversView = PageObjectsView(frame: source, kind: .covers)
+        coversView.isUserInteractionEnabled = false         // die Ebene nimmt keine Eingabe an; getippt wird ueber `CoverTapper`
+        objectsView.top = coversView
         super.init(frame: CGRect(x: 0, y: 0, width: tw, height: th))
         backgroundColor = .clear
         isOpaque = false
@@ -226,6 +234,7 @@ final class ForeignLayerView: UIView {
         ink.showsHorizontalScrollIndicator = false
         ink.drawing = Self.drawing(page.objects)
         content.addSubview(ink)
+        content.addSubview(coversView)
         addSubview(content)
         isAccessibilityElement = true
         accessibilityLabel = label
