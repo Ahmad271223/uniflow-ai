@@ -14,6 +14,9 @@ public enum SheetAI {
     public static let contextLimit = 7_000
     /// So viel uebernimmt die App hoechstens aus einer Antwort
     public static let maxCells = 3_000
+    /// So gross darf eine Tabelle der KI werden (eine verirrte Zelle "AZ500" soll die Tabelle nicht aufblaehen)
+    public static let maxRows = 200
+    public static let maxCols = 26
 
     public static let examples = ["Notenübersicht mit Schnitt und Leistungspunkten", "Lernplan für die nächsten 4 Wochen",
                                   "Haushaltsbuch für einen Monat mit Summe", "Mach aus dieser Tabelle ein passendes Diagramm"]
@@ -39,7 +42,7 @@ public enum SheetAI {
     public static func question(wish: String) -> String {
         let w = wish.replacingOccurrences(of: "\n", with: " ").replacingOccurrences(of: "»", with: "").replacingOccurrences(of: "«", with: "")
             .trimmingCharacters(in: .whitespaces)
-        let rules = #"Antworte NUR mit einem JSON-Objekt, ohne Erklärung, ohne Markdown, ohne LaTeX: {"neu":false,"zellen":{"A1":"Fach","B7":"=SUMME(B2:B6)"},"diagramme":[{"art":"balken","bereich":"A1:B6","titel":"Noten"}],"hinweis":"ein kurzer Satz"}. "neu":true leert die Tabelle vorher. In "zellen" nur, was sich ändert; erste Zeile = Überschriften. Formeln deutsch wie in Excel mit = und ; (SUMME, MITTELWERT, WENN, RUNDEN, ZÄHLENWENN, SUMMENPRODUKT, MIN, MAX), Zahlen mit Komma. "art": balken, linien oder kreis; "diagramme" nur auf Wunsch oder wenn es passt. Höchstens 60 Zeilen, 12 Spalten."#
+        let rules = #"Antworte NUR mit einem JSON-Objekt, ohne Erklärung, ohne Markdown, ohne LaTeX: {"neu":false,"zellen":{"A1":"Fach","B2":"1,7","B7":"=SUMME(B2:B6)"},"diagramme":[{"art":"balken","bereich":"A1:B6","titel":"Noten"}],"hinweis":"ein kurzer Satz"}. "neu":true leert die Tabelle vorher. In "zellen" nur, was sich ändert; erste Zeile = Überschriften. Formeln deutsch wie in Excel mit = und ; (SUMME, MITTELWERT, WENN, RUNDEN, ZÄHLENWENN, SUMMENPRODUKT, MIN, MAX), jeder Wert in Anführungszeichen. "art": balken, linien oder kreis; "diagramme" nur auf Wunsch oder wenn es passt. Höchstens 40 Zeilen, 8 Spalten."#
         let head = "Keine Frage zum Stoff: Ich baue eine Tabelle wie in Excel; sie steht unter SEITENINHALT. Mein Wunsch: »"
         let room = max(20, min(wishLimit, questionLimit - head.count - rules.count - 3))
         return head + String(w.prefix(room)) + "«. " + rules
@@ -91,9 +94,11 @@ public enum SheetAI {
     /// JSON-Objekt in einem Text finden (auch zwischen Markdown-Zaeunen oder mit Saetzen davor und danach)
     static func jsonObject(in text: String) -> JSONValue? {
         var searchFrom = text.startIndex
+        var tries = 0
         while let open = text[searchFrom...].firstIndex(of: "{") {
             var end = text.endIndex
-            while let close = text[open..<end].lastIndex(of: "}") {
+            while tries < 24, let close = text[open..<end].lastIndex(of: "}") {
+                tries += 1
                 if let v = try? JSONValue.parse(String(text[open...close])), v.object != nil { return v }
                 end = close
             }
@@ -102,6 +107,41 @@ public enum SheetAI {
             if text.distance(from: text.startIndex, to: searchFrom) > 400 { break }
         }
         return nil
+    }
+
+    /// Rettung fuer eine Antwort, die kein sauberes JSON ist (abgeschnitten, Zahl mit Komma ohne Anfuehrungszeichen):
+    /// alle Paare `"B2": "…"` einzeln herauslesen. Diagramme gehen dabei verloren.
+    static func looseCells(in text: String) -> Plan? {
+        let pattern = #""\$?([A-Za-z]{1,2})\$?([0-9]{1,3})"\s*:\s*(?:"((?:[^"\\]|\\.)*)"|(-?[0-9]+(?:[.,][0-9]+)?)(?=\s*(?:,\s*"|\}|\]|$))|(true|false))"#
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let ns = text as NSString
+        var plan = Plan()
+        for m in re.matches(in: text, range: NSRange(location: 0, length: ns.length)) {
+            guard let r = SheetRef(ns.substring(with: m.range(at: 1)) + ns.substring(with: m.range(at: 2))) else { continue }
+            var value: String?
+            if m.range(at: 3).location != NSNotFound {
+                value = (try? JSONValue.parse("\"" + ns.substring(with: m.range(at: 3)) + "\""))?.string
+            } else if m.range(at: 4).location != NSNotFound {
+                value = ns.substring(with: m.range(at: 4)).replacingOccurrences(of: ".", with: ",")
+            } else if m.range(at: 5).location != NSNotFound {
+                value = ns.substring(with: m.range(at: 5)) == "true" ? "WAHR" : "FALSCH"
+            }
+            if let value { plan.cells[r] = value }
+        }
+        guard plan.cells.count >= 2 else { return nil }
+        plan.replace = text.range(of: #""(neu|new|replace|leeren)"\s*:\s*true"#, options: .regularExpression) != nil
+        return limited(plan)
+    }
+
+    /// Nur was in die Grenzen passt; bei zu vielen Zellen die ersten Zeilen (nicht irgendwelche)
+    static func limited(_ plan: Plan) -> Plan {
+        var out = plan
+        out.cells = [:]
+        for r in plan.cells.keys.sorted() where r.row < maxRows && r.col < maxCols {
+            guard out.cells.count < maxCells else { break }
+            out.cells[r] = String((plan.cells[r] ?? "").prefix(Sheet.maxCellLength))
+        }
+        return out
     }
 
     private static func first(_ o: JSONValue, _ keys: [String]) -> JSONValue? {
@@ -116,18 +156,17 @@ public enum SheetAI {
             plan.replace = first(o, ["neu", "new", "replace", "leeren"])?.bool == true
             if let cells = first(o, ["zellen", "cells"])?.object {
                 for (k, v) in cells {
-                    guard plan.cells.count < maxCells, let r = SheetRef(k), r.row < Sheet.maxRows, r.col < Sheet.maxCols,
-                          let text = cellText(v) else { continue }
-                    plan.cells[r] = String(text.prefix(Sheet.maxCellLength))
+                    guard let r = SheetRef(k), let text = cellText(v) else { continue }
+                    plan.cells[r] = text
                 }
             }
             // manche Antworten liefern Zeilen statt Zellnamen: [["Fach","Note"],["Mathe",1.7]]
             if plan.cells.isEmpty, let rows = first(o, ["zeilen", "rows", "tabelle", "table"])?.array {
                 plan.relative = true
-                for (r, row) in rows.prefix(Sheet.maxRows).enumerated() {
-                    for (c, v) in (row.array ?? []).prefix(Sheet.maxCols).enumerated() {
-                        guard plan.cells.count < maxCells, let text = cellText(v), !text.isEmpty else { continue }
-                        plan.cells[SheetRef(col: c, row: r)] = String(text.prefix(Sheet.maxCellLength))
+                for (r, row) in rows.prefix(maxRows).enumerated() {
+                    for (c, v) in (row.array ?? []).prefix(maxCols).enumerated() {
+                        guard let text = cellText(v), !text.isEmpty else { continue }
+                        plan.cells[SheetRef(col: c, row: r)] = text
                     }
                 }
             }
@@ -137,9 +176,12 @@ public enum SheetAI {
                 plan.charts.append(Chart(kind: kind, range: range, title: String((first(c, ["titel", "title"])?.string ?? "").prefix(80))))
             }
             plan.note = String((first(o, ["hinweis", "note", "erklaerung", "erklärung"])?.string ?? "").prefix(300))
+            plan = limited(plan)
+            // leeren ohne neuen Inhalt waere nur Verlust
+            if plan.cells.isEmpty { plan.replace = false }
             if !plan.isEmpty { return plan }
         }
-        return markdownTable(in: answer)
+        return looseCells(in: answer) ?? markdownTable(in: answer)
     }
 
     /// Ersatz: eine Markdown-Tabelle (`| Fach | Note |`) in der Antwort
@@ -158,8 +200,8 @@ public enum SheetAI {
             if parts.last == "" { parts.removeLast() }
             // Trennzeile |---|:---:|
             if !parts.isEmpty, parts.allSatisfy({ !$0.isEmpty && $0.allSatisfy { $0 == "-" || $0 == ":" } }) { continue }
-            guard row < Sheet.maxRows else { break }
-            for (c, v) in parts.prefix(Sheet.maxCols).enumerated() where !v.isEmpty && plan.cells.count < maxCells {
+            guard row < maxRows else { break }
+            for (c, v) in parts.prefix(maxCols).enumerated() where !v.isEmpty && plan.cells.count < maxCells {
                 // **fett** der KI stoert in der Zelle
                 plan.cells[SheetRef(col: c, row: row)] = String(v.replacingOccurrences(of: "**", with: "").replacingOccurrences(of: "`", with: "").prefix(Sheet.maxCellLength))
             }
@@ -173,8 +215,10 @@ public enum SheetAI {
     public struct Outcome: Equatable, Sendable {
         public var cells = 0
         public var charts = 0
-        /// Formeln, die das Rechenwerk nicht versteht (unbekannte Funktion, unvollstaendig)
+        /// Formeln der KI, die einen Fehler zeigen (unbekannte Funktion, rechnet mit sich selbst, zeigt ins Leere)
         public var broken = 0
+        /// Die Tabelle wurde vorher geleert: so viele Zellen standen darin
+        public var cleared = 0
         /// Bereich, den die neuen Zellen fuellen
         public var filled: SheetRange?
         public init() {}
@@ -185,6 +229,7 @@ public enum SheetAI {
             if cells > 0 { parts.append(cells == 1 ? "1 Zelle gefüllt" : "\(cells) Zellen gefüllt") }
             if charts > 0 { parts.append(charts == 1 ? "1 Diagramm angelegt" : "\(charts) Diagramme angelegt") }
             var s = parts.isEmpty ? "Die KI hat nichts geändert." : "Die KI hat " + parts.joined(separator: " und ") + "."
+            if cleared > 0 { s += " Der alte Inhalt wurde dafür ersetzt." }
             if broken > 0 { s += broken == 1 ? " Eine Formel muss noch geprüft werden." : " \(broken) Formeln müssen noch geprüft werden." }
             return s
         }
@@ -195,18 +240,21 @@ public enum SheetAI {
     public static func apply(_ plan: Plan, to s: inout Sheet, at origin: SheetRef) -> Outcome {
         var out = Outcome()
         let wasEmpty = s.cells.isEmpty
-        if plan.replace {
+        if plan.replace, !plan.cells.isEmpty {
+            out.cleared = s.cells.count
             s.cells = [:]
             s.styles = [:]
             s.filters = [:]
             s.charts = []
         }
-        let shift = plan.relative && !plan.replace && !wasEmpty ? origin : SheetRef(col: 0, row: 0)
+        let shift = plan.relative && out.cleared == 0 && !wasEmpty ? origin : SheetRef(col: 0, row: 0)
         var lo: SheetRef?, hi: SheetRef?
         var placed: [SheetRef] = []
         for (r, text) in plan.cells {
             let to = SheetRef(col: r.col + shift.col, row: r.row + shift.row)
             guard to.col >= 0, to.row >= 0, to.col < Sheet.maxCols, to.row < Sheet.maxRows else { continue }
+            // "" raeumt eine Zelle leer und zaehlt nicht als gefuellt
+            if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { if s.contains(to) { s.cells[to] = nil }; continue }
             s.rows = max(s.rows, to.row + 1)
             s.cols = max(s.cols, to.col + 1)
             // eine Formel aus einer Antwort ohne Zellnamen wandert mit an die Stelle
@@ -218,18 +266,16 @@ public enum SheetAI {
         out.cells = placed.count
         if let lo, let hi { out.filled = SheetRange(lo, hi) }
         for c in plan.charts where s.charts.count < SheetChart.maxPerSheet {
-            let range = s.clamped(SheetRange(SheetRef(col: c.range.from.col + shift.col, row: c.range.from.row + shift.row),
-                                             SheetRef(col: c.range.to.col + shift.col, row: c.range.to.row + shift.row)))
+            // ein Bereich neben der Tabelle ergaebe ein Diagramm ueber fremde Zellen: weglassen
+            guard let range = s.intersection(SheetRange(SheetRef(col: c.range.from.col + shift.col, row: c.range.from.row + shift.row),
+                                                        SheetRef(col: c.range.to.col + shift.col, row: c.range.to.row + shift.row))) else { continue }
             let id = "ki" + String(UInt64.random(in: 0...UInt64.max), radix: 36)
             s.charts.append(SheetChart(id: id, kind: c.kind, range: range, title: c.title))
             out.charts += 1
         }
         if out.charts > 0, s.show == "table" { s.show = "both" }
         let calc = s.calc()
-        out.broken = placed.filter { r in
-            guard let e = calc.value(r).error else { return false }
-            return e == .name || e == .syntax
-        }.count
+        out.broken = placed.filter { SheetFormula.isFormula(s.raw($0)) && calc.value($0).error != nil }.count
         return out
     }
 }

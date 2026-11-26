@@ -65,7 +65,13 @@ public struct SheetChart: Equatable, Sendable {
         let cols = Array(g.cols)
         let headerRow = rows.count > 1 && cols.contains { isLabel(value($0, rows[0])) } && !cols.contains { value($0, rows[0]).number != nil }
         let dataRows = Array((headerRow ? Array(rows.dropFirst()) : rows).prefix(SheetChart.maxPoints))
-        let labelCol = cols.count > 1 && dataRows.contains { isLabel(value(cols[0], $0)) } && !dataRows.contains { value(cols[0], $0).number != nil }
+        // Beschriftung: Text in der ersten Spalte - oder eine Zaehlung (Semester 1, 2, 3; Jahre 2023, 2024, 2025)
+        let firstNumbers = dataRows.map { value(cols[0], $0).number }
+        var counting = false
+        if cols.count > 1, firstNumbers.count >= 3, let a = firstNumbers[0], let b = firstNumbers[1], b > a, a == a.rounded(), b == b.rounded() {
+            counting = zip(firstNumbers, firstNumbers.dropFirst()).allSatisfy { x, y in x != nil && y != nil && y! - x! == b - a }
+        }
+        let labelCol = cols.count > 1 && (counting || (dataRows.contains { isLabel(value(cols[0], $0)) } && !dataRows.contains { value(cols[0], $0).number != nil }))
         let dataCols = Array((labelCol ? Array(cols.dropFirst()) : cols).prefix(SheetChart.maxSeries))
         let categories = dataRows.map { r in labelCol ? sheet.display(SheetRef(col: cols[0], row: r), calc) : "\(r + 1)" }
         let series = dataCols.map { c in

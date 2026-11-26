@@ -135,6 +135,9 @@ public enum SheetText {
         } else if hasComma {
             guard s.filter({ $0 == "," }).count == 1 else { return nil }
             s = s.replacingOccurrences(of: ",", with: ".")
+        } else if hasDot, isGrouped(s) {
+            // "1.500" und "1.000.000" sind deutsch geschrieben Tausender (so schreibt die Tabelle sie auch selbst)
+            s.removeAll { $0 == "." }
         } else if s.filter({ $0 == "." }).count > 1 {
             return nil
         }
@@ -142,6 +145,29 @@ public enum SheetText {
         let allowed = Set("0123456789.+-eE")
         guard s.allSatisfy({ allowed.contains($0) }), s.contains(where: { $0.isNumber }), let d = Double(s), d.isFinite else { return nil }
         return (hint == "p" ? d / 100 : d, hint)
+    }
+
+    /// "1.500", "-12.345.678": ein bis drei Ziffern (nicht mit 0 vorn), dann Dreiergruppen mit Punkt
+    static func isGrouped(_ s: String) -> Bool {
+        var t = Substring(s)
+        if t.hasPrefix("-") || t.hasPrefix("+") { t = t.dropFirst() }
+        let parts = t.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count >= 2, let head = parts.first, (1...3).contains(head.count), head.first != "0" else { return false }
+        return parts.allSatisfy { $0.allSatisfy { ("0"..."9").contains($0) } } && parts.dropFirst().allSatisfy { $0.count == 3 }
+    }
+
+    /// Getippte Zahl, die man so stehen laesst, wie sie getippt wurde: mit Punkt statt Komma ("14.30", "3.14") oder mit
+    /// Exponent ("1E3") - gerechnet wird damit, aber aus "14.30" wird in der Anzeige nicht "14,3"
+    public static func keepsTyped(_ raw: String) -> Bool {
+        let t = raw.trimmingCharacters(in: .whitespaces)
+        if t.contains("%") || t.contains("€") { return false }
+        if t.contains(where: { $0 == "e" || $0 == "E" }) { return true }
+        return t.contains(".") && !t.contains(",") && !isGrouped(t)
+    }
+
+    /// Zwei gerechnete Zahlen gelten als gleich, wenn sie sich erst in der 13. Stelle unterscheiden (0,1+0,2 = 0,3)
+    public static func same(_ a: Double, _ b: Double) -> Bool {
+        a == b || abs(a - b) <= 1e-13 * max(abs(a), abs(b))
     }
 
     /// Zahl ohne festes Format: ganze Zahlen ohne Komma, sonst bis zu 10 gueltige Stellen
@@ -191,6 +217,8 @@ public enum SheetFormula {
 
     /// Bezug in einer Formel, mit `$` fuer "fest"
     struct RefTok: Equatable {
+        /// So weit kann eine Formel zeigen (vier Ziffern, zwei Buchstaben) - auch ueber den Rand der Tabelle hinaus
+        static let maxRow = 9_999, maxCol = 26 * 27
         var col: Int
         var row: Int
         var absCol = false
@@ -239,19 +267,40 @@ public enum SheetFormula {
 
     static func isDigit(_ c: Character) -> Bool { c.asciiValue.map { (48...57).contains($0) } ?? false }
 
-    /// Zerlegt den Teil nach dem `=`
+    /// Englische Namen, die es deutsch anders gibt (`IF`, `SUM`): Wer so schreibt, trennt meist auch mit Komma
+    static let englishOnly: Set<String> = Set(german.values).subtracting(german.keys)
+
+    /// Zerlegt den Teil nach dem `=`. Deutsch trennt `;` und das Komma steht in Zahlen ("1,5"). Formeln in englischer
+    /// Schreibweise (`=IF(A1>50,1,0)`, `=SUM(10,20,30)`) trennen mit Komma: Steht kein `;` in der Formel und ist ein
+    /// Komma eindeutig Trenner oder der Funktionsname englisch, dann trennt jedes Komma.
     static func tokenize(_ c: [Character]) -> [Token] {
+        let first = tokenize(c, commaSeparates: false)
+        guard c.contains(","), !first.contains(where: { $0.tok == .sep && c[$0.start] == ";" }) else { return first }
+        let commaSep = first.contains { $0.tok == .sep }
+        let english = first.enumerated().contains { i, t in
+            guard case .ident(let name) = t.tok, i + 1 < first.count, first[i + 1].tok == .lparen else { return false }
+            return englishOnly.contains(name)
+        }
+        return commaSep || english ? tokenize(c, commaSeparates: true) : first
+    }
+
+    private static let openQuotes: Set<Character> = ["\"", "„", "“", "”", "«", "»"]
+
+    static func tokenize(_ c: [Character], commaSeparates: Bool) -> [Token] {
         var out: [Token] = []
         var i = 0
+        // ausserhalb von Klammern ist ein Komma immer das Dezimalkomma (`=SUM(A1:A3)*1,19`)
+        var depth = 0
+        func decimalComma() -> Bool { !(commaSeparates && depth > 0) }
         func peek(_ k: Int) -> Character? { i + k < c.count ? c[i + k] : nil }
         while i < c.count {
             let ch = c[i], start = i
             if ch.isWhitespace { i += 1; continue }
-            if isDigit(ch) || ((ch == "," || ch == ".") && peek(1).map(isDigit) == true && !(out.last.map { endsOperand($0.tok) } ?? false)) {
+            if isDigit(ch) || (((ch == "," && decimalComma()) || ch == ".") && peek(1).map(isDigit) == true && !(out.last.map { endsOperand($0.tok) } ?? false)) {
                 var s = ""
                 while i < c.count, isDigit(c[i]) { s.append(c[i]); i += 1 }
                 // Dezimalkomma oder -punkt nur, wenn eine Ziffer folgt ("1,5"; in "A1;2,B2" trennt das Komma)
-                if i + 1 < c.count, c[i] == "," || c[i] == ".", isDigit(c[i + 1]) {
+                if i + 1 < c.count, (c[i] == "," && decimalComma()) || c[i] == ".", isDigit(c[i + 1]) {
                     s.append(".")
                     i += 1
                     while i < c.count, isDigit(c[i]) { s.append(c[i]); i += 1 }
@@ -270,13 +319,14 @@ public enum SheetFormula {
                 out.append(Token(tok: Double(s).map { $0.isFinite ? Tok.num($0) : .bad } ?? .bad, start: start, end: i))
                 continue
             }
-            if ch == "\"" {
+            // die iPad-Tastatur macht aus " gern „ und “: gilt genauso
+            if openQuotes.contains(ch) {
                 var s = ""
                 i += 1
                 var closed = false
                 while i < c.count {
-                    if c[i] == "\"" {
-                        if i + 1 < c.count, c[i + 1] == "\"" { s.append("\""); i += 2; continue }
+                    if openQuotes.contains(c[i]) {
+                        if c[i] == "\"", i + 1 < c.count, c[i + 1] == "\"" { s.append("\""); i += 2; continue }
                         closed = true
                         i += 1
                         break
@@ -319,8 +369,8 @@ public enum SheetFormula {
             }
             i += 1
             switch ch {
-            case "(": out.append(Token(tok: .lparen, start: start, end: i))
-            case ")": out.append(Token(tok: .rparen, start: start, end: i))
+            case "(": depth += 1; out.append(Token(tok: .lparen, start: start, end: i))
+            case ")": depth = max(0, depth - 1); out.append(Token(tok: .rparen, start: start, end: i))
             case ";", ",": out.append(Token(tok: .sep, start: start, end: i))
             case ":": out.append(Token(tok: .colon, start: start, end: i))
             case "<":
@@ -332,6 +382,9 @@ public enum SheetFormula {
             case "+", "-", "*", "/", "^", "&", "=", "%": out.append(Token(tok: .op(String(ch)), start: start, end: i))
             case "×", "·": out.append(Token(tok: .op("*"), start: start, end: i))
             case "÷": out.append(Token(tok: .op("/"), start: start, end: i))
+            case "≤": out.append(Token(tok: .op("<="), start: start, end: i))
+            case "≥": out.append(Token(tok: .op(">="), start: start, end: i))
+            case "≠": out.append(Token(tok: .op("<>"), start: start, end: i))
             case "−", "–": out.append(Token(tok: .op("-"), start: start, end: i))
             default: out.append(Token(tok: .bad, start: start, end: i))
             }
@@ -367,9 +420,13 @@ public enum SheetFormula {
 
     struct Failure: Error { let error: SheetError }
 
+    /// So tief duerfen Klammern und Funktionen ineinander stecken (der Stapel am iPad ist klein)
+    static let maxNesting = 40
+
     private struct Parser {
         let t: [Token]
         var p = 0
+        var depth = 0
 
         var cur: Tok? { p < t.count ? t[p].tok : nil }
 
@@ -407,10 +464,16 @@ public enum SheetFormula {
         }
 
         mutating func unary() throws -> Node {
-            if case .op(let o)? = cur, o == "-" || o == "+" {
+            // "--5", "-+-5": Vorzeichen der Reihe nach, ohne Verschachtelung
+            var negative = false, signs = 0
+            while case .op(let o)? = cur, o == "-" || o == "+" {
                 p += 1
+                signs += 1
+                if o == "-" { negative.toggle() }
+            }
+            if signs > 0 {
                 let inner = try unary()
-                return o == "-" ? .unary("-", inner) : inner
+                return negative ? .unary("-", inner) : inner
             }
             var n = try primary()
             while cur == .op("%") { p += 1; n = .percent(n) }
@@ -420,6 +483,9 @@ public enum SheetFormula {
         mutating func primary() throws -> Node {
             guard let tok = cur else { throw Failure(error: .syntax) }
             p += 1
+            depth += 1
+            defer { depth -= 1 }
+            guard depth <= SheetFormula.maxNesting else { throw Failure(error: .syntax) }
             switch tok {
             case .num(let d): return .num(d)
             case .str(let s): return .str(s)
@@ -458,6 +524,21 @@ public enum SheetFormula {
             default:
                 throw Failure(error: .syntax)
             }
+        }
+    }
+
+    /// Alle Bezuege eines Formelbaums (einzelne Zellen als Bereich aus einer Zelle)
+    static func ranges(in node: Node, _ visit: (SheetRange) -> Void) {
+        switch node {
+        case .ref(let r): visit(SheetRange(r))
+        case .range(let r): visit(r)
+        case .unary(_, let x), .percent(let x): ranges(in: x, visit)
+        case .binary:
+            var cur = node
+            while case .binary(_, let l, let r) = cur { ranges(in: r, visit); cur = l }
+            ranges(in: cur, visit)
+        case .call(_, let args): for a in args { ranges(in: a, visit) }
+        default: break
         }
     }
 
@@ -521,7 +602,7 @@ public enum SheetFormula {
             var n = r
             if !r.absCol { n.col += dCol }
             if !r.absRow { n.row += dRow }
-            return n.col >= 0 && n.row >= 0 && n.col < Sheet.maxCols && n.row < Sheet.maxRows ? n : nil
+            return n.col >= 0 && n.row >= 0 && n.col < RefTok.maxCol && n.row < RefTok.maxRow ? n : nil
         }
         return rewriting(raw) { a, b in
             guard let na = move(a) else { return nil }
@@ -538,7 +619,8 @@ public enum SheetFormula {
         func set(_ r: RefTok, _ v: Int) -> RefTok { var n = r; if rows { n.row = v } else { n.col = v }; return n }
         return rewriting(raw) { a, b in
             if count > 0 {
-                func ins(_ r: RefTok) -> RefTok { get(r) >= index ? set(r, get(r) + count) : r }
+                let limit = (rows ? RefTok.maxRow : RefTok.maxCol) - 1
+                func ins(_ r: RefTok) -> RefTok { get(r) >= index ? set(r, min(limit, get(r) + count)) : r }
                 return (ins(a), b.map(ins))
             }
             let n = -count, end = index + n        // geloescht: index ..< end
@@ -599,7 +681,9 @@ public enum SheetFormula {
         "LAENGE": "LEN", "LINKS": "LEFT", "RECHTS": "RIGHT", "TEIL": "MID", "GROSS": "UPPER", "KLEIN": "LOWER",
         "GLÄTTEN": "TRIM", "GLAETTEN": "TRIM", "WERT": "VALUE", "ISTLEER": "ISBLANK", "ISTZAHL": "ISNUMBER",
         "ISTTEXT": "ISTEXT", "ISTFEHLER": "ISERROR", "KGRÖSSTE": "LARGE", "KGROESSTE": "LARGE", "KKLEINSTE": "SMALL",
-        "RANG": "RANK", "SUMMENPRODUKT": "SUMPRODUCT",
+        "RANG": "RANK", "SUMMENPRODUKT": "SUMPRODUCT", "ZÄHLENWENNS": "COUNTIFS", "ZAEHLENWENNS": "COUNTIFS",
+        "SUMMEWENNS": "SUMIFS", "MITTELWERTWENNS": "AVERAGEIFS", "WENNS": "IFS", "ISTNV": "ISNA", "WENNNV": "IFNA",
+        "VERGLEICH": "MATCH",
     ]
 
     /// Fuer die Auswahl in der App: Name, Muster zum Einsetzen und eine Zeile Erklaerung
@@ -615,11 +699,16 @@ public enum SheetFormula {
         ("SUMMEWENN", "SUMMEWENN(A1:A5;\">10\";B1:B5)", "Zählt nur zusammen, was zur Bedingung passt."),
         ("ZÄHLENWENN", "ZÄHLENWENN(A1:A5;\"ja\")", "Zählt die Zellen, die zur Bedingung passen."),
         ("MITTELWERTWENN", "MITTELWERTWENN(A1:A5;\">0\")", "Durchschnitt nur der passenden Zellen."),
+        ("ZÄHLENWENNS", "ZÄHLENWENNS(A1:A5;\"ja\";B1:B5;\">10\")", "Zählt, was zu allen Bedingungen passt."),
+        ("SUMMEWENNS", "SUMMEWENNS(C1:C5;A1:A5;\"ja\";B1:B5;\">10\")", "Zählt zusammen, was zu allen Bedingungen passt."),
         ("SUMMENPRODUKT", "SUMMENPRODUKT(A1:A5;B1:B5)", "Malnehmen und zusammenzählen – etwa Note mal Leistungspunkte."),
         ("MEDIAN", "MEDIAN(A1:A5)", "Der Wert in der Mitte."),
         ("STABW", "STABW(A1:A5)", "Wie stark die Zahlen streuen."),
         ("SVERWEIS", "SVERWEIS(A1;D1:E10;2;FALSCH)", "Sucht einen Wert in einer Liste und holt die Zelle daneben."),
+        ("INDEX", "INDEX(A1:C10;2;3)", "Holt die Zelle in Zeile 2, Spalte 3 des Bereichs."),
+        ("VERGLEICH", "VERGLEICH(A1;D1:D10;0)", "Sagt, an welcher Stelle der Liste ein Wert steht."),
         ("WENNFEHLER", "WENNFEHLER(A1/B1;0)", "Zeigt etwas anderes, wenn die Rechnung nicht geht."),
+        ("WENNS", "WENNS(A1>=90;\"sehr gut\";A1>=50;\"bestanden\";WAHR;\"nicht bestanden\")", "Mehrere Prüfungen nacheinander."),
         ("UND", "UND(A1>0;B1>0)", "Wahr, wenn alles stimmt."),
         ("ODER", "ODER(A1>0;B1>0)", "Wahr, wenn eines stimmt."),
         ("ABS", "ABS(A1)", "Die Zahl ohne Minus."),
@@ -695,6 +784,11 @@ public enum SheetFormula {
 
         static func finite(_ d: Double) -> SheetValue { d.isFinite ? .number(d) : .error(.num) }
 
+        /// Ganze Zahl aus einem Argument (Stelle, Spalte, Anzahl); nil bei Unsinn wie 1E20
+        static func int(_ d: Double) -> Int? { d.isFinite && abs(d) < 1e9 ? Int(d.rounded(.towardZero)) : nil }
+
+        static let german = Locale(identifier: "de_DE")
+
         /// Vergleich wie in Excel: Zahlen vor Text vor Wahrheitswerten, Text ohne Gross/Klein
         static func compare(_ a: SheetValue, _ b: SheetValue) -> Int {
             func rank(_ v: SheetValue) -> Int {
@@ -713,12 +807,12 @@ public enum SheetFormula {
             if rank(x) != rank(y) { return rank(x) < rank(y) ? -1 : 1 }
             switch (x, y) {
             case (.text(let s), .text(let t)):
-                let r = s.compare(t, options: [.caseInsensitive], locale: Locale(identifier: "de_DE"))
+                let r = s.compare(t, options: [.caseInsensitive], locale: Self.german)
                 return r == .orderedSame ? 0 : (r == .orderedAscending ? -1 : 1)
             case (.bool(let s), .bool(let t)): return s == t ? 0 : (!s ? -1 : 1)
             default:
                 let s = x.number ?? 0, t = y.number ?? 0
-                return s == t ? 0 : (s < t ? -1 : 1)
+                return SheetText.same(s, t) ? 0 : (s < t ? -1 : 1)
             }
         }
 
@@ -753,8 +847,17 @@ public enum SheetFormula {
                 case .success(let d): return .number(d / 100)
                 case .failure(let e): return .error(e)
                 }
-            case .binary(let op, let l, let r): return binary(op, value(l), value(r))
-            case .call(let name, let args): return call(name, args)
+            case .binary:
+                // "1+2+3+…" haengt links tief ineinander: der Reihe nach rechnen statt hinabzusteigen
+                var chain: [(String, Node)] = [], cur = n
+                while case .binary(let op, let l, let r) = cur { chain.append((op, r)); cur = l }
+                var acc = value(cur)
+                for (op, r) in chain.reversed() { acc = binary(op, acc, value(r)) }
+                return acc
+            case .call(let name, let args):
+                let v = call(name, args)
+                if case .number(let d) = v, !d.isFinite { return .error(.num) }
+                return v
             }
         }
 
@@ -828,9 +931,28 @@ public enum SheetFormula {
                 guard nodes.count == 2 else { return .error(.syntax) }
                 let v = value(nodes[0])
                 return v.error == nil ? v : value(nodes[1])
+            case "IFNA":
+                guard nodes.count == 2 else { return .error(.syntax) }
+                let v = value(nodes[0])
+                return v.error == .na ? value(nodes[1]) : v
+            case "IFS":
+                guard nodes.count >= 2, nodes.count % 2 == 0 else { return .error(.syntax) }
+                for i in stride(from: 0, to: nodes.count, by: 2) {
+                    switch Self.truth(value(nodes[i])) {
+                    case .failure(let e): return .error(e)
+                    case .success(let t): if t { return value(nodes[i + 1]) }
+                    }
+                }
+                return .error(.na)
             default: break
             }
-            let args = nodes.map(arg)
+            return apply(name, nodes, nodes.map(arg))
+        }
+
+        /// Die eigentliche Funktion, wenn alle Argumente gerechnet sind. Eigene Funktion und nie eingebettet: Ihr
+        /// Speicherbedarf auf dem Stapel ist gross und soll nicht je Verschachtelung (`ABS(ABS(…))`) anfallen.
+        @inline(never)
+        func apply(_ name: String, _ nodes: [Node], _ args: [Arg]) -> SheetValue {
             func num(_ i: Int, _ fallback: Double? = nil) -> Result<Double, SheetError> {
                 guard i < args.count, nodes[i] != .missing else { return fallback.map { .success($0) } ?? .failure(.syntax) }
                 return Self.number(scalar(args[i]))
@@ -870,7 +992,10 @@ public enum SheetFormula {
                 let f = pow(10, digits.rounded(.towardZero))
                 guard f.isFinite, f != 0 else { return .error(.num) }
                 // 2,675 soll 2,68 werden: kleinen Schubs gegen die Darstellung als 2,67499999
-                let scaled = x * f
+                var scaled = x * f
+                // 0,1+0,2 ist im Rechner 0,30000000000000004: was (fast) glatt ist, gilt als glatt - sonst macht
+                // AUFRUNDEN daraus 0,4 und ABRUNDEN aus 0,7+0,1 nur 0,7
+                if SheetText.same(scaled, scaled.rounded()) { scaled = scaled.rounded() }
                 let nudged = rule == .toNearestOrAwayFromZero ? scaled + (scaled >= 0 ? 1 : -1) * abs(scaled) * 1e-12 : scaled
                 return Self.finite(nudged.rounded(rule) / f)
             }
@@ -939,7 +1064,7 @@ public enum SheetFormula {
             case "ROUND": return two(0) { rounded($0, $1, .toNearestOrAwayFromZero) }
             case "ROUNDDOWN": return two(0) { rounded($0, $1, .towardZero) }
             case "ROUNDUP": return two(0) { rounded($0, $1, .awayFromZero) }
-            case "INT": return one { .number($0.rounded(.down)) }
+            case "INT": return one { .number((SheetText.same($0, $0.rounded()) ? $0.rounded() : $0).rounded(.down)) }
             case "ABS": return one { .number(abs($0)) }
             case "SQRT": return one { $0 < 0 ? .error(.num) : .number($0.squareRoot()) }
             case "POWER": return two { let p = pow($0, $1); return p.isNaN ? .error(.num) : Self.finite(p) }
@@ -967,6 +1092,24 @@ public enum SheetFormula {
                 if name == "COUNTIF" { return .number(Double(k)) }
                 if name == "SUMIF" { return Self.finite(sum) }
                 return k == 0 ? .error(.div0) : Self.finite(sum / Double(k))
+            case "COUNTIFS", "SUMIFS", "AVERAGEIFS":
+                // SUMMEWENNS(Summenbereich; Bereich1; Bedingung1; …), ZÄHLENWENNS(Bereich1; Bedingung1; …)
+                let first = name == "COUNTIFS" ? 0 : 1
+                guard args.count > first, (args.count - first) % 2 == 0 else { return .error(.syntax) }
+                let pairs = stride(from: first, to: args.count, by: 2).map { (args[$0].values, Criterion(scalar(args[$0 + 1]))) }
+                let n = pairs[0].0.count
+                guard pairs.allSatisfy({ $0.0.count == n }) else { return .error(.value) }
+                let target = name == "COUNTIFS" ? [] : args[0].values
+                guard name == "COUNTIFS" || target.count == n else { return .error(.value) }
+                var sum = 0.0, k = 0
+                for i in 0..<n where pairs.allSatisfy({ $0.1.matches($0.0[i]) }) {
+                    if name == "COUNTIFS" { k += 1; continue }
+                    if let e = target[i].error { return .error(e) }
+                    if let d = target[i].number { sum += d; k += 1 }
+                }
+                if name == "COUNTIFS" { return .number(Double(k)) }
+                if name == "SUMIFS" { return Self.finite(sum) }
+                return k == 0 ? .error(.div0) : Self.finite(sum / Double(k))
             case "SUMPRODUCT":
                 guard !args.isEmpty else { return .error(.syntax) }
                 let lists = args.map(\.values)
@@ -982,19 +1125,22 @@ public enum SheetFormula {
                 }
                 return Self.finite(sum)
             case "LARGE", "SMALL":
-                guard args.count == 2, case .success(let kD) = num(1) else { return .error(.syntax) }
+                guard args.count == 2 else { return .error(.syntax) }
+                guard case .success(let kD) = num(1) else { return .error(num(1).failureValue ?? .value) }
                 guard case .success(let n) = numbers([args[0]]) else { return .error(numbers([args[0]]).failureValue ?? .value) }
-                let k = Int(kD.rounded(.towardZero))
-                guard k >= 1, k <= n.count else { return .error(.num) }
+                guard let k = Self.int(kD), k >= 1, k <= n.count else { return .error(.num) }
                 let s = n.sorted()
                 return .number(name == "LARGE" ? s[s.count - k] : s[k - 1])
             case "RANK":
-                guard (2...3).contains(args.count), case .success(let x) = num(0), case .success(let order) = num(2, 0) else { return .error(.syntax) }
-                guard case .success(let n) = numbers([args[1]]) else { return .error(.value) }
-                guard n.contains(x) else { return .error(.na) }
-                return .number(Double(n.filter { order == 0 ? $0 > x : $0 < x }.count + 1))
+                guard (2...3).contains(args.count) else { return .error(.syntax) }
+                guard case .success(let x) = num(0) else { return .error(num(0).failureValue ?? .value) }
+                guard case .success(let order) = num(2, 0) else { return .error(num(2, 0).failureValue ?? .value) }
+                guard case .success(let n) = numbers([args[1]]) else { return .error(numbers([args[1]]).failureValue ?? .value) }
+                guard n.contains(where: { SheetText.same($0, x) }) else { return .error(.na) }
+                return .number(Double(n.filter { !SheetText.same($0, x) && (order == 0 ? $0 > x : $0 < x) }.count + 1))
             case "VLOOKUP":
-                guard (3...4).contains(args.count), case .many(let range, let vs) = args[1], case .success(let colD) = num(2) else { return .error(.syntax) }
+                guard (3...4).contains(args.count), case .many(let range, let vs) = args[1] else { return .error(.syntax) }
+                guard case .success(let colD) = num(2) else { return .error(num(2).failureValue ?? .value) }
                 let key = scalar(args[0])
                 if let e = key.error { return .error(e) }
                 var approx = true
@@ -1002,8 +1148,8 @@ public enum SheetFormula {
                     guard case .success(let t) = Self.truth(scalar(args[3])) else { return .error(.value) }
                     approx = t
                 }
-                let width = range.cols.count, col = Int(colD.rounded(.towardZero))
-                guard col >= 1, col <= width else { return .error(.ref) }
+                let width = range.cols.count
+                guard let col = Self.int(colD), col >= 1, col <= width else { return .error(.ref) }
                 var found: Int?
                 for r in 0..<range.rows.count {
                     let v = vs[r * width]
@@ -1014,6 +1160,29 @@ public enum SheetFormula {
                 }
                 guard let row = found else { return .error(.na) }
                 return vs[row * width + col - 1]
+            case "INDEX":
+                guard (2...3).contains(args.count), case .many(let range, let vs) = args[0] else { return .error(.syntax) }
+                guard case .success(let aD) = num(1, 1) else { return .error(num(1, 1).failureValue ?? .value) }
+                guard case .success(let bD) = num(2, 1) else { return .error(num(2, 1).failureValue ?? .value) }
+                guard var row = Self.int(aD), var col = Self.int(bD) else { return .error(.ref) }
+                // eine einzelne Zeile: die eine Zahl meint die Spalte
+                if range.rows.count == 1, args.count == 2 { col = row; row = 1 }
+                guard row >= 1, col >= 1, row <= range.rows.count, col <= range.cols.count else { return .error(.ref) }
+                return vs[(row - 1) * range.cols.count + col - 1]
+            case "MATCH":
+                guard (2...3).contains(args.count), case .many(let range, let vs) = args[1] else { return .error(.syntax) }
+                guard range.rows.count == 1 || range.cols.count == 1 else { return .error(.na) }
+                let key = scalar(args[0])
+                if let e = key.error { return .error(e) }
+                guard case .success(let kind) = num(2, 1) else { return .error(num(2, 1).failureValue ?? .value) }
+                var found: Int?
+                for (i, v) in vs.enumerated() where !v.isEmpty && v.error == nil {
+                    let c = Self.compare(v, key)
+                    if c == 0 { found = i; break }
+                    if kind > 0 { if c < 0 { found = i } else { break } }       // aufsteigend: der letzte, der kleiner ist
+                    if kind < 0 { if c > 0 { found = i } else { break } }       // absteigend: der letzte, der groesser ist
+                }
+                return found.map { .number(Double($0 + 1)) } ?? .error(.na)
             case "CONCAT":
                 var s = ""
                 for v in args.flatMap(\.values) {
@@ -1032,12 +1201,17 @@ public enum SheetFormula {
                 default: return SheetText.parseNumber(s).map { .number($0.value) } ?? .error(.value)
                 }
             case "LEFT", "RIGHT":
-                guard (1...2).contains(args.count), case .success(let s) = txt(0), case .success(let nD) = num(1, 1) else { return .error(.syntax) }
+                guard (1...2).contains(args.count) else { return .error(.syntax) }
+                guard case .success(let s) = txt(0) else { return .error(txt(0).failureValue ?? .value) }
+                guard case .success(let nD) = num(1, 1) else { return .error(num(1, 1).failureValue ?? .value) }
                 guard nD >= 0 else { return .error(.value) }
                 let n = Int(min(nD, 100_000))
                 return .text(name == "LEFT" ? String(s.prefix(n)) : String(s.suffix(n)))
             case "MID":
-                guard args.count == 3, case .success(let s) = txt(0), case .success(let a) = num(1), case .success(let nD) = num(2) else { return .error(.syntax) }
+                guard args.count == 3 else { return .error(.syntax) }
+                guard case .success(let s) = txt(0) else { return .error(txt(0).failureValue ?? .value) }
+                guard case .success(let a) = num(1) else { return .error(num(1).failureValue ?? .value) }
+                guard case .success(let nD) = num(2) else { return .error(num(2).failureValue ?? .value) }
                 guard a >= 1, nD >= 0 else { return .error(.value) }
                 return .text(String(s.dropFirst(Int(min(a, 100_000)) - 1).prefix(Int(min(nD, 100_000)))))
             case "ISBLANK": return args.count == 1 ? .bool(scalar(args[0]).isEmpty) : .error(.syntax)
@@ -1047,6 +1221,7 @@ public enum SheetFormula {
                 if case .text = scalar(args[0]) { return .bool(true) }
                 return .bool(false)
             case "ISERROR": return args.count == 1 ? .bool(scalar(args[0]).error != nil) : .error(.syntax)
+            case "ISNA": return args.count == 1 ? .bool(scalar(args[0]).error == .na) : .error(.syntax)
             default: return .error(.name)
             }
         }
@@ -1079,18 +1254,23 @@ public enum SheetFormula {
         func matches(_ v: SheetValue) -> Bool {
             if op == "!" { return false }
             if let n = number {
-                guard let d = v.number else { return op == "<>" }
+                // die Zahl 5 trifft auch den Text "5" (nur bei gleich/ungleich, wie in Excel)
+                var typed: Double?
+                if case .text(let s) = v, op == "=" || op == "<>" { typed = SheetText.parseNumber(s)?.value }
+                guard let d = v.number ?? typed else { return op == "<>" }
                 switch op {
-                case "=": return d == n
-                case "<>": return d != n
+                case "=": return SheetText.same(d, n)
+                case "<>": return !SheetText.same(d, n)
                 case ">": return d > n
                 case "<": return d < n
-                case ">=": return d >= n
-                default: return d <= n
+                case ">=": return d > n || SheetText.same(d, n)
+                default: return d < n || SheetText.same(d, n)
                 }
             }
             if v.error != nil { return false }
             let s = SheetText.text(v)
+            // "1*" meint Text, der mit 1 anfaengt - nicht die Zahl 12
+            if case .number = v, text.contains("*") || text.contains("?") { return op == "<>" }
             switch op {
             case "=": return Self.wildcard(text, s)
             case "<>": return !Self.wildcard(text, s)

@@ -57,6 +57,12 @@ public struct Sheet: Equatable, Sendable {
                    SheetRef(col: min(cols - 1, max(0, r.to.col)), row: min(rows - 1, max(0, r.to.row))))
     }
 
+    /// Der Teil des Bereichs, der in der Tabelle liegt (nil: liegt ganz daneben)
+    public func intersection(_ r: SheetRange) -> SheetRange? {
+        guard r.from.col < cols, r.from.row < rows, r.to.col >= 0, r.to.row >= 0 else { return nil }
+        return clamped(r)
+    }
+
     public func raw(_ r: SheetRef) -> String { cells[r] ?? "" }
     public func style(_ r: SheetRef) -> SheetStyle { styles[r] ?? SheetStyle() }
 
@@ -66,11 +72,19 @@ public struct Sheet: Equatable, Sendable {
         let text = String(input.prefix(Sheet.maxCellLength))
         if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { cells[r] = nil; return }
         cells[r] = text
-        if !SheetFormula.isFormula(text), let hint = SheetText.parseNumber(text)?.hint, style(r).format == nil {
-            var s = style(r)
+        guard !SheetFormula.isFormula(text), let n = SheetText.parseNumber(text) else { return }
+        var s = style(r)
+        if let hint = n.hint {
+            // "50 %" oder "3,20 €" getippt: Das Format folgt - auch wenn die Zelle vorher das andere hatte
+            guard s.format == nil || (s.format != hint && (s.format == "p" || s.format == "e")) else { return }
+            let switched = s.format != nil
             s.format = hint
-            if hint == "p", s.decimals == nil { s.decimals = Sheet.percentDecimals(text) }
+            if hint == "p", s.decimals == nil || switched { s.decimals = Sheet.percentDecimals(text) }
+            if hint == "e", switched { s.decimals = nil }
             styles[r] = s
+        } else if s.format == "p", abs(n.value) >= 1, !text.hasPrefix("'") {
+            // in eine Prozent-Zelle "7" getippt meint 7 % (wie in Excel), nicht 700 %
+            cells[r] = text.trimmingCharacters(in: .whitespaces) + " %"
         }
     }
 
@@ -87,7 +101,8 @@ public struct Sheet: Equatable, Sendable {
     }
 
     public mutating func restyle(_ range: SheetRange, _ change: (inout SheetStyle) -> Void) {
-        for r in clamped(range).refs {
+        guard let g = intersection(range) else { return }
+        for r in g.refs {
             var s = style(r)
             change(&s)
             setStyle(s, at: r)
@@ -96,7 +111,7 @@ public struct Sheet: Equatable, Sendable {
 
     /// Rahmen: "outer" um den Bereich, "all" jede Zelle, "bottom" Linie darunter, "none" weg
     public mutating func setBorder(_ range: SheetRange, _ mode: String) {
-        let g = clamped(range)
+        guard let g = intersection(range) else { return }
         for r in g.refs {
             var s = style(r)
             switch mode {
@@ -114,7 +129,8 @@ public struct Sheet: Equatable, Sendable {
     }
 
     public mutating func clear(_ range: SheetRange, styles alsoStyles: Bool = false) {
-        for r in clamped(range).refs {
+        guard let g = intersection(range) else { return }
+        for r in g.refs {
             cells[r] = nil
             if alsoStyles { styles[r] = nil }
         }
@@ -252,10 +268,15 @@ public struct Sheet: Equatable, Sendable {
         return b
     }
 
-    /// Ausschnitt einsetzen; Formeln wandern mit (`=A1*2` zwei Zeilen tiefer wird `=A3*2`). Liefert den gefuellten Bereich.
+    /// Ausschnitt einsetzen; Formeln wandern mit (`=A1*2` zwei Zeilen tiefer wird `=A3*2`) - ausser nach dem
+    /// Ausschneiden (`shiftingReferences: false`): Dann zeigt die Formel weiter auf dieselben Zellen. Die Tabelle
+    /// waechst, wenn der Ausschnitt ueber den Rand reicht. Liefert den gefuellten Bereich.
     @discardableResult
-    public mutating func paste(_ b: Block, at target: SheetRef) -> SheetRange {
-        let dCol = target.col - b.origin.col, dRow = target.row - b.origin.row
+    public mutating func paste(_ b: Block, at target: SheetRef, shiftingReferences: Bool = true) -> SheetRange {
+        guard target.col >= 0, target.row >= 0, target.col < Sheet.maxCols, target.row < Sheet.maxRows else { return SheetRange(target) }
+        rows = max(rows, min(Sheet.maxRows, target.row + b.rows))
+        cols = max(cols, min(Sheet.maxCols, target.col + b.cols))
+        let dCol = shiftingReferences ? target.col - b.origin.col : 0, dRow = shiftingReferences ? target.row - b.origin.row : 0
         for r in 0..<b.rows {
             for c in 0..<b.cols {
                 let k = SheetRef(col: c, row: r), to = SheetRef(col: target.col + c, row: target.row + r)
@@ -305,7 +326,11 @@ public struct Sheet: Equatable, Sendable {
         case "p": return SheetText.fixed(d * 100, decimals: s.decimals ?? 0) + " %"
         case "e": return SheetText.fixed(d, decimals: s.decimals ?? 2) + " €"
         case "n": return SheetText.fixed(d, decimals: s.decimals ?? 2)
-        default: return s.decimals.map { SheetText.fixed(d, decimals: $0) } ?? SheetText.general(d)
+        default:
+            if let n = s.decimals { return SheetText.fixed(d, decimals: n) }
+            // "14.30" oder "1E3" getippt: so stehen lassen (gerechnet wird mit der Zahl)
+            if let raw = cells[r], !SheetFormula.isFormula(raw), SheetText.keepsTyped(raw) { return raw.trimmingCharacters(in: .whitespaces) }
+            return SheetText.general(d)
         }
     }
 
@@ -329,7 +354,15 @@ public struct Sheet: Equatable, Sendable {
     public mutating func sort(byCol col: Int, ascending: Bool) {
         guard col >= 0, col < cols, let used = usedRange, used.to.row >= firstDataRow else { return }
         let c = calc()
-        let range = firstDataRow...used.to.row
+        // Zeilen am Ende, die ueber die Zeilen darueber rechnen ("Summe", "Schnitt"), bleiben unten stehen
+        // (hoechstens drei; rechnet jede Zeile so, sind es Daten)
+        var last = used.to.row, kept = 0
+        while last > firstDataRow, let kind = summaryRow(last, over: firstDataRow..<last) {
+            if kind == .formula { kept += 1 }
+            last -= 1
+        }
+        if kept > 3 { last = used.to.row }
+        let range = firstDataRow...last
         let keyed = range.map { (row: $0, value: c.value(SheetRef(col: col, row: $0))) }
         let order = keyed.enumerated().sorted { a, b in
             let x = a.element.value, y = b.element.value
@@ -354,6 +387,21 @@ public struct Sheet: Equatable, Sendable {
         cells = newCells
         styles = newStyles
         rowHeights = newHeights
+    }
+
+    enum SummaryKind { case blank, formula }
+
+    /// Leere Zeile oder eine, in der eine Formel einen Bereich ueber mehrere der Zeilen `data` zusammenfasst
+    func summaryRow(_ row: Int, over data: Range<Int>) -> SummaryKind? {
+        var empty = true, summary = false
+        for col in 0..<cols {
+            guard let raw = cells[SheetRef(col: col, row: row)] else { continue }
+            empty = false
+            if SheetFormula.isFormula(raw), SheetFormula.references(raw).contains(where: {
+                $0.rows.count > 1 && $0.rows.lowerBound < data.upperBound && $0.rows.upperBound >= data.lowerBound && !$0.rows.contains(row)
+            }) { summary = true }
+        }
+        return empty ? .blank : (summary ? .formula : nil)
     }
 
     /// Verschiedene Werte einer Spalte (wie angezeigt, ohne Kopfzeile), fuer die Auswahl im Filter; "" = leer
@@ -452,14 +500,19 @@ public struct SheetStyle: Equatable, Sendable {
 
 // MARK: - Rechnen
 
-/// Rechnet eine Tabelle einmal durch und merkt sich die Ergebnisse (eine Instanz je Stand der Tabelle)
+/// Rechnet eine Tabelle einmal durch und merkt sich die Ergebnisse (eine Instanz je Stand der Tabelle).
+///
+/// Formeln, die aufeinander aufbauen (laufende Summe ueber 500 Zeilen), werden der Reihe nach gerechnet - nicht eine in
+/// der anderen: Bevor eine Formel dran ist, sind alle Zellen fertig, die sie liest (`settle`, eigener Stapel statt
+/// Aufrufe ineinander; der Stapel des Programms ist am iPad klein). Rechnet eine Formel mit sich selbst, auch ueber
+/// Umwege, zeigt sie `#ZIRKEL!`.
 public final class SheetCalc {
     private let sheet: Sheet
     private var memo: [SheetRef: SheetValue] = [:]
     private var visiting = Set<SheetRef>()
-    private var depth = 0
-    /// So tief duerfen Formeln aufeinander aufbauen (A2 = A1+1, A3 = A2+1 ...): reicht fuer alle Zeilen
-    static let maxDepth = 600
+    /// Wie oft eine Formel beim Rechnen auf eine Zelle traf, die selbst noch in Arbeit ist
+    private var cycleHits = 0
+    private lazy var formulas: Set<SheetRef> = Set(sheet.cells.lazy.filter { SheetFormula.isFormula($0.value) }.map(\.key))
 
     public init(_ sheet: Sheet) { self.sheet = sheet }
 
@@ -485,22 +538,67 @@ public final class SheetCalc {
             memo[r] = v
             return v
         }
-        if visiting.contains(r) { return .error(.cycle) }
-        guard depth < SheetCalc.maxDepth else { return .error(.cycle) }
-        visiting.insert(r)
-        depth += 1
-        let v: SheetValue
-        switch SheetFormula.parse(raw) {
-        case .failure(let f): v = .error(f.error)
+        if visiting.contains(r) { cycleHits += 1; return .error(.cycle) }
+        return settle(r)
+    }
+
+    private struct Job {
+        let ref: SheetRef
+        let node: SheetFormula.Node?
+        let error: SheetError?
+        /// Formel-Zellen, die diese Formel liest
+        let needs: [SheetRef]
+        var next = 0
+    }
+
+    private func job(_ r: SheetRef) -> Job {
+        switch SheetFormula.parse(sheet.cells[r] ?? "") {
+        case .failure(let f): return Job(ref: r, node: nil, error: f.error, needs: [])
         case .success(let node):
-            let result = SheetFormula.Evaluator(cell: { [unowned self] in self.value($0) }).value(node)
-            // eine Formel, die auf eine leere Zelle zeigt, ergibt 0 (wie in Excel)
-            v = result.isEmpty ? .number(0) : result
+            var needs: [SheetRef] = []
+            SheetFormula.ranges(in: node) { range in
+                guard let g = sheet.intersection(range) else { return }
+                if g.count <= formulas.count { for x in g.refs where formulas.contains(x) { needs.append(x) } }
+                else { for x in formulas where g.contains(x) { needs.append(x) } }
+            }
+            return Job(ref: r, node: node, error: nil, needs: needs)
         }
-        depth -= 1
-        visiting.remove(r)
-        memo[r] = v
-        return v
+    }
+
+    /// Eine Formel-Zelle fertig rechnen: erst alles, was sie liest (und was das liest ...), dann sie selbst
+    private func settle(_ start: SheetRef) -> SheetValue {
+        var stack = [job(start)]
+        visiting.insert(start)
+        while var top = stack.last {
+            var waits = false
+            while top.next < top.needs.count {
+                let d = top.needs[top.next]
+                top.next += 1
+                // schon fertig; oder selbst gerade in Arbeit: ein Kreis, die Formel bekommt beim Lesen #ZIRKEL!
+                guard memo[d] == nil, !visiting.contains(d) else { continue }
+                stack[stack.count - 1] = top
+                stack.append(job(d))
+                visiting.insert(d)
+                waits = true
+                break
+            }
+            if waits { continue }
+            var v: SheetValue
+            if let node = top.node {
+                let before = cycleHits
+                let result = SheetFormula.Evaluator(cell: { [unowned self] in self.value($0) }).value(node)
+                // eine Formel, die auf eine leere Zelle zeigt, ergibt 0 (wie in Excel)
+                v = result.isEmpty ? .number(0) : result
+                // auch wenn WENNFEHLER den Kreis abfaengt: Die Formel rechnet mit sich selbst
+                if cycleHits != before { v = .error(.cycle) }
+            } else {
+                v = .error(top.error ?? .syntax)
+            }
+            visiting.remove(top.ref)
+            memo[top.ref] = v
+            stack.removeLast()
+        }
+        return memo[start] ?? .error(.cycle)
     }
 }
 

@@ -16,7 +16,7 @@ final class SheetAITests: XCTestCase {
         let q = SheetAI.question(wish: long)
         XCTAssertLessThanOrEqual(q.count, SheetAI.questionLimit, "die KI-Hilfe kuerzt Fragen auf 1000 Zeichen")
         XCTAssertTrue(q.contains("JSON"))
-        XCTAssertTrue(q.hasSuffix("12 Spalten."), "die Regeln gehen vollstaendig mit")
+        XCTAssertTrue(q.hasSuffix("8 Spalten."), "die Regeln gehen vollstaendig mit")
         XCTAssertTrue(SheetAI.question(wish: "Lernplan\nmit »Wochen«").contains("»Lernplan mit Wochen«"), "eine Zeile, eigene Anfuehrungszeichen raus")
 
         let s = sheet(["A1": "Fach", "B1": "Note", "B2": "=SUMME(B3:B4)", "A2": "Zeile\nzwei"])
@@ -109,7 +109,7 @@ final class SheetAITests: XCTestCase {
         XCTAssertEqual(s.cells.count, 2)
         XCTAssertTrue(s.styles.isEmpty)
         XCTAssertTrue(s.charts.isEmpty)
-        XCTAssertEqual(out.summary, "Die KI hat 2 Zellen gefüllt.")
+        XCTAssertEqual(out.summary, "Die KI hat 2 Zellen gefüllt. Der alte Inhalt wurde dafür ersetzt.")
 
         // Antwort ohne Zellnamen: in einer gefuellten Tabelle an der gewaehlten Stelle, Formeln wandern mit
         plan = SheetAI.Plan()
