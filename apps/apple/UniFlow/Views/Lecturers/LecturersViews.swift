@@ -20,7 +20,7 @@ enum LecturersText {
     static let studipMessage = "Nachricht in Stud.IP"
     static let office = "Sprechstunde"
     static let privacy = UFDevice.adapt("Aus Stud.IP, so wie du es dort siehst. Die Angaben bleiben auf diesem iPad.")
-    static let notAvailable = "Lehrende mit E-Mail und Sprechstunde gibt es vorerst für die Leibniz Universität Hannover (Stud.IP)."
+    static let notAvailable = "Lehrende mit E-Mail und Sprechstunde gibt es vorerst nur an Hochschulen mit Stud.IP (Leibniz Universität Hannover, Universität Göttingen)."
 
     /// Zweite Zeile: "Dozent/in · Analysis I – Vorlesung, Analysis I – Übung" (in einem Modul nur die Rolle und die Funktion)
     static func detail(_ p: JSONValue, showCourses: Bool) -> String {

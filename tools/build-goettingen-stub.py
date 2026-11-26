@@ -123,11 +123,42 @@ def file_ref(key: str, name: str, pdf: str, changed: str) -> dict:
             "meta": {"download-url": f"{BASE}/sendfile.php?type=0&file_id={fid}&file_name={name}"}}
 
 
+# Woechentliche Kurszeiten (Kurs, Wochentag 1=Mo, Beginn, Ende, Raum). Stud.IP legt je Kurszeit fuer die ganze
+# Vorlesungszeit Einzeltermine an (am echten Stud.IP Goettingen 32 course-events je Kurs gesehen), ohne die
+# vorlesungsfreie Zeit; ein Termin faellt aus (is-cancelled).
+WEEKLY = [
+    ("mathe", 1, "10:15", "11:45", "ZHG010 (ZHG)"),
+    ("mathe-ue", 3, "14:15", "15:45", "ZHG006 (ZHG)"),
+    ("recht", 2, "08:15", "09:45", "ZHG011 (ZHG)"),
+    ("sem", 4, "16:15", "17:45", "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)"),
+]
+LECTURES = ("2026-10-26", "2027-02-12")
+BREAK = ("2026-12-28", "2027-01-08")
+CANCELLED = {("mathe", "2026-12-07")}
+
+
+def sessions() -> list[tuple[str, int, str, str, str, str, bool]]:
+    """Alle Einzeltermine: (Kurs, Nummer, Tag, Beginn, Ende, Raum, faellt aus)."""
+    from datetime import date, timedelta
+    first, last = (date.fromisoformat(d) for d in LECTURES)
+    out = []
+    for key, weekday, start, end, room in WEEKLY:
+        n, d = 0, first
+        while d <= last:
+            iso = d.isoformat()
+            if d.isoweekday() == weekday and not (BREAK[0] <= iso <= BREAK[1]):
+                n += 1
+                out.append((key, n, iso, start, end, room, (key, iso) in CANCELLED))
+            d += timedelta(days=1)
+    return out
+
+
 def ics() -> str:
     lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Stud.IP//NONSGML Stud.IP//DE", "METHOD:PUBLISH", "CALSCALE:GREGORIAN"]
-    for key, n, day, start, end, room in [("mathe", 1, "20261130", "1015", "1145", "ZHG010 (ZHG)"),
-                                          ("mathe-ue", 1, "20261202", "1415", "1545", "ZHG006 (ZHG)"),
-                                          ("recht", 1, "20261201", "0815", "0945", "ZHG011 (ZHG)")]:
+    for key, n, iso, start, end, room, cancelled in sessions():
+        if cancelled:
+            continue                                      # ausgefallene Sitzungen stehen nicht im eigenen Kalender
+        day, start, end = iso.replace("-", ""), start.replace(":", ""), end.replace(":", "")
         title = next(t for k, t, *_ in COURSES if k == key)
         lines += ["BEGIN:VEVENT", f"DTSTART;TZID=Europe/Berlin:{day}T{start}00", f"DTEND;TZID=Europe/Berlin:{day}T{end}00",
                   f"SUMMARY:{title}", f"LOCATION:{room}", "CATEGORIES:Sitzung", "LAST-MODIFIED:20260920T080000Z",
@@ -232,10 +263,7 @@ def build() -> dict[str, bytes]:
     # Stundenplan: seminar-cycle-dates mit Raeumen in der Schreibweise des echten Stud.IP ("ZHG010 (ZHG)")
     put("schedule.json", {"meta": {"semester": f"/jsonapi.php/v1/semesters/{SEM_W26}"}, "links": {"self": f"/jsonapi.php/v1/users/{ME}/schedule"},
                           # weekday wie Stud.IP: 1 = Montag
-                          "data": [cycle("mathe", "mathe", 1, "10:15", "11:45", "ZHG010 (ZHG)"),
-                                   cycle("mathe-ue", "mathe-ue", 3, "14:15", "15:45", "ZHG006 (ZHG)"),
-                                   cycle("recht", "recht", 2, "08:15", "09:45", "ZHG011 (ZHG)"),
-                                   cycle("sem", "sem", 4, "16:15", "17:45", "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)")]})
+                          "data": [cycle(k, k, wd, a, b, room) for k, wd, a, b, room in WEEKLY]})
     route(f"{API}users/{ME}/schedule", "schedule.json")
     put("events.ics", ics())
     route(f"{API}users/{ME}/events.ics", "events.ics", contentType="text/calendar;charset=UTF-8")
@@ -298,10 +326,7 @@ def build() -> dict[str, bytes]:
             put(f"files-{key}-{hid(s)[:6]}.json", page([file_ref(f[2], f[3], f[4], f[5]) for f in mine if f[1] == s]))
             route(f"{API}folders/{sid}/file-refs", f"files-{key}-{hid(s)[:6]}.json")
             route(f"{API}folders/{sid}/folders", "empty.json")
-        ev = {"mathe": [event("mathe", 1, "2026-11-30", "10:15", "11:45", "ZHG010 (ZHG)"),
-                        event("mathe", 2, "2026-12-07", "10:15", "11:45", "ZHG010 (ZHG)", cancelled=True)],
-              "mathe-ue": [event("mathe-ue", 1, "2026-12-02", "14:15", "15:45", "ZHG006 (ZHG)")],
-              "recht": [event("recht", 1, "2026-12-01", "08:15", "09:45", "ZHG011 (ZHG)")]}.get(key, [])
+        ev = [event(k, n, day, a, b, room, cancelled=c) for k, n, day, a, b, room, c in sessions() if k == key]
         put(f"events-{key}.json", page(ev))
         route(f"{API}courses/{cid}/events", f"events-{key}.json")
         news = [{"type": "news", "id": hid("news-" + key),

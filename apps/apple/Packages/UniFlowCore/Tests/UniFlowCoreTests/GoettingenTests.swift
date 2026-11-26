@@ -8,6 +8,22 @@ import XCTest
 /// gehen (studip/news 500, Sprechstunden 404, Erweiterung der LUH fuer Aufzeichnungen 403). Nie ein Netz.
 final class GoettingenTests: XCTestCase {
 
+    // MARK: Vorlesungszeiten (Rundgang 26.11.2026: Stundenplan zeigte die LUH-Zeit 12.10.2026-30.01.2027)
+
+    func testLecturePeriodsOfGoettingen() throws {
+        let t = Holidays.defaultTerm(university: "goettingen", today: "2026-11-26")
+        XCTAssertEqual([t?.name, t?.start, t?.end], ["WiSe 2026/27", "2026-10-26", "2027-02-12"])
+        XCTAssertEqual(Holidays.defaultTerm(university: "goettingen", today: "2027-03-01")?.name, "SoSe 2027")
+        XCTAssertTrue(Holidays.lectureFree(day: BerlinClock.parseISODate("2027-01-04")!, university: "goettingen"))
+        XCTAssertFalse(Holidays.lectureFree(day: BerlinClock.parseISODate("2027-01-11")!, university: "goettingen"))
+        // alte LUH-Vorgabe in der Datenbank wird fuer Goettingen berichtigt
+        let c = try SQLiteConnection(path: SQLiteDatabase.inMemory)
+        try c.execute("CREATE TABLE terms(id INTEGER PRIMARY KEY, name TEXT, start TEXT, end TEXT, active INTEGER)")
+        try c.execute("INSERT INTO terms(name, start, end, active) VALUES ('WiSe 2026/27', '2026-10-12', '2027-01-30', 1)")
+        try Migrations.ensureTerm(c, university: "goettingen", today: "2026-11-26")
+        XCTAssertEqual(try LocalTerms.current(c)["start"]?.string, "2026-10-26")
+    }
+
     // MARK: Nachbildung (routes.json wie `DebugStubTransport` der App)
 
     static let base = URL(string: "https://studip.uni-goettingen.de")!
@@ -346,6 +362,36 @@ final class GoettingenTests: XCTestCase {
     }
 
     // MARK: Raeume
+
+    /// Lehrende kommen wie an der LUH aus Stud.IP (Rundgang 26.11.2026: Seite sagte "vorerst nur LUH")
+    func testLecturersFromStudIP() async throws {
+        XCTAssertTrue(StudIPLecturers.offered("goettingen"))
+        XCTAssertTrue(TerminDetail.showsLecturers(university: "goettingen"))
+        XCTAssertFalse(StudIPLecturers.offered("hildesheim"))
+        XCTAssertFalse(StudIPLecturers.offered("hsh"))
+        let stub = try Stub()
+        let c = client(stub)
+        let courses = try await c.courses(userID: try await c.currentUserID())
+        let math = try XCTUnwrap(courses.first { $0.title == "Mathematik für Wirtschaftswissenschaftler" })
+        let clock = try XCTUnwrap(UniFlowClock.fixed(berlin: "2026-11-26T10:00:00"))
+        let backend = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock)
+        try await backend.context.database.transaction { conn in
+            for k in courses {
+                try conn.execute("INSERT INTO courses(id, title, active, created_at) VALUES (?,?,1,'t')", [.text(k.id), .text(k.title)])
+            }
+        }
+        let d = await StudIPLecturers.run(client: c, database: backend.context.database, courseIDs: courses.map(\.id), clock: clock,
+                                          university: "goettingen")
+        XCTAssertFalse(d.sessionExpired)
+        XCTAssertGreaterThan(stub.count("memberships?filter[permission]=dozent"), 0)
+        let v = try await backend.context.database.withConnection {
+            try StudIPLecturers.overview($0, university: "goettingen", base: Self.base.absoluteString, courseID: math.id)
+        }
+        XCTAssertEqual(v["available"]?.bool, true)
+        let people = v["people"]?.array ?? []
+        XCTAssertEqual(people.first?["name"]?.string, "Prof. Dr. Beispiel Dozentin")
+        XCTAssertEqual(people.first?["email"]?.string, "beispiel.dozentin@example.org")
+    }
 
     func testRoomNamesAsSeenInStudIP() {
         func campus(_ text: String) -> String? { Rooms.parse(text, university: "goettingen")["parts"]?.array?.first?["campus"]?.string }

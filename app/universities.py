@@ -120,6 +120,11 @@ def services(key: str) -> list[dict] | None:
     return {"hildesheim": HILDESHEIM_SERVICES, "hsh": HSH_SERVICES, "goettingen": GOETTINGEN_SERVICES}.get(key)
 
 
+def has_studip(key: str | None) -> bool:
+    """Hochschule mit Stud.IP (LUH, Goettingen): Lehrende, Nachrichten und Co. kommen von dort."""
+    return (PROFILES.get(key or "") or {}).get("files_source") == "Stud.IP"
+
+
 def valid(key: str | None) -> bool:
     return (key or "") in PROFILES
 

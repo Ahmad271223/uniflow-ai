@@ -44,6 +44,17 @@ def test_rooms():
     assert parts[0]["campus"] == "zentralcampus"
 
 
+def test_lecture_periods_of_goettingen():
+    """Stundenplan und Kalender: Goettinger Vorlesungszeit, nicht die der LUH (Rundgang 26.11.2026)."""
+    from datetime import date
+    from app import holidays
+    assert holidays.default_term("goettingen", date(2026, 11, 26)) == {"name": "WiSe 2026/27", "start": "2026-10-26", "end": "2027-02-12"}
+    assert holidays.default_term("goettingen", date(2027, 3, 1))["name"] == "SoSe 2027"
+    assert holidays.lecture_free(date(2027, 1, 4), "goettingen")        # Weihnachtspause 28.12.-08.01.
+    assert not holidays.lecture_free(date(2027, 1, 11), "goettingen")
+    assert holidays.lecture_free(date(2026, 10, 20), "goettingen")      # vor dem Beginn am 26.10.
+
+
 def test_stub_is_current():
     r = subprocess.run([sys.executable, "tools/build-goettingen-stub.py", "--check"], cwd=ROOT, capture_output=True, text=True)
     assert r.returncode == 0, r.stdout + r.stderr
