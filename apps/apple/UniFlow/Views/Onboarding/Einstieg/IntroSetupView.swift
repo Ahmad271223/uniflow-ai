@@ -95,7 +95,7 @@ struct IntroSetupModel: Equatable {
             return (askProgram || displayName == nil ? "" : "Hallo \(displayName!)! ") + "Für welche Fächer soll StudiNow Lernzeit planen?"
         case .exams:
             let known = planned.filter(\.examFromUni).count
-            let lead = known == 0 ? "" : (known == 1 ? "Einen Prüfungstermin kenne ich schon aus QIS. " : "\(known) Prüfungstermine kenne ich schon aus QIS. ")
+            let lead = known == 0 ? "" : (known == 1 ? "Einen Prüfungstermin kenne ich schon aus \(UFUniversityScope.examSource()). " : "\(known) Prüfungstermine kenne ich schon aus \(UFUniversityScope.examSource()). ")
             // ohne die Fächer-Frage (Lernkalender aus) steht die Begrüßung hier
             let hello = planSubjects || askProgram || displayName == nil ? "" : "Hallo \(displayName!)! "
             return hello + lead + "Wann sind deine anderen Prüfungen?"
@@ -467,7 +467,7 @@ struct IntroExamRow: View {
                 }
                 Spacer(minLength: 8)
                 if module.examFromUni {
-                    UFBadge("aus QIS", tone: .ok, icon: "check")
+                    UFBadge("aus \(UFUniversityScope.examSource())", tone: .ok, icon: "check")
                 } else {
                     Menu {
                         ForEach(IntroExamChoice.allCases) { c in
@@ -528,11 +528,11 @@ struct IntroReadyAnswer: View {
             IntroReadyRow(text: model.displayName.map { "Begrüßung für \($0)" } ?? "Begrüßung mit deinem Vornamen", index: 0)
             if model.planSubjects {
                 IntroReadyRow(text: model.planned.isEmpty ? "Fächer wählst du später" : "\(model.planned.count) \(model.planned.count == 1 ? "Fach" : "Fächer") im Lernkalender", index: 1)
-                IntroReadyRow(text: model.withExam.isEmpty ? "Prüfungstermine ergänzt QIS" : "\(model.withExam.count) \(model.withExam.count == 1 ? "Prüfungstermin" : "Prüfungstermine") im Kalender", index: 2)
+                IntroReadyRow(text: model.withExam.isEmpty ? UFUniversityScope.examsLater() : "\(model.withExam.count) \(model.withExam.count == 1 ? "Prüfungstermin" : "Prüfungstermine") im Kalender", index: 2)
                 IntroReadyRow(text: "Dein erster Lernplan", index: 3)
             } else {
                 // ohne Lernkalender: Stundenplan mit den Hinweisen statt des ersten Lernplans
-                IntroReadyRow(text: model.withExam.isEmpty ? "Prüfungstermine ergänzt QIS" : "\(model.withExam.count) \(model.withExam.count == 1 ? "Prüfungstermin" : "Prüfungstermine") im Stundenplan", index: 1)
+                IntroReadyRow(text: model.withExam.isEmpty ? UFUniversityScope.examsLater() : "\(model.withExam.count) \(model.withExam.count == 1 ? "Prüfungstermin" : "Prüfungstermine") im Stundenplan", index: 1)
                 IntroReadyRow(text: "Dein Stundenplan mit Terminen und Fristen", index: 2)
             }
         }

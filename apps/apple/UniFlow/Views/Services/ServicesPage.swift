@@ -114,12 +114,21 @@ struct ServicesPage: View {
         let qisLocal = session.api?.isLocal == true ? qisConnection : nil
         // HsH auf dem Geraet (Audit 06.11.2026: fiel bisher auf die Karte des PC-Servers mit "QIS-Zugang hinterlegen")
         let hshLocal = session.api?.isLocal == true ? hshConnection : nil
+        // Hochschule ohne angebundenes Notenportal (Uni Goettingen, 26.11.2026: FlexNow 2): keine Karte "Notenspiegel
+        // (QIS)", keine Zugaenge des PC-Servers, keine Bescheinigungen - stattdessen eine ruhige Karte mit dem Weg dorthin
+        let plain: UniversityKey? = session.api?.isLocal == true && !UFUniversityScope.readsGrades(studip.university) ? studip.university : nil
         UFContent(maxWidth: 1120) {
-            UFPageHead("Uni & Noten", sub: hshLocal != nil
+            UFPageHead("Uni & Noten", sub: plain != nil ? UFUniversityScope.servicesSub(studip.university) : hshLocal != nil
                        ? "Alle Dienste der Hochschule Hannover an einem Ort, Leistungen aus dem Campusmanagement direkt in der App."
                        : lsf == nil
                        ? "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel" + (qisLocal == nil ? "" : " aus dem QIS") + " direkt in der App."
                        : "Alle Dienste der Universität Hildesheim an einem Ort, Notenspiegel aus dem LSF direkt in der App.")
+            // neue Hochschule mit Teil-Anbindung: was schon geht, was noch nicht (Inhaber 26.11.2026, Goettingen in 1.0.8)
+            if session.api?.isLocal == true, UFUniversityScope.newNotice(studip.university) != nil {
+                UFUniversityNewNotice(university: studip.university, identifier: "services.newnotice").padding(.bottom, 16)
+            }
+            // ohne Notenportal: keine Kennzahlen (Schnitt, LP, "noch nicht abgerufen" - es gibt nichts abzurufen)
+            if plain == nil {
             UFGrid(columns: 3) {
                 UFCard { UFKPI(value: g.n("average").map { Self.decimal($0, 1) } ?? "–", label: Self.averageLabel(g)) }
                     .accessibilityHint(Self.averageHint(g))
@@ -129,9 +138,19 @@ struct ServicesPage: View {
                                label: last == nil ? "noch nicht abgerufen" : lastOK ? "zuletzt abgerufen" : "letzter Abruf fehlgeschlagen") }
             }
             .padding(.bottom, 19.2)
+            }
 
             ServicesSpanLayout() {
-                if let lsf {
+                if let plain {
+                    UFNotOfferedCard(icon: "exam", title: UFUniversityScope.gradesTitle(plain), text: UFUniversityScope.gradesText(plain),
+                                     link: UFUniversityScope.serviceURL("flexnow", plain).map { ("\(plain.profile.gradesSource) öffnen", $0) },
+                                     identifier: "services.grades.notoffered")
+                        .environment(\.ufFillsCell, true)
+                    VStack(alignment: .leading, spacing: 8) {                              // .stack
+                        timetableCard
+                        LUHSourcesCard()
+                    }
+                } else if let lsf {
                     LSFGradesCard(connection: lsf, rows: rows, last: last, lastOK: lastOK).environment(\.ufFillsCell, true)
                     VStack(alignment: .leading, spacing: 8) {                              // .stack
                         lsfTimetableCard
@@ -162,8 +181,9 @@ struct ServicesPage: View {
             // Selbst eingetragen (20.11.2026): abgehakte Module und eigene Noten, nur wenn es welche gibt
             if !g.list("manual").isEmpty { manualCard(g.list("manual")).padding(.top, 16) }
 
-            // Bescheinigungen (06.11.2026): eigene Seite mit allem, was das Portal anbietet
-            certificatesCard.padding(.top, 16)
+            // Bescheinigungen (06.11.2026): eigene Seite mit allem, was das Portal anbietet; nicht an einer Hochschule,
+            // deren Portal StudiNow nicht liest (Uni Goettingen: eCampus steht unten bei den Diensten)
+            if plain == nil { certificatesCard.padding(.top, 16) }
 
             // Schwarzes Brett aus Stud.IP (nur Hochschulen mit dem Plugin, nur mit Anzeigen; sonst nichts)
             BulletinCard()

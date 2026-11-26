@@ -30,7 +30,8 @@ load_dotenv(env_file(), interpolate=False)
 def normalize_university(key: str | None) -> str:
     from . import universities
     k = (key or "").strip().lower()
-    return k if universities.valid(k) else universities.DEFAULT
+    # nur Hochschulen, die dieser Server selbst abgleichen kann (ohne `apps_only`, z. B. Goettingen)
+    return k if k in universities.offered() else universities.DEFAULT
 
 
 def known_universities() -> tuple[str, ...]:

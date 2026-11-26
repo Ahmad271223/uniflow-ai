@@ -707,6 +707,10 @@ extension StudIPClient {
     /// `OpencastStore.store` seine Videos und gemerkten Stellen), nie der Ersatzweg oder ein blosses 404. Wirft
     /// `sessionExpired`, `requestLimit` und Transportfehler. Nur lesend; Videos werden hier nie geladen.
     public func opencastListing(courseID: String, knownAvailable: Bool = false) async throws -> OpencastListing? {
+        // Die Erweiterung "opencastpluginluh" gibt es nur an der LUH. Ein anderes Stud.IP (Uni Goettingen, 26.11.2026:
+        // dort antwortet der Pfad in jedem Kurs mit 403 "Zugriff verweigert") wird danach nicht gefragt: gleich der
+        // Kursueberblick und, falls er darauf verweist, das Opencast-Plugin V3.
+        guard OpencastParser.hasLUHPlugin(base) else { return try await opencastListingFromOverview(courseID: courseID) }
         let r = try await htmlPage(OpencastParser.mediaIndexPath(courseID: courseID))
         // Links gegen die Stud.IP-Adresse aufloesen (nach einer Weiterleitung auf einen anderen Host nie gegen diesen)
         let page = r.finalURL.flatMap { $0.host?.lowercased() == base.host?.lowercased() ? $0 : nil } ?? base
@@ -734,17 +738,22 @@ extension StudIPClient {
             return try await opencastV3Listing(courseID: courseID) ?? .noOpencast
         case .unrecognized:
             guard !knownAvailable else { return nil }
-            // Seite sagt nichts Eindeutiges: nur der sichere Kursueberblick ohne Navigationslink "Aufzeichnungen" heisst
-            // kein Opencast; eine Zwischenseite mit 200 (Nutzungsbedingungen, Wartung) sagt nichts ueber den Kurs
-            let o = try await htmlPage(OpencastParser.overviewPath(courseID: courseID))
-            let overview = String(decoding: o.body, as: UTF8.self)
-            guard (200..<300).contains(o.status),
-                  OpencastParser.isCourseOverview(html: overview, finalURL: o.finalURL, courseID: courseID) else { return nil }
-            if OpencastParser.courseHasOpencastV3(overviewHTML: overview) {
-                let prefix = OpencastParser.opencastLinks(overviewHTML: overview).compactMap { OpencastV3.prefix(of: $0.href) }.first
-                if let v3 = try await opencastV3Listing(courseID: courseID, preferredPrefix: prefix) { return v3 }
-            }
-            return OpencastParser.courseHasRecordings(overviewHTML: overview) ? nil : .noOpencast
+            return try await opencastListingFromOverview(courseID: courseID)
         }
+    }
+
+    /// Seite sagt nichts Eindeutiges (oder das LUH-Plugin gibt es an dieser Hochschule nicht): nur der sichere
+    /// Kursueberblick ohne Navigationslink "Aufzeichnungen" heisst kein Opencast; eine Zwischenseite mit 200
+    /// (Nutzungsbedingungen, Wartung) sagt nichts ueber den Kurs
+    func opencastListingFromOverview(courseID: String) async throws -> OpencastListing? {
+        let o = try await htmlPage(OpencastParser.overviewPath(courseID: courseID))
+        let overview = String(decoding: o.body, as: UTF8.self)
+        guard (200..<300).contains(o.status),
+              OpencastParser.isCourseOverview(html: overview, finalURL: o.finalURL, courseID: courseID) else { return nil }
+        if OpencastParser.courseHasOpencastV3(overviewHTML: overview) {
+            let prefix = OpencastParser.opencastLinks(overviewHTML: overview).compactMap { OpencastV3.prefix(of: $0.href) }.first
+            if let v3 = try await opencastV3Listing(courseID: courseID, preferredPrefix: prefix) { return v3 }
+        }
+        return OpencastParser.courseHasRecordings(overviewHTML: overview) ? nil : .noOpencast
     }
 }

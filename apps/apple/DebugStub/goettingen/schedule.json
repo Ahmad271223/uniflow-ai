@@ -1,0 +1,126 @@
+{
+ "meta": {
+  "semester": "/jsonapi.php/v1/semesters/2a89f49298de03f5e06ec6efffb27e0f"
+ },
+ "links": {
+  "self": "/jsonapi.php/v1/users/0140aed7ce29ed182aeb6342ffb185d6/schedule"
+ },
+ "data": [
+  {
+   "type": "seminar-cycle-dates",
+   "id": "5b8fb2deda6141d508c74462c230ec3c",
+   "attributes": {
+    "title": "Kurszeit",
+    "description": "",
+    "start": "10:15",
+    "end": "11:45",
+    "weekday": 1,
+    "recurrence": {
+     "FREQ": "WEEKLY",
+     "INTERVAL": 1,
+     "DTSTART": "2026-10-26T10:15:00+01:00",
+     "UNTIL": "2027-02-12T23:59:59+01:00",
+     "EXDATES": []
+    },
+    "locations": [
+     "ZHG010 (ZHG)"
+    ]
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "155acb78c2e55f6f101677b5c478e8f4"
+     }
+    }
+   }
+  },
+  {
+   "type": "seminar-cycle-dates",
+   "id": "acd54029d5e2cfc0ff9f9c78e530342f",
+   "attributes": {
+    "title": "Kurszeit",
+    "description": "",
+    "start": "14:15",
+    "end": "15:45",
+    "weekday": 3,
+    "recurrence": {
+     "FREQ": "WEEKLY",
+     "INTERVAL": 1,
+     "DTSTART": "2026-10-28T14:15:00+01:00",
+     "UNTIL": "2027-02-12T23:59:59+01:00",
+     "EXDATES": []
+    },
+    "locations": [
+     "ZHG006 (ZHG)"
+    ]
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "18db79536ec05b0efaf518bb4dbff602"
+     }
+    }
+   }
+  },
+  {
+   "type": "seminar-cycle-dates",
+   "id": "f65b3667572d3c8167498a31a9f50027",
+   "attributes": {
+    "title": "Kurszeit",
+    "description": "",
+    "start": "08:15",
+    "end": "09:45",
+    "weekday": 2,
+    "recurrence": {
+     "FREQ": "WEEKLY",
+     "INTERVAL": 1,
+     "DTSTART": "2026-10-27T08:15:00+01:00",
+     "UNTIL": "2027-02-12T23:59:59+01:00",
+     "EXDATES": []
+    },
+    "locations": [
+     "ZHG011 (ZHG)"
+    ]
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "05c992a8ae577ef1e61028c6aa474074"
+     }
+    }
+   }
+  },
+  {
+   "type": "seminar-cycle-dates",
+   "id": "6d10aa143c7434eae4ff8255bdd44068",
+   "attributes": {
+    "title": "Kurszeit",
+    "description": "",
+    "start": "16:15",
+    "end": "17:45",
+    "weekday": 4,
+    "recurrence": {
+     "FREQ": "WEEKLY",
+     "INTERVAL": 1,
+     "DTSTART": "2026-10-29T16:15:00+01:00",
+     "UNTIL": "2027-02-12T23:59:59+01:00",
+     "EXDATES": []
+    },
+    "locations": [
+     "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)"
+    ]
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  }
+ ]
+}

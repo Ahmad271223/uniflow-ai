@@ -35,8 +35,13 @@ public enum CertificatePortal {
         case .luh: return "QIS"
         case .hildesheim: return "PLuS"
         case .hsh: return "Campusmanagement"
+        case .goettingen: return "eCampus"
         }
     }
+
+    /// Liest die App an dieser Hochschule Bescheinigungen? Goettingen: nein (eCampus/HISinOne hinter der Anmeldung der
+    /// Academic Cloud mit zweitem Faktor, nicht angebunden; docs/GOETTINGEN-2026-11-26.md)
+    public static func isOffered(_ university: UniversityKey) -> Bool { university != .goettingen }
 
     /// HISinOne der Hochschule (Bescheinigungen im Studienservice): HsH-Campusmanagement, PLuS der Uni Hildesheim
     public static let plusBase = URL(string: "https://plus.uni-hildesheim.de")!
@@ -49,7 +54,7 @@ public enum CertificatePortal {
         switch university {
         case .hsh: return (UniversityProfile.hshCampus, HISinOneStudyService.url)
         case .hildesheim: return (plusBase, plusStudyService)
-        case .luh: return nil
+        case .luh, .goettingen: return nil
         }
     }
 
@@ -62,6 +67,8 @@ public enum CertificatePortal {
             return "Quelle: PLuS → Studienservice → „Bescheide / Bescheinigungen“ (live bestätigt 06.11.2026): z. B. Immatrikulationsbescheinigung, Bescheinigung nach § 9 BAföG, Studienverlaufs-, Unbedenklichkeitsbescheinigung, Zahlungsnachweis, englische Fassungen. Das LSF hat keine Bescheinigungen. PLuS hat eine eigene Anmeldung (SSO Uni Hildesheim) und meldet nach 30 Minuten ohne Aktivität ab. Nach dem Tippen erstellt PLuS die PDF im Hintergrund."
         case .hsh:
             return "Quelle: Campusmanagement → Studienservice → „Bescheide und Bescheinigungen“ (live bestätigt 06.11.2026). Welche Berichte dort stehen (z. B. Notenspiegel, Zahlungsbeleg, Bescheinigung über angemeldete Prüfungen, Immatrikulationsbescheinigung), hängt von deinem Konto ab. Nach dem Tippen erstellt das Campusmanagement die PDF im Hintergrund."
+        case .goettingen:
+            return "An der Universität Göttingen liegen Bescheinigungen im eCampus. StudiNow liest sie dort noch nicht; du findest den eCampus bei den Diensten."
         }
     }
 
@@ -70,6 +77,7 @@ public enum CertificatePortal {
         case .luh: return "QIS"
         case .hildesheim: return "PLuS"
         case .hsh: return "Campusmanagement"
+        case .goettingen: return "eCampus"
         }
     }
 }
@@ -118,6 +126,7 @@ public actor CertificateClient {
         case .luh: return QISClient.startURL
         case .hildesheim: return UniversityProfile.hildesheimLSFStart
         case .hsh: return HISinOne.iframeSource(html: try await HISinOneClient(transport: transport, retry: retry).campusPage(HISinOne.qisIframeURL))
+        case .goettingen: return nil                        // kein QIS; nie das QIS einer anderen Hochschule
         }
     }
 
@@ -283,6 +292,7 @@ public actor CertificateClient {
     /// Alle angebotenen Dokumente (nur Links und Zeilen lesen, nichts erzeugen)
     public func discover() async throws -> [CertificateOffer] {
         var out: [CertificateOffer] = []
+        guard CertificatePortal.isOffered(university) else { return [] }
         if university == .hildesheim {      // LSF hat keine Bescheinigungen (Strukturnotizen 06.11.2026): nur PLuS
             return CertificateParser.hisinoneOffers(html: try await hisinoneDocumentsPage().html, university: university.rawValue)
         }

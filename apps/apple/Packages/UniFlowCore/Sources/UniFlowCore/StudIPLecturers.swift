@@ -260,7 +260,7 @@ public enum StudIPLecturers {
     /// `overview(...)`: GET /api/lecturers fuer einen Kurs, ein Modul oder alle aktiven Kurse, mit Suche `q`
     public static func overview(_ c: SQLiteConnection, university: String, base: String, courseID: String? = nil, moduleID: Int? = nil,
                                 q: String? = nil, allowed: Bool = true) throws -> JSONValue {
-        let available = university == "luh" && allowed
+        let available = offered(university) && allowed
         var out: [String: JSONValue] = ["available": .bool(available), "university": .string(university), "people": .array([]), "count": 0,
                                         "total": 0, "loaded": false, "updated_at": .null, "hint": .null, "no_email": .string(noEmail)]
         guard available else { return .object(out) }
@@ -476,11 +476,14 @@ public enum StudIPLecturers {
         try StudIPExtras.saveMissing(c, d.missing)
     }
 
-    /// Ein Lauf auf dem Geraet: faellige Kurse, Abruf, Speichern. Nur an Hochschulen mit Stud.IP (`university == "luh"`).
+    /// Hochschule mit Stud.IP (LUH, Goettingen) wie `universities.has_studip`: nur dort gibt es Lehrende aus Stud.IP
+    public static func offered(_ university: String?) -> Bool { UniversityProfile.profile(forKey: university)?.studipBase != nil }
+
+    /// Ein Lauf auf dem Geraet: faellige Kurse, Abruf, Speichern. Nur an Hochschulen mit Stud.IP (`offered`).
     @discardableResult
     public static func run(client: StudIPClient, database: SQLiteDatabase, courseIDs: [String], clock: UniFlowClock,
                            university: String = "luh") async -> Download {
-        guard university == "luh", let today = BerlinClock.parseISODate(clock.today) else { return Download() }
+        guard offered(university), let today = BerlinClock.parseISODate(clock.today) else { return Download() }
         guard let (due, missing) = try? await database.withConnection({ c in
             (try Self.due(c, courseIDs: courseIDs, today: today), try StudIPExtras.loadMissing(c))
         }) else { return Download() }

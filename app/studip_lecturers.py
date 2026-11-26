@@ -258,10 +258,12 @@ def due(conn, course_ids: list[str], today: date) -> list[str]:
 def overview(conn, university: str, base: str, course_id: str | None = None, module_id: int | None = None,
              q: str | None = None, allowed: bool = True) -> dict:
     """GET /api/lecturers: Lehrende eines Kurses (`course_id`), eines Moduls (`module_id`) oder aller aktiven Kurse,
-    optional gefiltert (`q`: Name, E-Mail, Kurs oder Modul). Nur an der LUH (`available`); HsH und Hildesheim: spaeter.
+    optional gefiltert (`q`: Name, E-Mail, Kurs oder Modul). Nur an Hochschulen mit Stud.IP (`available`: LUH,
+    Goettingen); HsH und Hildesheim: spaeter.
     Person: {id, name, email, has_email, no_email, roles, role_label, label, office_hours, location, institute, username,
     courses: [{course_id, title, module_id, module_name, role, role_label}], message_url, mailto}."""
-    available = university == "luh" and allowed
+    from . import universities
+    available = universities.has_studip(university) and allowed
     out = {"available": available, "university": university, "people": [], "count": 0, "total": 0, "loaded": False,
            "updated_at": None, "hint": None, "no_email": NO_EMAIL}
     if not available:
@@ -345,9 +347,9 @@ def known_person(conn, user_id: str) -> dict | None:
 # ----------------------------------------------------------------------------
 
 def lecturers_allowed() -> bool:
-    """Nur lokal (PC/Windows-App im Einzelplatz-Betrieb), nie im Dienst; nur an der LUH."""
-    from . import config
-    return not config.is_hosted() and config.university() == "luh"
+    """Nur lokal (PC/Windows-App im Einzelplatz-Betrieb), nie im Dienst; nur an Hochschulen mit Stud.IP."""
+    from . import config, universities
+    return not config.is_hosted() and universities.has_studip(config.university())
 
 
 def sync(get, conn, course_ids: list[str], today: date, fetched_at: str) -> dict:

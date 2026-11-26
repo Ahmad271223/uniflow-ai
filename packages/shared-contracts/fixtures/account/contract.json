@@ -85,7 +85,8 @@
   "universities": [
    "luh",
    "hildesheim",
-   "hsh"
+   "hsh",
+   "goettingen"
   ],
   "auth": "Authorization: Bearer <token> (Apps) oder Cookie uniflow_session (Browser)",
   "error_shape": {

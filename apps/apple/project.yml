@@ -68,8 +68,10 @@ targets:
         # ("Ja, auch im Store"): Release (TestFlight, App Store, Kabel-Fassungen) bietet ihn an und er ist von selbst AN,
         # Ausschalten in den Einstellungen. Debug bleibt NO (Tests, Simulator): dort geht nie etwas weg.
         # Vor dem Einreichen muessen Nutzungsbedingungen + Datenschutz (Entwuerfe in docs/release) live sein.
+        # Uni Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md): Inhaber 26.11.2026 abends „das soll übermorgen mit
+        # reinkommen“ - ab dem naechsten Build auch im Release zur Wahl (Stud.IP, Schwarzes Brett, Mensa; Noten usw. folgen).
         Debug:
-          UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"
+          UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh goettingen"
           UF_INTAKE_OFFERED: "NO"
           # Testlauf am Mac ("Designed for iPad", 14.11.2026, docs/MAC-TESTLAUF-EIGENER-ORDNER-2026-11-14.md): am Mac
           # waere der Testwirt sonst dieselbe App wie die installierte (gleiche Kennung = gleicher Datenordner,
@@ -81,9 +83,10 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: $(UF_DEBUG_BUNDLE_ID)
           # CloudKit-Umgebung (UniFlow.entitlements, icloud-container-environment): Debug aus Xcode bleibt in Development
           UF_CLOUDKIT_ENVIRONMENT: Development
-        # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet
+        # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet.
+        # 26.11.2026 (Inhaber): dazu die Uni Goettingen
         Release:
-          UF_SHIPPED_UNIVERSITIES: "luh hildesheim"
+          UF_SHIPPED_UNIVERSITIES: "luh hildesheim goettingen"
           # Datei-Eingang aus (Inhaber 26.11.2026: "Eingang abschalten"). Der Dienst nimmt seit 26.11.2026 nichts mehr an
           # (LERNAPP_INTAKE_URL auskommentiert, 503 intake_off); 1.0.6 und 1.0.7 im Store waren mit YES gebaut.
           UF_INTAKE_OFFERED: "NO"
@@ -151,7 +154,8 @@ targets:
           - UIInterfaceOrientationPortrait
         # iCloud-Container der Community (leer ohne Config/Team.xcconfig; dann "Community nicht verfügbar")
         UFCloudKitContainer: $(UF_CLOUDKIT_CONTAINER)
-        # Hochschulen zur Wahl in diesem Build (Release seit Build 40 "luh hildesheim", siehe UF_SHIPPED_UNIVERSITIES oben)
+        # Hochschulen zur Wahl in diesem Build (Release seit Build 40 "luh hildesheim", ab dem Build nach 50 mit
+        # "goettingen", siehe UF_SHIPPED_UNIVERSITIES oben)
         UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)
         # Datei-Eingang: seit 26.11.2026 in Release und Debug aus (UF_INTAKE_OFFERED oben; CourseFileIntakeSetting.isOffered)
         UFIntakeOffered: $(UF_INTAKE_OFFERED)
@@ -283,6 +287,10 @@ targets:
       # Stub-Ordner und Vertrags-Fixtures auch im Testbundle: auf dem Mac ("Designed for iPad") laeuft die App in der
       # Sandbox und darf den Repo-Ordner nicht lesen (Befund 08.11.2026); ContainerTestBed.repoURL faellt darauf zurueck
       - path: DebugStub/erststart
+        type: folder
+        buildPhase: resources
+      # Nachbildung des Stud.IP der Uni Goettingen (tools/build-goettingen-stub.py), fuer GoettingenAppTests
+      - path: DebugStub/goettingen
         type: folder
         buildPhase: resources
       - path: ../../packages/shared-contracts/fixtures

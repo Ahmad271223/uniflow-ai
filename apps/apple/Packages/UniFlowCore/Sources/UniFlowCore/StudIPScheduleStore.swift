@@ -482,7 +482,10 @@ public enum StudIPScheduleStore {
                                "attributes": ["title": r["title"] ?? .null, "course-number": r["number"] ?? .null, "course-type": r["course_type"] ?? .null]]
             info[course] = (r["module_id"] ?? .null, r["kind"] ?? .null)
         }
-        let tt = StudIPSchedule.timetable(schedule: schedule, courses: courses.keys.sorted().compactMap { courses[$0] })
+        // Nummern der Veranstaltungsarten sind je Hochschule verschieden (Goettingen: 4 = Seminar, 21 = Übung)
+        let university = try c.scalar("SELECT value FROM settings WHERE key='university'")?.string
+        let tt = StudIPSchedule.timetable(schedule: schedule, courses: courses.keys.sorted().compactMap { courses[$0] },
+                                          courseTypes: StudIPSchedule.courseTypes(university: university))
         let t = try LocalTimetable.term(c)
         let term = StudIPTerm(start: t["start"]?.string ?? "", end: t["end"]?.string ?? "")
         let all = tt.entries.map { e in

@@ -29,7 +29,8 @@ DATA = ROOT / "packages" / "shared-contracts" / "mensa.json"
 SWIFT = ROOT / "apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/Mensa/MensaData.swift"
 FX = ROOT / "packages" / "shared-contracts" / "fixtures" / "mensa"
 CASES = FX / "cases.json"
-RAW = [("studifutter", "studifutter-garbsen.json"), ("stwon", "stwon-hi-uni.json"), ("openmensa", "openmensa-hauptmensa.json")]
+RAW = [("studifutter", "studifutter-garbsen.json"), ("stwon", "stwon-hi-uni.json"), ("openmensa", "openmensa-hauptmensa.json"),
+       ("stwgoe", "stwgoe-zentralmensa.json")]
 TODAY = date(2026, 11, 5)
 FILTERS = [
     {},
@@ -85,6 +86,19 @@ def check_data(d: dict) -> list[str]:
     for code, key in d.get("stwon_allergens", {}).items():
         if key not in allergens:
             errs.append(f"stwon_allergens.{code}")
+    for code, a in d.get("stwgoe_allergens", {}).items():
+        if a.get("key") not in allergens or not a.get("name") or not re.fullmatch(r"[a-n](\.[0-9])?", code):
+            errs.append(f"stwgoe_allergens.{code}")
+    for code, name in d.get("stwgoe_additives", {}).items():
+        if not re.fullmatch(r"[0-9]{1,2}", code) or not name:
+            errs.append(f"stwgoe_additives.{code}")
+    for icon, t in d.get("stwgoe_icons", {}).items():
+        if icon != icon.lower() or not set(t.get("labels") or []) <= labels:
+            errs.append(f"stwgoe_icons.{icon}")
+    for k, s in d.get("sources", {}).items():
+        # Quelle ohne Preise je Gericht: nie eine Ersatzquelle mit Preisen dahinter
+        if s.get("prices") is False and any(c.get("openmensa") for c in d.get("canteens", []) if c.get("source", {}).get("kind") == k):
+            errs.append(f"sources.{k}: prices false, aber openmensa gesetzt")
     for r in d.get("openmensa_notes", []):
         if not set(r.get("label") or []) <= labels or (r.get("allergen") and r["allergen"] not in allergens):
             errs.append(f"openmensa_notes.{r.get('match')}")
@@ -106,6 +120,8 @@ def cases(d: dict) -> dict:
     sf = parsed["studifutter-garbsen.json"]["result"]
     on = parsed["stwon-hi-uni.json"]["result"]
     om = parsed["openmensa-hauptmensa.json"]["result"]
+    goe = parsed["stwgoe-zentralmensa.json"]["result"]
+    goe_day = goe["days"]["2026-11-26"]
     sample = sf["days"]["2026-11-05"] + on["days"]["2026-11-05"]
     end = date(2026, 11, 18)
     return {
@@ -122,6 +138,18 @@ def cases(d: dict) -> dict:
         "filters": [{"filter": f, "ids": [m["id"] for m in mensa.filter_meals(sample, f)],
                      "top": [m["id"] for m in mensa.top_meals(sample, 3, f)]} for f in FILTERS],
         "top_stwon": [m["id"] for m in mensa.top_meals(on["days"]["2026-11-05"], 3)],
+        # Goettingen (26.11.2026): Status je Tag (Sonntag ohne Angebot = geschlossen), Filter ("ohne Schwein" blendet dort
+        # jedes Fleischgericht aus, weil der Plan die Fleischart nicht nennt), Auswahl, Sortierung nach Preis ohne Preise
+        "stwgoe": {
+            "status": [x["status"] for x in mensa.build_days(date(2026, 11, 26), 6, goe, "2026-11-26")],
+            "filters": [{"filter": f, "ids": [m["id"] for m in mensa.filter_meals(goe_day, f)],
+                         "top": [m["id"] for m in mensa.top_meals(goe_day, 3, f)]} for f in FILTERS],
+            "price_sort": [m["id"] for m in mensa.sort_meals(goe_day, "price", "student")],
+            "prices": sorted({json.dumps(m["prices"], sort_keys=True) for ms in goe["days"].values() for m in ms}),
+            "pork_unknown": [m["id"] for m in goe_day if m.get("pork_unknown")],
+            "urls": mensa.stwgoe_urls(mensa.canteen("goe-zentralmensa", d), date(2026, 11, 26), date(2026, 12, 9), d),
+            "urls_short": mensa.stwgoe_urls(mensa.canteen("goe-turm", d), date(2026, 11, 26), date(2026, 11, 27), d),
+        },
         "sorts": [{"fixture": fx, "by": by, "role": role,
                    "ids": [m["id"] for m in mensa.sort_meals(res["days"]["2026-11-05"], by, role)]}
                   for fx, res in [("studifutter-garbsen.json", sf), ("stwon-hi-uni.json", on), ("openmensa-hauptmensa.json", om)]
@@ -131,10 +159,11 @@ def cases(d: dict) -> dict:
         "prices": [{"id": m["id"], "role": r, "price": mensa.price_for(m, r)} for m in sample[:3] for r in ("student", "employee", "guest", "x")],
         "pretty": {s: mensa.pretty_category(s) for s in ["VEGGIE & VEGAN", "SÜSSE ECKE", "PASTA & FRIENDS", "Essen 1", "", "  QUER  BEET ", "Beilage"]},
         "urls": {cid: mensa.source_url(mensa.canteen(cid, d), TODAY, end, kind, d)
-                 for cid, kind in [("garbsen", "studifutter"), ("hi-uni", "stwon"), ("hauptmensa", "openmensa")]},
+                 for cid, kind in [("garbsen", "studifutter"), ("hi-uni", "stwon"), ("hauptmensa", "openmensa"),
+                                   ("goe-cgin", "stwgoe")]},
         "canteens": {u: (lambda r: {"university": r["university"], "region": r["region"], "default": r["default"],
                                     "ids": [c["id"] for c in r["canteens"]], "own": [c["id"] for c in r["canteens"] if c["own"]]})(
-                         mensa.canteens_response(u, d)) for u in ["luh", "hsh", "hildesheim", "unbekannt"]},
+                         mensa.canteens_response(u, d)) for u in ["luh", "hsh", "hildesheim", "goettingen", "unbekannt"]},
     }
 
 

@@ -27,7 +27,7 @@ struct StudIPView: View {
         .navigationBarTitleDisplayMode(.inline)
         .quickLookPreview($preview)
         .ufSheet(isPresented: $showLogin) {
-            StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
+            StudIPLoginView(base: studip.base, dataStore: studip.websiteDataStore) { cookies in
                 showLogin = false
                 studip.signedIn(cookies: cookies)
             }
@@ -274,8 +274,9 @@ struct StudIPLoginPane<Bottom: View>: View {
     }
 
     var body: some View {
-        // direkt ins WebSSO der LUH: gilt die Uni-Anmeldung noch, ist man ohne Eingabe drin; sonst setzt iOS das Passwort ein
-        StudIPWebView(url: DebugUniStub.loginPage("studip", real: StudIPSync.ssoLoginURL(base: base)), dataStore: dataStore,
+        // LUH: direkt ins WebSSO (gilt die Uni-Anmeldung noch, ist man ohne Eingabe drin; sonst setzt iOS das Passwort
+        // ein). Uni Goettingen: die Anmeldeseite von Stud.IP selbst mit den Feldern "Benutzername" und "Passwort"
+        StudIPWebView(url: DebugUniStub.loginPage("studip", real: StudIPSync.loginEntryURL(base: base)), dataStore: dataStore,
                       load: load) { webView in check(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -321,10 +322,10 @@ struct StudIPLoginPane<Bottom: View>: View {
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
             let mine = StudIPSync.ownCookies(cookies, host: base.host ?? "")
             Task { @MainActor in
-                var ok = await StudIPSync.sessionIsValid(mine)
+                var ok = await StudIPSync.sessionIsValid(mine, base: base)
                 if !ok {
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
-                    ok = await StudIPSync.sessionIsValid(mine)
+                    ok = await StudIPSync.sessionIsValid(mine, base: base)
                 }
                 checking = false
                 if ok, !done { done = true; onSignedIn(mine) } else if !ok { checkFailed = true }
@@ -571,7 +572,12 @@ struct StudIPWebView: UIViewRepresentable {
 @MainActor
 enum StudIPSilentLogin {
     /// `background`: aus dem Hintergrundlauf (Version 1.3/1.4): ohne Fenster, die Webansicht laeuft ausserhalb jeder Ansicht
-    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20, background: Bool = false) async -> [HTTPCookie]? {
+    /// `base`, `university`: Stud.IP und Hochschule des Abgleichs (Vorgabe: offener Container). Steht die Seite einige
+    /// Sekunden auf dem eigenen Anmeldeformular der Hochschule (Uni Goettingen: derselbe Rechner wie Stud.IP), wartet
+    /// sie auf das Passwort: Abbruch statt Warten bis zum Zeitlimit.
+    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20, background: Bool = false,
+                        base: URL = StudIPSync.base, university: UniversityKey? = nil) async -> [HTTPCookie]? {
+        let university = university ?? ActiveContainer.current?.key.university ?? .luh
         await UniWebSessions.ready(dataStore)                     // Uni-Anmeldung von vor dem Neustart zuerst zurueck
         let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
         guard window != nil || background else { return nil }
@@ -585,7 +591,7 @@ enum StudIPSilentLogin {
             web.removeFromSuperview()
         }
         web.load(URLRequest(url: url))
-        let host = StudIPSync.base.host ?? ""
+        let host = base.host ?? ""
         let deadline = Date().addingTimeInterval(timeout)
         var checked: URL?
         var stable: (url: URL, since: Date)?
@@ -593,11 +599,14 @@ enum StudIPSilentLogin {
             try? await Task.sleep(nanoseconds: 600_000_000)
             guard !web.isLoading, let u = web.url else { continue }
             if stable?.url != u { stable = (u, Date()) }
-            if u.host == host {
+            if u.host == host, UniLoginForms.form(for: u, university: university) != nil {
+                // eigenes Anmeldeformular auf dem Stud.IP-Rechner: bleibt die Seite dort stehen, braucht es das Passwort
+                if let s = stable, Date().timeIntervalSince(s.since) > 4 { return nil }
+            } else if u.host == host {
                 guard !u.path.contains("Shibboleth.sso"), checked != u else { continue }
                 checked = u
                 let mine = StudIPSync.ownCookies(await dataStore.httpCookieStore.allCookies(), host: host)
-                if await StudIPSync.sessionIsValid(mine) { return mine }
+                if await StudIPSync.sessionIsValid(mine, base: base) { return mine }
             } else if let s = stable, Date().timeIntervalSince(s.since) > 4 {
                 return nil                                         // Uni-Login wartet auf das Passwort
             }

@@ -4,7 +4,7 @@ enum MensaData {
 {
   "v": 1,
   "checked_at": "2026-11-05",
-  "note": "Mensen der Studentenwerke Hannover und OstNiedersachsen (docs/MENSA-2026-11-05.md). Quelle je Mensa in source; Hannover mit OpenMensa als Ersatz. Oeffnungszeiten von den Seiten der Studentenwerke (gelesen am checked_at). Pruefen: tools/gen-mensa-fixture.py --check",
+  "note": "Mensen der Studentenwerke Hannover und OstNiedersachsen (docs/MENSA-2026-11-05.md). Quelle je Mensa in source; Hannover mit OpenMensa als Ersatz. Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md): Studierendenwerk Goettingen, HTML-Bausteine je Tag und Mensa (stwgoe, bietet heute und fuenf Tage, keine Preise je Gericht); Kennzeichen (stwgoe_allergens, stwgoe_additives, stwgoe_icons) aus der Legende der Speiseplan-Seite. Oeffnungszeiten von den Seiten der Studentenwerke (gelesen am checked_at). Pruefen: tools/gen-mensa-fixture.py --check",
   "sources": {
     "studifutter": {
       "name": "Studentenwerk Hannover",
@@ -23,12 +23,21 @@ enum MensaData {
       "url": "https://openmensa.org",
       "api": "https://openmensa.org/api/v2",
       "attribution": "Speiseplan: OpenMensa (Daten des Studentenwerks Hannover)"
+    },
+    "stwgoe": {
+      "name": "Studierendenwerk Göttingen",
+      "url": "https://www.studierendenwerk-goettingen.de/campusgastronomie/mensen/speiseplaene-der-mensen",
+      "api": "https://www.studierendenwerk-goettingen.de/fileadmin/templates/php/mensaspeiseplan/cached",
+      "attribution": "Speiseplan: Studierendenwerk Göttingen (ohne Preise; die Preisliste steht auf der Seite der Mensa)",
+      "days": 6,
+      "prices": false
     }
   },
   "universities": {
     "luh": {"region": "hannover", "default": "hauptmensa"},
     "hsh": {"region": "hannover", "default": "linden"},
-    "hildesheim": {"region": "hildesheim", "default": "hi-uni"}
+    "hildesheim": {"region": "hildesheim", "default": "hi-uni"},
+    "goettingen": {"region": "goettingen", "default": "goe-zentralmensa"}
   },
   "canteens": [
     {"id": "hauptmensa", "name": "Hauptmensa", "region": "hannover", "universities": ["luh"],
@@ -102,7 +111,22 @@ enum MensaData {
      "address": "Hohnsen 1, 31134 Hildesheim",
      "source": {"kind": "stwon", "id": 160}, "openmensa": null,
      "url": "https://stw-on.de/hildesheim/essen/mensen-cafeterien/mensa-hohnsen",
-     "hours": [{"label": "Mittagsmensa", "lines": ["Mo–Fr 8:30–14:15", "Frühstück ab 8:30"]}]}
+     "hours": [{"label": "Mittagsmensa", "lines": ["Mo–Fr 8:30–14:15", "Frühstück ab 8:30"]}]},
+    {"id": "goe-zentralmensa", "name": "Zentralmensa", "region": "goettingen", "universities": ["goettingen"],
+     "address": "Platz der Göttinger Sieben 4, 37073 Göttingen",
+     "source": {"kind": "stwgoe", "id": "zentralmensa"}, "openmensa": null,
+     "url": "https://www.studierendenwerk-goettingen.de/campusgastronomie/mensen/zentralmensa",
+     "hours": [{"label": "Öffnungszeiten", "lines": ["Mo–Do 11:30–18:00", "Fr 11:30–14:30", "Sa 11:45–14:30"]}]},
+    {"id": "goe-cgin", "name": "CGiN (Nordmensa)", "region": "goettingen", "universities": ["goettingen"],
+     "address": "Grisebachstraße 10, 37077 Göttingen",
+     "source": {"kind": "stwgoe", "id": "cgin"}, "openmensa": null,
+     "url": "https://www.studierendenwerk-goettingen.de/campusgastronomie/mensen/studierendenwerk-goettingen-cgin",
+     "hours": [{"label": "Öffnungszeiten", "lines": ["Mo–Fr 11:15–14:15"]}]},
+    {"id": "goe-turm", "name": "Mensa am Turm", "region": "goettingen", "universities": ["goettingen"],
+     "address": "Goßlerstraße 12b, 37073 Göttingen",
+     "source": {"kind": "stwgoe", "id": "mensa_am_turm"}, "openmensa": null,
+     "url": "https://www.studierendenwerk-goettingen.de/campusgastronomie/mensen/studentenwerk-goettingen-mensa-am-turm",
+     "hours": [{"label": "Öffnungszeiten", "lines": ["Mo–Do 11:30–14:30", "Fr 11:30–14:15"]}]}
   ],
   "labels": [
     {"key": "vegan", "name": "vegan"},
@@ -219,6 +243,31 @@ enum MensaData {
     "GL": "gluten", "KR": "krebstiere", "EI": "ei", "FI": "fisch", "EN": "erdnuss", "SO": "soja", "ML": "milch",
     "NU": "schalenfruechte", "SL": "sellerie", "SF": "senf", "SE": "sesam", "SW": "sulfite", "LU": "lupine", "WT": "weichtiere"
   },
+  "stwgoe_allergens": {
+    "a": {"key": "gluten", "name": "Glutenhaltiges Getreide"}, "a.1": {"key": "gluten", "name": "Weizen"},
+    "a.2": {"key": "gluten", "name": "Gerste"}, "a.3": {"key": "gluten", "name": "Hafer"}, "a.4": {"key": "gluten", "name": "Roggen"},
+    "b": {"key": "krebstiere", "name": "Krebstiere"}, "c": {"key": "ei", "name": "Eier"}, "d": {"key": "fisch", "name": "Fisch"},
+    "e": {"key": "erdnuss", "name": "Erdnüsse"}, "f": {"key": "soja", "name": "Soja"}, "g": {"key": "milch", "name": "Milch"},
+    "h": {"key": "schalenfruechte", "name": "Schalenfrüchte"}, "h.1": {"key": "schalenfruechte", "name": "Mandeln"},
+    "h.2": {"key": "schalenfruechte", "name": "Haselnüsse"}, "h.3": {"key": "schalenfruechte", "name": "Walnüsse"},
+    "h.4": {"key": "schalenfruechte", "name": "Kaschunüsse"}, "h.5": {"key": "schalenfruechte", "name": "Pecannüsse"},
+    "h.6": {"key": "schalenfruechte", "name": "Paranüsse"}, "h.7": {"key": "schalenfruechte", "name": "Pistazien"},
+    "h.8": {"key": "schalenfruechte", "name": "Macadamianüsse"}, "i": {"key": "sellerie", "name": "Sellerie"},
+    "j": {"key": "senf", "name": "Senf"}, "k": {"key": "sesam", "name": "Sesam"}, "l": {"key": "sulfite", "name": "Schwefeldioxid und Sulfite"},
+    "m": {"key": "lupine", "name": "Lupinen"}, "n": {"key": "weichtiere", "name": "Weichtiere"}
+  },
+  "stwgoe_additives": {
+    "1": "mit Konservierungsstoff", "2": "mit Farbstoff", "3": "mit Antioxidationsmittel", "4": "mit Geschmacksverstärker",
+    "5": "geschwefelt", "6": "geschwärzt", "7": "gewachst", "8": "mit Phosphat", "9": "mit Süßungsmittel",
+    "10": "enthält eine Phenylalaninquelle", "11": "mit kakaohaltiger Fettglasur"
+  },
+  "stwgoe_icons": {
+    "vegan": {"labels": ["vegan", "vegetarisch"]}, "vegetarisch": {"labels": ["vegetarisch"]},
+    "fisch": {"labels": ["fisch"]}, "fleisch": {"labels": ["fleisch"], "meat": true},
+    "strohschwein": {"labels": ["schwein", "fleisch"], "meat": true, "note": "Leinekrone Strohschwein"},
+    "leinetalerrind": {"labels": ["rind", "fleisch"], "meat": true, "note": "Leinetaler Bauernrind"},
+    "nds": {"labels": [], "note": "Niedersachsen-Menü"}
+  },
   "openmensa_notes": [
     {"match": "vegan", "label": ["vegan", "vegetarisch"]},
     {"match": "ohne fleisch", "label": ["vegetarisch"]},
@@ -243,7 +292,8 @@ enum MensaData {
     {"match": "lupine", "allergen": "lupine"},
     {"match": "weichtiere", "allergen": "weichtiere"}
   ],
-  "side_categories": ["beilage", "beilagen", "gemüse", "dessert", "desserts", "süße ecke", "querbeet", "salat", "salate", "salatbar"]
+  "side_categories": ["beilage", "beilagen", "gemüse", "dessert", "desserts", "süße ecke", "querbeet", "salat", "salate", "salatbar",
+                      "salatbuffet", "green salatbuffet", "extra salat", "stärkebeilage", "gemüsebeilage", "last minute"]
 }
 """#
 }

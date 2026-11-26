@@ -87,7 +87,7 @@ public enum UFReleaseUniversities {
     /// Lernplattformen (Kurse, Dateien) der ausgelieferten Hochschulen fuer Texte ohne bestimmte Hochschule, in fester
     /// Reihenfolge: Store-Build 1.0 "Stud.IP", mit allen "Stud.IP, Learnweb bzw. Moodle" (Abnahme 07.11.2026: im
     /// Store-Build kein Learnweb/Moodle auf dem Bildschirm)
-    public static var filePlatforms: String { joined(shipped, ["luh": "Stud.IP", "hildesheim": "Learnweb", "hsh": "Moodle"]) }
+    public static var filePlatforms: String { joined(shipped, ["luh": "Stud.IP", "hildesheim": "Learnweb", "hsh": "Moodle", "goettingen": "Stud.IP"]) }
 
     /// Notenquellen der ausgelieferten Hochschulen: Store-Build 1.0 "QIS", mit allen "QIS, LSF bzw. HISinOne"
     public static var gradePlatforms: String { joined(shipped, ["luh": "QIS", "hildesheim": "LSF", "hsh": "HISinOne"]) }

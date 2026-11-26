@@ -196,7 +196,7 @@ struct SettingsUniAccessHint: View {
 
     var body: some View {
         if !demo, studip.offersStudIP, let title = Self.title(studip.phase) {
-            SettingsNotice(title, text: Self.text, tone: .info) {
+            SettingsNotice(title, text: UFUniversityScope.settingsHint(studip.university), tone: .info) {
                 UFButton(Self.button, icon: "arrow-right", kind: .primary, size: .small, action: open)
                     .accessibilityIdentifier("settings.account.openUni")
             }

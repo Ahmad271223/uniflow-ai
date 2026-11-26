@@ -227,10 +227,10 @@ struct LUHSourcesCard: View {
 
     var body: some View {
         UFCard {
-            UFCardHead("Stud.IP & QIS", icon: "graduation") {
+            UFCardHead(qis == nil && studip.university != .luh ? "Stud.IP" : "Stud.IP & QIS", icon: "graduation") {
                 studip.phase != .signedOut ? UFBadge("verbunden", tone: .ok) : UFBadge("nicht verbunden", tone: .warn)
             }
-            Text(Self.text)
+            Text(Self.text(studip.university))
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(alignment: .leading, spacing: 0) {
@@ -259,6 +259,13 @@ struct LUHSourcesCard: View {
             Text(detail).ufFont(11.84).foregroundStyle(UF.muted)
         }
         .accessibilityElement(children: .combine)
+    }
+
+    /// Text der Karte je Hochschule: LUH wie bisher (`text`); ein anderes Stud.IP (Uni Goettingen) ohne QIS, ohne
+    /// "Aufzeichnungen" und mit dem Namen des Kontos dort
+    static func text(_ u: UniversityKey) -> String {
+        guard u != .luh, u.profile.studipBase != nil else { return text }
+        return UFDevice.adapt("Stud.IP (Kurse, Dateien, Stundenplan, Nachrichten) der \(u.profile.name). Du meldest dich auf der Seite von Stud.IP mit deinem Uni-Konto an und tippst selbst auf „Anmelden“; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad (dann meldet StudiNow dich selbst wieder an). Deine Dateien bleiben nur auf diesem iPad.")
     }
 
     static let text = UFDevice.adapt("Stud.IP (Kurse, Dateien, Stundenplan, Aufzeichnungen) und QIS (Notenspiegel) der Leibniz Universität Hannover. Du meldest dich auf den Seiten der Universität mit deiner LUH-ID an und tippst selbst auf „Anmelden“; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad (dann meldet StudiNow dich selbst wieder an). Dateien und Noten bleiben nur auf diesem iPad.")

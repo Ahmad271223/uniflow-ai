@@ -1,0 +1,59 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 1
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "course-memberships",
+   "id": "05c992a8ae577ef1e61028c6aa474074_9fb9fa78ae8934283587f57b8b84a9e3",
+   "attributes": {
+    "permission": "dozent",
+    "position": 0,
+    "group": 0,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "label": ""
+   },
+   "relationships": {
+    "course": {
+     "data": {
+      "type": "courses",
+      "id": "05c992a8ae577ef1e61028c6aa474074"
+     }
+    },
+    "user": {
+     "data": {
+      "type": "users",
+      "id": "9fb9fa78ae8934283587f57b8b84a9e3"
+     }
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "type": "users",
+   "id": "9fb9fa78ae8934283587f57b8b84a9e3",
+   "attributes": {
+    "username": "b.dozentin",
+    "formatted-name": "Prof. Dr. Beispiel Dozentin",
+    "family-name": "Dr. Beispiel Dozentin",
+    "given-name": "Prof.",
+    "name-prefix": "",
+    "name-suffix": "",
+    "permission": "dozent",
+    "email": "beispiel.dozentin@example.org"
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/users/9fb9fa78ae8934283587f57b8b84a9e3"
+   }
+  }
+ ]
+}

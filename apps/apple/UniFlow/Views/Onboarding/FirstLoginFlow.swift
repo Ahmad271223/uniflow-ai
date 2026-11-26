@@ -26,6 +26,7 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
         case .luh: return [.studip, .qis]
         case .hildesheim: return [.learnweb, .lsf]
         case .hsh: return [.moodle, .campus]
+        case .goettingen: return [.studip]                  // nur Stud.IP; FlexNow und eCampus sind nicht angebunden
         }
     }
 
@@ -38,6 +39,17 @@ enum FirstLoginStep: String, CaseIterable, Identifiable {
         case .moodle: return "Bei Moodle anmelden"
         case .campus: return "Im Campusmanagement anmelden"
         }
+    }
+
+    /// Was die Anmeldung an dieser Hochschule bringt. Uni Goettingen: ohne "Aufzeichnungen" (dort laufen Videos ueber
+    /// die Erweiterung "Mediacast", die StudiNow nicht liest) und mit dem Hinweis, welches Konto gemeint ist
+    func intro(for u: UniversityKey) -> String {
+        if self == .studip, u == .goettingen {
+            // das Wichtige zuerst (am iPhone zeigt der Kopf nur drei Zeilen): die Seite bietet daneben "CAS Login" und
+            // "Other Institutes Login" an; StudiNow kennt nur die beiden Felder des Formulars
+            return UFDevice.adapt("Nimm die Felder „Benutzername“ und „Passwort“ direkt auf der Seite (dein Uni-Konto). Danach holt StudiNow Kurse, Dateien, Stundenplan und Nachrichten auf dieses iPad.")
+        }
+        return intro
     }
 
     /// Was die Anmeldung bringt (ein Satz unter dem Titel)
@@ -198,7 +210,7 @@ struct FirstLoginPage: View {
                 Text("Schritt \(index + 1) von \(count): \(step.title)").ufFont(phone ? 16 : 20, 700, em: -0.01).foregroundStyle(UF.text)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("firststart.title")
-                Text(step.intro).ufFont(phone ? 12.8 : 13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                Text(step.intro(for: studip.university)).ufFont(phone ? 12.8 : 13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                     .lineLimit(phone ? 3 : nil)
                 if !phone {
                     Text(Self.passwordNote)
@@ -219,7 +231,7 @@ struct FirstLoginPage: View {
     @ViewBuilder private var pane: some View {
         switch step {
         case .studip:
-            StudIPLoginPane(base: StudIPSync.base, dataStore: studip.websiteDataStore, onSignedIn: { cookies in
+            StudIPLoginPane(base: studip.base, dataStore: studip.websiteDataStore, onSignedIn: { cookies in
                 studip.signedIn(cookies: cookies)
                 onDone()
             }) { later }
@@ -354,8 +366,12 @@ struct FirstSyncRow: Equatable, Identifiable {
 enum FirstSyncProgress {
     /// LUH: Stud.IP-Abgleich (Kurse und Dateien -> Stundenplan -> Aufzeichnungen, Reihenfolge wie `StudIPSync.perform`,
     /// erkannt am Fortschrittstext) und der QIS-Abruf
-    static func luh(phase: StudIPSync.Phase, hasSession: Bool, summary: String?, qis: QISConnection.State?, qisMessage: String?) -> [FirstSyncRow] {
-        let titles = ["Kurse und Dateien aus Stud.IP", "Stundenplan", "Aufzeichnungen (Opencast)"]
+    /// `grades: false`: Hochschule mit Stud.IP, aber ohne angebundenes Notenportal (Uni Goettingen) - keine Zeile
+    /// "Noten aus QIS" (sonst stuende dort "QIS später anmelden", obwohl es dort kein QIS gibt)
+    static func luh(phase: StudIPSync.Phase, hasSession: Bool, summary: String?, qis: QISConnection.State?, qisMessage: String?,
+                    grades showsGrades: Bool = true, opencast: Bool = true) -> [FirstSyncRow] {
+        // `opencast: false` (Uni Goettingen): dort gibt es kein Opencast, nur Videodateien in den Ordnern der Kurse
+        let titles = ["Kurse und Dateien aus Stud.IP", "Stundenplan", opencast ? "Aufzeichnungen (Opencast)" : "Videos aus Stud.IP"]
         let ids = ["files", "timetable", "recordings"]
         var rows: [FirstSyncRow] = []
         switch phase {
@@ -381,7 +397,7 @@ enum FirstSyncProgress {
         case .needsLogin?: grades = FirstSyncRow(id: "grades", title: "Noten aus QIS", state: .needsLogin, detail: qisMessage)
         case .failed(let m)?: grades = FirstSyncRow(id: "grades", title: "Noten aus QIS", state: .failed, detail: m)
         }
-        return rows + [grades]
+        return showsGrades ? rows + [grades] : rows
     }
 
     /// Uni Hildesheim: Learnweb (Kurse und Dateien), LSF (Stundenplan und Noten im selben Lauf)
@@ -485,7 +501,8 @@ struct FirstSyncView: View {
 
     static func rows(studip: StudIPSync, qis: QISConnection?) -> [FirstSyncRow] {
         FirstSyncProgress.luh(phase: studip.phase, hasSession: studip.hasStoredSession, summary: studip.lastSummary,
-                              qis: qis?.state, qisMessage: qis?.lastMessage)
+                              qis: qis?.state, qisMessage: qis?.lastMessage, grades: UFUniversityScope.readsGrades(studip.university),
+                              opencast: studip.university == .luh)
     }
 
     private struct HildesheimObserver: View {

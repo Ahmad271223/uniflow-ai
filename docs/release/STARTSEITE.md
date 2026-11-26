@@ -7,7 +7,10 @@
      nur mit der LUH, Hochschule Hannover und Universität Hildesheim folgen "in Kürze" mit 1.0.1 (dann hier wieder als
      angebunden nennen; tests/test_site.py). Seit 16.11.2026 (Version 1.0.4 im App Store, Okay des Inhabers "Ja, Website
      anpassen"): Universität Hildesheim angebunden, iPhone-Fassung da, Knopf führt in den App Store; Hochschule Hannover
-     weiter "in Kürze".
+     weiter "in Kürze". Seit 26.11.2026 (Inhaber: Göttingen „noch in 1.0.8“, „mit Verweis bei Göttingen, dass aktuell nur
+     folgende Funktionen vorhanden sind und bei technischer Möglichkeit, welche wir aktuell prüfen, nachgezogen werden,
+     auch auf der Startseite“): Universität Göttingen als neu mit Teil-Anbindung (Stud.IP, Mensa ohne Preise), was fehlt,
+     steht dabei; kein Datum. Erst hochladen, wenn 1.0.8 im App Store ist.
      Zahlen im Studienverlauf aus apps/apple/UniFlow/Resources/StudyCatalogSeed/*-index.json (306 Studiengänge und Fächer,
      12 894 Module; docs/STUDIENGAENGE-*.md).
      Bilder in website-img/: Querformat der Store-Bilder (docs/release/SCREENSHOTS.md), sips -Z 1400 -s format jpeg
@@ -22,7 +25,8 @@
 <p class="lead">StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland. Es holt Skripte, Übungsblätter, Termine und Nachrichten aus den Systemen deiner Hochschule auf dein
 iPad und iPhone. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen erklären und übst mit Wochentests und Karteikarten.</p>
 <p class="unis">:i-cap: <span>Heute angebunden: <strong>Leibniz Universität Hannover</strong> und
-<strong>Universität Hildesheim</strong>. In Kürze: Hochschule Hannover. Weitere Hochschulen folgen. Deine fehlt?
+<strong>Universität Hildesheim</strong>. Neu: <strong>Universität Göttingen</strong> mit Stud.IP und Mensa. In Kürze:
+Hochschule Hannover. Weitere Hochschulen folgen. Deine fehlt?
 <a href="mailto:support@studinow.app">Schreib uns</a>.</span></p>
 <div class="cta" id="laden">
 <a class="btn btn-store" href="https://apps.apple.com/de/app/id6830632088" aria-describedby="store-note">:i-download: Im App Store laden</a>
@@ -45,7 +49,7 @@ testen, ohne Zahlungsdaten.</p>
 <li>:i-lock: <span><strong>Kein Uni-Passwort auf unseren Servern.</strong> Du meldest dich bei deiner Hochschule an, nicht bei uns. Wenn du willst, merkt sich nur dein iPad das Passwort.</span></li>
 <li>:i-tablet: <span><strong>Deine Daten auf deinem iPad.</strong> Unterlagen, Notizen und Termine liegen lokal.</span></li>
 <li>:i-eye-off: <span><strong>Kein Tracking, keine Werbung.</strong> Keine Analyse-Werkzeuge Dritter.</span></li>
-<li>:i-cap: <span><strong>Heute für die Leibniz Universität Hannover und die Universität Hildesheim.</strong> In Kürze Hochschule Hannover, weitere Hochschulen in Deutschland folgen.</span></li>
+<li>:i-cap: <span><strong>Heute für die Leibniz Universität Hannover und die Universität Hildesheim, neu auch für die Universität Göttingen.</strong> In Kürze Hochschule Hannover, weitere Hochschulen in Deutschland folgen.</span></li>
 </ul>
 </section>
 
@@ -63,6 +67,12 @@ Semester zuerst.</p>
 <li>:i-upload: <h3>Abgeben in Stud.IP</h3><p>Deine bearbeitete Übung als PDF dort abgeben, wo der Kurs sie erwartet. Abgeschickt wird erst, wenn du es bestätigst (Moodle in Kürze).</p></li>
 <li>:i-clock: <h3>Stundenplan</h3><p>Vorlesungen und Übungen im Wochenraster, am iPhone als Tage oder ganze Woche, mit Hinweisen zu Ausfällen, Fristen und Klausuren.</p></li>
 </ul>
+<p class="fine" id="goettingen"><strong>Universität Göttingen – neu in StudiNow.</strong> Schon dabei: Stud.IP mit Kursen,
+Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu das Schwarze Brett und der Speiseplan der
+Mensen (noch ohne Preise). Alle Lernfunktionen von StudiNow gehen wie an jeder anderen Hochschule. Noch nicht dabei: Noten
+und Prüfungsanmeldung (FlexNow), Bescheinigungen und Vorlesungsverzeichnis (eCampus), Uni-Mail und
+Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch anbinden können, und ergänzen sie, sobald das möglich
+ist.</p>
 </div>
 </section>
 
@@ -140,8 +150,9 @@ Auf der Übersicht zeigt dir die Karte „Heute in der Mensa“ die Hauptgericht
 <li>Nährwerte, Allergene und Kennzeichen zu jedem Gericht</li>
 <li>Filter für vegan, vegetarisch und ohne bestimmte Allergene</li>
 </ul>
-<p class="fine">Speisepläne vom Studentenwerk Hannover und vom Studierendenwerk OstNiedersachsen, für die Mensen in Hannover und
-Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem Tarif frei.</p>
+<p class="fine">Speisepläne vom Studentenwerk Hannover, vom Studierendenwerk OstNiedersachsen und vom Studierendenwerk Göttingen,
+für die Mensen in Hannover, Hildesheim und Göttingen (Göttingen noch ohne Preise). Angaben ohne Gewähr, verbindlich ist der
+Aushang vor Ort. In jedem Tarif frei.</p>
 </div>
 <figure class="shot">
 <div class="device">
@@ -247,8 +258,11 @@ du angelegt hast, bleibt da.</p>
 <summary>Für welche Hochschulen ist StudiNow?</summary>
 <p>StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover
 (Stud.IP, QIS) und die Universität Hildesheim (Learnweb, LSF), mit den Modulkatalogen der Studiengänge und dem Speiseplan
-der Mensen. In Kürze folgt die Hochschule Hannover (Moodle, HISinOne, QIS). Weitere Hochschulen folgen. Deine
-fehlt? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
+der Mensen. Neu ist die Universität Göttingen: Stud.IP (Kurse, Dateien, Stundenplan, Termine, Nachrichten, Ankündigungen,
+Lehrende, Schwarzes Brett) und der Speiseplan der Mensen, noch ohne Preise. Noten und Prüfungsanmeldung (FlexNow),
+Bescheinigungen (eCampus), Uni-Mail und Vorlesungsaufzeichnungen sind dort noch nicht angebunden; wir prüfen, wie das
+technisch geht, und ergänzen sie, sobald es möglich ist. In Kürze folgt die Hochschule Hannover (Moodle, HISinOne, QIS).
+Weitere Hochschulen folgen. Deine fehlt? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
 <p>StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und
 Noten sind immer die Systeme deiner Hochschule.</p>
 </details>

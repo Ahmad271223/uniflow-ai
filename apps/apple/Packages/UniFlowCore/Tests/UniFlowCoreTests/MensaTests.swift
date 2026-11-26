@@ -58,7 +58,7 @@ final class MensaTests: XCTestCase {
                 for (a, b) in zip(g, w) { XCTAssertEqual(a, b, "\(name) \(d) \(b["name"]?.string ?? "")") }
             }
         }
-        XCTAssertEqual(fx["parse"]?.object?.count, 3)
+        XCTAssertEqual(fx["parse"]?.object?.count, 4)
     }
 
     /// Foto (19.11.2026, wie tests/test_mensa.py): nur eine gueltige Bild-ID wird zur Adresse beim Studentenwerk
@@ -102,14 +102,178 @@ final class MensaTests: XCTestCase {
             let kind = cid == "hauptmensa" ? "openmensa" : nil
             XCTAssertEqual(Mensa.sourceURL(try XCTUnwrap(Mensa.canteen(cid)), start: "2026-11-05", end: "2026-11-18", kind: kind), url.string, cid)
         }
+        // wie Python: alle Mensen (die Auswahl je Build prueft `testCanteensOfUnshippedRegionsAreHidden`)
         for (u, want) in fx["canteens"]?.object ?? [:] {
-            let r = Mensa.canteensResponse(university: u)
+            let r = UFReleaseUniversities.withShipped(Set(UniversityKey.allCases)) { Mensa.canteensResponse(university: u) }
             XCTAssertEqual(r["default"], want["default"], u)
             XCTAssertEqual(r["university"], want["university"], u)
             XCTAssertEqual(r["canteens"]?.array?.compactMap { $0["id"]?.string }, want["ids"]?.array?.compactMap(\.string), u)
             XCTAssertEqual(r["canteens"]?.array?.filter { $0["own"]?.bool == true }.compactMap { $0["id"]?.string },
                            want["own"]?.array?.compactMap(\.string), u)
         }
+    }
+
+    // MARK: Studierendenwerk Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md)
+
+    /// Gespeicherte Bausteine der echten Speiseplan-Seite (Zentralmensa): Status je Tag, Filter, Auswahl und Adressen
+    /// wie Python; nie ein Preis
+    func testGoettingenCasesLikePython() throws {
+        let fx = try cases()
+        let want = try XCTUnwrap(fx["stwgoe"])
+        let parsed = Mensa.parse(kind: "stwgoe", raw: try JSONValue.parse(raw("stwgoe-zentralmensa.json")))
+        XCTAssertEqual(Mensa.buildDays(start: "2026-11-26", count: 6, parsed: parsed, since: "2026-11-26").map { $0["status"]?.string ?? "" },
+                       want["status"]?.array?.compactMap(\.string))
+        XCTAssertEqual(parsed["closed"]?.array?.compactMap(\.string), ["2026-11-29"], "Sonntag: „kein Angebot“ heißt geschlossen")
+        let day = parsed["days"]?["2026-11-26"]?.array ?? []
+        XCTAssertFalse(day.isEmpty)
+        for c in want["filters"]?.array ?? [] {
+            let f = Mensa.Filter(json: c["filter"] ?? .null)
+            XCTAssertEqual(Mensa.filter(day, f).compactMap { $0["id"]?.string }, c["ids"]?.array?.compactMap(\.string), "\(f)")
+            XCTAssertEqual(Mensa.top(day, 3, f).compactMap { $0["id"]?.string }, c["top"]?.array?.compactMap(\.string), "\(f)")
+        }
+        XCTAssertEqual(Mensa.sort(day, by: "price").compactMap { $0["id"]?.string }, want["price_sort"]?.array?.compactMap(\.string))
+        XCTAssertEqual(day.filter { $0["pork_unknown"]?.bool == true }.compactMap { $0["id"]?.string },
+                       want["pork_unknown"]?.array?.compactMap(\.string))
+        // keine Preise: jede Gruppe null, `Mensa.price` nil - die Oberflaeche zeigt dann keinen Betrag
+        for meals in (parsed["days"]?.object ?? [:]).values {
+            for m in meals.array ?? [] {
+                XCTAssertEqual(m["prices"], ["student": .null, "employee": .null, "guest": .null], m["name"]?.string ?? "")
+                for role in ["student", "employee", "guest"] { XCTAssertNil(Mensa.price(m, role: role)) }
+            }
+        }
+        XCTAssertFalse(Mensa.sourceHasPrices("stwgoe"))
+        XCTAssertTrue(Mensa.sourceHasPrices("studifutter"))
+        XCTAssertTrue(Mensa.sourceHasPrices("stwon"))
+        let zentral = try XCTUnwrap(Mensa.canteen("goe-zentralmensa")), turm = try XCTUnwrap(Mensa.canteen("goe-turm"))
+        XCTAssertEqual(Mensa.stwgoeURLs(zentral, start: "2026-11-26", end: "2026-12-09").map { [$0.day, $0.url] },
+                       want["urls"]?.array?.map { $0.array?.compactMap(\.string) ?? [] })
+        XCTAssertEqual(Mensa.stwgoeURLs(turm, start: "2026-11-26", end: "2026-11-27").map { [$0.day, $0.url] },
+                       want["urls_short"]?.array?.map { $0.array?.compactMap(\.string) ?? [] })
+        XCTAssertEqual(Mensa.stwgoeURLs(zentral, start: "2026-11-26", end: "2026-12-09").count, 6, "heute und fünf Tage")
+    }
+
+    /// Einzelheiten des Lesers an erfundenen Zeilen: Kennzeichen-Klammern, Bereiche, Symbole, Beilagen, Hinweiszeilen
+    func testGoettingenRows() throws {
+        func page(_ rows: String, date: String = "02.12.2026") -> JSONValue {
+            ["pages": [["date": "2026-12-02", "html": .string("""
+                <table class="sp_tab"><tr><th colspan="3"><strong>Testmensa</strong><div class="sp_date">\(date)</div></th></tr>\(rows)</table>
+                """)]]]
+        }
+        let png = "/fileadmin/templates/images/mensaspeiseplan/png/"
+        let html = """
+            <tr class="odd"><td class="sp_typ">Men&uuml;</td><td class="sp_bez"><strong>Cr&ecirc;pe mit K&auml;se (2,g,a.1,a)</strong><br/>Reis (vom Feld), oder, Pommes frites (3)<br/><i class="smaller">(Mittagsangebot)</i></td><td class="sp_hin"><img src="\(png)vegetarisch.png" /><img src="\(png)NDS.png" /></td></tr>
+            <tr class="even"><td class="sp_typ">Tasty 1</td><td class="sp_bez"><strong>Frikadelle (a.1,c,14)</strong><br/>Senf (j)<br/><i class="smaller">(Nachmittagsangebot ab 14:30 Uhr)</i></td><td class="sp_hin"><img src="\(png)fleisch.png" /></td></tr>
+            <tr class="odd"><td class="sp_typ">Tasty 2</td><td class="sp_bez"><strong>Schnitzel vom Strohschwein</strong></td><td class="sp_hin"><img src="/fileadmin/templates/images/mensaspeiseplan/jpg/strohschwein.jpg" /></td></tr>
+            <tr class="even"><td class="sp_typ">Green</td><td class="sp_bez"><strong>Seelachs (d)</strong></td><td class="sp_hin"><img src="\(png)fisch.png" /></td></tr>
+            <tr class="odd"><td class="sp_typ">Salatbuffet</td><td class="sp_bez">Salat in Selbstbedienung!
+            Kann Allergene (a-c) enthalten.</td><td class="sp_hin"></td></tr>
+            <tr class="even"><td class="sp_typ">Vegan</td><td class="sp_bez"><strong>Linsensuppe</strong></td><td class="sp_hin"><img src="\(png)vegan.png" /></td></tr>
+            <tr><td>ohne Menülinie: keine Zeile</td></tr>
+            """
+        let meals = Mensa.parseStwgoe(page(html))["days"]?["2026-12-02"]?.array ?? []
+        XCTAssertEqual(meals.compactMap { $0["name"]?.string },
+                       ["Crêpe mit Käse", "Frikadelle", "Schnitzel vom Strohschwein", "Seelachs", "Salat in Selbstbedienung!", "Linsensuppe"])
+        XCTAssertEqual(meals.compactMap { $0["id"]?.string }, (0..<6).map { "2026-12-02-\($0)" })
+        let crepe = meals[0]
+        XCTAssertEqual(crepe["category"]?.string, "Menü")
+        XCTAssertEqual(crepe["time"]?.string, "mittag")
+        XCTAssertEqual(crepe["labels"], ["vegetarisch"])
+        XCTAssertEqual(crepe["notes"], ["Niedersachsen-Menü"])
+        XCTAssertEqual(crepe["components"], ["Reis (vom Feld)", "oder Pommes frites (3)"], "Text in Klammern bleibt, Bindewort zum nächsten Teil")
+        XCTAssertEqual(crepe["allergens"]?.array?.compactMap { $0["code"]?.string }, ["g", "a.1"], "„a“ entfällt neben „a.1“")
+        XCTAssertEqual(crepe["allergens"]?.array?.compactMap { $0["key"]?.string }, ["milch", "gluten"])
+        XCTAssertEqual(crepe["additives"]?.array?.compactMap { $0["name"]?.string }, ["mit Farbstoff", "mit Antioxidationsmittel"])
+        XCTAssertNil(crepe["pork_unknown"])
+        let frikadelle = meals[1]
+        XCTAssertEqual(frikadelle["labels"], ["fleisch"])
+        XCTAssertEqual(frikadelle["pork_unknown"], true, "Fleischart steht nicht im Plan")
+        XCTAssertEqual(frikadelle["time"], .null)
+        XCTAssertEqual(frikadelle["notes"], ["Nachmittagsangebot ab 14:30 Uhr"])
+        XCTAssertEqual(frikadelle["additives"]?.array?.last?["name"]?.string, Mensa.goeUnknownAdditive("14"), "unbekanntes Kennzeichen ehrlich benannt")
+        XCTAssertEqual(meals[2]["labels"], ["fleisch", "schwein"])
+        XCTAssertNil(meals[2]["pork_unknown"])
+        XCTAssertEqual(meals[2]["notes"], ["Leinekrone Strohschwein"])
+        XCTAssertEqual(meals[3]["labels"], ["fisch"])
+        let salad = meals[4]
+        XCTAssertEqual(salad["main"], false)
+        XCTAssertEqual(salad["notes"], ["Kann Allergene (a-c) enthalten."])
+        XCTAssertEqual(salad["allergens"]?.array?.compactMap { $0["key"]?.string }, ["gluten", "krebstiere", "ei"], "Bereich: kann enthalten")
+        XCTAssertEqual(meals[5]["labels"], ["vegan", "vegetarisch"])
+        // "ohne Schwein": Schwein und Fleisch unbekannter Art fallen weg
+        XCTAssertEqual(Mensa.filter(meals, Mensa.Filter(noPork: true)).compactMap { $0["name"]?.string },
+                       ["Crêpe mit Käse", "Seelachs", "Salat in Selbstbedienung!", "Linsensuppe"])
+        // Baustein eines anderen Tages (falsche Datei im Zwischenspeicher): nichts daraus lesen
+        XCTAssertEqual(Mensa.parseStwgoe(page(html, date: "03.12.2026")), ["days": [:], "closed": []])
+        // Fehlerseite statt des Bausteins, leere Antwort: kein Tag, kein "geschlossen"
+        for junk in ["<html><head><title>404 Not Found</title></head><body><h1>Not Found</h1></body></html>", ""] {
+            XCTAssertEqual(Mensa.parseStwgoe(["pages": [["date": "2026-12-02", "html": .string(junk)]]]), ["days": [:], "closed": []], junk)
+        }
+        XCTAssertEqual(Mensa.goeSplit("A (1,2), oder, B, mit, C (g), D"), ["A (1,2)", "oder B", "mit C (g)", "D"])
+        XCTAssertEqual(Mensa.goeCodes("Wurst (vom Schwein) (1,3) Senf (j)").text, "Wurst (vom Schwein) Senf")
+        XCTAssertEqual(Mensa.goeCodes("Wurst (vom Schwein) (1,3) Senf (j)").codes, ["1", "3", "j"])
+    }
+
+    /// Abruf: je Tag ein Baustein (hoechstens sechs), 404 ueberspringt den Tag, ohne Netz der letzte Stand
+    func testGoettingenFetchPerDay() async throws {
+        let api = try XCTUnwrap(Mensa.data["sources"]?["stwgoe"]?["api"]?.string)
+        let fixture = try JSONValue.parse(raw("stwgoe-zentralmensa.json"))
+        final class Site: MensaHTTP, @unchecked Sendable {
+            let lock = NSLock()
+            var pages: [String: Data] = [:]
+            var calls: [String] = []
+            var offline = false
+            func get(_ url: String) async throws -> Data {
+                let (page, off): (Data?, Bool) = lock.withLock { calls.append(url); return (pages[url], offline) }
+                if off { throw URLError(.notConnectedToInternet) }
+                guard let page else { throw MensaHTTPError(status: 404) }
+                return page
+            }
+        }
+        let site = Site()
+        for p in fixture["pages"]?.array ?? [] {
+            site.pages["\(api)/de/\(p["date"]?.string ?? "")/zentralmensa.html"] = Data((p["html"]?.string ?? "").utf8)
+        }
+        let m = LocalMensa()
+        m.configure(http: site, folder: try folder())
+        let r = try await m.menu(canteen: "goe-zentralmensa", day: "2026-11-26", days: 6, clock: clock("2026-11-26T11:00:00"))
+        XCTAssertEqual(site.calls, (0..<6).map { "\(api)/de/\(Mensa.addDays("2026-11-26", $0))/zentralmensa.html" }, "sechs Tage, je ein Abruf")
+        XCTAssertEqual(r["days"]?.array?.map { $0["status"]?.string ?? "" }, ["open", "closed", "closed", "closed", "open", "none"])
+        XCTAssertEqual(r["source"]?["key"]?.string, "stwgoe")
+        XCTAssertEqual(r["source"]?["name"]?.string, "Studierendenwerk Göttingen")
+        XCTAssertEqual(r["stale"]?.bool, false)
+        let first = try XCTUnwrap(r["days"]?.array?.first?["meals"]?.array?.first)
+        XCTAssertEqual(first["name"]?.string, "Vegane Filetstreifen mit Chinagemüse")
+        XCTAssertEqual(first["prices"], ["student": .null, "employee": .null, "guest": .null])
+        _ = try await m.menu(canteen: "goe-zentralmensa", day: "2026-11-27", days: 1, clock: clock("2026-11-26T12:00:00"))
+        XCTAssertEqual(site.calls.count, 6, "eine Stunde später aus dem Cache")
+        // ohne Netz nach drei Stunden: der letzte Stand mit Hinweis
+        site.lock.withLock { site.offline = true }
+        let stale = try await m.menu(canteen: "goe-zentralmensa", day: "2026-11-26", days: 1, clock: clock("2026-11-26T15:30:00"))
+        XCTAssertEqual(stale["stale"]?.bool, true)
+        XCTAssertEqual(stale["days"]?.array?.first?["status"]?.string, "open")
+        // nur 404 (noch kein Plan): kein Fehler, alle Tage "none"
+        let empty = Site()
+        let m2 = LocalMensa()
+        m2.configure(http: empty, folder: try folder())
+        let none = try await m2.menu(canteen: "goe-cgin", day: "2026-11-26", days: 2, clock: clock("2026-11-26T11:00:00"))
+        XCTAssertEqual(none["stale"]?.bool, false)
+        XCTAssertEqual(none["days"]?.array?.map { $0["status"]?.string ?? "" }, ["none", "none"])
+    }
+
+    /// Mensen einer Hochschule, die der Build nicht zur Wahl stellt, erscheinen nicht - ausser es ist die eigene
+    func testCanteensOfUnshippedRegionsAreHidden() {
+        func ids(_ u: String) -> [String] { Mensa.canteensResponse(university: u)["canteens"]?.array?.compactMap { $0["id"]?.string } ?? [] }
+        UFReleaseUniversities.withShipped([.luh, .hildesheim]) {             // Store-Stand am 26.11.2026
+            XCTAssertFalse(ids("luh").contains { $0.hasPrefix("goe-") }, "Göttingen noch nicht freigegeben")
+            XCTAssertTrue(ids("luh").contains("hauptmensa"))
+            XCTAssertTrue(ids("luh").contains("linden"), "Region Hannover bleibt ganz (HsH teilt sie mit der LUH)")
+            XCTAssertTrue(ids("luh").contains("hi-uni"))
+            XCTAssertEqual(Array(ids("goettingen").prefix(3)), ["goe-zentralmensa", "goe-cgin", "goe-turm"], "eigene Hochschule: immer")
+        }
+        UFReleaseUniversities.withShipped([.luh, .hildesheim, .goettingen]) {
+            XCTAssertTrue(ids("luh").contains("goe-zentralmensa"))
+        }
+        XCTAssertEqual(Mensa.defaultCanteen(university: "goettingen"), "goe-zentralmensa")
     }
 
     // MARK: Abruf und Cache

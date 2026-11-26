@@ -128,7 +128,9 @@ final class Session: ObservableObject {
 ///                                     Nachbildungen aus <ordner> (studip.html, qis.html, learnweb.html, lsf.html;
 ///                                     "<dienst>-angemeldet.html" gilt als angemeldet) und die Abgleiche antworten aus
 ///                                     <ordner>/routes.json (DebugUniStub) - nie eine echte Uni-Seite, nie ein Netz
-///   -UFUniversity hildesheim          Hochschule des Kontos festlegen (luh|hildesheim), wie nach der Hochschulwahl;
+///   -UFStubSignedIn YES               nur Debug, nur mit -UFLoginStub: Stud.IP der Nachbildung gilt als angemeldet und
+///                                     gleicht einmal ab (Bildvergleiche einer verbundenen Hochschule ohne Antippen)
+///   -UFUniversity hildesheim          Hochschule des Kontos festlegen (luh|hildesheim|hsh|goettingen), wie nach der Hochschulwahl;
 ///                                     nur Debug, z. B. fuer Simulator-Ablaeufe mit der Universitaet Hildesheim
 ///   -UFPlan plus                      fester Tarif ohne Kauf (free|plus|pro_ai, alt pro_connect = pro_ai; wie in
 ///                                     plans.json), z. B. fuer "Loesung teilen" im Simulator, wo ohne Xcode keine

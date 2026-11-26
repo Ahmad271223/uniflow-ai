@@ -105,6 +105,6 @@ public enum TerminDetail {
         return nil
     }
 
-    /// Lehrende im Termin nur an der LUH (Stud.IP); HsH und Hildesheim vorerst nicht
-    public static func showsLecturers(university: String?) -> Bool { university == "luh" }
+    /// Lehrende im Termin nur an Hochschulen mit Stud.IP (LUH, Goettingen); HsH und Hildesheim vorerst nicht
+    public static func showsLecturers(university: String?) -> Bool { StudIPLecturers.offered(university) }
 }

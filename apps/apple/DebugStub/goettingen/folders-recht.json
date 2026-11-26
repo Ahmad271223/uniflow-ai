@@ -1,0 +1,75 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 2
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "folders",
+   "id": "0165bde43f117470700ac7761b0901ae",
+   "attributes": {
+    "folder-type": "RootFolder",
+    "name": "",
+    "description": "",
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "is-visible": true,
+    "is-readable": true,
+    "is-writable": false,
+    "is-editable": false,
+    "is-empty": false,
+    "is-subfolder-allowed": false,
+    "data-content": []
+   },
+   "relationships": {
+    "file-refs": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/0165bde43f117470700ac7761b0901ae/file-refs"
+     }
+    },
+    "folders": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/0165bde43f117470700ac7761b0901ae/folders"
+     }
+    }
+   }
+  },
+  {
+   "type": "folders",
+   "id": "0d0c948ad3b37beef0f800760f3edd02",
+   "attributes": {
+    "folder-type": "StandardFolder",
+    "name": "Fälle",
+    "description": "",
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "is-visible": true,
+    "is-readable": true,
+    "is-writable": false,
+    "is-editable": false,
+    "is-empty": false,
+    "is-subfolder-allowed": false,
+    "data-content": []
+   },
+   "relationships": {
+    "file-refs": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/0d0c948ad3b37beef0f800760f3edd02/file-refs"
+     }
+    },
+    "folders": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/0d0c948ad3b37beef0f800760f3edd02/folders"
+     }
+    }
+   }
+  }
+ ]
+}

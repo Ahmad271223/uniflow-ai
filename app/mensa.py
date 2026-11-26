@@ -4,6 +4,11 @@ Quellen (packages/shared-contracts/mensa.json, je Mensa `source`):
 - studifutter: Studentenwerk Hannover, oeffentliche Schnittstelle hinter der eigenen Webseite und der App Studi|Futter
   (Directus, `items/foodoffers`), Ersatz bei Ausfall: OpenMensa (`openmensa`, gleiche Mensen, Parser der Community).
 - stwon: Studierendenwerk OstNiedersachsen, dokumentierte Mensa-API (https://api.stw-on.de/#mensa-api).
+- stwgoe: Studierendenwerk Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md): keine Schnittstelle, die Speiseplan-Seite
+  laedt je Tag und Mensa einen fertigen HTML-Baustein (`cached/de/<JJJJ-MM-TT>/<mensa>.html`, heute und fuenf Tage).
+  Der Baustein nennt Menuelinie, Gericht, Beilagen, Kennzeichen (Zusatzstoffe 1-11, Allergene a-n) und Symbole (vegan,
+  vegetarisch, Fleisch, Fisch), aber KEINE Preise je Gericht: alle Preise bleiben leer. Die Fleischart steht nicht im
+  Plan, darum blendet "ohne Schwein" dort jedes Fleischgericht aus (`pork_unknown`).
 
 Ablauf: ein Abruf je Mensa holt 14 Tage ab heute (eine Anfrage), Ergebnis im Cache je Mensa und Tag (3 Stunden frisch,
 danach neu; ohne Netz der letzte Stand mit `stale`). Alles wird auf eine Form gebracht (Kategorie, Name, Preise
@@ -114,7 +119,28 @@ def source_url(c: dict, start: date, end: date, kind: str | None = None, data: d
         return f"{api}/locations/{c['source']['id']}/menu/{start.isoformat()}/{end.isoformat()}"
     if kind == "openmensa":
         return f"{api}/canteens/{c['openmensa']}/meals"
+    if kind == "stwgoe":
+        return stwgoe_url(c, start, data)                 # erster Tag; alle Tage: `stwgoe_urls`
     raise ValueError(kind)
+
+
+def stwgoe_url(c: dict, day: date, data: dict | None = None) -> str:
+    """HTML-Baustein eines Tages einer Mensa des Studierendenwerks Goettingen"""
+    data = data or load_data()
+    return f"{data['sources']['stwgoe']['api']}/de/{day.isoformat()}/{c['source']['id']}.html"
+
+
+def stwgoe_urls(c: dict, start: date, end: date, data: dict | None = None) -> list[tuple[str, str]]:
+    """(Tag, Adresse) der Tage, die das Studierendenwerk anbietet: ab `start` hoechstens `sources.stwgoe.days` Tage"""
+    data = data or load_data()
+    n = int(data["sources"]["stwgoe"].get("days") or 6)
+    out = []
+    for i in range(n):
+        d = start + timedelta(days=i)
+        if d > end:
+            break
+        out.append((d.isoformat(), stwgoe_url(c, d, data)))
+    return out
 
 
 # MARK: Vereinheitlichen
@@ -341,8 +367,179 @@ def parse_openmensa(raw: list, data: dict | None = None) -> dict:
     return {"days": dict(sorted(days.items())), "closed": sorted(closed)}
 
 
+# Studierendenwerk Goettingen: HTML-Baustein eines Tages (Tabelle `sp_tab`, je Gericht eine Zeile mit `sp_typ`
+# Menuelinie, `sp_bez` Gericht fett, darunter Beilagen, klein "(Mittagsangebot)", `sp_hin` Symbole)
+_GOE_ROW = re.compile(r"<tr\b[^>]*>(.*?)</tr>", re.S | re.I)
+_GOE_TYP = re.compile(r'<td[^>]*class="sp_typ"[^>]*>(.*?)</td>', re.S | re.I)
+_GOE_BEZ = re.compile(r'<td[^>]*class="sp_bez"[^>]*>(.*?)</td>', re.S | re.I)
+_GOE_HIN = re.compile(r'<td[^>]*class="sp_hin"[^>]*>(.*?)</td>', re.S | re.I)
+_GOE_STRONG = re.compile(r"<strong\b[^>]*>(.*?)</strong>", re.S | re.I)
+_GOE_SMALL = re.compile(r'<i[^>]*class="smaller"[^>]*>(.*?)</i>', re.S | re.I)
+_GOE_BREAK = re.compile(r"<br\s*/?>|\r?\n", re.I)
+_GOE_TAG = re.compile(r"<[^>]+>")
+_GOE_ICON = re.compile(r"/mensaspeiseplan/(?:png|jpg)/([A-Za-z_]+)\.(?:png|jpg)", re.I)
+_GOE_GROUP = re.compile(r"\s*\(([^()]*)\)")
+_GOE_CODE = re.compile(r"^(?:[a-n](?:\.[0-9])?|[0-9]{1,2})$")
+_GOE_RANGE = re.compile(r"^([a-n])-([a-n])$")
+_GOE_DATE = re.compile(r'class="sp_date"[^>]*>\s*([0-9]{2})\.([0-9]{2})\.([0-9]{4})')
+_GOE_CONNECT = ("oder", "mit", "und", "dazu", "zusätzlich", "wahlweise")
+GOE_NAME_MAX = 90
+GOE_UNKNOWN_ADDITIVE = "Kennzeichen {code} (in der Legende des Studierendenwerks nicht erklärt)"
+
+
+def _goe_text(fragment: str) -> str:
+    """HTML-Stueck als eine Zeile Text (Tags weg, Entities dekodiert, Leerraum zusammengezogen)"""
+    import html as _html
+    return " ".join(_html.unescape(_GOE_TAG.sub(" ", fragment)).replace("\xa0", " ").split())
+
+
+def _goe_codes(text: str) -> tuple[str, list[str], list[str]]:
+    """Klammern, die nur Kennzeichen enthalten ("(1,3,a.1,a)", "(a-m)"), aus dem Text nehmen.
+    Rueckgabe: Text ohne diese Klammern, Kennzeichen in der Reihenfolge der Seite, Buchstaben aus Bereichen"""
+    codes: list[str] = []
+    ranged: list[str] = []
+
+    def take(m: re.Match) -> str:
+        tokens = [t.strip().lower() for t in m.group(1).split(",")]
+        if not tokens or any(not t for t in tokens):
+            return m.group(0)
+        if all(_GOE_CODE.match(t) for t in tokens):
+            for t in tokens:
+                if t not in codes:
+                    codes.append(t)
+            return ""
+        rng = _GOE_RANGE.match(tokens[0].replace(" ", "")) if len(tokens) == 1 else None
+        if rng and rng.group(1) <= rng.group(2):
+            for o in range(ord(rng.group(1)), ord(rng.group(2)) + 1):
+                if chr(o) not in ranged:
+                    ranged.append(chr(o))
+        return m.group(0)                                  # Bereiche und anderer Text bleiben stehen
+
+    out = _GOE_GROUP.sub(take, text)
+    return " ".join(out.split()), codes, ranged
+
+
+def _goe_split(text: str) -> list[str]:
+    """Beilagen: an Kommas ausserhalb von Klammern trennen; Bindewoerter ("oder", "mit") gehoeren zum naechsten Teil"""
+    parts: list[str] = []
+    depth, cur = 0, ""
+    for ch in text:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth = max(0, depth - 1)
+        if ch == "," and depth == 0:
+            parts.append(cur)
+            cur = ""
+        else:
+            cur += ch
+    parts.append(cur)
+    out: list[str] = []
+    lead = ""
+    for part in (" ".join(x.split()) for x in parts):
+        if not part:
+            continue
+        if part.lower() in _GOE_CONNECT:
+            lead = (lead + " " + part).strip()
+            continue
+        out.append((lead + " " + part).strip())
+        lead = ""
+    return out
+
+
+def parse_stwgoe(raw: dict, data: dict | None = None) -> dict:
+    """{"pages": [{"date": "JJJJ-MM-TT", "html": Baustein}]} -> {"days": {datum: [meal]}, "closed": [datum]}"""
+    data = data or load_data()
+    alls, adds, icons = data["stwgoe_allergens"], data["stwgoe_additives"], data["stwgoe_icons"]
+    days: dict[str, list[dict]] = {}
+    closed: list[str] = []
+    for page in (raw or {}).get("pages") or []:
+        d = str(page.get("date") or "")[:10]
+        text = str(page.get("html") or "")
+        if len(d) != 10:
+            continue
+        shown = _GOE_DATE.search(text)
+        if shown and f"{shown.group(3)}-{shown.group(2)}-{shown.group(1)}" != d:
+            continue                                        # Baustein eines anderen Tages: nichts daraus lesen
+        meals: list[dict] = []
+        for row in _GOE_ROW.findall(text):
+            typ, bez = _GOE_TYP.search(row), _GOE_BEZ.search(row)
+            if not typ or not bez:
+                continue
+            category = _goe_text(typ.group(1))
+            body = bez.group(1)
+            small = [s.strip("() ") for s in (_goe_text(x) for x in _GOE_SMALL.findall(body)) if s.strip("() ")]
+            body = _GOE_SMALL.sub("", body)
+            strong = _GOE_STRONG.search(body)
+            notes: list[str] = []
+            components: list[str] = []
+            if strong:
+                name, codes, ranged = _goe_codes(_goe_text(strong.group(1)))
+                rest = _goe_text(_GOE_STRONG.sub("", body, count=1))
+                _, more, more_ranged = _goe_codes(rest)
+                codes += [c for c in more if c not in codes]
+                ranged += [c for c in more_ranged if c not in ranged]
+                components = _goe_split(rest)
+            else:
+                lines = [x for x in (_goe_text(part) for part in _GOE_BREAK.split(body)) if x]
+                whole = " ".join(lines)
+                _, codes, ranged = _goe_codes(whole)
+                if lines and len(lines[0]) <= GOE_NAME_MAX:
+                    name, _, _ = _goe_codes(lines[0])
+                    notes += lines[1:]
+                else:
+                    name = category
+                    notes += [whole] if whole else []
+            name = name or category
+            if not name:
+                continue
+            labels: set[str] = set()
+            meat = False
+            for icon in _GOE_ICON.findall(_GOE_HIN.search(row).group(1) if _GOE_HIN.search(row) else ""):
+                t = icons.get(icon.lower())
+                if not t:
+                    continue
+                labels.update(t.get("labels") or [])
+                meat = meat or bool(t.get("meat"))
+                if t.get("note") and t["note"] not in notes:
+                    notes.append(t["note"])
+            whole_low = (name + " " + " ".join(components)).lower()
+            if meat and "schwein" in whole_low:
+                labels.add("schwein")
+            time = None
+            for s in small:
+                if s.lower().startswith("mittagsangebot"):
+                    time = "mittag"
+                elif s not in notes:
+                    notes.append(s)
+            allergens: list[dict] = []
+            additives: list[dict] = []
+            for code in codes + [c for c in ranged if c not in codes]:
+                if code[0].isdigit():
+                    additives.append({"code": code, "name": adds.get(code) or GOE_UNKNOWN_ADDITIVE.format(code=code)})
+                    continue
+                t = alls.get(code)
+                # "a" (glutenhaltiges Getreide) entfaellt, wenn die Getreideart ("a.1 Weizen") dabei ist
+                if not t or ("." not in code and any(c.startswith(code + ".") for c in codes)):
+                    continue
+                _add_allergen(allergens, code, t["key"], t["name"])
+            meal = {"id": f"{d}-{len(meals)}", "name": name, "category": pretty_category(category), "time": time,
+                    "prices": {"student": None, "employee": None, "guest": None},
+                    "allergens": allergens, "additives": additives, "notes": notes}
+            meal = _finish(meal, labels, data, None, components)
+            if meat and "schwein" not in meal["labels"]:
+                meal["pork_unknown"] = True                 # Fleischart steht nicht im Plan
+            meals.append(meal)
+        if meals:
+            days[d] = meals
+        elif "kein Angebot" in text:
+            closed.append(d)
+    return {"days": dict(sorted(days.items())), "closed": sorted(closed)}
+
+
 def parse(kind: str, raw, data: dict | None = None) -> dict:
-    return {"studifutter": parse_studifutter, "stwon": parse_stwon, "openmensa": parse_openmensa}[kind](raw, data)
+    return {"studifutter": parse_studifutter, "stwon": parse_stwon, "openmensa": parse_openmensa,
+            "stwgoe": parse_stwgoe}[kind](raw, data)
 
 
 # MARK: Tage
@@ -375,7 +572,8 @@ def matches(meal: dict, flt: dict | None) -> bool:
         return False
     if f.get("vegetarisch") and "vegetarisch" not in labels:
         return False
-    if f.get("ohne_schwein") and "schwein" in labels:
+    # "ohne Schwein": auch Gerichte, deren Fleischart die Quelle nicht nennt (Goettingen, `pork_unknown`)
+    if f.get("ohne_schwein") and ("schwein" in labels or meal.get("pork_unknown")):
         return False
     avoid = set(f.get("allergens") or [])
     return not (avoid and any(a.get("key") in avoid for a in meal.get("allergens") or []))
@@ -478,6 +676,8 @@ def fetch(c: dict, start: date, end: date, get=None, data: dict | None = None) -
     last: Exception | None = None
     for kind in kinds:
         try:
+            if kind == "stwgoe":
+                return _fetch_stwgoe(c, start, end, get, data), kind
             raw = json.loads(get(source_url(c, start, end, kind, data)))
             parsed = parse(kind, raw, data)
             if kind != "openmensa" and not parsed["days"] and len(kinds) > 1:
@@ -487,6 +687,23 @@ def fetch(c: dict, start: date, end: date, get=None, data: dict | None = None) -
         except Exception as e:  # noqa: BLE001 - Netz, HTTP, JSON: naechste Quelle
             last = e
     raise RuntimeError(str(last or "keine Quelle"))
+
+
+def _fetch_stwgoe(c: dict, start: date, end: date, get, data: dict) -> dict:
+    """Je Tag ein HTML-Baustein. 404 heisst: fuer den Tag gibt es (noch) keinen Plan. Kommt kein einziger Tag an und gab
+    es einen anderen Fehler (Netz), wirft der Abruf; der Aufrufer zeigt dann den letzten Stand."""
+    pages: list[dict] = []
+    last: Exception | None = None
+    for d, url in stwgoe_urls(c, start, end, data):
+        try:
+            body = get(url)
+            pages.append({"date": d, "html": body.decode("utf-8", "replace") if isinstance(body, (bytes, bytearray)) else str(body)})
+        except Exception as e:  # noqa: BLE001
+            if getattr(e, "code", None) != 404:
+                last = e
+    if not pages and last:
+        raise last
+    return parse_stwgoe({"pages": pages}, data)
 
 
 def menu(cid: str, day: date | None = None, days: int = 1, now: datetime | None = None, get=None, folder: Path | None = None,
