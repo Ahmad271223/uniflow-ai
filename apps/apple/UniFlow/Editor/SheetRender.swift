@@ -229,7 +229,7 @@ enum SheetRender {
         let grid: Grid
 
         init?(_ o: JSONValue) {
-            guard let s = SheetObject.sheet(o) else { return nil }
+            guard let s = SheetObject.table(o) else { return nil }
             sheet = s
             calc = s.calc()
             layout = SheetObject.layout(s, calc)

@@ -1463,7 +1463,7 @@ final class TextBlockAppTests: XCTestCase {
         let pro = try await open(proAI: true)
         let copies = pro.editor.objects.copyable([text, sheet, card])
         XCTAssertEqual(copies.count, 3)
-        XCTAssertEqual(SheetObject.sheet(copies[1])?.isDocument, false, "eine Kopie ist nie die Tabelle als eigene Datei")
+        XCTAssertEqual(SheetObject.table(copies[1])?.isDocument, false, "eine Kopie ist nie die Tabelle als eigene Datei")
     }
 
 }

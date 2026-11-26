@@ -219,7 +219,7 @@ final class SheetAppTests: XCTestCase {
         try await BildProbe.wait("grosse Ansicht zu") { s.editor.presentedViewController == nil }
 
         // Sichern schreibt Tabelle und Ersatztext auf die Seite; ein Schritt zurueck stellt den alten Stand her
-        var t = try XCTUnwrap(SheetObject.sheet(o))
+        var t = try XCTUnwrap(SheetObject.table(o))
         t.set("Fach", at: SheetRef("A1")!)
         t.set("=2*21", at: SheetRef("B1")!)
         let saved = await s.editor.objects.saveSheet(t, key: s.blank, id: id)
@@ -228,7 +228,7 @@ final class SheetAppTests: XCTestCase {
         XCTAssertTrue(same, "derselbe Stand noch einmal: steht auf der Seite, also gesichert")
         let after = await s.store.objects(forPageKey: s.blank).first
         XCTAssertEqual(after?["text"], "Fach\t42")
-        XCTAssertEqual(after.flatMap(SheetObject.sheet)?.raw(SheetRef("B1")!), "=2*21")
+        XCTAssertEqual(after.flatMap(SheetObject.table)?.raw(SheetRef("B1")!), "=2*21")
         XCTAssertEqual(after?["width"], o["width"], "gleich breit auf der Seite")
         try await BildProbe.wait("Kasten zeigt den neuen Stand") { page.objectsView.shownObjects.first?["text"] == "Fach\t42" }
 
@@ -316,8 +316,8 @@ final class SheetAppTests: XCTestCase {
         try await BildProbe.wait("Tabelle der Datei angelegt") { await s.store.objects(forPageKey: "p1").count == 1 }
         let first = await s.store.objects(forPageKey: "p1").first
         let o = try XCTUnwrap(first)
-        XCTAssertEqual(SheetObject.sheet(o)?.isDocument, true)
-        XCTAssertEqual(SheetObject.sheet(o)?.cols, 6)
+        XCTAssertEqual(SheetObject.table(o)?.isDocument, true)
+        XCTAssertEqual(SheetObject.table(o)?.cols, 6)
         XCTAssertEqual(o["width"]?.double ?? 0, 595 - 48, accuracy: 0.5, "fuellt die Breite der Seite")
         XCTAssertFalse(SheetDocuments.pending.contains(s.store.file.id))
         try await BildProbe.wait("grosse Ansicht offen") { s.editor.presentedViewController is UIHostingController<SheetEditorView> }
@@ -642,7 +642,7 @@ final class SheetAppTests: XCTestCase {
         let back = await s.editor.objects.saveSheet(table(), key: s.blank, id: "t", original: o)
         XCTAssertTrue(back)
         let again = await s.store.objects(forPageKey: s.blank).first { $0["id"] == "t" }
-        XCTAssertEqual(again.flatMap(SheetObject.sheet)?.raw(SheetRef("A2")!), "Mathe")
+        XCTAssertEqual(again.flatMap(SheetObject.table)?.raw(SheetRef("A2")!), "Mathe")
         // ohne das Objekt von vorher: ehrlich "nicht gesichert"
         await s.store.editObjects(pageKey: s.blank) { $0.filter { $0["id"] != "t" } }
         let lost = await s.editor.objects.saveSheet(table(), key: s.blank, id: "t")

@@ -32,7 +32,7 @@ extension ObjectEditing {
         let readOnly = !richAllowed
         endTextEditing()
         Task {
-            guard let o = await objects(key).first(where: { $0["id"]?.string == id }), let sheet = SheetObject.sheet(o) else { return }
+            guard let o = await objects(key).first(where: { $0["id"]?.string == id }), let sheet = SheetObject.table(o) else { return }
             guard c.presentedViewController == nil else { return }
             let model = SheetEditorModel(sheet: sheet, title: title, readOnly: readOnly)
             if !readOnly {
@@ -64,7 +64,7 @@ extension ObjectEditing {
         let fileID = c.store.file.id, title = c.store.file.displayTitle
         Task {
             let list = await objects(key)
-            if let o = list.first(where: { SheetObject.sheet($0)?.isDocument == true }), let id = o["id"]?.string {
+            if let o = list.first(where: { SheetObject.table($0)?.isDocument == true }), let id = o["id"]?.string {
                 openSheet(key: key, id: id, title: title)        // ohne Pro AI: zum Ansehen
                 return
             }
@@ -101,7 +101,7 @@ extension ObjectEditing {
         }
         // nicht dem Rueckgabewert trauen ("nichts geaendert" ist auch falsch): nachsehen, was auf der Seite steht
         let now = await objects(key).first { $0["id"]?.string == id }
-        return now.flatMap(SheetObject.sheet) == Sheet(json: sheet.json)
+        return now.flatMap(SheetObject.table) == Sheet(json: sheet.json)
     }
 }
 

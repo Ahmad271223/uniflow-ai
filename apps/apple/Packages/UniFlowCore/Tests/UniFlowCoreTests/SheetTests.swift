@@ -461,7 +461,7 @@ final class SheetTests: XCTestCase {
         let size = try XCTUnwrap(SheetObject.size(o))
         XCTAssertEqual(size.width, 168)
         XCTAssertEqual(size.height, 72)
-        XCTAssertEqual(SheetObject.sheet(o), s)
+        XCTAssertEqual(SheetObject.table(o), s)
         // groesser gezogen (wie jeder Text: nur die Breite) → Massstab 2, die Hoehe folgt
         let wide = PageObjectEdit.scale([o], ids: ["t"], factorX: 2, factorY: 2)[0]
         XCTAssertEqual(SheetObject.size(wide)?.height, 144)
@@ -469,7 +469,7 @@ final class SheetTests: XCTestCase {
         s.insertCols(at: 2)
         let saved = SheetObject.saving(s, in: wide)
         XCTAssertEqual(saved["width"]?.double, 3 * Sheet.defaultColWidth * 2)
-        XCTAssertEqual(SheetObject.sheet(saved)?.cols, 3)
+        XCTAssertEqual(SheetObject.table(saved)?.cols, 3)
         // Diagramm darunter
         s.charts = [SheetChart(id: "d", range: SheetRange("A1:B2")!)]
         let l = SheetObject.layout(s, s.calc())

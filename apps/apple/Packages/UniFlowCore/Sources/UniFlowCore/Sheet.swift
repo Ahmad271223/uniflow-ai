@@ -663,7 +663,8 @@ public enum SheetObject {
 
     public static func isSheet(_ o: JSONValue) -> Bool { o["type"]?.string == "text" && o["sheet"]?.object != nil }
 
-    public static func sheet(_ o: JSONValue) -> Sheet? { isSheet(o) ? Sheet(json: o["sheet"]) : nil }
+    /// Die Tabelle eines Objekts (nil: keine Tabelle)
+    public static func table(_ o: JSONValue) -> Sheet? { isSheet(o) ? Sheet(json: o["sheet"]) : nil }
 
     /// Was der Kasten zeigt
     public struct Layout: Equatable, Sendable {
@@ -709,7 +710,7 @@ public enum SheetObject {
             let k = min(20, max(0.05, w / box.width))
             return (box.width * k, box.height * k)
         }
-        guard let s = sheet(o) else { return nil }
+        guard let s = table(o) else { return nil }
         let l = layout(s, s.calc()), k = scale(o, l)
         return (l.width * k, l.height * k)
     }
@@ -739,7 +740,7 @@ public enum SheetObject {
     /// Massstab eines Objekts aus seiner Groesse auf der Seite
     private static func scaleFactor(_ o: JSONValue, _ size: (width: Double, height: Double)) -> Double {
         guard let box = storedBox(o) else {
-            guard let s = sheet(o) else { return 1 }
+            guard let s = table(o) else { return 1 }
             return scale(o, layout(s, s.calc()))
         }
         return size.width / box.width

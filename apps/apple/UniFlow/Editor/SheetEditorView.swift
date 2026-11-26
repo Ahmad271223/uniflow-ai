@@ -234,7 +234,7 @@ struct SheetEditorView: View {
                             .foregroundStyle(UF.accentText)
                     }
                     .accessibilityLabel("KI hilft bei der Tabelle").accessibilityIdentifier("sheet.ai")
-                    .popover(isPresented: $showAI) { aiPanel }
+                    .ufPopover(isPresented: $showAI) { aiPanel }
                     sep
                 }
                 Button { model.toggleBold() } label: { icon("bold", on: st.bold) }
@@ -303,7 +303,7 @@ struct SheetEditorView: View {
                     .accessibilityLabel("Sortieren").accessibilityIdentifier("sheet.sort")
                 Button { showFilter = true } label: { icon("line.3.horizontal.decrease.circle", on: !model.sheet.filters.isEmpty) }
                     .accessibilityLabel("Filtern").accessibilityIdentifier("sheet.filter")
-                    .popover(isPresented: $showFilter) { filterList }
+                    .ufPopover(isPresented: $showFilter) { filterList }
                 sep
                 Menu {
                     ForEach(SheetChart.kinds, id: \.id) { k in
