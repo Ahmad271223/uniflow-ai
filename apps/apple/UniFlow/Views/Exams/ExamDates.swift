@@ -87,8 +87,9 @@ enum UFExam {
     }
 }
 
-/// Karte "Nächste Klausuren" der Uebersicht: bis zu vier kommende Klausuren mit Tag, Countdown, Modul, Uhrzeit und Raum
-/// und Quelle; ohne Klausuren nichts (auch kein Platz). Laedt selbst (`token` wechselt: neu laden).
+/// Karte "Nächste Klausuren" der Uebersicht: die ersten vier kommenden Klausuren mit Tag, Countdown, Modul, Uhrzeit und
+/// Raum und Quelle, die uebrigen hinter "und n weitere" (antippen: Karte klappt auf, alle untereinander; Wunsch des
+/// Inhabers 26.11.2026); ohne Klausuren nichts (auch kein Platz). Laedt selbst (`token` wechselt: neu laden).
 struct UpcomingExamsCard: View {
     let api: APIClient?
     /// z. B. der Tag der Uebersicht: nach Mitternacht neu
@@ -122,27 +123,45 @@ struct UpcomingExamsList: View {
     /// Pruefungsanmeldung (nil: keine Abzeichen, keine Zeile)
     var registration: ExamRegistrationState?
     let open: (JSONValue) -> Void
+    /// aufgeklappt: alle Klausuren untereinander (bleibt beim Neuladen der Liste, nicht ueber den Seitenwechsel)
+    @State private var expanded: Bool
 
-    init(items: [JSONValue], registration: ExamRegistrationState? = nil, open: @escaping (JSONValue) -> Void) {
+    init(items: [JSONValue], registration: ExamRegistrationState? = nil, expanded: Bool = false,
+         open: @escaping (JSONValue) -> Void) {
         self.items = items
         self.registration = registration
         self.open = open
+        _expanded = State(initialValue: expanded)
     }
 
     var body: some View {
         if !items.isEmpty {
-            Self.card(items, registration: registration, open: open).padding(.bottom, 19.2)
+            Self.card(items, registration: registration, expanded: expanded,
+                      toggle: { UFMotion.toggle { expanded.toggle() } }, open: open).padding(.bottom, 19.2)
         }
     }
 
     static let limit = UpcomingExamsCard.limit
 
+    /// Zeilen der Karte: zugeklappt die ersten `limit`, aufgeklappt alle
+    static func shown(_ items: [JSONValue], expanded: Bool) -> [JSONValue] {
+        expanded ? items : Array(items.prefix(limit))
+    }
+
+    /// Text des Knopfs unter den Zeilen: "und 5 weitere" bzw. "Weniger anzeigen"; nil bis zu `limit` Klausuren
+    static func moreText(_ count: Int, expanded: Bool) -> String? {
+        guard count > limit else { return nil }
+        return expanded ? "Weniger anzeigen" : "und \(count - limit) weitere"
+    }
+
+    /// `toggle`: Knopf "und n weitere" klappt auf und zu (nil: nur der Text, z. B. in einem Bild ohne Bedienung)
     @ViewBuilder static func card(_ items: [JSONValue], registration: ExamRegistrationState? = nil,
+                                  expanded: Bool = false, toggle: (() -> Void)? = nil,
                                   open: @escaping (JSONValue) -> Void) -> some View {
         UFCard {
             UFCardHead("Nächste Klausuren", icon: UFExam.icon)
             VStack(alignment: .leading, spacing: 8) {
-                ForEach(Row.rows(Array(items.prefix(limit)), key: "id")) { row in
+                ForEach(Row.rows(shown(items, expanded: expanded), key: "id")) { row in
                     let e = row.value
                     let reg = registration?.suggestion(exam: e)
                     let room = e.s("room").flatMap { Rooms.mayLink($0) ? $0 : nil }
@@ -155,8 +174,22 @@ struct UpcomingExamsList: View {
                     // Raumfinder (05.11.2026): Raum antippen -> Ort mit Google-Maps-Link
                     if let room { UFRoomLink(text: room, size: 12.8).padding(.leading, 70).padding(.top, -4) }
                 }
-                if items.count > limit {
-                    Text("und \(items.count - limit) weitere").ufFont(12.8).foregroundStyle(UF.muted)
+                if let more = moreText(items.count, expanded: expanded) {
+                    if let toggle {
+                        Button(action: toggle) {
+                            HStack(spacing: 5) {
+                                Text(more).ufFont(12.8, 600)
+                                UFIcon("chevron-down", size: 13).rotationEffect(.degrees(expanded ? 180 : 0))
+                            }
+                            .foregroundStyle(UFExam.color)
+                            .padding(.vertical, 6).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(expanded ? "Weniger Klausuren anzeigen" : "Alle \(items.count) Klausuren anzeigen")
+                        .accessibilityIdentifier("exams.more")
+                    } else {
+                        Text(more).ufFont(12.8).foregroundStyle(UF.muted)
+                    }
                 }
                 if let registration { ExamRegistrationExamsFooter(state: registration) }
             }

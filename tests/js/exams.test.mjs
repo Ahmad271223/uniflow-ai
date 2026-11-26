@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { examsCard, examDate, countdown, placeText, examHref, LIMIT } from "../../app/static/exams.js";
+import { examsCard, bindExamsCard, moreText, examDate, countdown, placeText, examHref, LIMIT } from "../../app/static/exams.js";
 
 const fx = JSON.parse(readFileSync(new URL("../../packages/shared-contracts/fixtures/exams/exams.json", import.meta.url), "utf8"));
 const items = fx.steps[0].response.items;
@@ -35,8 +35,13 @@ test("Karte aus der Antwort des Servers: erste vier, Rest gezählt", () => {
     assert.ok(html.includes(e.title.replace(/&/g, "&amp;")), e.title);
     assert.ok(html.includes(e.in_days), e.in_days);
   }
-  assert.equal(html.split('class="item ov-exam"').length - 1, LIMIT, "höchstens vier Zeilen");
-  assert.match(html, new RegExp(`und ${items.length - LIMIT} weitere`));
+  // die ersten vier sofort, die übrigen versteckt hinter dem Knopf "und n weitere" (aufklappbar, 26.11.2026)
+  const [head, rest] = html.split('class="list ov-exam-rest"');
+  assert.equal(head.split('class="item ov-exam"').length - 1, LIMIT, "zugeklappt höchstens vier Zeilen");
+  assert.equal(rest.split('class="item ov-exam"').length - 1, items.length - LIMIT, "alle übrigen stehen im aufklappbaren Teil");
+  assert.match(rest, /^ id="ovExamRest" hidden>/);
+  assert.match(html, new RegExp(`<button type="button" class="ov-exam-more" aria-expanded="false" aria-controls="ovExamRest" data-count="${items.length}">und ${items.length - LIMIT} weitere</button>`));
+  for (const e of items) assert.ok(html.includes(e.title.replace(/&/g, "&amp;")), `aufgeklappt auch: ${e.title}`);
   const ana = items.find(e => e.module_id === 1);
   // Raumfinder (05.11.2026): der Raum steht als Link unter der Zeile (Ort mit Google Maps), die Zeile nennt die Uhrzeit;
   // VoiceOver liest beides in der Beschriftung der Zeile
@@ -51,4 +56,24 @@ test("fremde Texte werden maskiert", () => {
   assert.ok(!html.includes("<img"));
   assert.ok(!html.includes("<script>"));
   assert.match(html, /&lt;img/);
+});
+
+test("und n weitere: bis vier Klausuren kein Knopf, sonst klappt er auf und wieder zu", () => {
+  assert.ok(!examsCard(items.slice(0, LIMIT)).includes("ov-exam-more"), "genau vier: kein Knopf");
+  assert.equal(moreText(9, false), "und 5 weitere");
+  assert.equal(moreText(9, true), "Weniger anzeigen");
+  // kleiner Ersatz für das DOM: Knopf und versteckter Teil
+  let click;
+  const btn = { dataset: { count: "9" }, textContent: "und 5 weitere", attrs: {}, setAttribute(k, v) { this.attrs[k] = v; }, addEventListener(_, f) { click = f; } };
+  const rest = { hidden: true };
+  bindExamsCard({ querySelector: sel => sel === ".ov-exam-more" ? btn : sel === ".ov-exam-rest" ? rest : null });
+  click();
+  assert.equal(rest.hidden, false, "aufgeklappt: alle sichtbar");
+  assert.equal(btn.attrs["aria-expanded"], "true");
+  assert.equal(btn.textContent, "Weniger anzeigen");
+  click();
+  assert.equal(rest.hidden, true);
+  assert.equal(btn.attrs["aria-expanded"], "false");
+  assert.equal(btn.textContent, "und 5 weitere");
+  bindExamsCard(null); bindExamsCard({ querySelector: () => null });   // ohne Karte nichts
 });
