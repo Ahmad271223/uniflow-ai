@@ -223,8 +223,15 @@ public enum TextBlock {
     }
 
     /// Zeilenhoehe (Vielfaches der Schriftgroesse), mit der aeltere Apps und das Web denselben Zeilenabstand zeigen
-    static func webLineHeight(fontSize: Double) -> Double {
-        ((lineStep / max(1, fontSize)) * 1000).rounded() / 1000
+    static func webLineHeight(fontSize: Double) -> Double { webLineHeight(fontSize: fontSize, step: lineStep) }
+
+    /// Grosse Schrift nimmt auf Linien zwei oder mehr Zeilen (wie beim Zeichnen in der App: Oberlaenge der Schrift
+    /// plus Abstand zur Linie, aufgerundet auf ganze Linien) - mit nur einer waeren die Zeilen in aelteren Apps und im
+    /// Web ineinander gelaufen (36 pt auf 24 pt Linien = 0,67)
+    static func webLineHeight(fontSize: Double, step: Double) -> Double {
+        let size = max(1, fontSize)
+        let rows = min(40, max(1, ((size * 0.95 + step * descentShare - 2) / step).rounded(.up)))
+        return ((rows * step / size) * 1000).rounded() / 1000
     }
 
     /// Formatierung des ganzen Blocks aendern: Grundformatierung und alle Abschnitte
@@ -359,6 +366,15 @@ public enum TextBlock {
     }
 
     public static func prefix(_ kind: ListKind, number: Int) -> String { kind == .bullet ? bullet : "\(number). " }
+
+    /// Ist `line` ein Punkt einer Liste, die die Eingabetaste fortsetzen soll? Eine Zeile "12. November" ist keine:
+    /// Nummern zaehlen nur, wenn sie mit 1 anfangen oder die Zeile davor (`previous`) die Nummer davor traegt.
+    public static func continuesList(_ line: String, previous: String?) -> Bool {
+        guard let p = listPrefix(of: line) else { return false }
+        if p.kind == .bullet || p.number == 1 { return true }
+        guard let before = previous.flatMap(listPrefix(of:)), before.kind == .number else { return false }
+        return before.number == p.number - 1
+    }
 
     /// Was die Eingabetaste am Ende der Zeile `line` tut: die Liste mit dem naechsten Zeichen fortsetzen, oder - bei
     /// einem leeren Listenpunkt - die Liste beenden (`endLength` Zeichen des leeren Punkts entfernen). `nil`: keine Liste.

@@ -174,6 +174,24 @@ final class TextBlockTests: XCTestCase {
         XCTAssertEqual(TextBlock.aligning("quer", [saved], ids: ["b1"])[0], saved)
     }
 
+    func testBefundeDerDurchsicht() {
+        // Zeilenabstand fuer aeltere Apps: grosse Schrift nimmt ganze Linien, nie weniger als die Schrift hoch ist
+        XCTAssertEqual(TextBlock.webLineHeight(fontSize: 16) * 16, 24, accuracy: 0.02)
+        XCTAssertEqual(TextBlock.webLineHeight(fontSize: 36) * 36, 48, accuracy: 0.05)
+        XCTAssertEqual(TextBlock.webLineHeight(fontSize: 60) * 60, 72, accuracy: 0.05)
+        for size in stride(from: 8.0, through: 96, by: 4) { XCTAssertGreaterThanOrEqual(TextBlock.webLineHeight(fontSize: size), 0.99, "\(size)") }
+        XCTAssertGreaterThanOrEqual(TextBlock.webLineHeight(fontSize: 40, step: StickyNote.lineStep), 1)
+
+        // Listen: "12. November" ist keine Liste, "1. " und die Fortsetzung schon
+        XCTAssertTrue(TextBlock.continuesList("• Milch", previous: nil))
+        XCTAssertTrue(TextBlock.continuesList("1. Analysis", previous: "Plan"))
+        XCTAssertTrue(TextBlock.continuesList("2. Lineare Algebra", previous: "1. Analysis"))
+        XCTAssertFalse(TextBlock.continuesList("12. November 2026", previous: nil))
+        XCTAssertFalse(TextBlock.continuesList("12. November 2026", previous: "Klausur am"))
+        XCTAssertFalse(TextBlock.continuesList("3. Versuch", previous: "1. Versuch"))
+        XCTAssertFalse(TextBlock.continuesList("ohne Zeichen", previous: "1. davor"))
+    }
+
     func testSpeichernNimmtDieHaeufigsteFormatierungAlsGrundformatierung() {
         let o = TextBlock.block(id: "b1", x: 10, y: 10, template: "lined")
         let big = style { $0.fontSize = 24; $0.fontFamily = "Georgia" }
@@ -183,7 +201,9 @@ final class TextBlockTests: XCTestCase {
         XCTAssertEqual(one["fontFamily"], "Georgia")
         XCTAssertNil(one["runs"])
         XCTAssertEqual(one["text"], "Überschrift")
-        XCTAssertEqual((one["lineHeight"]?.double ?? 0) * 24, 24, accuracy: 0.02)
+        // 24 pt passt mit Oberlaenge und Abstand zur Linie nicht in eine 24-pt-Zeile: Die App setzt sie auf zwei Linien,
+        // aeltere Apps und das Web bekommen denselben Abstand (Durchsicht 26.11.2026; vorher 24 = Zeilen ineinander)
+        XCTAssertEqual((one["lineHeight"]?.double ?? 0) * 24, 48, accuracy: 0.02)
         XCTAssertEqual(one["snap"], "lines")
         // gemischt: die laengere Formatierung ist die Grundformatierung, die kuerzere ein Abschnitt
         let normal = TextBlock.baseStyle(o)

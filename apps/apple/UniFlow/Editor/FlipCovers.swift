@@ -196,8 +196,10 @@ final class CoverTapper: NSObject, UIGestureRecognizerDelegate {
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
-        guard isEnabled(), let root = g.view else { return false }
-        return object(at: touch.location(in: root), in: root) != nil
+        guard isEnabled(), let root = g.view, let hit = object(at: touch.location(in: root), in: root) else { return false }
+        // der Stift schreibt unter einer aufgedeckten Karte (`revealedLetPencilThrough`): Sein Aufsetzen klappt nicht zu
+        if touch.type == .pencil, hit.layer.revealedLetPencilThrough, hit.layer.isRevealedCover(hit.object) { return false }
+        return true
     }
 
     func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }

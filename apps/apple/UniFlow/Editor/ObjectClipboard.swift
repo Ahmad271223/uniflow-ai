@@ -236,7 +236,7 @@ extension ObjectEditing {
         guard let key = selectedKey else { return }
         let sel = selection, ink = inkSelection
         let list = await objects(key)
-        let copies = Self.copies(of: list.filter { (o: JSONValue) in (o["id"]?.string).map { sel?.ids.contains($0) == true } == true },
+        let copies = Self.copies(of: copyable(list.filter { (o: JSONValue) in (o["id"]?.string).map { sel?.ids.contains($0) == true } == true }),
                                  dx: Self.pasteOffset, dy: Self.pasteOffset)
         var inkCopies: PKDrawing?
         if let ink, let c = controller {
@@ -245,6 +245,17 @@ extension ObjectEditing {
                                          indices: [], by: .identity)
         }
         await place(objects: copies, ink: inkCopies, inkOffset: CGPoint(x: Self.pasteOffset, y: Self.pasteOffset), on: key)
+    }
+
+    static let copyLockedHint = "Klappkarten und Verweise vervielfältigen geht mit Pro AI."
+
+    /// Was sich vervielfaeltigen laesst: Ohne Pro AI keine Klappkarten und Verweise (anlegen geht dann auch nicht -
+    /// Duplizieren und Einfuegen waeren sonst der Weg daran vorbei).
+    func copyable(_ list: [JSONValue]) -> [JSONValue] {
+        guard !richAllowed else { return list }
+        let kept = list.filter { !(FlipCover.isCover($0) || PageLink.isLink($0)) }
+        if kept.count != list.count { controller?.onHint?(Self.copyLockedHint) }
+        return kept
     }
 
     /// Objekte mit neuen Kennungen, verschoben
@@ -267,7 +278,7 @@ extension ObjectEditing {
         let objectsData = pasteboard.data(forPasteboardType: Self.objectsPasteboardType)
         let inkData = pasteboard.data(forPasteboardType: Self.inkPasteboardType)
         if objectsData != nil || inkData != nil {
-            let list = objectsData.flatMap { try? JSONValue.parse(String(decoding: $0, as: UTF8.self)) }?.array ?? []
+            let list = copyable(objectsData.flatMap { try? JSONValue.parse(String(decoding: $0, as: UTF8.self)) }?.array ?? [])
             let ink = inkData.flatMap { try? PKDrawing(data: $0) }
             // Ziel: linke obere Ecke von allem an `point`, sonst um 20 pt versetzt
             var box = ink?.bounds ?? .null
