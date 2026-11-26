@@ -156,6 +156,8 @@ extension ObjectEditing {
         guard let overlay = controller?.boundOverlay(forKey: key) else { return }
         Task {
             guard let o = await objects(key).first(where: { $0["id"]?.string == id }), o["type"]?.string == "text" else { return }
+            // Tabelle: kein Text zum Tippen, sondern die grosse Ansicht
+            if SheetObject.isSheet(o) { openSheet(key: key, id: id); return }
             endTextEditing()
             startTextEditing(o, key: key, id: id, on: overlay, isNew: isNew)
         }
@@ -356,7 +358,7 @@ extension ObjectEditing {
     func selectionFormat(_ list: [JSONValue]) -> TextFormat? {
         guard let sel = selection, inkSelection == nil else { return nil }
         let chosen = list.filter { ($0["id"]?.string).map(sel.ids.contains) == true }
-        guard let first = chosen.first, chosen.count == sel.ids.count, chosen.allSatisfy({ $0["type"]?.string == "text" }) else { return nil }
+        guard let first = chosen.first, chosen.count == sel.ids.count, chosen.allSatisfy({ $0["type"]?.string == "text" && !SheetObject.isSheet($0) }) else { return nil }
         let style = TextBlock.commonStyle(chosen.flatMap(TextBlock.runs), fallback: TextBlock.baseStyle(first))
         return TextFormat(style: style, align: first["align"]?.string ?? "left", editing: false, lined: TextBlock.isSnapped(first),
                           note: chosen.allSatisfy(StickyNote.isSticky) ? StickyNote.choice(first) : nil)
@@ -432,7 +434,7 @@ extension ObjectEditing {
         inOrder {
             await $0.commit(sel.key) { list in
                 list.map { o in
-                    guard let id = o["id"]?.string, sel.ids.contains(id), o["type"]?.string == "text" else { return o }
+                    guard let id = o["id"]?.string, sel.ids.contains(id), o["type"]?.string == "text", !SheetObject.isSheet(o) else { return o }
                     let base = TextBlock.baseStyle(o)
                     // immer ueber den Satz der Bloecke, damit die Abschnitte ihre Formatierung behalten
                     let text = NSMutableAttributedString()

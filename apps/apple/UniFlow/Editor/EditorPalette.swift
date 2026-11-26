@@ -26,7 +26,8 @@ enum EditorPalette {
     /// Haftnotiz, Auswaehlen, Text markieren
     static let coverID = "de.studinow.palette.cover"
     static let linkID = "de.studinow.palette.link"
-    static let customIDs = [areaID, shapeID, textID, stickyID, coverID, linkID, selectID, markupID]
+    static let sheetID = "de.studinow.palette.sheet"
+    static let customIDs = [areaID, shapeID, textID, stickyID, coverID, linkID, sheetID, selectID, markupID]
 
     /// Klappkarte, die das Werkzeug als Naechstes anlegt (Farbe, Muster, Groesse beim Antippen), je Geraet gemerkt
     static let coverKey = "UFEditorCoverChoice"
@@ -94,6 +95,7 @@ enum EditorPalette {
         case stickyID: return .sticky
         case coverID: return .cover
         case linkID: return .link
+        case sheetID: return .sheet
         case shapeID: return shape
         case markupID: return .markup
         case areaID: return .area
@@ -109,6 +111,7 @@ enum EditorPalette {
         case .sticky: return stickyID
         case .cover: return coverID
         case .link: return linkID
+        case .sheet: return sheetID
         case .rect, .ellipse, .line, .arrow: return shapeID
         case .markup: return markupID
         case .area: return areaID

@@ -53,6 +53,11 @@ struct LibraryNewDialog: View {
                         .ufRequires(NotebookDialog.feature)
                     UFMenuButton(text: "Whiteboard", icon: "square") { close(); overlay.learnModal(sheets) { NotebookDialog(kind: "whiteboard", lib: lib, moduleID: moduleID, folderID: folderID) } }
                         .ufRequires(NotebookDialog.feature)
+                    // Tabelle als eigene Datei (26.11.2026, ab Pro AI): ein Notizbuch, das sich als Tabelle oeffnet
+                    UFMenuButton(text: UFRichNotes.allowed(plan: Entitlements.shared.plan) ? "Tabelle" : "Tabelle (mit Pro AI)", icon: "grid") {
+                        close(); Task { await newSheetDocument() }
+                    }
+                    .accessibilityIdentifier("library.new.sheet")
                 }
                 UFMenuButton(text: "Ordner", icon: "folder") { close(); Task { await newFolder() } }
                 UFMenuButton(text: "PDF importieren", icon: "file-text") { importKind = "pdf" }
@@ -124,6 +129,23 @@ struct LibraryNewDialog: View {
     }
 
     /// prompt("Name des Ordners:", "Neuer Ordner") -> POST /api/folders; Fehler sichtbar (vorher try?)
+    /// Neue Tabelle als eigene Datei: Notizbuch (A4 quer, blanko) am offenen Ort; die Tabelle selbst legt der Editor beim
+    /// ersten Oeffnen auf die erste Seite (`SheetDocuments.pending`)
+    private func newSheetDocument() async {
+        guard UFRichNotes.allowed(plan: Entitlements.shared.plan) else { toast.show(ObjectEditing.sheetLockedHint); return }
+        guard let api = session.api else { return }
+        var fields = NotebookDialog.fields(kind: "notebook", title: SheetDocuments.defaultTitle, template: "blank",
+                                           format: PageFormats.defaultNotebook, orientation: .landscape)
+        if let moduleID { fields["module_id"] = "\(moduleID)" }
+        if let folderID { fields["folder_id"] = "\(folderID)" }
+        do {
+            let r = try await api.form("/api/notebooks", fields: fields)
+            guard let id = r.s("id") else { return }
+            SheetDocuments.pending.insert(id)
+            router.go(.doc(id))
+        } catch { toast.show(error.localizedDescription) }
+    }
+
     private func newFolder() async {
         guard let name = await overlay.prompt("Name des Ordners:", value: "Neuer Ordner"), !name.isEmpty, let api = session.api else { return }
         if await toast.attempt("Ordner anlegen", {

@@ -3447,6 +3447,13 @@ struct ObjectToolbar: View {
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
             Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
                 .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+            if let table = bridge.selectionObjects?.selectedSheet {
+                Button { bridge.selectionObjects?.openSheet(key: table.key, id: table.id) } label: {
+                    Label("Bearbeiten", systemImage: "tablecells").labelStyle(.titleAndIcon).ufFont(13, 600).padding(.horizontal, 6).frame(height: 30)
+                }
+                .accessibilityLabel("Tabelle bearbeiten")
+                .accessibilityIdentifier("objects.sheet")
+            }
             if let cover = bridge.selectionObjects?.selectedCovers {
                 // Klappkarten gewaehlt: Farbe, Muster, Groesse
                 Menu {

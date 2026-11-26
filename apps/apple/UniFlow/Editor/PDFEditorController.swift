@@ -1218,6 +1218,8 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
     private(set) lazy var linkTargetPicker = LinkTargetPicker(controller: self)
     /// Verweis auf ein anderes Dokument angetippt: daneben oeffnen bzw. dorthin springen (Hauptdokument)
     var onOpenLink: ((PageLink.Target) -> Void)?
+    /// `SheetEditing.openDocumentSheetIfNeeded` lief schon
+    var documentSheetChecked = false
     /// Rechtsklick-Menue, Ziehen und Ablegen, Mauszeiger (10.11.2026)
     private(set) lazy var mouseSupport = EditorMouseSupport(controller: self)
     /// "Bild einfügen …" aus Kontextmenue oder Menueleiste: die Dokumentansicht zeigt die Auswahl (Fotos oder Dateien)
@@ -1369,6 +1371,11 @@ final class PDFEditorController: UIViewController, PDFPageOverlayViewProvider, P
             restore(s)
             // PDFKit legt die Seiten nach dem Zoom erst im naechsten Durchlauf neu: dort noch einmal an die Stelle
             DispatchQueue.main.async { [weak self] in self?.restore(s, zoom: false) }
+        }
+        // Tabelle als eigene Datei: gleich die grosse Ansicht (einmal je Oeffnen des Dokuments)
+        if ownsToolPicker, !documentSheetChecked {
+            documentSheetChecked = true
+            objects.openDocumentSheetIfNeeded()
         }
     }
 
@@ -2952,8 +2959,8 @@ extension PDFEditorController: UIPencilInteractionDelegate {
             return
         }
         // Klappkarten anlegen: ab Pro AI (`UFRichNotes`); aufklappen kann sie jeder
-        if tool == .cover || tool == .link, !richNotes {
-            onHint?(tool == .link ? ObjectEditing.linkLockedHint : ObjectEditing.coverLockedHint)
+        if tool == .cover || tool == .link || tool == .sheet, !richNotes {
+            onHint?(tool == .sheet ? ObjectEditing.sheetLockedHint : tool == .link ? ObjectEditing.linkLockedHint : ObjectEditing.coverLockedHint)
             DispatchQueue.main.async { [weak self] in self?.tools.selectLastInk() }
             return
         }

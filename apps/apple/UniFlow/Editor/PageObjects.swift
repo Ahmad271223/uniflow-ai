@@ -113,6 +113,8 @@ enum ObjectGeometry {
 
     /// Text wie Konva.Text: Breite inklusive 4 pt Innenabstand, Zeilenumbruch nach Woertern.
     static func attributedText(_ o: JSONValue) -> NSAttributedString {
+        // Tabelle (26.11.2026): zeichnet sich selbst (`SheetRender`), der Ersatztext wird nicht gesetzt
+        if SheetObject.isSheet(o) { return NSAttributedString() }
         // Textbloecke (25.11.2026): gemischte Formatierung, eigener Zeilensatz (`TextBlockRender`)
         if TextBlock.isBlock(o) { return TextBlockRender.attributed(o) }
         let size = CGFloat(number(o["fontSize"], 14, in: fontSizeRange))
@@ -140,6 +142,7 @@ enum ObjectGeometry {
 
     /// Groesse eines Textobjekts (Breite aus dem Objekt, Hoehe aus dem Inhalt), immer endlich.
     static func textSize(_ o: JSONValue, _ text: NSAttributedString) -> CGSize {
+        if SheetObject.isSheet(o) { return SheetRender.size(o) }
         if TextBlock.isBlock(o) { return TextBlockRender.size(o) }
         let width = CGFloat(number(o["width"], 200, in: 0...maxCoordinate))
         let inner = max(1, width - 2 * textPadding)
@@ -204,6 +207,8 @@ enum ObjectGeometry {
                     ctx.setLineJoin(.round); ctx.setLineCap(.round); ctx.strokePath()
                     if let head = s.arrowHead { ctx.addPath(head); ctx.setFillColor(stroke.cgColor); ctx.fillPath() }
                 }
+            } else if type == "text", SheetObject.isSheet(o) {
+                SheetRender.draw(o, in: ctx)
             } else if type == "text", TextBlock.isBlock(o) {
                 TextBlockRender.draw(o, in: ctx)
             } else if type == "text" {
@@ -413,6 +418,8 @@ final class PageObjectsView: UIView {
                 } else if let link = v as? LinkView {
                     link.bounds = CGRect(x: 0, y: 0, width: ObjectGeometry.coordinate(o["width"], 0), height: ObjectGeometry.coordinate(o["height"], 0))
                     link.setNeedsDisplay()
+                } else if let sheet = v as? SheetBoxView {
+                    sheet.show(o)                              // Tabelle: Breite = Massstab
                 } else if let block = v as? TextBlockView {
                     block.show(o)                              // Textblock: neu umbrechen im eigenen Satz
                 } else if o["type"]?.string == "text", let label = v.subviews.first as? UILabel {
@@ -513,6 +520,16 @@ final class PageObjectsView: UIView {
             return
         }
         switch o["type"]?.string {
+        case "text" where SheetObject.isSheet(o):
+            let box = SheetBoxView(object: o)
+            let size = box.bounds.size
+            box.layer.anchorPoint = .zero
+            box.alpha = CGFloat(alpha)
+            addSubview(box)
+            box.frame = CGRect(origin: .zero, size: size)
+            box.contentScaleFactor = UIScreen.main.scale * 2
+            box.transform = t
+            placed[id, default: []].append(Placed(view: box, layer: nil, base: t))
         case "text" where TextBlock.isBlock(o):
             let box = TextBlockView(object: o)
             let size = box.bounds.size
