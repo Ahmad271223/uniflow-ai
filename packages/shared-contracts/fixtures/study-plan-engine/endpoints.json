@@ -329,6 +329,7 @@
     "current_fachsemester": null,
     "current_term": null,
     "degree": null,
+    "degree_overview": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [],
@@ -692,7 +693,8 @@
     "code": "TIBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": null,
+    "degree": "B.Sc.",
+    "degree_overview": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [
@@ -2192,7 +2194,8 @@
     "code": "TIBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": null,
+    "degree": "B.Sc.",
+    "degree_overview": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [
@@ -3246,7 +3249,8 @@
     "code": "INFBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": null,
+    "degree": "B.Sc.",
+    "degree_overview": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [
      {
@@ -3623,6 +3627,7 @@
     "current_fachsemester": null,
     "current_term": null,
     "degree": null,
+    "degree_overview": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [],
@@ -4403,7 +4408,8 @@
     "code": "TIBSc22",
     "current_fachsemester": 3,
     "current_term": "WiSe 26/27",
-    "degree": null,
+    "degree": "B.Sc.",
+    "degree_overview": null,
     "disclaimer": "Verbindlich ist die Prüfungsordnung deiner Hochschule.",
     "earlier_studies": [],
     "electives": [

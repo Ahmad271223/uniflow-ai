@@ -3211,6 +3211,9 @@
       "degree": {
        "type": "null"
       },
+      "degree_overview": {
+       "type": "null"
+      },
       "disclaimer": {
        "type": "string"
       },
@@ -3251,6 +3254,10 @@
       },
       "order_suggestion": {
        "type": "null"
+      },
+      "passed_terms": {
+       "type": "array",
+       "item": null
       },
       "placements": {
        "type": "object",

@@ -1730,11 +1730,12 @@ def plan_response(conn, today: str, source=None) -> dict:
             out["message"] = f"Für {named} gibt es noch keinen Modulkatalog."
             out["program"] = named
     other = [r for r in grades if r not in mine and r.get("source") != "anmeldung" and not is_bereich(r)]
-    # Faecher desselben Mehr-Faecher-Studiengangs sind kein frueheres Studium: sie stehen in `degree`
+    # Faecher desselben Mehr-Faecher-Studiengangs sind kein frueheres Studium: sie stehen in `degree_overview`
     deg = combined_degree(grades)
     siblings = set(deg["labels"]) if deg else set()
     other = [r for r in other if text_of(r.get("abschluss")).strip() not in siblings]
-    out["degree"] = degree_overview(grades, mine if cat is not None else [], out.get("lp_manual"))
+    # eigenes Feld: `degree` ist schon die Abschlussart des Katalogs ("B.Sc.") und bleibt, wie es war
+    out["degree_overview"] = degree_overview(grades, mine if cat is not None else [], out.get("lp_manual"))
     out["passed_terms"] = passed_terms(grades)
     out["earlier_studies"] = earlier_studies(other) if cat is not None else []
     if cat is not None and other:
