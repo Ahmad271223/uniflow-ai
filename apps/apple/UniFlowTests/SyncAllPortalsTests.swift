@@ -204,10 +204,11 @@ final class SyncAllPortalsTests: XCTestCase {
         try await bed.waitUntil("Sync um 22 Uhr", timeout: 30) { late != nil }
         XCTAssertEqual(late?.synced, ["QIS", "Uni-Mail"])
         let readsAfterNight = inboxReads
-        // 10:31: nur QIS faellig (Uni-Mail eben abgeglichen) - der Abgleich von selbst laeuft ...
+        // 14:01: nur QIS faellig (Noten seit 26.11.2026 hoechstens alle 4 Stunden; Uni-Mail eben abgeglichen) - der
+        // Abgleich von selbst laeuft ...
         let ledger = m.autoLedger(c)
-        ledger.recordAttempt(OpenSync.uniMail, at: bed.clock.now.addingTimeInterval(30 * 60))
-        let t = bed.clock.now.addingTimeInterval(31 * 60)
+        let t = bed.clock.now.addingTimeInterval(AutoSync.gradesInterval + 60)
+        ledger.recordAttempt(OpenSync.uniMail, at: t.addingTimeInterval(-60))
         XCTAssertEqual(m.runAutomaticSync(now: t), [OpenSync.qis])
         XCTAssertNotNil(AutoSync.automatic[c.key])
         // ... der Tipp wartet darauf und gleicht danach alle Portale ab (auch die Uni-Mail)
@@ -367,8 +368,10 @@ final class SyncAllPortalsTests: XCTestCase {
         XCTAssertEqual(menuReads(), 2, "die Liste mit QIS gelesen")
         let list = try await c.api.value("/api/certificates")
         XCTAssertEqual(list["status"]?.string, "ok")
-        // 31 Minuten spaeter: QIS wieder faellig, die Liste noch nicht (6 Stunden)
-        XCTAssertTrue(m.runAutomaticSync(now: t1.addingTimeInterval(31 * 60)).contains(OpenSync.qis))
+        // 31 Minuten spaeter: QIS noch nicht wieder faellig (Noten seit 26.11.2026 hoechstens alle 4 Stunden)
+        XCTAssertFalse(m.runAutomaticSync(now: t1.addingTimeInterval(31 * 60)).contains(OpenSync.qis))
+        // 4 Stunden und 1 Minute spaeter: QIS wieder faellig, die Liste noch nicht (6 Stunden)
+        XCTAssertTrue(m.runAutomaticSync(now: t1.addingTimeInterval(AutoSync.gradesInterval + 60)).contains(OpenSync.qis))
         try await bed.waitUntil("zweiter Abgleich von selbst", timeout: 30) { OpenSync.running.isEmpty }
         XCTAssertEqual(menuReads(), 2, "Liste nicht in jedem Abgleich von selbst")
         assertOnlyReading()

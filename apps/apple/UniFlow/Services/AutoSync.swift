@@ -17,16 +17,28 @@ import UniFlowCore
 // des Kerns), kein Dialog, kein Sprung; sichtbar ist nur der dezente Fortschritt der Leiste.
 // Sparsam: die Liste der Bescheinigungen (QIS, PLuS) liest ein Abgleich von selbst hoechstens alle 6 Stunden; meldet
 // eine Hochschule "ueberlastet" (429/503), ruht der Abgleich von selbst fuer dieses Portal 2 Stunden.
+// Seit 26.11.2026 ("Abruf schonen", Freigabe des Inhabers): Noten (QIS der LUH, LSF der Uni Hildesheim, Campus der HsH)
+// liest ein Abgleich von selbst hoechstens alle 4 Stunden (`gradesInterval`, also 3-mal im Fenster statt 20-mal), und
+// jedes Geraet beginnt das Fenster mit einem festen Versatz von 0 bis 29 Minuten (`AutoSyncStagger`). Der Knopf "Sync"
+// fragt weiter alles sofort ab.
 
 @MainActor
 enum AutoSync {
-    /// Fenster und Abstand (Tests setzen eigene)
-    static var schedule: AutoSyncSchedule = .standard
+    /// Fenster und Abstand (Tests setzen eigene). In der App mit dem festen Versatz dieses Geraets; unter XCTest ohne,
+    /// damit die Tests mit festen Uhrzeiten (8:00, 8:30 …) rechnen koennen.
+    static var schedule: AutoSyncSchedule = StudIPSync.isUnderTest()
+        ? .standard : .standard.staggered(by: AutoSyncStagger.offset(defaults: .standard))
     /// Ortszeit des Geraets (auf Reisen die dortige)
     static var timeZone: () -> TimeZone = { TimeZone.current }
     /// Liste der Bescheinigungen von selbst hoechstens so oft (der Knopf "Sync" liest sie immer)
     static let certificatesInterval: TimeInterval = 6 * 3600
     static let certificates = "Bescheinigungen"
+    /// Noten von selbst hoechstens so oft (QIS ist das langsamste System; Noten aendern sich selten). Der Knopf "Sync"
+    /// liest sie immer.
+    static let gradesInterval: TimeInterval = 4 * 3600
+    static let grades = "Noten"
+    /// Portale mit eigenem, laengerem Abstand als dem des Plans (LUH: QIS liefert nur Noten und Pruefungsanmeldungen)
+    static let portalIntervals: [String: TimeInterval] = [OpenSync.qis: gradesInterval]
     /// Vor einem Abgleich von selbst (Mitteilungen: Stand der Datenbank vorher; Tests)
     static var willRun: (@MainActor (ActiveContainer, Set<String>) async -> Void)?
     /// Nach einem Abgleich von selbst mit den abgeglichenen Portalen (Mitteilungen ueber Neues; Tests)
@@ -88,7 +100,7 @@ extension ContainerManager {
         let ledger = autoLedger(c), tz = timeZone ?? AutoSync.timeZone()
         return Set(autoSyncPortals.filter {
             ledger.isDue($0.name, lastSuccess: $0.lastSuccess, pending: $0.pending, now: now, timeZone: tz,
-                         retryGap: continueAtOnce ? 0 : AutoSyncLedger.retryGap)
+                         interval: AutoSync.portalIntervals[$0.name], retryGap: continueAtOnce ? 0 : AutoSyncLedger.retryGap)
         }.map(\.name))
     }
 
@@ -101,7 +113,7 @@ extension ContainerManager {
         let times = autoSyncPortals.map { p -> Date in
             // wartende Arbeit (unterbrochen, Dateien noch nicht geladen) darf frueher weitergehen
             if p.pending, ledger.isDue(p.name, lastSuccess: p.lastSuccess, pending: true, now: now, timeZone: tz) { return now }
-            return ledger.nextRun(p.name, lastSuccess: p.lastSuccess, now: now, timeZone: tz)
+            return ledger.nextRun(p.name, lastSuccess: p.lastSuccess, now: now, timeZone: tz, interval: AutoSync.portalIntervals[p.name])
         }
         return times.min() ?? AutoSync.schedule.nextRun(last: nil, now: now, timeZone: tz)
     }
@@ -113,6 +125,17 @@ extension ContainerManager {
         guard ledger.isDue(AutoSync.certificates, lastSuccess: nil, now: now, timeZone: AutoSync.timeZone(),
                            interval: AutoSync.certificatesInterval) else { return false }
         ledger.recordAttempt(AutoSync.certificates, at: now)
+        return true
+    }
+
+    /// Noten in einem Abgleich von selbst lesen (Uni Hildesheim, HsH: Noten laufen dort im Abgleich der Dateien mit)?
+    /// Hoechstens alle `AutoSync.gradesInterval`; vermerkt den Versuch gleich. Nein heisst: die Quelle entscheidet nach
+    /// ihrer eigenen, laengeren Regel (`gradesDue`, 20 Stunden).
+    func autoGradesDue(_ c: ActiveContainer, now: Date = Date()) -> Bool {
+        let ledger = autoLedger(c)
+        guard ledger.isDue(AutoSync.grades, lastSuccess: nil, now: now, timeZone: AutoSync.timeZone(),
+                           interval: AutoSync.gradesInterval) else { return false }
+        ledger.recordAttempt(AutoSync.grades, at: now)
         return true
     }
 
@@ -137,9 +160,10 @@ extension ContainerManager {
             await AutoSync.willRun?(c, due)
             if let hsh = self.hsh {
                 // eine abgelaufene Quelle meldet sich nach dem Lauf selbst still neu an (`HsHConnection.run`)
-                await hsh.run(forceGrades: true)
+                await hsh.run(forceGrades: self.autoGradesDue(c, now: now))
             } else if let h = self.hildesheim {
-                _ = await self.runHildesheimPortals(container: c, hildesheim: h, userAction: false, forceGrades: true, only: due, now: now)
+                _ = await self.runHildesheimPortals(container: c, hildesheim: h, userAction: false,
+                                                    forceGrades: self.autoGradesDue(c, now: now), only: due, now: now)
             } else if self.syncsAllPortals {
                 _ = await self.runAllPortals(container: c, userAction: false, forceGrades: due.contains(OpenSync.qis), only: due, now: now)
             }
