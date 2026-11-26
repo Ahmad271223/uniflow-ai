@@ -125,7 +125,9 @@ genau diese Datei annimmt und richtig zählt. `tools/absturz-durchlauf.sh` macht
 
 1. ~~Von selbst an oder erst fragen?~~ **Entschieden am 25.11.2026: von selbst an.** Der rechtliche Hinweis dazu
    (§ 25 TDDDG) steht im Entwurf des Datenschutz-Absatzes; er gehört zur Prüfung des Textes in Punkt 2.
-2. **Datenschutztext.** Entwurf lesen, ändern, freigeben. Erst dann kommt er in `docs/release/DATENSCHUTZ.md` und
+2. **Datenschutztext.** Seit 26.11.2026 als Abschnitt 10a in `docs/release/DATENSCHUTZ.md` (Zweig
+   `recht/1.0.8-rechtstexte`, Website-Fassung im Zweig `site/1.0.8-rechtstexte`); online erst nach dem Upload der Website.
+   Ursprünglich: Entwurf lesen, ändern, freigeben. Erst dann kommt er in `docs/release/DATENSCHUTZ.md` und
    `site/datenschutz.html` – und online erst zusammen mit der App-Version (Uploads zur Website sind laut Notiz bis
    05.12.2026 ohnehin gesperrt).
 3. **App-Datenschutz bei Apple.** In App Store Connect die Datenart „Diagnose → Absturzdaten“ eintragen (erfasst,
