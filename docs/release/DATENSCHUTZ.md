@@ -1,6 +1,6 @@
 # Datenschutzerklärung StudiNow
 
-**Stand 24.11.2026.**
+**Stand 26.11.2026.**
 
 Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
@@ -17,8 +17,8 @@ nötig ist oder was du eingeschaltet hast.
   ein Passwort nur als Hash (falls du eines setzt), deine Hochschule, Sitzungen, Tarif und Probe (Abschnitt 5). Mit der
   Anmeldung gleicht die App Module, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten ab,
   Notizen nur mit Pro AI (Abschnitt 7). Deine Notizen ohne Pro AI und alles in Abschnitt 3 bleiben auf dem Gerät.
-  Neue Kursdateien (Vorlesungen, Übungen, Skripte, Altklausuren) schickt die App einmal ohne deinen Namen an
-  StudiNow; ausschalten kannst du das jederzeit (Abschnitt 7a). Die Community schaltest du selbst ein (Abschnitte 8, 8b).
+  Kursdateien nimmt StudiNow seit dem 26.11.2026 nicht mehr an (Abschnitt 7a). Die Community schaltest du selbst ein
+  (Abschnitte 8, 8b).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
   liegen sie nur auf deinem Gerät (iPad, PC). **Auf unseren Servern speichern wir Hochschul-Passwörter nie** – auch
   nicht für die Web-Version (seit 06.11.2026; Abschnitt 6). Den Abgleich mit deiner Hochschule erledigt die iPad-App
@@ -234,7 +234,7 @@ Bitte prüfe, ob die Nutzungsregeln deiner Hochschule den Abruf durch eine App m
 ## 7. Deine Inhalte im Dienst und Abgleich zwischen Geräten
 
 Mit Konto speichert der Dienst in einem eigenen, von anderen Konten getrennten Datenbereich: die abgerufenen Kurse,
-die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – die Dateien selbst nur über den Datei-Eingang, siehe Abschnitt 7a),
+die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – die Dateien selbst nicht, siehe Abschnitt 7a),
 Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
 Geräteabgleich außerdem Module, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und Einstellungen,
 ab Pro AI auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
@@ -256,20 +256,19 @@ der Name der Prüferin oder des Prüfers; das bleibt nur auf dem Gerät, das die
 dessen Löschung; eine Prüfung, von der du dich abmeldest, verschwindet beim nächsten Abruf auch im Dienst.
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
-## 7a. Kursdateien an StudiNow (Datei-Eingang)
+## 7a. Kursdateien an StudiNow (Datei-Eingang) – seit 26.11.2026 abgeschaltet
 
-Die App schickt neue PDF-Dateien aus deinen Kursen (Vorlesungen, Übungen, Lösungen, Skripte, Altklausuren) einmal an
-den StudiNow-Dienst. Dazu gehen nur Angaben zum Kurs mit: Hochschule, Studiengang (falls gewählt), Semester, Modul,
-Kursname und -nummer, Dateiname, Art der Datei, Woche und Seitenzahl. Nicht gesendet werden dein Name, deine Notizen
-und Markierungen, eigene Dokumente und Organisatorisches. Listen mit Namen, Matrikelnummern oder Noten erkennt die App
-am Dateinamen und an den ersten Seiten und schickt sie nicht; bei eingescannten Listen gelingt das nicht immer.
-Dein StudiNow-Konto wird nur beim Annehmen geprüft (höchstens 300 Dateien am Tag); gespeichert werden die Dateien
-ohne Angabe, wer sie geschickt hat, geordnet nach Hochschule, Studiengang, Semester und Modul, auf einem eigenen
-Server bei Hetzner in Deutschland. Jede Datei wird nur einmal angenommen. Das geschieht nur im WLAN und nur mit
-StudiNow-Konto. **Widerspruch:** Du kannst es jederzeit in den Einstellungen unter „Uni-Zugang & Abgleich“ →
-„Neue Kursdateien an StudiNow schicken“ ausschalten; danach schickt die App nichts mehr.
-Zweck: Lernhilfen zu den Kursen anbieten. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
-geordneten Kursunterlagen für Lernhilfen); dein Widerspruch nach Art. 21 DSGVO ist über den Schalter jederzeit möglich.
+Der Datei-Eingang ist seit dem 26.11.2026 abgeschaltet: StudiNow nimmt keine Kursdateien mehr an.
+
+Bis zum 26.11.2026 haben die App-Versionen 1.0.6 und 1.0.7 neue PDF-Dateien aus deinen Kursen einmal an den
+StudiNow-Dienst geschickt, ohne deinen Namen, ohne Notizen und ohne eigene Dokumente. Diese Versionen fragen weiter
+beim Dienst an, ob eine Datei gebraucht wird (Angaben zum Kurs, Dateiname und Fingerabdruck der Datei). Der Dienst
+lehnt jede dieser Anfragen ab und speichert nichts davon; eine Datei wird dabei nicht übertragen. Mit dem nächsten
+Update fragt die App nicht mehr an. Bis dahin kannst du auch die Anfrage ausschalten: Einstellungen →
+„Uni-Zugang & Abgleich“ → „Neue Kursdateien an StudiNow schicken“.
+
+Die bis zum 26.11.2026 angenommenen Dateien liegen ohne Angabe, wer sie geschickt hat, bei unserem Hoster in
+Deutschland (Abschnitt 11). Zweck: Lernhilfen zu den Kursen anbieten. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO.
 
 ## 8. Community (Plus)
 

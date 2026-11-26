@@ -12,6 +12,8 @@
      12 894 Module; docs/STUDIENGAENGE-*.md).
      Bilder in website-img/: Querformat der Store-Bilder (docs/release/SCREENSHOTS.md), sips -Z 1400 -s format jpeg
      -s formatOptions 70 (1400 x 1050).
+     26.11.2026 (Auftrag des Inhabers): ausdrücklich "iPad-App, auch auf dem iPhone; Mac, Android und Windows kommen
+     demnächst" im Einstieg, in den Fragen und im Abschluss; Abschnitt "Neu in StudiNow".
      :i-name: setzt ein Symbol ein (ICONS in tools/gen-site.py). -->
 
 <details class="news">
@@ -20,7 +22,8 @@
 <p>StudiNow ist ein Studentenprojekt, von Studenten für Studenten. Gerade am Anfang kommen regelmäßig System- und
 Sicherheitsupdates, weil wir die App ständig verbessern wollen, und die Studienverlaufspläne werden nach und nach
 aktualisiert. Fehlt bei deinem Studiengang etwas oder hast du eine Idee? Über Feedback freuen wir uns jederzeit:
-<a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
+<a href="mailto:support@studinow.app">support@studinow.app</a>. Was zuletzt neu war und was als Nächstes kommt,
+steht unter <a href="#neu">Neu in StudiNow</a>.</p>
 </div>
 </details>
 
@@ -32,6 +35,8 @@ aktualisiert. Fehlt bei deinem Studiengang etwas oder hast du eine Idee? Über F
 <p class="hand-line"><span>Mitschreiben, verstehen, üben.</span></p>
 <p class="lead">StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland. Es holt Skripte, Übungsblätter, Termine und Nachrichten aus den Systemen deiner Hochschule auf dein
 iPad und iPhone. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen erklären und übst mit Wochentests und Karteikarten.</p>
+<p class="unis">:i-tablet: <span><strong>StudiNow ist eine iPad-App</strong> und läuft auch auf dem iPhone.
+Mac, Android und Windows kommen demnächst dazu.</span></p>
 <p class="unis">:i-cap: <span>Heute angebunden: <strong>Leibniz Universität Hannover</strong> und
 <strong>Universität Hildesheim</strong>. In Kürze: Hochschule Hannover. Weitere Hochschulen folgen. Deine fehlt?
 <a href="mailto:support@studinow.app">Schreib uns</a>.</span></p>
@@ -200,6 +205,66 @@ Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem 
 </div>
 </section>
 
+<section class="section tint" id="neu" aria-labelledby="neu-title">
+<div class="wrap">
+<div class="section-head">
+<h2 id="neu-title">Neu in StudiNow</h2>
+<p>StudiNow bekommt regelmäßig Updates. Hier steht, was zuletzt dazugekommen ist, was wir behoben haben und woran wir
+gerade arbeiten.</p>
+</div>
+<div class="updates">
+<article class="update" aria-labelledby="u-jetzt">
+<p class="update-tag update-live">Jetzt im App Store</p>
+<h3 id="u-jetzt">Version 1.0.7</h3>
+<p class="when">Erschienen am 25. November 2026</p>
+<h4>Neu dabei</h4>
+<ul class="checks">
+<li><strong>Widgets</strong> „Nächster Termin“ und „Mensa heute“ für Home- und Sperrbildschirm</li>
+<li><strong>Stundenplan am iPhone:</strong> zwischen deinen Tagen und der ganzen Woche umschalten</li>
+<li><strong>Noten selbst eintragen,</strong> wenn eine bestandene Prüfung in QIS fehlt</li>
+<li><strong>Mensa mit Fotos</strong> zu den meisten Gerichten in Hannover</li>
+<li><strong>Konto löschen</strong> nur noch mit Face ID, Touch ID oder deinem Code</li>
+<li><strong>Prüfungsanmeldungen</strong> auf allen deinen Geräten</li>
+</ul>
+<h4>Behoben und verbessert</h4>
+<ul class="checks">
+<li>Die Schrift bleibt beim Zoomen scharf</li>
+<li>Der Textmarker blitzt beim Geradeziehen nicht mehr weg</li>
+<li>Das Lasso geht ohne Tastatur</li>
+<li>QIS, Stud.IP und LSF melden sich im Hintergrund selbst neu an</li>
+<li>Fragst du die KI gleich nach dem Öffnen, hängt das Dokument immer an</li>
+<li>Lösungen in der Community gelten für alle Fassungen derselben PDF</li>
+</ul>
+<p class="fine">Du hast StudiNow schon? Dann hol dir das Update im
+<a href="https://apps.apple.com/de/app/id6830632088">App Store</a>.</p>
+</article>
+<article class="update update-next" aria-labelledby="u-bald">
+<p class="update-tag">In Arbeit</p>
+<h3 id="u-bald">Das nächste Update</h3>
+<p class="when">Daran arbeiten wir gerade</p>
+<h4>Neue Funktionen</h4>
+<ul class="checks planned">
+<li><strong>Mitschrift für Vorlesungsvideos:</strong> Aufzeichnungen deiner Uni und eigene Aufnahmen werden direkt auf
+dem Gerät zu Text. Du suchst darin und springst an die passende Stelle im Video.</li>
+<li><strong>Tippen wie in Word:</strong> Textblöcke mit Schriftarten und Formatleiste, auf linierten Seiten immer genau
+auf der Zeile</li>
+<li><strong>Notizzettel</strong> wie echte Klebezettel, in mehreren Farben und Größen</li>
+<li><strong>Klappkarten</strong> zum Abfragen direkt auf der Seite: Antippen klappt die Antwort auf</li>
+<li><strong>Verweise</strong> auf ein Dokument und eine Seite: Antippen öffnet die Stelle daneben</li>
+</ul>
+<h4>Wird behoben</h4>
+<ul class="checks planned">
+<li>Schreiben bei starkem Zoom: Die Schrift zittert nicht mehr</li>
+<li>Die aufgelegte Hand verschiebt die Seite beim Schreiben nicht mehr</li>
+<li>Universität Hildesheim: klarer Hinweis, wenn dein LSF-Konto als Gastkonto keinen Stundenplan und keine Noten hat</li>
+</ul>
+<p class="fine">Das ist eine Vorschau. Bis zur Veröffentlichung kann sich noch etwas ändern, auch in welchem Tarif eine
+Funktion enthalten ist. Fehlt dir etwas? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
+</article>
+</div>
+</div>
+</section>
+
 <section class="section steps-band" id="so-gehts" aria-labelledby="steps-title">
 <div class="wrap">
 <div class="section-head">
@@ -306,6 +371,11 @@ Noten und Mensa. Geschrieben wird mit dem Apple Pencil weiter am iPad. StudiNow 
 nutzt du iPhone und iPad zusammen.</p>
 </details>
 <details>
+<summary>Gibt es StudiNow für Mac, Android oder Windows?</summary>
+<p>Noch nicht. StudiNow ist heute eine iPad-App, die du auch auf dem iPhone nutzen kannst. Mac, Android und Windows
+kommen demnächst dazu.</p>
+</details>
+<details>
 <summary>Wie kündige ich ein Abo?</summary>
 <p>In den Abo-Einstellungen deines Apple-Kontos. Rechnungen und Rückerstattungen laufen über Apple. Wie du dein
 StudiNow-Konto löschst, steht unter <a href="https://studinow.app/konto-loeschen">Konto löschen</a>.</p>
@@ -320,6 +390,6 @@ StudiNow-Konto löschst, steht unter <a href="https://studinow.app/konto-loesche
 <div class="cta">
 <a class="btn btn-store btn-invert" href="https://apps.apple.com/de/app/id6830632088" aria-describedby="closing-note">:i-download: Im App Store laden</a>
 </div>
-<p class="note" id="closing-note">Für iPad und iPhone. Fragen vorab: support@studinow.app</p>
+<p class="note" id="closing-note">Für iPad und iPhone. Mac, Android und Windows kommen demnächst. Fragen vorab: support@studinow.app</p>
 </div>
 </section>

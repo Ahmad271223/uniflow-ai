@@ -1,6 +1,6 @@
 # Nutzungsbedingungen StudiNow
 
-**Stand 24.11.2026.**
+**Stand 26.11.2026.**
 
 ## 1. Geltung und Vertragspartner
 
@@ -134,12 +134,8 @@ Wochentests über dein eigenes ChatGPT laufen auf deinem Gerät und kosten keine
   weitergeben, soweit dir das nicht ausdrücklich erlaubt ist.
 - Du darfst keine Inhalte hochladen oder teilen, die Rechte Dritter verletzen, die rechtswidrig, beleidigend oder
   Spam sind.
-- **Kursdateien an StudiNow (Datei-Eingang):** Die App schickt neue PDF-Dateien aus deinen Kursen (Vorlesungen,
-  Übungen, Lösungen, Skripte, Altklausuren) einmal an StudiNow, zusammen mit Angaben zum Kurs (Hochschule,
-  Studiengang, Semester, Modul, Kursname, Dateiname). StudiNow ordnet und speichert sie, um Lernhilfen zu deinen
-  Kursen anzubieten. Nicht geschickt werden dein Name, deine Notizen und Markierungen, eigene Dokumente und
-  Organisatorisches; die Dateien werden ohne Angabe gespeichert, wer sie geschickt hat. Das geschieht nur im WLAN und
-  nur mit StudiNow-Konto. Du kannst es jederzeit in den Einstellungen unter „Uni-Zugang & Abgleich“ ausschalten.
+- **Kursdateien an StudiNow (Datei-Eingang):** Seit dem 26.11.2026 abgeschaltet. StudiNow nimmt keine Kursdateien mehr
+  an. Was für ältere App-Versionen gilt, steht in der Datenschutzerklärung, Abschnitt 7a.
 
 ## 7. Community-Regeln
 

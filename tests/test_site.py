@@ -19,7 +19,7 @@ SITE = ROOT / "site"
 PAGES = ("index.html", "support.html", "datenschutz.html", "nutzungsbedingungen.html", "impressum.html", "konto-loeschen.html")
 # Kopie der Apple-Datei an der Wurzel: Drag-and-drop aus dem Finder laesst den versteckten Ordner .well-known weg (05.11.2026)
 AASA_ROOT = "apple-app-site-association"
-FILES = PAGES + ("style.css", "icon.svg", "logo.png", "favicon.png", "apple-touch-icon.png", "vorschau.jpg", "_redirects", "_headers", AASA_ROOT)
+FILES = PAGES + ("style.css", "icon.svg", "logo.png", "favicon.png", "favicon.ico", "apple-touch-icon.png", "vorschau.jpg", "_redirects", "_headers", AASA_ROOT)
 IMG_SRC = ROOT / "docs" / "release" / "website-img"
 IMAGES = tuple(f"img/{p.name}" for p in sorted(IMG_SRC.glob("*.jpg")))
 # ausserhalb der Navigation: Einladungsseite hinter https://studinow.app/i/<CODE>, Bilder der Startseite und Universal Links
@@ -37,7 +37,7 @@ def generated(tmp_path_factory) -> Path:
     p = subprocess.run([sys.executable, str(TOOL), "--out", str(out)], capture_output=True, text=True, encoding="utf-8",
                        cwd=ROOT, timeout=60)
     assert p.returncode == 0, p.stdout + p.stderr
-    assert f"{17 + len(IMAGES)} Dateien" in p.stdout and "Platzhalter offen" not in p.stdout   # Hosting seit 08.11.2026 eingetragen
+    assert f"{18 + len(IMAGES)} Dateien" in p.stdout and "Platzhalter offen" not in p.stdout   # Hosting seit 08.11.2026 eingetragen
     return out
 
 

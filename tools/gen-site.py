@@ -34,7 +34,8 @@ import markdown
 ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "docs" / "release"
 ICON = ROOT / "app" / "static" / "icon.svg"
-LOGO_SRC = SRC / "website-logo"    # Logo ab 06.11.2026 (logo.png, apple-touch-icon.png, favicon.png), aus dem App-Icon
+LOGO_SRC = SRC / "website-logo"    # Logo ab 06.11.2026 (logo.png, apple-touch-icon.png, favicon.png), aus dem App-Icon;
+                                   # seit 26.11.2026 favicon.png 96 px (vorher 64) und favicon.ico (16/32/48), beide aus logo.png
 PREVIEW = SRC / "website-vorschau" / "vorschau.jpg"   # Vorschaubild fuer geteilte Links (og:image), 1200 x 630, seit 24.11.2026
 IMG_SRC = SRC / "website-img"       # Bildschirmfotos der Startseite (Demo-Inhalte, JPEG <= 1400 px), kopiert nach site/img/
 DEFAULT_OUT = ROOT / "site"
@@ -179,6 +180,7 @@ main.home h3 { margin: .9rem 0 .35rem; font-size: 1.1rem; }
 .unis { display: flex; gap: .6rem; align-items: flex-start; margin: 1.3rem 0 0; max-width: 32rem; color: var(--text-2); font-size: .97rem; line-height: 1.5; }
 .unis .ico { width: 1.5rem; height: 1.5rem; margin-top: .05rem; color: var(--accent-text); }
 .unis strong { color: var(--text); }
+.unis + .unis { margin-top: .75rem; }
 .lead { font-size: 1.2rem; line-height: 1.55; color: var(--text-2); max-width: 32rem; margin: 0; }
 .hero-shot { margin: 0; }
 .device { background: var(--bezel); border-radius: 28px; padding: 11px; box-shadow: var(--shadow); }
@@ -519,6 +521,25 @@ main.doc { padding: 3rem 0 4.5rem; }
   .flip, .flip summary, .flip-back, .quiz { min-height: 15rem; }
   .flip summary, .flip-back, .quiz { padding: 1.4rem; }
 }
+/* Neu in StudiNow (26.11.2026, Auftrag des Inhabers): links die Version im App Store, rechts gestrichelt das, was in Arbeit ist */
+.updates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; align-items: start; }
+.update { background: var(--bg); border: 1px solid var(--line-strong); border-radius: var(--r-lg); padding: 1.7rem 1.7rem 1.2rem; }
+.update-next { background: transparent; border: 2px dashed var(--line-strong); }
+.update-tag { display: inline-flex; align-items: center; gap: .45rem; margin: 0; padding: .22rem .8rem; border-radius: 999px;
+  border: 1.5px dashed var(--line-strong); color: var(--muted); font-size: .82rem; font-weight: 700; }
+.update-live { border: 0; background: var(--accent-soft); color: var(--accent-text); }
+.update-live::before { content: ""; width: .5rem; height: .5rem; border-radius: 50%; background: var(--ok); }
+main.home .update h3 { margin: .85rem 0 .1rem; font-size: 1.45rem; letter-spacing: -.02em; }
+.update .when { margin: 0; color: var(--muted); font-size: .92rem; }
+.update h4 { margin: 1.5rem 0 0; padding-top: 1rem; border-top: 1px solid var(--line); font-family: var(--display);
+  font-size: .8rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.update .checks { margin: .7rem 0 0; font-size: .97rem; }
+.update .checks strong { color: var(--text); }
+.update .checks li { color: var(--text-2); }
+.planned li::before { left: .2rem; top: .42em; width: .7rem; height: .7rem; border: 2px solid var(--accent); border-radius: 50%; transform: none; }
+.update .fine { margin: 1.4rem 0 0; }
+@media (max-width: 860px) { .updates { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .update { padding: 1.4rem 1.2rem 1rem; } }
 """
 
 TEMPLATE = """\
@@ -530,6 +551,7 @@ TEMPLATE = """\
 <title>{title}</title>
 <meta name="description" content="{description}">
 {social}<meta name="color-scheme" content="light dark">
+<link rel="icon" href="{root}favicon.ico" sizes="48x48">
 <link rel="icon" href="{root}favicon.png" type="image/png">
 <link rel="apple-touch-icon" href="{root}apple-touch-icon.png">
 <link rel="stylesheet" href="{root}style.css">
@@ -562,7 +584,7 @@ TEMPLATE = """\
 HEADER_NAV = [("Funktionen", "index.html#funktionen"), ("Preise", "index.html#preise"), ("Fragen", "index.html#fragen"),
               ("Support", "support.html")]
 FOOTER_COLS = [
-    ("Produkt", [("Startseite", "index.html"), ("Funktionen", "index.html#funktionen"), ("So geht’s", "index.html#so-gehts"),
+    ("Produkt", [("Startseite", "index.html"), ("Funktionen", "index.html#funktionen"), ("Neu in StudiNow", "index.html#neu"), ("So geht’s", "index.html#so-gehts"),
                  ("Preise", "index.html#preise")]),
     ("Hilfe", [("Support", "support.html"), ("Häufige Fragen", "index.html#fragen"), ("Konto löschen", "konto-loeschen.html"),
                ("support@studinow.app", "mailto:support@studinow.app")]),
@@ -714,7 +736,7 @@ def build() -> dict[str, str | bytes]:
     files: dict[str, str | bytes] = {"style.css": CSS, "icon.svg": ICON.read_bytes()}
     for src_name, out_name, nav_name, description in PAGES + EXTRA_PAGES:
         files[out_name] = render_page(src_name, out_name, nav_name, description, owner, year)
-    for logo in sorted(LOGO_SRC.glob("*.png")):
+    for logo in sorted(p for p in LOGO_SRC.iterdir() if p.suffix in (".png", ".ico")):
         files[logo.name] = logo.read_bytes()
     files[PREVIEW.name] = PREVIEW.read_bytes()
     for img in sorted(IMG_SRC.glob("*.jpg")):
