@@ -332,6 +332,9 @@ struct DocumentView: View {
     @StateObject private var markers = LectureMarkers()
     @State private var markerPage: MarkerPage?
     @State private var markerNotice: String?
+    /// Meldung des Marker-Blatts, solange es noch offen ist: sie erscheint erst, wenn das Blatt zu ist. Ein Hinweis unter
+    /// einem offenen Blatt schliesst es und erscheint selbst nicht verlaesslich (Durchsicht 26.11.2026).
+    @State private var markerNoticePending: String?
     /// Korrekturvorschlag: fremde Loesung (Kennung beim Dienst), die beim Oeffnen korrigiert wird (`CorrectionMode.swift`)
     let correcting: String?
     /// laufende Korrektur (Korrektur-Modus); eigene Notizen dann ausgeblendet und nur lesbar
@@ -871,13 +874,15 @@ struct DocumentView: View {
                     .environment(\.ufClose, { flashcardQuestion = nil })
             }
         }
-        .ufSheet(item: $markerPage) { mp in
+        .ufSheet(item: $markerPage, onDismiss: {
+            if let n = markerNoticePending { markerNoticePending = nil; markerNotice = n }
+        }) { mp in
             LectureMarkerSheet(api: api, fileID: store.file.id, page: mp.page, pageKey: mp.key, markers: markers,
                                goTo: { pdfPage in
                                    if let i = store.layout?.entries.firstIndex(where: { $0.kind == "pdf" && $0.pdfIndex == pdfPage }) {
                                        bridge.controller?.goToPage(i)
                                    }
-                               }, done: { markerNotice = $0 })
+                               }, done: { markerNoticePending = $0 })
         }
         .alert("Vorlesung bis hier", isPresented: Binding(get: { markerNotice != nil }, set: { if !$0 { markerNotice = nil } })) {
             Button("OK", role: .cancel) {}

@@ -714,7 +714,7 @@ struct LectureMarkerSheet: View {
                 topic = r.s("topic") ?? ""
             }
         } catch {
-            if pv == nil { self.error = error.localizedDescription } else { done(error.localizedDescription) }
+            if pv == nil { self.error = error.localizedDescription } else { fail(error.localizedDescription) }
         }
     }
 
@@ -733,7 +733,7 @@ struct LectureMarkerSheet: View {
             }
             let range = pv.list("range")
             await finish("Seite \(range.first?.int ?? 0)–\(pv.i("page") ?? page) als behandelt markiert. Wochentest ab \(WeeklyText.when(pv.s("publish_at"))).")
-        } catch { done(error.localizedDescription) }
+        } catch { fail(error.localizedDescription) }
     }
 
     private func move(_ m: JSONValue) async {
@@ -743,7 +743,7 @@ struct LectureMarkerSheet: View {
         do {
             _ = try await api.value("/api/markers/\(id)", method: "PATCH", body: body)
             await finish("Marker verschoben")
-        } catch { done(error.localizedDescription) }
+        } catch { fail(error.localizedDescription) }
     }
 
     private func delete(_ m: JSONValue) async {
@@ -751,7 +751,7 @@ struct LectureMarkerSheet: View {
         do {
             _ = try await api.value("/api/markers/\(id)", method: "DELETE")
             await finish("Marker gelöscht")
-        } catch { done(error.localizedDescription) }
+        } catch { fail(error.localizedDescription) }
     }
 
     private func release(_ m: JSONValue) async {
@@ -759,12 +759,20 @@ struct LectureMarkerSheet: View {
         do {
             _ = try await api.value("/api/markers/\(id)/release", method: "POST", body: ["confirm": true])
             await finish("Als Kursmarker freigegeben")
-        } catch { done(error.localizedDescription) }
+        } catch { fail(error.localizedDescription) }
     }
 
     private func finish(_ message: String) async {
         await markers.refresh(api: api, fileID: fileID)
         NotificationCenter.default.post(name: .uniflowWeeklyChanged, object: nil)
+        dismiss()
+        done(message)
+    }
+
+    /// Fehler: das Blatt schliesst sich, die Meldung erscheint danach (`DocumentView` zeigt sie erst, wenn das Blatt zu
+    /// ist). Vorher sollte der Hinweis unter dem offenen Blatt erscheinen - das schliesst das Blatt und zeigt den
+    /// Hinweis nicht verlaesslich (Durchsicht 26.11.2026).
+    private func fail(_ message: String) {
         dismiss()
         done(message)
     }

@@ -374,12 +374,32 @@ final class UFOverlay: ObservableObject {
 
     /// window.confirm: Systemdialog mit Abbrechen / OK
     func confirm(_ text: String) async -> Bool {
-        await withCheckedContinuation { c in ask = .confirm(text, c) }
+        await withCheckedContinuation { c in put(.confirm(text, c)) }
     }
 
     /// window.prompt: Systemdialog mit Eingabefeld; nil = Abbrechen
     func prompt(_ text: String, value: String = "") async -> String? {
-        await withCheckedContinuation { c in ask = .prompt(text, value, c) }
+        await withCheckedContinuation { c in put(.prompt(text, value, c)) }
+    }
+
+    /// Rueckfragen, die warten, bis die offene beantwortet ist
+    private var waitingAsks: [Ask] = []
+
+    /// Eine Rueckfrage nach der anderen (Durchsicht 26.11.2026): vorher ueberschrieb eine zweite Frage die offene - deren
+    /// Aufrufer wartete fuer immer, und die Knoepfe des noch sichtbaren Hinweises beantworteten die zweite Frage.
+    private func put(_ a: Ask) {
+        if ask == nil && waitingAsks.isEmpty { ask = a } else { waitingAsks.append(a) }
+    }
+
+    /// Die offene Rueckfrage ist beantwortet (`UFModalHost`); die naechste wartende erscheint, sobald ihr Hinweis
+    /// verschwunden ist
+    func askAnswered() {
+        ask = nil
+        guard !waitingAsks.isEmpty else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            guard let self, self.ask == nil, !self.waitingAsks.isEmpty else { return }
+            self.ask = self.waitingAsks.removeFirst()
+        }
     }
 }
 
@@ -462,7 +482,7 @@ struct UFModalHost: ViewModifier {
 
     private func finish(_ value: Any?) {
         guard let a = overlay.ask else { return }
-        overlay.ask = nil
+        overlay.askAnswered()
         switch a {
         case .confirm(_, let c): c.resume(returning: (value as? Bool) ?? false)
         case .prompt(_, _, let c): c.resume(returning: value as? String)

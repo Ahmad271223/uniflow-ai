@@ -453,6 +453,15 @@ enum UniWebBrowser {
         }
         sheet = controller
         top.present(controller, animated: true)
+        // Lehnt UIKit das Zeigen ab (`top` zeigt gerade selbst etwas oder verschwindet), meldet sich das Blatt nie als
+        // geschlossen, und die App laese bis zum Neustart nicht mehr im QIS (Durchsicht 26.11.2026). Darum nach kurzer
+        // Zeit nachsehen (nicht sofort: ein nur aufgeschobenes Zeigen ist direkt nach dem Aufruf noch nicht eingetragen).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) { [controller] in
+            guard controller.onDismissed != nil, controller.presentingViewController == nil,
+                  controller.viewIfLoaded?.window == nil else { return }
+            controller.onDismissed = nil
+            lease?.endBrowser()
+        }
         return true
     }
 
