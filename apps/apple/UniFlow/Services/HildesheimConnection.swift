@@ -52,6 +52,10 @@ final class HildesheimConnection: ObservableObject {
 
     @Published private(set) var learnweb: State = .notConnected
     @Published private(set) var lsf: State = .notConnected
+    /// Konto im LSF in der Rolle "Gast" (25.11.2026, `HildesheimSync.Report.campusGuest`): dort gibt es dafuer weder
+    /// persoenlichen Stundenplan noch Notenspiegel. Stundenplan und "Uni & Noten" sagen das, statt auf den naechsten
+    /// Abgleich zu vertroesten oder einen Fehler zu zeigen. Bleibt bis zum naechsten gelesenen Stand bzw. zum Abmelden.
+    @Published private(set) var lsfGuest = false
     @Published private(set) var isRunning = false
     /// Meldungen des letzten Abgleichs (`HildesheimSync.Report.messages`) fuer die Statusleiste
     @Published private(set) var messages: [String] = []
@@ -134,6 +138,7 @@ final class HildesheimConnection: ObservableObject {
         messages = defaults.stringArray(forKey: Keys.messages) ?? []
         learnweb = storedState(.learnweb)
         lsf = storedState(.lsf)
+        lsfGuest = defaults.bool(forKey: Keys.lsfGuest)
         // Modulkatalog: Ausloeser fuer die Seite Studienverlauf (14.11.2026: fehlte fuer Hildesheim; die Suche lief nie,
         // weder fuer den Studiengang aus dem LSF noch fuer eine eigene Wahl oder einen eingefuegten Link)
         StudyCatalogSync.attach(host: host)
@@ -147,6 +152,8 @@ final class HildesheimConnection: ObservableObject {
         static let learnwebMode = "uniflow.hildesheim.learnweb.mode"
         static let learnwebBase = "uniflow.hildesheim.learnweb.base"
         static let lsfConnected = "uniflow.hildesheim.lsf.connected"
+        /// Konto im LSF in der Rolle "Gast" (`lsfGuest`)
+        static let lsfGuest = "uniflow.hildesheim.lsf.guest"
         static let lastRun = "uniflow.hildesheim.lastRun"
         static let messages = "uniflow.hildesheim.messages"
         static let gradesRun = "uniflow.hildesheim.grades.lastRun"
@@ -294,7 +301,8 @@ final class HildesheimConnection: ObservableObject {
             task.cancel()
             _ = await task.value
         }
-        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.downloadsPending, Keys.runOpen, LoginReminder.lastLoginKey] { defaults.removeObject(forKey: k) }
+        for k in [Keys.learnwebMode, Keys.learnwebBase, Keys.lsfConnected, Keys.lsfGuest, Keys.downloadsPending, Keys.runOpen, LoginReminder.lastLoginKey] { defaults.removeObject(forKey: k) }
+        lsfGuest = false
         UniLoginHelper.forget(defaults: defaults)                // gemerkter Benutzername der CAS-Anmeldeseite
         UniAutoLogin.forget(websiteDataStore)                    // gemerktes Passwort der Uni Hildesheim (Schluesselbund)
         renewal = UniRenewalState()
@@ -790,6 +798,11 @@ final class HildesheimConnection: ObservableObject {
                 succeeded = false
             }
         }
+        // Rolle im LSF: nur uebernehmen, wenn dieser Lauf eine angemeldete LSF-Seite gelesen hat
+        if let guest = r.campusGuest, guest != lsfGuest {
+            lsfGuest = guest
+            defaults.set(guest, forKey: Keys.lsfGuest)
+        }
         if r.completed.contains(Part.grades) {
             defaults.set(now, forKey: Keys.gradesRun)
             StudyCatalogSync.trigger(host: host)     // Studiengang aus dem Notenspiegel -> Modulkatalog suchen (Hintergrund)
@@ -873,6 +886,13 @@ final class HildesheimLogin: ObservableObject {
     let connection: HildesheimConnection
     /// Learnweb ueber das Moodle-SSO (Schluessel) statt der Sitzung
     private(set) var viaToken = false
+    /// Learnweb mit Anmeldung nur "in der App" (`typeoflogin` 1, das echte Learnweb): launch.php zeigt ohne frische
+    /// Anmeldung nur eine Fehlerseite. Die Webansicht oeffnet deshalb die Anmeldeseite; sobald Moodle die Anmeldung
+    /// abgeschlossen hat, laedt sie stattdessen diese Adresse (launch.php, `reroute`) und der Schluessel kommt
+    /// (`intercept`). Bleibt er aus, gilt der Sitzungsweg (`pageLoaded`).
+    private(set) var launchAfterLogin: URL?
+    /// launch.php wurde nach der Anmeldung schon aufgerufen (`reroute`, einmal je Anmeldung)
+    private(set) var launchTried = false
     private(set) var base: String?
     private var passport: String?
     private var scheme = MoodleSSO.defaultScheme
@@ -888,6 +908,8 @@ final class HildesheimLogin: ObservableObject {
     func prepare() async {
         stage = .preparing
         casError = nil
+        launchAfterLogin = nil
+        launchTried = false
         await connection.finishPendingSignOut()
         switch target {
         case .lsf:
@@ -909,15 +931,37 @@ final class HildesheimLogin: ObservableObject {
                 passport = p
                 scheme = config.urlScheme
                 siteURLs = [config.wwwroot, config.httpsWWWRoot].compactMap { $0 }
-                viaToken = true
-                stage = .page(url)
+                if config.browserLogin {
+                    viaToken = true
+                    stage = .page(url)
+                } else {
+                    // `typeoflogin` 1 (echtes Learnweb, 25.11.2026): launch.php direkt zeigt nur "Das Plugin ist nicht
+                    // aktiviert oder nicht richtig konfiguriert." - erst die Anmeldeseite, launch.php gleich danach
+                    guard let entry = URL(string: MoodleSSO.loginPageURL(base: b)) else { throw HildesheimError.ssoUnavailable("Anmeldeseite") }
+                    viaToken = false
+                    launchAfterLogin = url
+                    stage = .page(entry)
+                }
             } catch {
                 // Uni erlaubt das App-Schema nicht oder die Schnittstelle ist aus: Sitzung der Webansicht
                 viaToken = false
+                launchAfterLogin = nil
                 passport = nil
                 stage = URL(string: HildesheimCAS.learnwebLoginURL(base: b)).map(Stage.page) ?? .failed("Anmeldeseite des Learnweb fehlt.")
             }
         }
+    }
+
+    /// Fuer `decidePolicyFor navigationAction` (Hauptrahmen): statt `url` diese Adresse laden, nil = nichts aendern.
+    /// Schluessel-Weg bei `typeoflogin` 1: Moodle hat die Anmeldung gerade abgeschlossen und will nur noch die Sitzung
+    /// pruefen (`login/index.php?testsession=…`). Genau jetzt nimmt launch.php den Aufruf an ("frisch angemeldet") und
+    /// gibt den Schluessel aus; nach der naechsten angezeigten Seite nicht mehr. Deshalb statt der Pruefseite launch.php.
+    /// Einmal je Anmeldung; bleibt der Schluessel aus, gilt die Sitzung (`pageLoaded`).
+    func reroute(_ url: URL) -> URL? {
+        guard target == .learnweb, !launchTried, let launch = launchAfterLogin, let base, passport != nil,
+              MoodleSSO.isSessionTest(url.absoluteString, base: base) else { return nil }
+        launchTried = true
+        return launch
     }
 
     /// Fuer `decidePolicyFor navigationAction`: true = Navigation abbrechen. Alles ausser http(s) und about geht nie an
@@ -927,7 +971,7 @@ final class HildesheimLogin: ObservableObject {
         let s = url.scheme?.lowercased() ?? ""
         if s == "https" || s == "http" || s == "about" { return false }
         if s == "file", DebugUniStub.isActive { return false }                 // nur Debug: lokale Nachbildung der Anmeldeseite
-        guard target == .learnweb, viaToken, let base, let passport,
+        guard target == .learnweb, viaToken || launchAfterLogin != nil, let base, let passport,
               MoodleSSO.isTokenRedirect(url.absoluteString, scheme: scheme) else { return true }
         self.passport = nil                                              // jede Antwort gilt nur einmal
         guard let token = MoodleSSO.parseLaunchToken(url.absoluteString, base: base, passport: passport, scheme: scheme,
@@ -950,7 +994,8 @@ final class HildesheimLogin: ObservableObject {
             stage = .done
         case .learnweb:
             guard let base else { return }
-            stage = connection.learnwebSignedIn(token: viaToken ? LearnwebToken("StubSchluessel0001") : nil, base: base) ? .done : .failed("Stub")
+            let token = viaToken || launchAfterLogin != nil ? LearnwebToken("StubSchluessel0001") : nil
+            stage = connection.learnwebSignedIn(token: token, base: base) ? .done : .failed("Stub")
         }
     }
 
@@ -974,7 +1019,16 @@ final class HildesheimLogin: ObservableObject {
             }
         case .learnweb:
             // Sitzungsweg: angemeldete Seite der Instanz (beim SSO-Weg zaehlt nur der Schluessel)
-            guard !viaToken, let base, url.absoluteString.hasPrefix(base + "/"), Learnweb.isLoggedIn(html: html) else { return }
+            // (nach `reroute` ist die Anmeldung abgeschlossen, auch wenn launch.php nur eine Fehlerseite zeigt)
+            guard !viaToken, let base, url.absoluteString.hasPrefix(base + "/"), launchTried || Learnweb.isLoggedIn(html: html) else { return }
+            // Schluessel-Weg ueber die Anmeldeseite: zeigt launch.php statt der Weiterleitung eine Seite mit dem Link
+            // `<schema>://token=…`, gilt dieser Link (dieselbe Pruefung wie die Weiterleitung)
+            if launchAfterLogin != nil, passport != nil, let link = MoodleSSO.tokenLink(html: html, scheme: scheme),
+               let tokenURL = URL(string: link) {
+                _ = intercept(tokenURL)
+                return
+            }
+            // angemeldet, aber kein Schluessel (Moodle hat nicht zu launch.php geleitet): Sitzung der Webansicht
             if connection.learnwebSignedIn(token: nil, base: base) { stage = .done }
         }
     }

@@ -307,7 +307,7 @@ struct ServicesPage: View {
     private var lsfTimetableCard: some View {
         UFCard {
             UFCardHead("Stundenplan", icon: "clock")
-            Text(hshConnection != nil ? "Die Termine deines Stundenplans im Campusmanagement werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten." : "Die Termine deines LSF-Stundenplans werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten.")
+            Text(hshConnection != nil ? "Die Termine deines Stundenplans im Campusmanagement werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten." : hildesheim?.lsfGuest == true ? LSFGuestTexts.timetableCard : "Die Termine deines LSF-Stundenplans werden bei jedem Abgleich übernommen; vorlesungsfreie Tage stehen darin als Ausfall. Eigene Änderungen und Ausnahmen bleiben erhalten.")
                 .ufFont(13.12).foregroundStyle(UF.text)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.bottom, 5.6)
@@ -556,7 +556,7 @@ private struct LSFGradesCard: View {
                 .padding(.bottom, 9.6)
             }
             if rows.isEmpty {
-                UFEmpty(icon: "exam", text: connected
+                UFEmpty(icon: "exam", text: connected && connection.lsfGuest ? LSFGuestTexts.grades : connected
                         ? "Noch keine Leistungen. Nach dem nächsten Abruf erscheinen hier alle Prüfungsleistungen aus deinem LSF-Notenspiegel."
                         : "Verbinde das LSF, damit StudiNow deinen Notenspiegel holt.", small: true)
             } else {

@@ -25,6 +25,39 @@ final class MoodleSSOTests: XCTestCase {
         return "\(scheme)://token=\(b64)"
     }
 
+    /// Echtes Learnweb Hildesheim (`typeoflogin` 1): launch.php gibt es, nimmt den Aufruf aber nur unmittelbar nach
+    /// einer Anmeldung an. Die App erkennt das (`browserLogin`), oeffnet die Anmeldeseite und erkennt Moodles Pruefseite
+    /// nach der Anmeldung (`isSessionTest`); steht der Schluessel als Link auf einer Seite, findet ihn `tokenLink`.
+    func testLoginInAppGoesThroughTheLoginPage() throws {
+        let appOnly = try config()
+        XCTAssertEqual(appOnly.typeOfLogin, 1)
+        XCTAssertTrue(appOnly.ssoAvailable, "launch.php gibt es, nur nicht als Startseite")
+        XCTAssertFalse(appOnly.browserLogin)
+        func parsed(_ json: String) throws -> MoodlePublicConfig { MoodlePublicConfig.parse(try JSONValue.parse(json)) }
+        XCTAssertTrue(try parsed(#"{"launchurl": "x", "typeoflogin": 2}"#).browserLogin)
+        XCTAssertTrue(try parsed(#"{"launchurl": "x", "typeoflogin": 3}"#).browserLogin)
+        XCTAssertFalse(try parsed(#"{"launchurl": "x", "typeoflogin": 7}"#).browserLogin)
+        XCTAssertFalse(try parsed(#"{"launchurl": "x"}"#).browserLogin, "ohne Angabe: ueber die Anmeldeseite, nie die Fehlerseite")
+
+        XCTAssertEqual(MoodleSSO.loginPageURL(base: wwwroot + "/"), wwwroot + "/login/index.php")
+        XCTAssertTrue(MoodleSSO.isSessionTest(wwwroot + "/login/index.php?testsession=4711", base: wwwroot))
+        XCTAssertTrue(MoodleSSO.isSessionTest(wwwroot + "/login/index.php?lang=de&testsession=3", base: wwwroot + "/"))
+        for other in [wwwroot + "/login/index.php", wwwroot + "/login/index.php?authCAS=CAS", wwwroot + "/login/index.php?ticket=ST-1",
+                      wwwroot + "/login/index.php?testsession=", wwwroot + "/login/index.php?testsession=abc", wwwroot + "/my/?testsession=5",
+                      "https://www.uni-hildesheim.de/learnweb2027/login/index.php?testsession=5",
+                      "https://evil.example/learnweb2026/login/index.php?testsession=5"] {
+            XCTAssertFalse(MoodleSSO.isSessionTest(other, base: wwwroot), other)
+        }
+
+        let link = redirect(site: wwwroot, passport: "passport12345678", token: "Abc123Token", privateToken: "Privat987")
+        let page = #"<html><body><a id="launchapp" href="\#(link)">Hier klicken, um die App zu starten</a></body></html>"#
+        XCTAssertEqual(MoodleSSO.tokenLink(html: page, scheme: "moodlemobile"), link)
+        XCTAssertEqual(MoodleSSO.parseLaunchToken(try XCTUnwrap(MoodleSSO.tokenLink(html: page, scheme: "MoodleMobile")), base: wwwroot,
+                                                  passport: "passport12345678", scheme: "moodlemobile")?.token, "Abc123Token")
+        XCTAssertNil(MoodleSSO.tokenLink(html: page, scheme: "unischema"), "nur das erwartete Schema")
+        XCTAssertNil(MoodleSSO.tokenLink(html: "<p>moodlemobile und token= stehen nur im Text</p>", scheme: "moodlemobile"))
+    }
+
     func testPublicConfigAndLaunchURL() throws {
         let c = try config()
         XCTAssertTrue(c.ssoAvailable)

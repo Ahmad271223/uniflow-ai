@@ -429,10 +429,12 @@ struct StudIPWebView: UIViewRepresentable {
     var cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     /// QIS-Anmeldung am iPhone handlich machen (`QISPhoneFit`, nur iPhone; iPad unveraendert)
     var phoneFitQIS = false
+    /// Hauptrahmen: statt einer Adresse eine andere laden (`Coordinator.reroute`)
+    var rerouteNavigation: (@MainActor (URL) -> URL?)? = nil
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPageLoaded: onPageLoaded, intercept: interceptNavigation, load: load)
+        Coordinator(onPageLoaded: onPageLoaded, intercept: interceptNavigation, load: load, reroute: rerouteNavigation)
     }
 
     /// Konfiguration jeder Anmelde-Webansicht: nur der Datenspeicher des Containers, sonst der Standard von WebKit (kein
@@ -472,16 +474,25 @@ struct StudIPWebView: UIViewRepresentable {
     final class Coordinator: NSObject, WKNavigationDelegate {
         let onPageLoaded: (WKWebView) -> Void
         let intercept: (@MainActor (URL) -> Bool)?
+        /// Hauptrahmen: statt dieser Adresse eine andere laden (nil = nichts aendern), z. B. `HildesheimLogin.reroute`
+        let reroute: (@MainActor (URL) -> URL?)?
         let load: UFWebLoadState?
-        init(onPageLoaded: @escaping (WKWebView) -> Void, intercept: (@MainActor (URL) -> Bool)? = nil, load: UFWebLoadState? = nil) {
+        init(onPageLoaded: @escaping (WKWebView) -> Void, intercept: (@MainActor (URL) -> Bool)? = nil, load: UFWebLoadState? = nil,
+             reroute: (@MainActor (URL) -> URL?)? = nil) {
             self.onPageLoaded = onPageLoaded
             self.intercept = intercept
             self.load = load
+            self.reroute = reroute
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
                      decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void) {
             if let url = navigationAction.request.url {
+                if navigationAction.targetFrame?.isMainFrame != false, let target = reroute?(url) {
+                    decisionHandler(.cancel)
+                    webView.load(URLRequest(url: target))
+                    return
+                }
                 if intercept?(url) == true || (navigationAction.targetFrame?.isMainFrame != false && StudIPWebView.blocksMainFrame(url)) {
                     decisionHandler(.cancel)
                     return
@@ -564,7 +575,8 @@ enum HildesheimSilentLogin {
         let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
         guard case .page(let url) = login.stage, window != nil || background else { return false }
         let pages = Pages()
-        let coordinator = StudIPWebView.Coordinator(onPageLoaded: { _ in pages.finished += 1 }, intercept: { login.intercept($0) })
+        let coordinator = StudIPWebView.Coordinator(onPageLoaded: { _ in pages.finished += 1 }, intercept: { login.intercept($0) },
+                                                    reroute: { login.reroute($0) })
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 4, height: 4),
                             configuration: StudIPWebView.loginConfiguration(dataStore: connection.websiteDataStore))
         web.navigationDelegate = coordinator

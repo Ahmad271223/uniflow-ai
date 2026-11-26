@@ -364,11 +364,13 @@ final class HildesheimAppTests: XCTestCase {
 
     // MARK: Learnweb-Schluessel aus dem Moodle-SSO
 
-    /// Antwort von tool_mobile_get_public_config einer Learnweb-Instanz (laeuft im Stub, nicht auf dem MainActor)
-    nonisolated private static func publicConfig(base: String, siteName: String = "Learnweb SoSe 2026 - WiSe 2026/27") -> UniStubProtocol.Reply {
+    /// Antwort von tool_mobile_get_public_config einer Learnweb-Instanz (laeuft im Stub, nicht auf dem MainActor).
+    /// `typeOfLogin` 1 = Anmeldung "in der App" wie das echte Learnweb; 2 = ueber den Browser (launch.php direkt).
+    nonisolated private static func publicConfig(base: String, siteName: String = "Learnweb SoSe 2026 - WiSe 2026/27",
+                                                 typeOfLogin: Int = 1) -> UniStubProtocol.Reply {
         let data: JSONValue = ["sitename": .string(siteName), "wwwroot": .string(base), "httpswwwroot": .string(base),
                                "launchurl": .string(base + "/admin/tool/mobile/launch.php"), "enablemobilewebservice": 1,
-                               "typeoflogin": 1, "identityproviders": [["name": "CAS"]]]
+                               "typeoflogin": .number(Double(typeOfLogin)), "identityproviders": [["name": "CAS"]]]
         return UniStubProtocol.Reply(status: 200, headers: ["Content-Type": "application/json"],
                                      body: JSONValue.array([["error": false, "data": data]]).serialized())
     }
@@ -389,8 +391,10 @@ final class HildesheimAppTests: XCTestCase {
     func testLearnwebTokenIsCaughtInTheWebViewAndStoredInTheKeychain() async throws {
         let m = manager()
         let (c, h) = try hildesheim(m, account(.hildesheim))
+        // Moodle mit Anmeldung ueber den Browser (`typeoflogin` 2): launch.php ist gleich die Startseite
         UniStubProtocol.install { [base] r in
-            r.url.absoluteString.hasPrefix(base + "/lib/ajax/service-nologin.php") ? Self.publicConfig(base: base) : .text("", status: 404)
+            r.url.absoluteString.hasPrefix(base + "/lib/ajax/service-nologin.php") ? Self.publicConfig(base: base, typeOfLogin: 2)
+                : .text("", status: 404)
         }
         let login = HildesheimLogin(target: .learnweb, connection: h)
         await login.prepare()
@@ -432,6 +436,74 @@ final class HildesheimAppTests: XCTestCase {
         // andere Schemata nie an das System, http(s) laedt normal
         XCTAssertTrue(other.intercept(URL(string: "mailto:test@example.org")!))
         XCTAssertFalse(other.intercept(URL(string: base + "/login/index.php")!))
+    }
+
+    /// Echtes Learnweb Hildesheim (`typeoflogin` 1, 25./26.11.2026): launch.php zeigt ohne frische Anmeldung nur "Das
+    /// Plugin ist nicht aktiviert oder nicht richtig konfiguriert." - der erste Start blieb auf dieser Fehlerseite. Jetzt:
+    /// Anmeldeseite (weiter zum CAS), und sobald Moodle die Anmeldung abgeschlossen hat (`…?testsession=`), stattdessen
+    /// launch.php -> Schluessel. Kommt keiner, gilt die Sitzung. Der Ablauf lief am 26.11.2026 am echten Learnweb durch.
+    func testLearnwebLoginInAppOpensTheLoginPageAndFetchesTheKeyRightAfterLogin() async throws {
+        let m = manager()
+        let (c, h) = try hildesheim(m, account(.hildesheim))
+        UniStubProtocol.install { [base] r in
+            r.url.absoluteString.hasPrefix(base + "/lib/ajax/service-nologin.php") ? Self.publicConfig(base: base) : .text("", status: 404)
+        }
+        let account = try XCTUnwrap(c.key.university.profile.tokenKeychainAccount(service: "learnweb", userScope: c.key.userScope))
+        let testsession = try XCTUnwrap(URL(string: base + "/login/index.php?testsession=42"))
+        func prepared() async throws -> (HildesheimLogin, URL, String) {
+            let login = HildesheimLogin(target: .learnweb, connection: h)
+            await login.prepare()
+            XCTAssertEqual(login.stage, .page(try XCTUnwrap(URL(string: base + "/login/index.php"))), "Anmeldeseite statt der Fehlerseite von launch.php")
+            XCTAssertFalse(login.viaToken)
+            let launch = try XCTUnwrap(login.launchAfterLogin)
+            XCTAssertTrue(launch.absoluteString.hasPrefix(base + "/admin/tool/mobile/launch.php?service=moodle_mobile_app&passport="), launch.absoluteString)
+            let passport = try XCTUnwrap(URLComponents(url: launch, resolvingAgainstBaseURL: false)?.queryItems?.first { $0.name == "passport" }?.value)
+            return (login, launch, passport)
+        }
+
+        // 1) Anmeldung, Pruefseite -> launch.php (genau einmal) -> Schluessel
+        let (login, launch, passport) = try await prepared()
+        XCTAssertFalse(UniStubProtocol.requests.contains { $0.url.path.contains("launch.php") }, "launch.php laedt nur die Webansicht")
+        for before in [base + "/login/index.php", "https://www.uni-hildesheim.de/sso/login?service=x", base + "/login/index.php?ticket=ST-1-test", base + "/my/"] {
+            XCTAssertNil(login.reroute(try XCTUnwrap(URL(string: before))), "vor der Anmeldung nichts umleiten: \(before)")
+        }
+        XCTAssertEqual(login.reroute(testsession), launch, "Anmeldung abgeschlossen: statt der Pruefseite launch.php")
+        XCTAssertNil(login.reroute(testsession), "nur einmal je Anmeldung")
+        XCTAssertTrue(login.intercept(try XCTUnwrap(URL(string: tokenRedirect(passport: passport, token: token)))))
+        XCTAssertEqual(login.stage, .done)
+        XCTAssertEqual(h.learnwebMode, .token)
+        XCTAssertEqual(keychain.read(account), token)
+
+        // 2) launch.php zeigt statt der Weiterleitung eine Seite mit dem Schluessel-Link: derselbe Schluessel-Weg
+        let (linked, launch2, passport2) = try await prepared()
+        XCTAssertEqual(linked.reroute(testsession), launch2)
+        linked.pageLoaded(url: launch2, html: "<html><body><a id=\"launchapp\" href=\"\(tokenRedirect(passport: passport2, token: "Zweiter22"))\">App starten</a></body></html>")
+        XCTAssertEqual(linked.stage, .done)
+        XCTAssertEqual(h.learnwebMode, .token)
+        XCTAssertEqual(keychain.read(account), "Zweiter22")
+
+        // 3) launch.php gibt keinen Schluessel (Fehlerseite): angemeldet ist die Webansicht trotzdem -> Sitzung
+        let (refused, launch3, _) = try await prepared()
+        XCTAssertEqual(refused.reroute(testsession), launch3)
+        refused.pageLoaded(url: launch3, html: "<html><body><p>Das Plugin ist nicht aktiviert oder nicht richtig konfiguriert.</p></body></html>")
+        XCTAssertEqual(refused.stage, .done)
+        XCTAssertEqual(h.learnwebMode, .session)
+        XCTAssertNil(keychain.read(account), "Sitzungsweg legt keinen Schluessel ab")
+
+        // 4) schon angemeldet (Moodle zeigt gleich eine angemeldete Seite, keine Pruefseite): Sitzung; die Fehlerseite
+        //    ohne Anmeldung und die CAS-Seite beenden nichts
+        let (already, launch4, _) = try await prepared()
+        already.pageLoaded(url: URL(string: "https://www.uni-hildesheim.de/sso/login?service=x"), html: "<html>CAS</html>")
+        already.pageLoaded(url: launch4, html: #"<body class="notloggedin">Das Plugin ist nicht aktiviert oder nicht richtig konfiguriert.</body>"#)
+        guard case .page = already.stage else { return XCTFail("zu frueh fertig: \(already.stage)") }
+        already.pageLoaded(url: URL(string: base + "/my/"), html: #"<body class="pagelayout-mydashboard"><script>M.cfg={"sesskey":"abc"}</script></body>"#)
+        XCTAssertEqual(already.stage, .done)
+        XCTAssertEqual(h.learnwebMode, .session)
+
+        // LSF-Anmeldung: nie umleiten
+        let lsfLogin = HildesheimLogin(target: .lsf, connection: h)
+        await lsfLogin.prepare()
+        XCTAssertNil(lsfLogin.reroute(testsession))
     }
 
     func testWithoutAppSchemeTheSessionPathIsUsed() async throws {
@@ -731,6 +803,49 @@ final class HildesheimAppTests: XCTestCase {
         XCTAssertTrue(web.isEmpty)
         let still = try await c.host.backend().context.database.scalar("SELECT COUNT(*) FROM files WHERE local_path IS NOT NULL")?.int
         XCTAssertEqual(still, 2)
+    }
+
+    /// Konto im LSF nur in der Rolle "Gast" (am echten LSF gesehen, 25.11.2026): dort gibt es weder Stundenplan noch
+    /// Notenspiegel. Kein Fehler; die Verbindung merkt es sich, Stundenplan und "Uni & Noten" sagen es klar
+    /// (`LSFGuestTexts`), nach dem Abmelden ist der Vermerk weg. Seite und Namen erfunden.
+    func testLSFGuestAccountGetsAClearHintInsteadOfAnError() async throws {
+        let m = manager()
+        let (c, h) = try hildesheim(m, account(.hildesheim))
+        await m.websiteDataStore(for: c).httpCookieStore.setCookie(cookie("JSESSIONID", "lsf-sitzung-test", domain: "lsf.uni-hildesheim.de"))
+        h.lsfSignedIn()
+        XCTAssertFalse(h.lsfGuest)
+        UniStubProtocol.install { [lsf] r in
+            guard r.url.absoluteString.hasPrefix(lsf + "/qisserver/rds") else { return .text("", status: 404) }
+            return .text(#"<a href="rds?state=user&amp;type=4&amp;category=auth.logout">Abmelden</a> | Jungstudentin | Sie sind angemeldet als: testgast | in der Rolle: Gast | <a href="rds?state=wtree">Vorlesungsverzeichnis</a>"#)
+        }
+        let r = try unwrap(await h.run(forceGrades: true))
+        let said = h.messages.joined(separator: "; ")
+        XCTAssertEqual(r.campusGuest, true)
+        XCTAssertTrue(h.lsfGuest)
+        XCTAssertEqual(h.lsf, .ok(clock.now), "kein Fehler: gelesen, für Gäste gibt es dort nichts")
+        XCTAssertFalse(said.contains("Unerwartete Antwort"), said)
+        XCTAssertTrue(said.contains("Rolle „Gast“"), said)
+        for text in [LSFGuestTexts.timetableHint, LSFGuestTexts.timetableCard, LSFGuestTexts.grades] {
+            XCTAssertTrue(text.contains("im Moment in der Rolle „Gast“"), "Grund und dass es vorübergehen kann: \(text)")
+            XCTAssertTrue(text.contains("von selbst"), "kommt ohne Zutun wieder: \(text)")
+        }
+        // die Rolle gilt nur für den gelesenen Stand: führt das LSF das Konto wieder als Studierende, ist der Vermerk weg
+        UniStubProtocol.install { [lsf] r in
+            guard r.url.absoluteString.hasPrefix(lsf + "/qisserver/rds") else { return .text("", status: 404) }
+            return .text(#"<a href="rds?state=user&amp;type=4&amp;category=auth.logout">Abmelden</a> | Sie sind angemeldet als: testgast | in der Rolle: Studierende |"#)
+        }
+        _ = await h.run(forceGrades: true)
+        XCTAssertFalse(h.lsfGuest, "Studierende: kein Gast-Hinweis mehr")
+        UniStubProtocol.install { [lsf] r in
+            guard r.url.absoluteString.hasPrefix(lsf + "/qisserver/rds") else { return .text("", status: 404) }
+            return .text(#"<a href="rds?state=user&amp;type=4&amp;category=auth.logout">Abmelden</a> | Sie sind angemeldet als: testgast | in der Rolle: Gast |"#)
+        }
+        _ = await h.run(forceGrades: true)
+        XCTAssertTrue(h.lsfGuest)
+        // nach einem Neustart weiter bekannt, nach dem Abmelden weg
+        XCTAssertTrue(try hildesheim(manager(), account(.hildesheim)).1.lsfGuest, "neue Verbindung liest den Vermerk des Containers")
+        await h.signOut()
+        XCTAssertFalse(h.lsfGuest)
     }
 
     /// Der uebliche Weg: Learnweb verbunden, der Abgleich laeuft (Downloads), dann LSF verbinden. LSF bleibt

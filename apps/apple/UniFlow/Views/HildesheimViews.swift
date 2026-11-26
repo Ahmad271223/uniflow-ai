@@ -20,6 +20,18 @@ extension EnvironmentValues {
     }
 }
 
+/// Texte fuer Konten, die im LSF nur die Rolle "Gast" haben (`HildesheimConnection.lsfGuest`, am echten LSF gesehen
+/// 25.11.2026): dort gibt es dafuer weder persoenlichen Stundenplan noch Notenspiegel. Die App sagt das, statt auf den
+/// naechsten Abgleich zu vertroesten oder einen Fehler zu zeigen.
+enum LSFGuestTexts {
+    // "gerade": am 25.11.2026 fuehrte das LSF waehrend einer Stoerung auch ein Studierenden-Konto als Gast; am Tag
+    // darauf kamen Rolle, Stundenplan (30 Termine) und der Hinweis "die Studierenden-Logins sind wieder moeglich" zurueck
+    static let timetableTitle = "Gerade kein Stundenplan aus dem LSF. "
+    static let timetableHint = "Das LSF führt dein Konto im Moment in der Rolle „Gast“; in dieser Rolle gibt es dort keinen persönlichen Stundenplan. Das kann an einer Störung des LSF liegen – sobald es dich wieder als Studierende oder Studierenden führt, holt StudiNow den Stundenplan von selbst. Bis dahin kannst du eine Kalenderdatei (ICS) importieren oder Termine selbst eintragen."
+    static let timetableCard = "Das LSF führt dein Konto im Moment in der Rolle „Gast“; in dieser Rolle gibt es dort keinen persönlichen Stundenplan. Sobald das LSF dich wieder als Studierende oder Studierenden führt, holt StudiNow ihn von selbst."
+    static let grades = "Das LSF führt dein Konto im Moment in der Rolle „Gast“; in dieser Rolle gibt es dort keinen Notenspiegel. Sobald das LSF dich wieder als Studierende oder Studierenden führt, holt StudiNow die Noten von selbst."
+}
+
 /// Oberhalb der Seiten (ConnectStudIPCard fuer Hochschulen mit eigenen Quellen): Karten fuer nicht verbundene oder
 /// abgelaufene Quellen, darunter die Statusleiste, sobald eine Quelle verbunden ist
 struct HildesheimSourcesBar: View {
@@ -322,7 +334,8 @@ struct HildesheimLoginPane<Bottom: View>: View {
                 .background(UF.bg)
         case .page(let url):
             StudIPWebView(url: DebugUniStub.loginPage(service, real: url), dataStore: login.connection.websiteDataStore,
-                          interceptNavigation: { login.intercept($0) }, load: load) { webView in
+                          interceptNavigation: { login.intercept($0) }, load: load,
+                          rerouteNavigation: { login.reroute($0) }) { webView in
                 if DebugUniStub.isSignedIn(webView.url, service: service) {
                     login.stubSignedIn()
                     return
