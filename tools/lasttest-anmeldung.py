@@ -135,7 +135,7 @@ class Dienst:
         e.update({
             "LERNAPP_MODE": "hosted", "LERNAPP_DATA_DIR": str(self.tmp / "data"), "LERNAPP_LOG_DIR": str(self.tmp / "logs"),
             "LERNAPP_JOBS": "off", "LERNAPP_NO_SCHEDULER": "1", "LERNAPP_MAIL": "log", "LERNAPP_OCR": "off",
-            "LERNAPP_ALLOWED_HOSTS": "127.0.0.1", "LERNAPP_SECRET_KEY": "lasttest-" + uuid.uuid4().hex,
+            "LERNAPP_ALLOWED_HOSTS": "127.0.0.1", "LERNAPP_SECRET_KEY": uuid.uuid4().hex + uuid.uuid4().hex,  # 32 Byte hex (vault.master_key)
             "LERNAPP_AI_PROVIDER": "none",
             "WEB_CONCURRENCY": str(self.a.workers), "PYTHONUNBUFFERED": "1",
         })
