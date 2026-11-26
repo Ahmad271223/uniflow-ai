@@ -6,6 +6,22 @@ final class PageLinkTests: XCTestCase {
 
     private let target = PageLink.Target(file: "f-skript", title: "Skript Kapitel 3", pageKey: "p12", pdfPage: 12, pageNumber: 12, x: 140.004, y: 310)
 
+    /// Verweise zeigen in die Bibliothek des Absenders: In einer geteilten Loesung fuehrten sie nirgends hin, und Datei-ID
+    /// und Titel seiner Dokumente gingen mit (Durchsicht 26.11.2026)
+    func testGeteilteLoesungTraegtKeineVerweise() throws {
+        var doc = AnnotationDocument.empty()
+        PageOrder.insertBlank(&doc, after: nil, template: "blank", key: "a")
+        let text = PageObjectEdit.text(id: "t", x: 40, y: 40, text: "siehe Skript")
+        let card = FlipCover.cover(id: "k", x: 70, y: 180, width: 240, height: 50)
+        doc.pages["a"] = .object(["objects": .array([text, PageLink.point(id: "v", x: 200, y: 300, target: target), card])])
+        let content = try SolutionBuilder.build(document: doc, selectedKeys: ["a"], pdfPageCount: 1,
+                                                pdfPage: { _ in .init(width: 595, height: 842, rotation: 0) }, images: [:],
+                                                fingerprint: String(repeating: "b", count: 64), title: "Blatt", displayName: "", solutionID: UUID())
+        let ids = content.pages.flatMap(\.objects).compactMap { $0["id"]?.string }
+        XCTAssertEqual(Set(ids), ["t", "k"], "Text und Klappkarte gehen mit, der Verweis nicht")
+        XCTAssertFalse(content.pages.flatMap(\.objects).contains { $0.jsonString(sortedKeys: true).contains("f-skript") })
+    }
+
     func testVerweisIstEineFormDesGemeinsamenFormats() {
         let p = PageLink.point(id: "v", x: 200, y: 300, target: target)
         XCTAssertEqual(p["type"], "shape", "kein neuer Objekttyp")
