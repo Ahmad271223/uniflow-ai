@@ -230,7 +230,8 @@ Zweig `editor/klappkarten` (auf Teil 2).
 **Antworten des Inhabers (26.11.2026):** Ort: *beides* (Kasten auf der Seite und eigene Datei). Umfang: *Formeln,
 Sortieren und Filtern, Diagramme, Farben und Rahmen*. Excel-Dateien (.xlsx): *gar nicht*. Bausteine: „suche offene
 repos und opensource projekte dazu checke die lizenz will kein veröffentliche und das für 39.99 anbieten“.
-Was „39.99“ genau meint (Preis wofür?), ist offen – es wurde kein Preis geändert und nichts zum Kaufen gebaut.
+Auf Nachfrage (26.11.): „nein das zu pro ai mit rein“ – die Tabelle wird nicht einzeln verkauft, sie gehört zu
+Pro AI. So ist es gebaut. Es wurde kein Preis geändert und nichts zum Kaufen gebaut.
 
 ### 6.1 Lizenzprüfung (26.11.2026, an den Quellen geprüft: LICENSE-Dateien bzw. GitHub)
 
@@ -442,7 +443,7 @@ Nichts ist gepusht, nichts eingereicht, kein Server, keine Website. Arbeitsordne
 
 **Offen für den Inhaber:**
 - Text für die Tarifkarten (das Neue steht dort noch nicht).
-- Teil 4 (Tabelle) ist gebaut (Abschnitt 6), aber noch nicht am iPad ausprobiert. Offen: Was meint „39.99“?
+- Teil 4 (Tabelle) ist gebaut (Abschnitt 6), aber noch nicht am iPad ausprobiert. Sie gehört zu Pro AI, kein Einzelverkauf (Antwort des Inhabers 26.11.).
 - Web-Editor/Windows zeigen alles nur in einfacher Form – soll das dort auch gebaut werden?
 
 ## 9. Prüfläufe am 25.11.2026 (Stand `editor/verweise`)
