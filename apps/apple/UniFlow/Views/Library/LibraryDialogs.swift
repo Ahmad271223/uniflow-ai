@@ -575,11 +575,23 @@ struct LibraryMoveDialog: View {
 /// Teilen-Menue von iPadOS (Download/Export)
 @MainActor
 enum UFShare {
-    static func present(_ items: [Any]) {
-        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first,
-              let root = scene.windows.first(where: \.isKeyWindow)?.rootViewController else { return }
+    static func present(_ items: [Any], attempt: Int = 0) {
+        let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let scene = scenes.first(where: { $0.activationState == .foregroundActive }) ?? scenes.first,
+              let root = (scene.windows.first(where: \.isKeyWindow) ?? scenes.flatMap(\.windows).first(where: \.isKeyWindow))?
+                  .rootViewController else { return }
         var top = root
-        while let p = top.presentedViewController { top = p }
+        while let p = top.presentedViewController {
+            // Ein Blatt schliesst sich gerade (z. B. das Menue, aus dem "Original herunterladen" kam): erst danach zeigen.
+            // Aus dem schliessenden Blatt heraus verschwaende das Teilen-Menue mit ihm; von darunter lehnt UIKit ab
+            // (Durchsicht 26.11.2026).
+            if p.isBeingDismissed {
+                guard attempt < 8 else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { present(items, attempt: attempt + 1) }
+                return
+            }
+            top = p
+        }
         let vc = UIActivityViewController(activityItems: items, applicationActivities: nil)
         vc.popoverPresentationController?.sourceView = top.view
         vc.popoverPresentationController?.sourceRect = CGRect(x: top.view.bounds.midX, y: top.view.bounds.midY, width: 1, height: 1)

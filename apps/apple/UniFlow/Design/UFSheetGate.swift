@@ -96,8 +96,9 @@ final class UFSheetHold: ObservableObject {
         Binding(get: { self.pass(item.wrappedValue != nil) ? item.wrappedValue : nil }, set: { item.wrappedValue = $0 })
     }
 
-    /// Hinweis ueber irgendeinem Fenster der App (auch waehrend er gerade verschwindet: UIKit lehnt bis zum Ende ab)
-    static func alertOnScreen() -> Bool { presented { $0 is UIAlertController } }
+    /// Hinweis ueber irgendeinem Fenster der App (auch waehrend er gerade verschwindet: UIKit lehnt bis zum Ende ab);
+    /// ebenso der Hinweis zur KI-Einwilligung, den die App selbst ueber allem zeigt (`AIConsentHost`)
+    static func alertOnScreen() -> Bool { presented { $0 is UIAlertController || $0 is AIConsentHost } }
 
     /// Irgendein Blatt, Vollbild-Blatt, Popover oder Hinweis ueber einem Fenster der App. Die umgekehrte Reihenfolge
     /// geht ebenfalls schief: verlangt die Wurzel einen Hinweis, waehrend ein Blatt offen ist, schliesst SwiftUI das

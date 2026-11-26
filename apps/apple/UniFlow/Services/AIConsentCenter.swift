@@ -67,16 +67,33 @@ final class AIConsentCenter: ObservableObject {
         guard let top = topController() else { return false }
         final class Box { weak var host: UIViewController? }
         let box = Box()
-        let host = UIHostingController(rootView: AIConsentSheet { granted in
+        let host = AIConsentHost(rootView: AIConsentSheet { granted in
+            (box.host as? AIConsentHost)?.onGone = nil               // entschieden: das Verschwinden zaehlt nicht mehr
             box.host?.dismiss(animated: true)
             decide(granted)
         })
+        // Verschwindet der Hinweis ohne Entscheidung (das Blatt darunter schliesst sich, z. B. "Test erstellen" am
+        // iPhone), gilt "Abbrechen". Vorher blieb die Anfrage fuer immer offen, und jede weitere KI-Anfrage wartete
+        // mit - bis zum Neustart der App (Durchsicht 26.11.2026).
+        host.onGone = { decide(false) }
         box.host = host
         host.modalPresentationStyle = .formSheet
         host.isModalInPresentation = true                           // nur ueber die beiden Knoepfe zu schliessen
         top.present(host, animated: true)
+        // Lehnt UIKit das Zeigen ab (`top` zeigt gerade selbst etwas oder verschwindet), erscheint der Hinweis nie und
+        // verschwindet darum auch nie: nach kurzer Zeit nachsehen. Nicht sofort - ein Zeigen, das UIKit nur aufschiebt
+        // (das Blatt darunter erscheint noch), ist direkt nach dem Aufruf ebenfalls noch nicht eingetragen.
+        DispatchQueue.main.asyncAfter(deadline: .now() + neverShownAfter) { [host] in
+            guard host.onGone != nil, host.presentingViewController == nil, host.viewIfLoaded?.window == nil else { return }
+            let gone = host.onGone
+            host.onGone = nil
+            gone?()
+        }
         return true
     }
+
+    /// so lange darf UIKit brauchen, bis der Hinweis eingetragen ist; danach gilt er als nie gezeigt
+    static let neverShownAfter: TimeInterval = 2
 
     static func topController() -> UIViewController? {
         let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
@@ -84,6 +101,23 @@ final class AIConsentCenter: ObservableObject {
         guard var top = (windows.first { $0.isKeyWindow } ?? windows.first)?.rootViewController else { return nil }
         while let next = top.presentedViewController, !next.isBeingDismissed { top = next }
         return top
+    }
+}
+
+/// Formblatt des Hinweises: meldet, wenn es ohne Entscheidung verschwunden ist (`onGone`). `UFSheetHold` haelt faellige
+/// Blaetter zurueck, solange es steht (wie bei einem Hinweis: UIKit lehnte sie sonst ab).
+final class AIConsentHost: UIHostingController<AIConsentSheet> {
+    var onGone: (() -> Void)?
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // erst nach dem Abbau pruefen: ueberdeckt (etwas liegt darueber) ist nicht verschwunden
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.presentingViewController == nil, self.viewIfLoaded?.window == nil else { return }
+            let gone = self.onGone
+            self.onGone = nil
+            gone?()
+        }
     }
 }
 
