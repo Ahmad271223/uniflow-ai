@@ -314,21 +314,31 @@ public enum StudyPlanEngine {
         var lp: Double
         var area: String?
         var semester: Int?
+        /// Arbeitsaufwand in Stunden und Inhalt (26.11.2026: was die App nicht erkennt, selbst anlegen)
+        var workloadH: Int?
+        var content: String?
 
         var json: [String: JSONValue] {
-            ["id": opt(id), "title": .string(title), "lp": .number(lp), "area": opt(area), "semester": opt(semester)]
+            ["id": opt(id), "title": .string(title), "lp": .number(lp), "area": opt(area), "semester": opt(semester),
+             "workload_h": opt(workloadH), "content": opt(content)]
         }
 
         var stored: PyJSON {
             let lpJSON: PyJSON = lp == lp.rounded() && abs(lp) < 1e15 ? .int(String(Int(lp))) : .float(lp)
             return .object([PyJSON.Member("id", id.map(PyJSON.string) ?? .null), PyJSON.Member("title", .string(title)),
                             PyJSON.Member("lp", lpJSON), PyJSON.Member("area", area.map(PyJSON.string) ?? .null),
-                            PyJSON.Member("semester", semester.map { .int(String($0)) } ?? .null)])
+                            PyJSON.Member("semester", semester.map { .int(String($0)) } ?? .null),
+                            PyJSON.Member("workload_h", workloadH.map { .int(String($0)) } ?? .null),
+                            PyJSON.Member("content", content.map(PyJSON.string) ?? .null)])
         }
     }
 
+    /// Inhalt und Arbeitsaufwand eines eigenen Eintrags (`MAX_CUSTOM_CONTENT`, `MAX_CUSTOM_HOURS`)
+    static let maxCustomContent = 2000
+    static let maxCustomHours = 2000
+
     /// Eigene Eintraege (`clean_custom`): Titel noetig (hoechstens 120 Zeichen), LP 0..60, Fachsemester 1..20, ids
-    /// "eigen-<n>", fehlende neu
+    /// "eigen-<n>", fehlende neu; Arbeitsaufwand in Stunden 1..2000 und Inhalt (hoechstens 2000 Zeichen) oder nil
     static func cleanCustom(_ v: JSONValue?) -> [CustomEntry] {
         let items = v?.array?.compactMap(\.object) ?? []
         var rows: [CustomEntry] = [], used: [String] = []
@@ -342,8 +352,11 @@ public enum StudyPlanEngine {
             if let x = cid, customIDRE.match(x) == nil || used.contains(x) { cid = nil }
             if let x = cid { used.append(x) }
             let area = textOf(c["area"])
+            let hours = intValue(c["workload_h"]).flatMap { (1...maxCustomHours).contains($0) ? $0 : nil }
+            let content = PyText.strip(PyText.slice(PyText.strip(textOf(c["content"])), 0, maxCustomContent))
             rows.append(CustomEntry(id: cid, title: title, lp: lp, area: area.isEmpty ? nil : area,
-                                    semester: sem.flatMap { (1...20).contains($0) ? $0 : nil }))
+                                    semester: sem.flatMap { (1...20).contains($0) ? $0 : nil },
+                                    workloadH: hours, content: content.isEmpty ? nil : content))
             if rows.count >= maxCustom { break }
         }
         var n = 1
@@ -448,12 +461,25 @@ public enum StudyPlanEngine {
         let want = StudyCatalogText.nameKey(textOf(catalog["program"]))
         guard !want.isEmpty else { return grades }
         var belongs: [String: Bool] = [:]
+        // Mehr-Faecher-Studiengang: ist eines seiner Faecher das Fach dieses Katalogs, gehoeren die anderen Faecher nicht
+        // hierher - auch wenn das Register sie nicht kennt (26.11.2026: ihre LP zaehlten im Katalog Mathematik mit)
+        let siblings = combinedDegree(grades)?.labels ?? []
+        var exact: [String: Bool] = [:]
+        for x in siblings {
+            let m = sources.match(label: x, university: university)
+            exact[x] = m != nil && StudyCatalogText.nameKey(m?.program ?? "") == want
+        }
+        let strict = exact.values.contains(true)
         return grades.filter { g in
             let label = PyText.strip(textOf(g["abschluss"]))
             guard !label.isEmpty else { return true }
             if belongs[label] == nil {
-                let m = sources.match(label: label, university: university)
-                belongs[label] = m == nil || StudyCatalogText.nameKey(m?.program ?? "") == want
+                if strict, let e = exact[label] {
+                    belongs[label] = e
+                } else {
+                    let m = sources.match(label: label, university: university)
+                    belongs[label] = m == nil || StudyCatalogText.nameKey(m?.program ?? "") == want
+                }
             }
             return belongs[label]!
         }
@@ -1075,7 +1101,8 @@ public enum StudyPlanEngine {
                 "id": opt(c.id), "title": .string(c.title), "code": .null, "kind": .string(area.map { akind[$0]! } ?? "wahl"),
                 "area": opt(area), "lp": .number(c.lp), "semester": opt(c.semester), "turnus": .null, "status": .null,
                 "attempt": .null, "grade": .null, "moved_from": .null, "reason": .null, "last_attempt": false,
-                "attempt_known": false, "max_attempts": .null, "final": false, "placed": false, "hints": [], "custom": true]
+                "attempt_known": false, "max_attempts": .null, "final": false, "placed": false, "hints": [], "custom": true,
+                "workload_h": opt(c.workloadH), "content": opt(c.content)]
             let t: Int
             if !passedRows.isEmpty {
                 let best = bestPassed(passedRows)

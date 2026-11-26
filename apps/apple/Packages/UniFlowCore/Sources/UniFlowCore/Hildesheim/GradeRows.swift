@@ -80,12 +80,94 @@ public enum GradeRows {
             }
             let note = fields["note"] ?? "", status = fields["status"] ?? ""
             if status.lowercased() == "prüfung vorhanden" && note.isEmpty { continue }
-            guard let text = fields["text"], !text.isEmpty, !note.isEmpty || !status.isEmpty else { continue }
+            // Konto-Zeilen des LSF (`lsfCells`) bleiben auch ohne Note und Status: sie trennen die Faecher
+            guard let text = fields["text"], !text.isEmpty, !note.isEmpty || !status.isEmpty || text.hasPrefix(accountPrefix) else { continue }
             out.append(QISGrade(pruefungsnr: fields["pruefungsnr"], text: text, semester: fields["semester"], note: fields["note"],
                                 status: fields["status"], credits: fields["credits"], versuch: fields["versuch"], datum: fields["datum"],
                                 abschluss: ab, raw: cells.joined(separator: " | ")))
         }
         return out
+    }
+
+    // MARK: Echter Notenspiegel des LSF Hildesheim (26.11.2026)
+
+    /// Text des Kontos (Summe eines Fachs oder aller Faecher) in einer Leistungszeile, wie HIS selbst es nennt
+    /// ("Gesamtkonto studienbegleitender Prüfungen"); `GradesModel.isBereichText` erkennt die Zeile daran als Summe.
+    public static let accountPrefix = "Gesamtkonto: "
+
+    private static let numberRE = HText.regex(#"^\d+(,\d+)?$"#)
+
+    /// Zellen einer Zeile des LSF-Notenspiegels, eine je Spalte (colspan aufgefaechert wie `QISPage.spread`). Eine
+    /// Konto-Zeile (LP-Summe eines Fachs, "10 | Mathematik", "800 | Psychologie") erkennt man am Aufbau: Nummer in der
+    /// ersten Zelle, die Bezeichnung reicht ueber zwei Spalten (echter Notenspiegel, 26.11.2026). Sie bekommt
+    /// `accountPrefix` und bleibt damit beim Lesen erhalten, auch ohne Note und Status. Ohne sie haengte die
+    /// Rechenlogik Teilleistungen des naechsten Fachs an das letzte bestandene Modul davor (4 LP fehlten).
+    static func lsfCells(_ row: [HTMLTableCell]) -> [String] {
+        var cells = QISPage.spread(row)
+        if row.count >= 3, row[1].colspan >= 2, !row[1].isHeader, !row[1].text.lowercased().hasPrefix("gesamtkonto") {
+            let nr = HText.collapse(row[0].text)
+            if !nr.isEmpty, nr.unicodeScalars.allSatisfy({ $0.value >= 48 && $0.value <= 57 }), row[0].colspan == 1 {
+                cells[1] = accountPrefix + HText.collapse(row[1].text)
+            }
+        }
+        return cells
+    }
+
+    private static func filled(_ s: String?) -> Bool { !(s ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+
+    /// Ausfuehrliche Zeile (Reiter des Studiengangs): mit Semester, Versuch oder Datum
+    static func isDetailed(_ g: QISGrade) -> Bool { filled(g.semester) || filled(g.versuch) || filled(g.datum) }
+
+    /// Der Notenspiegel des LSF Hildesheim nennt jede Leistung zweimal: in der Uebersicht kurz (Nr., Bezeichnung, Note,
+    /// Status, Bonus) und auf dem Reiter des Studiengangs ausfuehrlich (dazu Semester, Pruefungsart, Versuch, Datum).
+    /// Beide Fassungen zusammen zaehlten doppelt, weil die kurze ohne Versuch als Modulzeile gilt: am echten Konto
+    /// 105 statt 51 LP (26.11.2026; das LSF nennt in seinen Konto-Zeilen selbst 51). Es bleibt die ausfuehrliche Zeile,
+    /// die kurze nur, wenn es zur selben Leistung (Studiengang, Nummer, Bezeichnung) keine ausfuehrliche gibt.
+    public static func preferDetailed(_ grades: [QISGrade]) -> [QISGrade] {
+        func key(_ g: QISGrade) -> [String] { [g.abschluss ?? "", g.pruefungsnr ?? "", HText.collapse(g.text).lowercased()] }
+        let detailed = Set(grades.filter(isDetailed).map(key))
+        return grades.filter { isDetailed($0) || !detailed.contains(key($0)) }
+    }
+
+    /// Konto-Zeilen des LSF ("10 | Mathematik | 0,0 | | 17", "8992 | Vorläufige Gesamtnote aller Fächer | 3,45 | | 51"):
+    /// die Summe der Leistungspunkte eines Fachs bzw. aller Faecher, keine Leistung. Sie fassen Spalten zusammen; ohne
+    /// aufgefaecherte Zellen (so am 26.11.2026 auf dem iPad gespeichert) rutschen die Spalten: die LP stehen unter
+    /// "Status", die Note unter "Semester". Erkannt wird beides: die verrutschte Zeile an der Zahl in der Status-Spalte,
+    /// die gerade Zeile an "ohne Status, Note 0,0 oder Gesamtnote/Gesamtkonto im Text, LP als Zahl". Die Felder werden
+    /// zurechtgerueckt und der Text bekommt `accountPrefix`, damit die Zeile ueberall als Summe gilt (nie als
+    /// bestandene Leistung, nie als Modul einer Pruefung). Zeilen mit Versuch oder Datum sind immer Leistungen.
+    public static func accounts(_ grades: [QISGrade]) -> [QISGrade] {
+        func number(_ s: String?) -> String? {
+            let t = (s ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            return HText.match(numberRE, t) != nil ? t : nil
+        }
+        func named(_ g: QISGrade, note: String?, credits: String) -> QISGrade {
+            var out = g
+            out.note = note
+            out.semester = nil
+            out.status = nil
+            out.versuch = nil                 // leere Zellen des Reiters: Uebersicht und Reiter nennen dasselbe Konto
+            // ohne Nummer: mehrere Faecher tragen dieselbe Konto-Nummer ("10"), die Rechenlogik hielte sie sonst fuer
+            // dieselbe Zeile und liesse alle bis auf die erste fallen (`GradesModel.model`); so gilt die Bezeichnung
+            out.pruefungsnr = nil
+            // auch in der Rohzeile (die Rechenlogik fuellt fehlende Felder daraus): "10 | …" -> "Konto 10 | …"
+            if let first = out.raw.unicodeScalars.first, first.value >= 48, first.value <= 57 { out.raw = "Konto " + out.raw }
+            out.datum = nil
+            out.credits = credits
+            if !out.text.lowercased().hasPrefix("gesamtkonto") { out.text = accountPrefix + out.text }
+            return out
+        }
+        return grades.map { g in
+            guard !filled(g.versuch), !filled(g.datum) else { return g }
+            // verrutscht: LP unter "Status", Note (falls vorhanden) unter "Semester"
+            if let lp = number(g.status) { return named(g, note: number(g.semester) ?? (filled(g.note) ? g.note : nil), credits: lp) }
+            // gerade: kein Status, kein Semester, LP als Zahl, Note 0,0 (Fach) oder eine Gesamtnote/ein Gesamtkonto laut Text
+            guard !filled(g.status), !filled(g.semester), let lp = number(g.credits) else { return g }
+            let text = g.text.lowercased()
+            let zero = (g.note ?? "").trimmingCharacters(in: .whitespacesAndNewlines) == "0,0"
+            guard zero || text.contains("gesamtnote") || text.hasPrefix("gesamtkonto") else { return g }
+            return named(g, note: filled(g.note) ? g.note : nil, credits: lp)
+        }
     }
 }
 

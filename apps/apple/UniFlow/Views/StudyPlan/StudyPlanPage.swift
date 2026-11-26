@@ -205,8 +205,12 @@ struct StudyPlanPage: View {
                             .ufFont(13.12, lh: 1.4).foregroundStyle(UF.warnText).fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("studyplan.link.failed")
                     }
+                    if let d = p.degreeOverview {
+                        StudyPlanDegreeCard(degree: d, source: StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil))
+                    }
                     StudyPlanHeaderCard(plan: p)
                     if let l = p.lsfPlan { StudyPlanLSFLink(url: l.url, label: l.label) }
+                    if !p.passedTerms.isEmpty { StudyPlanPassedTermsCard(terms: p.passedTerms) }
                     if !p.earlier.isEmpty { StudyPlanEarlierCard(studies: p.earlier) }
                     if let editError {
                         Text(editError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true)
@@ -228,8 +232,12 @@ struct StudyPlanPage: View {
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     if (p.programs.count > 1 && !p.poConfirmed) || p.programMismatch != nil { programCards(p) }
+                    if let d = p.degreeOverview {
+                        StudyPlanDegreeCard(degree: d, source: StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil))
+                    }
                     gapCard(p)
                     if let l = p.lsfPlan { StudyPlanLSFLink(url: l.url, label: l.label) }
+                    if !p.passedTerms.isEmpty { StudyPlanPassedTermsCard(terms: p.passedTerms) }
                     ExamRegistrationSection(api: session.api)
                 }
             }
@@ -286,7 +294,7 @@ struct StudyPlanPage: View {
             if let poError { Text(poError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true) }
         } else if p.programs.count > 1 && !p.poConfirmed {
             StudyPlanProgramQuestion(programs: p.programs, source: StudyPlanText.gradeSource(hildesheim: hildesheim != nil, hsh: hsh != nil),
-                                     busy: poBusy, pick: { code in Task { await confirmPO(code) } }, other: { showPrograms = true })
+                                     subjects: p.degreeOverview != nil, busy: poBusy, pick: { code in Task { await confirmPO(code) } }, other: { showPrograms = true })
             if let poError { Text(poError).ufFont(12.8).foregroundStyle(UF.badText).fixedSize(horizontal: false, vertical: true) }
         } else if let s = p.suggestedPO, !p.poConfirmed {
             poCard(p, suggested: s)
@@ -670,8 +678,8 @@ struct StudyPlanPage: View {
                         Task { await apply(StudyPlanEdit.choose(p, option: o, term: term),
                                            message: { _ in "\(o.title) eingeplant" + (term.map { " in \($0)" } ?? "") + "." }) }
                     },
-                    addCustom: { title, lp, area, fach in
-                        Task { await apply(StudyPlanEdit.addCustom(p, title: title, lp: lp, area: area, fachsemester: fach),
+                    addCustom: { title, lp, area, fach, hours, content in
+                        Task { await apply(StudyPlanEdit.addCustom(p, title: title, lp: lp, area: area, fachsemester: fach, hours: hours, content: content),
                                            message: { _ in "„\(title.trimmingCharacters(in: .whitespaces))“ eingetragen." }) }
                     },
                     chooseTrack: { group, area in
@@ -686,8 +694,8 @@ struct StudyPlanPage: View {
                             Task { await apply(StudyPlanEdit.replace(p, old: id, option: o, term: term),
                                                message: { _ in "\(o.title) statt \(m.title) gewählt." }) }
                         },
-                        addCustom: { title, lp, area, fach in
-                            Task { await apply(StudyPlanEdit.addCustom(p, title: title, lp: lp, area: area, fachsemester: fach),
+                        addCustom: { title, lp, area, fach, hours, content in
+                            Task { await apply(StudyPlanEdit.addCustom(p, title: title, lp: lp, area: area, fachsemester: fach, hours: hours, content: content),
                                                message: { _ in "„\(title.trimmingCharacters(in: .whitespaces))“ eingetragen." }) }
                         },
                         chooseTrack: { _, _ in })
@@ -984,6 +992,17 @@ struct StudyPlanModuleCard: View {
                     if m.custom { StudyPlanTag(text: "Eigener Eintrag", pair: nil) }
                     if m.manual { StudyPlanTag(text: StudyPlanText.manualBadge, pair: nil) }
                     if m.qis { StudyPlanTag(text: "Aus QIS", pair: CommunityPalette.sky) }
+                }
+                // eigener Eintrag (26.11.2026): Arbeitsaufwand und Inhalt, wie man sie eingetragen hat
+                if m.custom, m.workloadH != nil || m.content != nil {
+                    VStack(alignment: .leading, spacing: 2) {
+                        if let h = m.workloadH { Text("\(h) Stunden Arbeitsaufwand").ufFont(12.16).foregroundStyle(UF.text2) }
+                        if let c = m.content {
+                            Text(c).ufFont(12.16, lh: 1.35).foregroundStyle(UF.muted).lineLimit(3).multilineTextAlignment(.leading)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .accessibilityElement(children: .combine)
                 }
                 StudyPlanStatusPill(text: StudyPlanText.status(m), status: m.status)
                 if let r = StudyPlanText.reasonLine(m) {
