@@ -10,23 +10,34 @@ import UniFlowCore
 /// abgelaufen) oder schon Nachrichten auf dem Geraet liegen. Uni Hildesheim und Hochschule Hannover: sobald der
 /// Abgleich Learnweb- bzw. Moodle-Nachrichten gespeichert hat (seit 05.11.2026).
 ///
-/// Neu (`isNew`): gesendet nach der neuesten Nachricht, die beim letzten Oeffnen der Seite da war. Die Marke steht in
-/// den Einstellungen des Containers (`seenKey`, je Konto und Hochschule getrennt) als `sent_at` dieser Nachricht; so
-/// zaehlt auch eine Nachricht, die erst nach dem Oeffnen abgeglichen wurde, aber neuer ist. Nie geoeffnet: alle neu.
+/// Ungelesen (seit 26.11.2026 je Nachricht, Entscheidung des Inhabers „nur in StudiNow“, `isUnread`): eigene Wahl zuerst
+/// (Nachricht geoeffnet = gelesen, "Als ungelesen markieren", "Alle als gelesen"; `stateKey`), sonst gilt alles bis zur
+/// Marke beim Umstieg als gelesen (`baselineKey` = die fruehere Marke "beim letzten Oeffnen der Seite", `seenKey`), sonst
+/// der Stand in Stud.IP (`read`; unbekannt bei Moodle/Learnweb = ungelesen). Nach Stud.IP schreibt StudiNow nichts.
+/// Das Oeffnen der Seite allein setzt nichts mehr auf gelesen. Alles je Container (Konto und Hochschule) getrennt.
 /// Daten: GET /api/studip/messages (nur lokal, `StudIPExtras.messageList`); keine Anfrage an Stud.IP.
 @MainActor
 final class MessagesInbox: ObservableObject {
     static let shared = MessagesInbox()
     static let navKey = "messages"
-    /// `sent_at` der neuesten Nachricht beim letzten Oeffnen der Seite (Einstellungen des Containers)
+    /// `sent_at` der neuesten Nachricht beim letzten Oeffnen der Seite (Einstellungen des Containers); bis 26.11.2026
+    /// die Regel fuer "neu", seitdem nur noch der Ausgangspunkt fuer `baselineKey`
     static let seenKey = "uniflow.messages.seenUpTo"
+    /// eigene Wahl je Nachricht: [Kennung: true = gelesen, false = ungelesen]
+    static let stateKey = "uniflow.messages.readState"
+    /// bis zu diesem `sent_at` gilt alles als gelesen (Stand beim Umstieg auf "gelesen je Nachricht"; "" = keine Marke)
+    static let baselineKey = "uniflow.messages.readBaseline"
 
     /// gespeicherte Nachrichten insgesamt (0 ohne lokales Backend)
     @Published private(set) var stored = 0
-    /// Nachrichten neuer als die Marke
+    /// ungelesene Nachrichten (Abzeichen, Widget)
     @Published private(set) var newCount = 0
+    /// zaehlt hoch, wenn sich "gelesen" einer Nachricht aendert (die Seite zeichnet die Punkte neu)
+    @Published private(set) var revision = 0
     /// `sent_at` der neuesten gespeicherten Nachricht
     private(set) var latest: String?
+    /// zuletzt gelesene Liste (fuer das Neuzaehlen nach "gelesen")
+    private var all: [JSONValue] = []
 
     private(set) weak var router: UFRouter?
     /// Tests: Einstellungen statt des aktiven Containers
@@ -56,14 +67,38 @@ final class MessagesInbox: ObservableObject {
         return sentAt > mark
     }
 
-    /// Ungelesen: neuer als die Marke und nicht schon in Stud.IP gelesen (Feld `read` seit 26.11.2026; fehlt es, zaehlt
-    /// nur die Marke). So verschwindet eine im Browser gelesene Nachricht auch aus Abzeichen und Widget.
-    static func isUnread(_ m: JSONValue, since mark: String?) -> Bool {
-        m["read"]?.bool != true && isNew(m.s("sent_at"), since: mark)
+    /// Gelesen-Stand eines Containers
+    struct ReadState: Equatable {
+        /// eigene Wahl je Nachricht (true = gelesen)
+        var overrides: [String: Bool] = [:]
+        /// bis hierher gilt alles als gelesen
+        var baseline: String?
     }
 
-    static func newCount(_ messages: [JSONValue], since mark: String?) -> Int {
-        messages.filter { isUnread($0, since: mark) }.count
+    /// Ungelesen? Eigene Wahl, sonst bis zur Marke gelesen, sonst wie in Stud.IP (unbekannt = ungelesen)
+    static func isUnread(_ m: JSONValue, state: ReadState) -> Bool {
+        if let id = m.s("id"), let mine = state.overrides[id] { return !mine }
+        if let b = state.baseline, !b.isEmpty, !isNew(m.s("sent_at"), since: b) { return false }
+        return m["read"]?.bool != true
+    }
+
+    static func unreadCount(_ messages: [JSONValue], state: ReadState) -> Int {
+        messages.filter { isUnread($0, state: state) }.count
+    }
+
+    /// Stand aus den Einstellungen des Containers; beim ersten Mal wird die fruehere Marke zur festen Ausgangsmarke
+    static func readState(_ d: UserDefaults?) -> ReadState {
+        guard let d else { return ReadState() }
+        if d.object(forKey: baselineKey) == nil { d.set(d.string(forKey: seenKey) ?? "", forKey: baselineKey) }
+        let raw = d.dictionary(forKey: stateKey) as? [String: Bool] ?? [:]
+        let b = d.string(forKey: baselineKey)
+        return ReadState(overrides: raw, baseline: b?.isEmpty == false ? b : nil)
+    }
+
+    /// Eigene Wahl speichern; Kennungen, die es nicht mehr gibt, fallen weg (die Liste bleibt klein)
+    static func save(_ overrides: [String: Bool], keeping ids: Set<String>?, to d: UserDefaults?) {
+        let kept = ids.map { ids in overrides.filter { ids.contains($0.key) } } ?? overrides
+        d?.set(kept, forKey: stateKey)
     }
 
     /// Neueste `sent_at` einer Liste (nach Zeitpunkt)
@@ -88,17 +123,42 @@ final class MessagesInbox: ObservableObject {
             apply(stored: 0, latest: nil, new: 0)
             return
         }
-        let all = r.list("messages")
-        apply(stored: r.i("total") ?? all.count, latest: Self.newest(all), new: Self.newCount(all, since: seenMark))
+        let list = r.list("messages")
+        all = list
+        var state = readState
+        // ungefilterte Liste: eigene Wahl zu geloeschten Nachrichten aufraeumen
+        if r.s("q").map({ $0.isEmpty }) ?? true {
+            let ids = Set(list.compactMap { $0.s("id") })
+            if state.overrides.keys.contains(where: { !ids.contains($0) }) {
+                Self.save(state.overrides, keeping: ids, to: defaults)
+                state = readState
+            }
+        }
+        apply(stored: r.i("total") ?? list.count, latest: Self.newest(list), new: Self.unreadCount(list, state: state))
     }
 
-    /// Seite geoeffnet: alle gespeicherten gelten als gesehen. Liefert die Marke davor (fuer die Punkte "neu seit dem
-    /// letzten Besuch" auf der Seite).
+    /// Gelesen-Stand des offenen Containers
+    var readState: ReadState { Self.readState(defaults) }
+
+    func isUnread(_ m: JSONValue) -> Bool { Self.isUnread(m, state: readState) }
+
+    /// Nachricht geoeffnet bzw. "Als (un)gelesen markieren": nur in StudiNow
+    func mark(_ ids: [String], read: Bool) {
+        guard !ids.isEmpty else { return }
+        var o = readState.overrides
+        for id in ids { o[id] = read }
+        Self.save(o, keeping: nil, to: defaults)
+        revision += 1
+        publish(Self.unreadCount(all, state: readState))
+    }
+
+    /// Seite geoeffnet: merkt nur noch die neueste Nachricht (Ausgangspunkt fuer Container ohne Marke); setzt seit
+    /// 26.11.2026 nichts mehr auf gelesen. Liefert die Marke davor.
     @discardableResult
     func markSeen() -> String? {
         let before = seenMark
+        _ = readState                                                    // Ausgangsmarke festhalten, bevor sie wandert
         if let latest, Self.isNew(latest, since: before) { defaults?.set(latest, forKey: Self.seenKey) }
-        publish(0)
         return before
     }
 

@@ -70,7 +70,7 @@ enum HomeWidgetSync {
         let list = try? await api.value("/api/studip/messages")
         let mailOn = prefs.mail && (mail?.isConnected ?? false)
         let cached = mailOn ? await mail?.cachedInbox() : nil
-        let out = messages(list: list, mark: ActiveContainer.current?.defaults.string(forKey: MessagesInbox.seenKey),
+        let out = messages(list: list, state: MessagesInbox.readState(ActiveContainer.current?.defaults),
                            source: sourceName(ActiveContainer.current?.key.university), prefs: prefs,
                            mailUnread: mailOn ? mail?.unseen : nil, mailListing: cached)
         // Uni-Mail unbekannt (Lauf ohne Fenster, Verbindung noch nicht gesetzt): letzten Stand behalten statt die Zahl
@@ -100,15 +100,15 @@ enum HomeWidgetSync {
     /// so viele Zeichen Textanfang (nur mit dem Schalter)
     static let previewLength = 120
 
-    /// Reine Regel (WidgetSnapshotAppTests): ungelesen = laut Stud.IP nicht gelesen (unbekannt zaehlt mit) und neuer als
-    /// das letzte Oeffnen der Seite "Nachrichten" in StudiNow (`MessagesInbox.isNew`). Zeilen: neueste ungelesene der
+    /// Reine Regel (KalenderCountdownNachrichtenAppTests): ungelesen wie Abzeichen und Seite (`MessagesInbox.isUnread`:
+    /// eigene Wahl in StudiNow, sonst Stand in Stud.IP, unbekannt = ungelesen). Zeilen: neueste ungelesene der
     /// Quelle, danach ungelesene E-Mails der ersten Seite des Posteingangs. nil, wenn es weder gespeicherte Nachrichten
     /// noch Uni-Mail gibt.
-    static func messages(list: JSONValue?, mark: String?, source: String, prefs: MessagesWidgetPrefs,
+    static func messages(list: JSONValue?, state: MessagesInbox.ReadState, source: String, prefs: MessagesWidgetPrefs,
                          mailUnread: Int?, mailListing: JSONValue?) -> HomeWidgetData.Messages? {
         let all = list?.list("messages") ?? []
         if all.isEmpty, mailUnread == nil { return nil }
-        let unread = all.filter { MessagesInbox.isUnread($0, since: mark) }
+        let unread = all.filter { MessagesInbox.isUnread($0, state: state) }
         func clean(_ s: String?) -> String { (s ?? "").replacingOccurrences(of: "\n", with: " ").trimmingCharacters(in: .whitespacesAndNewlines) }
         func preview(_ s: String?) -> String? {
             guard prefs.preview else { return nil }

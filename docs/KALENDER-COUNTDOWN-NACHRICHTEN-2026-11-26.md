@@ -84,10 +84,16 @@ Schnappschuss `home-widget.json`, neues Feld `messages`; alte Schnappschüsse bl
 - **Größen:** klein, mittel; Sperrbildschirm rechteckig, rund (Zahl), Zeile („3 ungelesene Nachrichten“).
 - **Inhalt:** Zahl der ungelesenen Stud.IP-Nachrichten (Uni Hildesheim: Learnweb, HsH: Moodle), wahlweise plus
   Uni-Mail (SOGo, wenn verbunden; Vorgabe an), und die neuesten ungelesenen Absender + Betreffe (mittel: 3, klein: 1).
-- **„Ungelesen“ genau:** laut Stud.IP ungelesen **und** neuer als das letzte Öffnen der Seite „Nachrichten“ in
-  StudiNow. Dafür speichert der Abgleich jetzt das Feld `is-read` aus Stud.IP mit (neue Spalte `is_read`, wird in
-  alten Datenbanken nachgetragen). Wer eine Nachricht im Browser liest, sieht sie also auch im Widget und am Abzeichen
-  „Nachrichten“ nicht mehr als neu.
+- **„Ungelesen“ je Nachricht, nur in StudiNow** (Entscheidung des Inhabers 26.11.2026, `MessagesInbox.isUnread`):
+  1. eigene Wahl in StudiNow zuerst: **Antippen einer Nachricht = gelesen**, im Leser „Als ungelesen markieren“ bzw.
+     „Als gelesen markieren“, oben „Alle als gelesen“;
+  2. sonst gilt alles bis zur früheren Marke „beim letzten Öffnen der Seite“ als gelesen (einmal beim Umstieg
+     festgehalten, damit nach dem Update nicht alte Nachrichten plötzlich ungelesen sind);
+  3. sonst der Stand in Stud.IP (`is-read`, neue Spalte `is_read`); bei Learnweb/Moodle unbekannt = ungelesen.
+  Das **Öffnen der Seite allein setzt nichts mehr auf gelesen** (vorher stand danach überall 0). Im Querformat wird die
+  erste Nachricht automatisch angezeigt, aber nicht als gelesen gezählt. Nach Stud.IP schreibt StudiNow **nichts** – im
+  Browser bleiben Nachrichten, die man nur in StudiNow gelesen hat, ungelesen. Abzeichen „Nachrichten“, Punkte in der
+  Liste und Widget folgen derselben Regel; gespeichert je Container (Konto und Hochschule).
 - **Antippen:** öffnet „Nachrichten“ in der App; eine Uni-Mail-Zeile öffnet „Uni-Mail“; nur Uni-Mail ungelesen →
   „Uni-Mail“.
 - **Datenschutz/Sperrbildschirm** (Karte „Widget „Nachrichten““ in den Einstellungen):
@@ -118,11 +124,8 @@ als Zahl (klein, rund, Zeile).
   letzte Stand (`HomeWidgetSync.keepingMail`, Test).
 
 **Wo das Vorbild weiter ist (nicht gebaut, Entscheidung des Inhabers):**
-1. **Gelesen in Stud.IP markieren.** Das Vorbild setzt eine Nachricht beim Öffnen in Stud.IP auf „gelesen“ und kann sie
-   wieder auf „ungelesen“ stellen. StudiNow schreibt bei Nachrichten nichts nach Stud.IP (seit 02.11.2026 bewusst nur
-   lesend). Folge bei uns: Öffnen der Seite „Nachrichten“ setzt die Zahl im Widget auf 0, auch wenn man nicht jede
-   Nachricht gelesen hat, und im Browser bleiben sie ungelesen. Möglich: (a) „gelesen“ je Nachricht nur in StudiNow
-   merken, (b) zusätzlich in Stud.IP setzen (schreibt ins Uni-Konto).
+1. ~~Gelesen je Nachricht~~ – **entschieden und gebaut (26.11.2026): nur in StudiNow** (siehe Widget „Nachrichten“).
+   Unterschied zum Vorbild bleibt: dort wird es auch in Stud.IP gesetzt, bei uns bewusst nicht.
 2. **Erinnerung vor dem Termin** (Mitteilung z. B. 10 Minuten vor der Vorlesung, Wochenende ruhig) – haben wir nur für
    Abgaben und Prüfungen.
 3. **Countdown an Tagen ohne Uni-Termin:** das Vorbild zeigt immer den nächsten Termin (eigene Karte). Bei uns gibt es an
@@ -149,6 +152,9 @@ als Zahl (klein, rund, Zeile).
   Kalender), `WidgetSnapshot`, `Messages`, `OhneLernkalender` – 54 Tests, 0 Fehler.
 - Nach den Korrekturen aus dem Codevergleich: neue Tests, Widgets, Nachrichten und Quellen-Prüfungen (67 Tests) auf
   iPad- und iPhone-Simulator erneut grün.
+- „Gelesen je Nachricht“ (26.11.2026 abends): Regeln, Ausgangsmarke, Seite (Antippen, „Als ungelesen markieren“,
+  „Alle als gelesen“) plus Widgets, Nachrichten, Quellen-Prüfungen, Einstellungen und Breitenprüfung – 104 Tests je auf
+  iPad- und iPhone-Simulator grün.
 - Nicht gelaufen: die ganze App-Suite (rund 290 Testdateien) und die UI-Tests.
 - Schon vorher so, nicht Teil dieses Auftrags: auf dem iPhone mit sehr großer Schrift bricht die Uhrzeitspalte in
   „Heute an der Uni“ um („10:“ / „15“), weil sie fest 44 pt breit ist.

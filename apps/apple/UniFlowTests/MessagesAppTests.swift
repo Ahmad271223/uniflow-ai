@@ -149,10 +149,13 @@ final class MessagesAppTests: XCTestCase {
     }
 
     func testNewSinceLastVisitAndBadgeText() {
-        let ms: [JSONValue] = [["sent_at": "2026-11-04T08:15:00+01:00"], ["sent_at": "2026-11-02T12:00:00+01:00"], ["sent_at": "2026-10-28T09:00:00+01:00"]]
-        XCTAssertEqual(MessagesInbox.newCount(ms, since: nil), 3, "nie geoeffnet: alle neu")
-        XCTAssertEqual(MessagesInbox.newCount(ms, since: "2026-11-02T12:00:00+01:00"), 1)
-        XCTAssertEqual(MessagesInbox.newCount(ms, since: "2026-11-04T08:15:00+01:00"), 0)
+        let ms: [JSONValue] = [["id": "a", "sent_at": "2026-11-04T08:15:00+01:00"], ["id": "b", "sent_at": "2026-11-02T12:00:00+01:00"],
+                               ["id": "c", "sent_at": "2026-10-28T09:00:00+01:00"]]
+        // gelesen je Nachricht (26.11.2026): ohne Ausgangsmarke alle ungelesen, bis zur Marke gelesen, eigene Wahl zuerst
+        XCTAssertEqual(MessagesInbox.unreadCount(ms, state: .init()), 3, "nie geoeffnet: alle neu")
+        XCTAssertEqual(MessagesInbox.unreadCount(ms, state: .init(baseline: "2026-11-02T12:00:00+01:00")), 1)
+        XCTAssertEqual(MessagesInbox.unreadCount(ms, state: .init(overrides: ["a": true], baseline: "2026-11-02T12:00:00+01:00")), 0)
+        XCTAssertEqual(MessagesInbox.unreadCount(ms, state: .init(overrides: ["c": false], baseline: "2026-11-04T08:15:00+01:00")), 1, "als ungelesen markiert")
         // gleicher Zeitpunkt mit anderem Versatz ist nicht neu, spaeterer schon
         XCTAssertFalse(MessagesInbox.isNew("2026-11-02T13:00:00+02:00", since: "2026-11-02T12:00:00+01:00"))
         XCTAssertTrue(MessagesInbox.isNew("2026-11-02T13:01:00+02:00", since: "2026-11-02T12:00:00+01:00"))
@@ -169,24 +172,33 @@ final class MessagesAppTests: XCTestCase {
         XCTAssertEqual(inbox.stored, 3)
         XCTAssertEqual(router.badge(for: "messages"), 3, "nie geoeffnet: alle neu")
         XCTAssertNil(inbox.markSeen(), "vorher keine Marke")
-        XCTAssertEqual(router.badge(for: "messages"), 0)
+        XCTAssertEqual(router.badge(for: "messages"), 3, "Seite oeffnen allein setzt nichts auf gelesen (26.11.2026)")
         XCTAssertEqual(defaults.string(forKey: MessagesInbox.seenKey), "2026-11-04T08:15:00+01:00", "Marke im Container")
-        // ein Abgleich bringt eine neuere und eine aeltere Nachricht: nur die neuere zaehlt
+        inbox.mark(["sp-msg-m1"], read: true)                               // Nachricht geoeffnet
+        XCTAssertEqual(router.badge(for: "messages"), 2)
+        inbox.mark(["sp-msg-m1"], read: false)                              // "Als ungelesen markieren"
+        XCTAssertEqual(router.badge(for: "messages"), 3)
+        inbox.mark(["sp-msg-m1", "sp-msg-m2", "sp-msg-m3"], read: true)     // "Alle als gelesen"
+        XCTAssertEqual(router.badge(for: "messages"), 0)
+        XCTAssertEqual(defaults.dictionary(forKey: MessagesInbox.stateKey) as? [String: Bool],
+                       ["sp-msg-m1": true, "sp-msg-m2": true, "sp-msg-m3": true], "nur im Container, nichts nach Stud.IP")
+        // ein Abgleich bringt eine neuere und eine aeltere Nachricht: beide ungelesen (keine Ausgangsmarke in diesem Container)
         var more = Self.inbox
         var data = more["data"]?.array ?? []
         data.append(["id": "m4", "type": "messages", "attributes": ["subject": "Neu", "message": "x", "mkdate": "2026-11-04T09:00:00+01:00"]])
-        data.append(["id": "m5", "type": "messages", "attributes": ["subject": "Alt", "message": "y", "mkdate": "2026-10-01T09:00:00+02:00"]])
+        data.append(["id": "m5", "type": "messages", "attributes": ["subject": "Alt", "message": "y", "mkdate": "2026-10-01T09:00:00+02:00",
+                                                                     "is-read": true]])
         more = ["data": .array(data), "included": more["included"] ?? .array([])]
         try store(more, in: host)
         try pumping { await inbox.refresh(api: api) }
         XCTAssertEqual(inbox.stored, 5)
-        XCTAssertEqual(router.badge(for: "messages"), 1)
+        XCTAssertEqual(router.badge(for: "messages"), 1, "m5 ist in Stud.IP gelesen")
         // anderer Container (eigene Einstellungen): eigene Marke
         let other = try XCTUnwrap(UserDefaults(suiteName: suite + ".b"))
         defer { other.removePersistentDomain(forName: suite + ".b") }
         inbox.defaultsOverride = other
         try pumping { await inbox.refresh(api: api) }
-        XCTAssertEqual(router.badge(for: "messages"), 5)
+        XCTAssertEqual(router.badge(for: "messages"), 4, "anderer Container: eigene Wahl, m5 in Stud.IP gelesen")
         inbox.defaultsOverride = defaults
         // eigener Server: nichts
         try pumping { await inbox.refresh(api: nil) }
@@ -296,6 +308,30 @@ final class MessagesAppTests: XCTestCase {
         XCTAssertFalse(l.contains { $0.contains("Erika") }, "keine Personennamen")
     }
 
+    /// Gelesen je Nachricht nur in StudiNow (26.11.2026): Antippen setzt auf gelesen, "Als ungelesen markieren" zurueck,
+    /// "Alle als gelesen" alles; das Oeffnen der Seite allein nichts
+    func testReadPerMessageOnThePage() throws {
+        let (api, _) = try api()
+        let env = try page(api, split: true)
+        XCTAssertTrue(env.wait { env.labels().contains { $0.hasPrefix("Neu, Raumänderung Übung") } }, env.labels().joined(separator: "\n"))
+        XCTAssertTrue(env.labels().contains(MessagesText.allRead))
+        XCTAssertTrue(env.labels().contains { $0.hasPrefix("Neu, Tutorium entfällt") }, "automatisch gewaehlt: bleibt ungelesen")
+        let row = try XCTUnwrap(element("Neu, Raumänderung Übung", in: env))
+        XCTAssertTrue(row.accessibilityActivate())
+        XCTAssertTrue(env.wait { env.labels().contains { $0.hasPrefix("Raumänderung Übung") } }, env.labels().joined(separator: "\n"))
+        XCTAssertTrue(env.labels().contains(MessagesText.markUnread))
+        XCTAssertEqual(MessagesInbox.shared.newCount, 2)
+        let toggle = try XCTUnwrap(element(MessagesText.markUnread, in: env))
+        XCTAssertTrue(toggle.accessibilityActivate())
+        XCTAssertTrue(env.wait { env.labels().contains { $0.hasPrefix("Neu, Raumänderung Übung") } && env.labels().contains(MessagesText.markRead) })
+        let all = try XCTUnwrap(element(MessagesText.allRead, in: env))
+        XCTAssertTrue(all.accessibilityActivate())
+        XCTAssertTrue(env.wait { !env.labels().contains { $0.hasPrefix("Neu,") } && !env.labels().contains(MessagesText.allRead) },
+                      env.labels().joined(separator: "\n"))
+        XCTAssertEqual(MessagesInbox.shared.newCount, 0)
+    }
+
+    /// Umstieg (26.11.2026): die fruehere Marke "beim letzten Oeffnen" wird die Ausgangsmarke, davor gilt alles als gelesen
     func testSecondVisitShowsNoNewDots() throws {
         let (api, _) = try api()
         defaults.set("2026-11-02T12:00:00+01:00", forKey: MessagesInbox.seenKey)

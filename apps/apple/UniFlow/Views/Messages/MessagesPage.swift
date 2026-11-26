@@ -3,7 +3,8 @@ import UniFlowCore
 
 // Seite "Nachrichten" (Auftrag des Inhabers 04.11.2026): der Stud.IP-Posteingang, wie ihn der Abgleich auf dem Geraet
 // speichert (`StudIPExtras`, nur die Liste, nie die Einzelansicht, die in Stud.IP als gelesen markieren koennte).
-// Liste mit Absender (Rolle statt Name), Betreff, Datum und Punkt "neu seit dem letzten Besuch", Suchfeld, Leser mit dem
+// Liste mit Absender (Rolle statt Name), Betreff, Datum und Punkt "ungelesen" (seit 26.11.2026 je Nachricht, nur in
+// StudiNow: Antippen = gelesen, "Als ungelesen markieren", "Alle als gelesen"; `MessagesInbox`), Suchfeld, Leser mit dem
 // ganzen Text (`UFLongText`), den erkannten Tagen als Chips und "In Stud.IP öffnen". Quer (Fenster breiter als 900 pt)
 // Liste und Leser nebeneinander, hochkant schiebt der Leser die Liste weg (Zurueck). Ziehen nach unten startet den
 // kurzen Stud.IP-Abgleich (`StudIPSync.run(scope: .lists)`, der auch die Nachrichten holt). Daten: GET
@@ -18,7 +19,10 @@ enum MessagesText {
     static let searchPrompt = "Nachrichten durchsuchen"
     static let back = "Nachrichten"
     static let pick = "Wähle links eine Nachricht aus."
-    static let privacy = "Nachrichten bleiben nur auf diesem Gerät; StudiNow markiert sie in Stud.IP nicht als gelesen. Antworten gehen über Stud.IP unter deinem Namen."
+    static let privacy = "Nachrichten bleiben nur auf diesem Gerät; StudiNow markiert sie in Stud.IP nicht als gelesen. Was du hier gelesen hast, merkt sich StudiNow nur auf diesem Gerät. Antworten gehen über Stud.IP unter deinem Namen."
+    static let markRead = "Als gelesen markieren"
+    static let markUnread = "Als ungelesen markieren"
+    static let allRead = "Alle als gelesen"
     static let reply = "Antworten"
     static let replyAll = "Allen antworten"
     static let ownReply = "Deine Antwort"
@@ -103,9 +107,6 @@ struct MessagesPage: View {
     @State private var failed: String?
     @State private var query = ""
     @State private var selectedID: String?
-    /// Marke vor diesem Besuch: Nachrichten danach tragen den Punkt "neu" (bleibt fuer die Dauer des Besuchs)
-    @State private var previousMark: String?
-    @State private var markTaken = false
     /// Antwortfenster (docs/NACHRICHTEN-ANTWORTEN-2026-11-05.md)
     @State private var composing: Composing?
     /// eigene Antworten dieses Containers (`StudIPReplyLog`)
@@ -180,7 +181,14 @@ struct MessagesPage: View {
 
     private var head: some View {
         VStack(alignment: .leading, spacing: 0) {
-            UFPageHead(MessagesText.title, sub: subline)
+            UFPageHead(MessagesText.title, sub: subline) {
+                // nur in StudiNow (Entscheidung des Inhabers 26.11.2026), nichts geht nach Stud.IP
+                let open = messages.filter { inbox.isUnread($0) }.compactMap { $0.s("id") }
+                if !open.isEmpty {
+                    UFButton(MessagesText.allRead, icon: "check", size: .small) { inbox.mark(open, read: true) }
+                        .accessibilityIdentifier("messages.allRead")
+                }
+            }
             if total > 0 { searchField.padding(.bottom, 14) }
         }
     }
@@ -289,7 +297,7 @@ struct MessagesPage: View {
 
     private func row(_ m: JSONValue) -> some View {
         let id = m.s("id") ?? ""
-        let isNew = MessagesInbox.isNew(m.s("sent_at"), since: previousMark)
+        let isNew = inbox.revision >= 0 && inbox.isUnread(m)                  // "ungelesen" (Punkt, fett, VoiceOver "Neu")
         let answered = replies.answered.contains(id)
         let isSelected = split && id == selectedID
         return Button { select(id) } label: {
@@ -367,6 +375,7 @@ struct MessagesPage: View {
                     Text("Diese Nachricht hat keinen Text.").ufFont(14.5).foregroundStyle(UF.muted)
                 }
                 replyBar(m)
+                readToggle(m)                                                       // nur in StudiNow (26.11.2026)
                 ownReplies(m)
                 Text(MessagesText.privacy).ufFont(12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
@@ -479,8 +488,21 @@ struct MessagesPage: View {
 
     // MARK: Laden
 
+    /// Antippen oeffnet die Nachricht und setzt sie auf gelesen (nur in StudiNow); die automatische Auswahl der ersten
+    /// Nachricht im Querformat tut das nicht
     private func select(_ id: String) {
+        inbox.mark([id], read: true)
         if split { selectedID = id } else { UFMotion.toggle { selectedID = id } }
+    }
+
+    /// "Als ungelesen markieren" bzw. "Als gelesen markieren" im Leser
+    private func readToggle(_ m: JSONValue) -> some View {
+        let id = m.s("id") ?? ""
+        let unread = inbox.revision >= 0 && inbox.isUnread(m)
+        return UFButton(unread ? MessagesText.markRead : MessagesText.markUnread, icon: unread ? "check" : "mail", size: .small) {
+            inbox.mark([id], read: unread)
+        }
+        .accessibilityIdentifier("messages.readToggle")
     }
 
     func load() async {
@@ -500,11 +522,9 @@ struct MessagesPage: View {
         if let id = selectedID, !messages.contains(where: { $0.s("id") == id }) { selectedID = nil }
         if split, selectedID == nil { selectedID = messages.first?.s("id") }
         loaded = true
-        // die Seite ist offen: alles Gespeicherte gilt als gesehen; die Punkte bleiben fuer diesen Besuch (beim ersten
-        // Laden zeigt die Liste bis zur Marke alles als neu, danach bleibt `previousMark`)
+        // seit 26.11.2026 setzt das Oeffnen der Seite nichts mehr auf gelesen (nur das Oeffnen einer Nachricht)
         await inbox.refresh(api: api)
-        let before = inbox.markSeen()
-        if !markTaken { previousMark = before; markTaken = true }
+        inbox.markSeen()
     }
 
     /// Ziehen nach unten: kurzer Stud.IP-Abgleich (holt auch die Nachrichten), dann neu lesen

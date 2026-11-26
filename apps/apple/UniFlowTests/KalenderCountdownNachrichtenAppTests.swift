@@ -329,8 +329,8 @@ final class KalenderCountdownNachrichtenAppTests: XCTestCase {
             msg("3", "2026-11-26T07:00:00+01:00", read: nil, sender: "", subject: ""),
             msg("4", "2026-11-20T07:00:00+01:00", read: false, subject: "Vor dem letzten Öffnen"),
         ]), "fetched_at": "2026-11-26T09:30:00"]
-        let mark = "2026-11-25T12:00:00+01:00"
-        let m = try XCTUnwrap(HomeWidgetSync.messages(list: list, mark: mark, source: "Stud.IP", prefs: MessagesWidgetPrefs(), mailUnread: nil, mailListing: nil))
+        let mark = MessagesInbox.ReadState(baseline: "2026-11-25T12:00:00+01:00")
+        let m = try XCTUnwrap(HomeWidgetSync.messages(list: list, state: mark, source: "Stud.IP", prefs: MessagesWidgetPrefs(), mailUnread: nil, mailListing: nil))
         XCTAssertEqual(m.unread, 2)
         XCTAssertEqual(m.lines.map(\.subject), ["Blatt 5 ist online", "(ohne Betreff)"])
         XCTAssertEqual(m.lines[1].sender, "Stud.IP", "ohne Absender die Quelle")
@@ -343,7 +343,7 @@ final class KalenderCountdownNachrichtenAppTests: XCTestCase {
         prefs.lockSubjects = true
         let mail: JSONValue = ["messages": .array([["uid": 3, "sender": "Prüfungsamt", "subject": "Anmeldung", "read": false],
                                                    ["uid": 2, "sender": "Bibliothek", "subject": "Leihfrist", "read": true]])]
-        let p = try XCTUnwrap(HomeWidgetSync.messages(list: list, mark: mark, source: "Stud.IP", prefs: prefs, mailUnread: 5, mailListing: mail))
+        let p = try XCTUnwrap(HomeWidgetSync.messages(list: list, state: mark, source: "Stud.IP", prefs: prefs, mailUnread: 5, mailListing: mail))
         let preview = try XCTUnwrap(p.lines[0].preview)
         XCTAssertTrue(preview.hasPrefix("Bitte bis Freitag abgeben."))
         XCTAssertEqual(preview.count, HomeWidgetSync.previewLength)
@@ -353,9 +353,9 @@ final class KalenderCountdownNachrichtenAppTests: XCTestCase {
         XCTAssertEqual(p.lines.map(\.isMail), [false, false, true], "erst die Quelle, dann ungelesene E-Mails")
         XCTAssertEqual(p.lines.last?.sender, "Prüfungsamt")
 
-        XCTAssertNil(HomeWidgetSync.messages(list: ["messages": .array([])], mark: nil, source: "Stud.IP", prefs: prefs, mailUnread: nil, mailListing: nil),
+        XCTAssertNil(HomeWidgetSync.messages(list: ["messages": .array([])], state: .init(), source: "Stud.IP", prefs: prefs, mailUnread: nil, mailListing: nil),
                      "weder Nachrichten noch Uni-Mail: Hinweis statt Zahl")
-        XCTAssertEqual(HomeWidgetSync.messages(list: nil, mark: nil, source: "Stud.IP", prefs: prefs, mailUnread: 0, mailListing: nil)?.total, 0)
+        XCTAssertEqual(HomeWidgetSync.messages(list: nil, state: .init(), source: "Stud.IP", prefs: prefs, mailUnread: 0, mailListing: nil)?.total, 0)
         XCTAssertEqual(HomeWidgetSync.sourceName(.hildesheim), "Learnweb")
         XCTAssertEqual(HomeWidgetSync.sourceName(.hsh), "Moodle")
         XCTAssertEqual(HomeWidgetSync.sourceName(.luh), "Stud.IP")
@@ -378,8 +378,23 @@ final class KalenderCountdownNachrichtenAppTests: XCTestCase {
     func testBadgeIgnoresMessagesReadInStudIP() {
         let list = [msg("1", "2026-11-26T09:00:00+01:00", read: true), msg("2", "2026-11-26T10:00:00+01:00", read: nil),
                     msg("3", "2026-11-26T11:00:00+01:00", read: false)]
-        XCTAssertEqual(MessagesInbox.newCount(list, since: nil), 2)
-        XCTAssertEqual(MessagesInbox.newCount(list, since: "2026-11-26T10:30:00+01:00"), 1)
+        XCTAssertEqual(MessagesInbox.unreadCount(list, state: .init()), 2)
+        XCTAssertEqual(MessagesInbox.unreadCount(list, state: .init(baseline: "2026-11-26T10:30:00+01:00")), 1)
+        XCTAssertEqual(MessagesInbox.unreadCount(list, state: .init(overrides: ["3": true])), 1, "in StudiNow geoeffnet")
+        XCTAssertEqual(MessagesInbox.unreadCount(list, state: .init(overrides: ["1": false])), 3, "eigene Wahl vor Stud.IP")
+    }
+
+    /// Ausgangsmarke beim Umstieg: einmal aus der frueheren Marke, danach fest (auch wenn die Seite die Marke weiterschiebt)
+    func testBaselineIsTakenOnce() throws {
+        let d = try XCTUnwrap(UserDefaults(suiteName: "lese-stand-\(UUID().uuidString)"))
+        d.set("2026-11-20T08:00:00+01:00", forKey: MessagesInbox.seenKey)
+        XCTAssertEqual(MessagesInbox.readState(d).baseline, "2026-11-20T08:00:00+01:00")
+        d.set("2026-11-26T08:00:00+01:00", forKey: MessagesInbox.seenKey)
+        XCTAssertEqual(MessagesInbox.readState(d).baseline, "2026-11-20T08:00:00+01:00", "bleibt fest")
+        let fresh = try XCTUnwrap(UserDefaults(suiteName: "lese-stand-\(UUID().uuidString)"))
+        XCTAssertNil(MessagesInbox.readState(fresh).baseline, "nie geoeffnet: keine Marke")
+        fresh.set("2026-11-26T08:00:00+01:00", forKey: MessagesInbox.seenKey)
+        XCTAssertNil(MessagesInbox.readState(fresh).baseline, "spaeter auch nicht")
     }
 
     func testOldSnapshotWithoutMessagesStillReads() throws {
