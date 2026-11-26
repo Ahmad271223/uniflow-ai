@@ -174,9 +174,12 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     assert "7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten" in flat and "deine Daten bleiben" in flat
     assert "24 Stunden" in flat and 'href="nutzungsbedingungen.html"' in html
     assert html.count("<details>") >= 5 and "<summary>" in html
-    # ehrlich: keine Formulare/Suchfelder, keine Nutzerzahlen oder Stimmen, kein Anbieter-Name der KI
+    # ehrlich: keine Formulare/Suchfelder, keine Nutzerzahlen oder Stimmen, kein Anbieter-Name der KI. Einzige Zahl: „Über 500
+    # Downloads“ – vom Inhaber am 27.11.2026 aus App Store Connect bestätigt („Ja, über 500“); Konten auf dem Server sind
+    # weniger, darum nie „Nutzer“ oder „Studierende“ mit einer Zahl
     assert "<form" not in html and "<input" not in html
-    assert not re.search(r"\d[\d.]*\s*(\+|Tsd|k\b)?\s*(Studierende|Nutzer|Downloads|Bewertungen)", html)
+    counted = re.findall(r"\d[\d.]*\s*(?:\+|Tsd|k\b)?\s*(?:Studierende|Nutzer|Downloads|Bewertungen)", html)
+    assert counted in ([], ["500 Downloads"]), counted
     assert "OpenAI" not in html and "Sterne" not in html
 
 
