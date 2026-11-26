@@ -92,4 +92,15 @@ final class AutoSyncAppTests: XCTestCase {
         XCTAssertEqual(AutoSyncSchedule.standard.endHour, 18)
         XCTAssertEqual(AutoSyncSchedule.standard.interval, 30 * 60)
     }
+
+    /// 26.11.2026 ("Abruf schonen"): Noten von selbst hoechstens alle 4 Stunden (QIS der LUH als eigenes Portal, Noten
+    /// der Uni Hildesheim und der HsH im Abgleich mit); alle anderen Portale weiter alle 30 Minuten. Unter XCTest ohne
+    /// Versatz, in der App mit dem festen Versatz des Geraets.
+    func testGradesAtMostEveryFourHoursAndNoOffsetUnderTest() {
+        XCTAssertEqual(AutoSync.gradesInterval, 4 * 3600)
+        XCTAssertEqual(AutoSync.portalIntervals, [OpenSync.qis: 4 * 3600])
+        XCTAssertNil(AutoSync.portalIntervals[OpenSync.studIP])
+        XCTAssertNil(AutoSync.portalIntervals[OpenSync.uniMail])
+        XCTAssertEqual(AutoSync.schedule.offset, 0, "Tests rechnen mit 8:00, 8:30 …")
+    }
 }

@@ -13,6 +13,8 @@ import Foundation
 //
 // Grenzen des Fensters: 08:00:00 gehoert dazu, 18:00:00 nicht mehr (halboffen). So ergeben 30 Minuten genau 20
 // Abgleiche am Tag (08:00, 08:30 … 17:30); ein Lauf um Punkt 18:00 waere der 21. und laege schon "nach 18 Uhr".
+// Mit dem Versatz eines Geraets (`offset`, seit 26.11.2026) beginnt das Fenster spaeter, z. B. 08:17:00, die Laeufe
+// liegen dann um 08:17, 08:47 … 17:47 - weiter hoechstens 20 am Tag, das Ende bleibt 18:00.
 // Der Abstand zaehlt in echter Zeit (Sekunden), das Fenster in Ortszeit: bei der Zeitumstellung (nachts, ausserhalb des
 // Fensters) aendert sich nichts, auf Reisen gilt die Uhr des Ortes, an dem das Geraet ist.
 
@@ -24,15 +26,25 @@ public struct AutoSyncSchedule: Sendable, Equatable {
     public var endHour: Int
     /// Abstand zwischen zwei Abgleichen von selbst je Portal
     public var interval: TimeInterval
+    /// Fester Versatz dieses Geraets (0 bis unter `interval`, ganze Sekunden): das Fenster beginnt erst um
+    /// `startHour`:00 + `offset`, das Ende bleibt `endHour`:00 (26.11.2026, "Abruf schonen": sonst fragen alle Geraete,
+    /// die um 8 Uhr offen sind oder von iOS geweckt werden, zur selben Sekunde bei der Hochschule an). Standard 0.
+    public var offset: TimeInterval
 
-    public init(startHour: Int, endHour: Int, interval: TimeInterval) {
+    public init(startHour: Int, endHour: Int, interval: TimeInterval, offset: TimeInterval = 0) {
         self.startHour = min(max(startHour, 0), 23)
         self.endHour = min(max(endHour, 1), 24)
         self.interval = max(interval, 60)
+        self.offset = min(max(offset, 0), self.interval - 1).rounded(.down)
     }
 
     /// Auftrag des Inhabers: 8 bis 18 Uhr, alle 30 Minuten - die eine Stelle fuer diese drei Zahlen
     public static let standard = AutoSyncSchedule(startHour: 8, endHour: 18, interval: 30 * 60)
+
+    /// Derselbe Plan mit dem festen Versatz eines Geraets (`AutoSyncStagger`)
+    public func staggered(by offset: TimeInterval) -> AutoSyncSchedule {
+        AutoSyncSchedule(startHour: startHour, endHour: endHour, interval: interval, offset: offset)
+    }
 
     /// Abgleiche von selbst an einem Tag, wenn die App durchgehend offen ist (8-18 Uhr, 30 Minuten: 20)
     public var runsPerDay: Int {
@@ -46,23 +58,25 @@ public struct AutoSyncSchedule: Sendable, Equatable {
         return cal
     }
 
-    /// Liegt `now` im Fenster? Gerechnet mit der Stunde der Ortszeit: `startHour` <= Stunde < `endHour`.
+    /// Liegt `now` im Fenster? Gerechnet mit der Uhr der Ortszeit: `startHour`:00 + `offset` <= Uhrzeit < `endHour`:00.
     public func isInWindow(_ now: Date, timeZone: TimeZone) -> Bool {
-        let hour = calendar(timeZone).component(.hour, from: now)
-        return hour >= startHour && hour < endHour
+        let c = calendar(timeZone).dateComponents([.hour, .minute, .second], from: now)
+        let second = (c.hour ?? 0) * 3600 + (c.minute ?? 0) * 60 + (c.second ?? 0)
+        return second >= startHour * 3600 + Int(offset) && second < endHour * 3600
     }
 
-    /// Erster Beginn eines Fensters, der nicht vor `date` liegt (heute, morgen oder uebermorgen `startHour`:00 Ortszeit)
+    /// Erster Beginn eines Fensters, der nicht vor `date` liegt (heute, morgen oder uebermorgen `startHour`:00 +
+    /// `offset` Ortszeit)
     public func windowStart(onOrAfter date: Date, timeZone: TimeZone) -> Date {
         let cal = calendar(timeZone)
         let today = cal.startOfDay(for: date)
-        for offset in 0...2 {
-            guard let day = cal.date(byAdding: .day, value: offset, to: today) else { continue }
-            var c = cal.dateComponents([.year, .month, .day], from: day)
+        for day in 0...2 {
+            guard let d0 = cal.date(byAdding: .day, value: day, to: today) else { continue }
+            var c = cal.dateComponents([.year, .month, .day], from: d0)
             c.hour = startHour
             c.minute = 0
             c.second = 0
-            if let d = cal.date(from: c), d >= date { return d }
+            if let d = cal.date(from: c)?.addingTimeInterval(offset), d >= date { return d }
         }
         return date.addingTimeInterval(24 * 3600)              // nur bei einer kaputten Zeitzone
     }
@@ -185,9 +199,33 @@ public struct AutoSyncLedger {
         return s.isDue(last: reference(portal, lastSuccess: lastSuccess), now: now, timeZone: timeZone)
     }
 
-    /// Fruehester naechster Abgleich von selbst fuer dieses Portal (nach einer Pause erst danach)
-    public func nextRun(_ portal: String, lastSuccess: Date?, now: Date, timeZone: TimeZone) -> Date {
+    /// Fruehester naechster Abgleich von selbst fuer dieses Portal (nach einer Pause erst danach). `interval`: eigener
+    /// Abstand dieses Portals (wie bei `isDue`); nil: der des Plans
+    public func nextRun(_ portal: String, lastSuccess: Date?, now: Date, timeZone: TimeZone,
+                        interval: TimeInterval? = nil) -> Date {
         let start = pausedUntil(portal, now: now) ?? now
-        return schedule.nextRun(last: reference(portal, lastSuccess: lastSuccess), now: start, timeZone: timeZone)
+        var s = schedule
+        if let interval { s.interval = interval }
+        return s.nextRun(last: reference(portal, lastSuccess: lastSuccess), now: start, timeZone: timeZone)
+    }
+}
+
+/// Fester Versatz des Abgleichs von selbst je Geraet (26.11.2026, "Abruf schonen"): einmal zufaellig gewuerfelt, dann
+/// dauerhaft in den Einstellungen des Geraets (nie in iCloud, nie beim Dienst). So verteilen sich die Geraete ueber die
+/// ersten 30 Minuten des Fensters, statt um Punkt 8:00, 8:30 … gemeinsam anzufragen. Das Weck-Signal des Dienstes
+/// staffelt genauso (app/wake_push.py `offset_minutes`); beide Versaetze sind unabhaengig, und das schadet nicht: der
+/// Abgleich startet erst, wenn beide Regeln ihn erlauben, und bleibt je Portal bei hoechstens einem je Abstand.
+public enum AutoSyncStagger {
+    public static let key = "uniflow.autosync.staggerSeconds"
+
+    /// Versatz in ganzen Sekunden, 0 bis unter `interval`. Steht schon einer da (und passt er), bleibt er; sonst wird
+    /// einer gewuerfelt und gemerkt.
+    public static func offset(defaults: UserDefaults, interval: TimeInterval = AutoSyncSchedule.standard.interval,
+                              random: (Int) -> Int = { Int.random(in: 0..<$0) }) -> TimeInterval {
+        let range = max(Int(interval), 1)
+        if let saved = defaults.object(forKey: key) as? Int, saved >= 0, saved < range { return TimeInterval(saved) }
+        let value = min(max(random(range), 0), range - 1)
+        defaults.set(value, forKey: key)
+        return TimeInterval(value)
     }
 }
