@@ -324,10 +324,10 @@ Projekte wären nur dann einen zweiten Blick wert, wenn einmal echte Excel-Datei
 
 ### 6.5 Testfassung fürs iPad (vorbereitet, NICHT aufgespielt)
 
-- Eigener Zweig `test/ipad-editor-whisper-tabelle` @ `eaead2c6` = Stand auf dem iPad (`test/ipad-editor-whisper` @
+- Eigener Zweig `test/ipad-editor-whisper-tabelle` @ `a7eecb3c` (mit KI-Hilfe, Stand 26.11.2026 09:12) = Stand auf dem iPad (`test/ipad-editor-whisper` @
   `88e732c1`: Editor-Neuheiten, Whisper, Handballen-Abwehr, Korrektur „Schreiben zittert“) + `editor/tabelle`.
   Ordner `~/Studora-Builds/wt-kombi-tabelle`, ohne Konflikte gemischt. `test/ipad-editor-whisper` selbst ist unberührt.
-- Im Simulator 64 Tests grün (Sheet, TextBlock, EditorHandballen, EditorAusschnittRundung, EditorPalette).
+- Im Simulator 65 Tests grün (Sheet, TextBlock, EditorHandballen, EditorAusschnittRundung, EditorPalette); Kern 1860 grün.
 - Gerätefassung gebaut: `~/Studora-Builds/dd-kombi-tabelle-geraet/Build/Products/Release-iphoneos/UniFlow.app`, 1.0.7 (49).
 - Aufspielen nur mit dem Okay des Inhabers; danach der Handballen-Sitzung Bescheid geben, damit ihre nächste Fassung
   von diesem Zweig ausgeht.
