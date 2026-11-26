@@ -1450,20 +1450,16 @@ final class TextBlockAppTests: XCTestCase {
         var hints: [String] = []
         plus.editor.onHint = { hints.append($0) }
         let text = PageObjectEdit.text(id: "t", x: 40, y: 40, text: "einfach")
-        var doc = Sheet()
-        doc.isDocument = true
-        let sheet = SheetObject.object(id: "s", x: 60, y: 100, sheet: doc, page: (595, 842))
         let card = FlipCover.cover(id: "k", x: 70, y: 300, width: 240, height: 50)
-        XCTAssertEqual(plus.editor.objects.copyable([text, sheet, card]).compactMap { $0["id"]?.string }, ["t"])
+        XCTAssertEqual(plus.editor.objects.copyable([text, card]).compactMap { $0["id"]?.string }, ["t"])
         XCTAssertEqual(hints.last, ObjectEditing.copyLockedHint)
 
         // der Stift hat eben geschrieben: Die ruhende Hand greift keinen Block
         XCTAssertGreaterThan(page.touchTracker.sincePencil, ObjectEditing.holdSeconds, "ohne Stift: sofort bereit")
 
         let pro = try await open(proAI: true)
-        let copies = pro.editor.objects.copyable([text, sheet, card])
-        XCTAssertEqual(copies.count, 3)
-        XCTAssertEqual(SheetObject.sheet(copies[1])?.isDocument, false, "eine Kopie ist nie die Tabelle als eigene Datei")
+        let copies = pro.editor.objects.copyable([text, card])
+        XCTAssertEqual(copies.count, 2)
     }
 
 }

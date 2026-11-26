@@ -272,7 +272,7 @@ final class PageObjectsView: UIView {
 
     override convenience init(frame: CGRect) { self.init(frame: frame, kind: .page) }
 
-    /// Hoechstens so viele Bildpunkte fuer das Bild eines Objekts (rund 32 MB); Tabellen haben ihre eigene, kleinere Grenze
+    /// Hoechstens so viele Bildpunkte fuer das Bild eines Objekts (rund 32 MB)
     static let pixelBudget: CGFloat = 8_000_000
 
     /// Schreibt nur der Stift ("Nur Stift"), laesst eine AUFGEDECKTE Karte die Beruehrung durch: Man kann die Antwort
@@ -340,7 +340,11 @@ final class PageObjectsView: UIView {
         }
         let sources = Set(others.compactMap { $0["type"]?.string == "image" ? $0["src"]?.string : nil }).sorted()
         let pictures = sources.map { src in images[src].map { "\(src)#\(ObjectIdentifier($0).hashValue)" } ?? src + "#-" }
-        let sig = (template ?? "") + "|" + (placeholder ?? "") + "|" + JSONValue.array(others).jsonString(sortedKeys: true) + "|" + pictures.joined(separator: ",")
+        // Pruefsumme statt des ganzen Texts: Ein langer Textblock wuerde sonst bei jeder Aenderung auf der Seite komplett
+        // in Text verwandelt, nur um zu sehen, ob sich etwas geaendert hat
+        var hasher = Hasher()
+        hasher.combine(others)
+        let sig = (template ?? "") + "|" + (placeholder ?? "") + "|\(others.count)#\(hasher.finalize())|" + pictures.joined(separator: ",")
         guard sig != signature else { return }
         signature = sig
         // erst die Ansichten, dann die uebrigen Ebenen: vorher wurden zuerst alle Ebenen entfernt, auch die der
