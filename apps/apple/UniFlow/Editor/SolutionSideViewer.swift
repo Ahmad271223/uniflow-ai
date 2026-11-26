@@ -20,7 +20,7 @@ import UniFlowCore
 /// in der Aufloesung der Anzeige neu gezeichnet (wie im Editor).
 final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider, UIGestureRecognizerDelegate {
     let layer: ForeignSolutionLayer
-    /// Datei der eigenen Original-PDF (nil: Notizbuch ohne PDF; PDF-Seiten bleiben dann weiss in ihrer Groesse)
+    /// Datei der eigenen Original-PDF (nil: Notizbuch ohne PDF; an der Stelle von PDF-Seiten steht dann der Hinweis)
     let pdfURL: URL?
     let pdfView = PDFView()
     /// Klappkarten der geteilten Loesung: Antippen deckt auf und verdeckt wieder, wie beim Absender
@@ -67,6 +67,8 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
     /// Loesung zu einer anderen Fassung (`placement`): gleich gebliebene Seite = die eigene Seite an ihrer Stelle in der
     /// eigenen Fassung, geaenderte = die Seite der aufbewahrten Fassung des Absenders (`old`); ohne sie ein leeres Blatt,
     /// auf dem nur `SolutionVersions.pageChanged` steht (`overlay`), nie die Striche.
+    /// Laesst sich eine PDF-Seite nicht oeffnen (Datei fehlt oder ist nicht lesbar, Seite gibt es nicht), entsteht
+    /// ebenfalls ein leeres Blatt in ihrer Groesse – darauf steht dann nur der Hinweis (`missingPDFPage`, `overlay`).
     static func page(_ p: SolutionPage, pdf: PDFDocument?, old: PDFDocument? = nil, placement: SolutionVersions.Placement? = nil) -> PDFPage {
         let target: (doc: PDFDocument?, index: Int?)
         switch placement {
@@ -97,10 +99,12 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
         o.canvas.isUserInteractionEnabled = false
         o.canvas.drawingGestureRecognizer.isEnabled = false
         o.canvas.removeFromSuperview()                     // eigene Notizen gibt es hier nicht
-        if layer.placement(p) == .changed {
-            // Seite in der eigenen Fassung geaendert, die alte liegt nicht auf dem Geraet: nur der Satz, nie die Striche
+        // Seite in der eigenen Fassung geaendert und die alte liegt nicht auf dem Geraet, oder die PDF-Seite laesst sich
+        // nicht oeffnen: nur der Satz, nie die Striche auf einer weissen Seite (Inhaber 26.11.2026)
+        let hidden: UIView? = layer.placement(p) == .changed ? changedNotice()
+            : missingPDFPage(p, page: page) ? missingNotice(placement: layer.placement(p)) : nil
+        if let notice = hidden {
             o.objectsView.isHidden = true
-            let notice = changedNotice()
             o.addSubview(notice)
             NSLayoutConstraint.activate([
                 notice.leadingAnchor.constraint(equalTo: o.leadingAnchor), notice.trailingAnchor.constraint(equalTo: o.trailingAnchor),
@@ -120,14 +124,28 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
         return o
     }
 
+    /// Die Seite steht auf der PDF, aber `page` ist nur das leere Ersatzblatt (`page(_:pdf:old:placement:)` konnte die
+    /// PDF-Seite nicht oeffnen). Eigene Blaetter des Absenders (`.blank`) haben nie eine PDF-Seite und zaehlen nicht.
+    static func missingPDFPage(_ p: SolutionPage, page: PDFPage) -> Bool { p.kind == .pdf && page.pageRef == nil }
+
     /// Hinweis an der Stelle einer Seite, die sich in der eigenen Fassung geaendert hat
-    static func changedNotice() -> UIView {
+    static func changedNotice() -> UIView { notice(SolutionVersions.pageChanged, id: "solution.side.changed") }
+
+    /// Hinweis an der Stelle einer PDF-Seite, die sich nicht oeffnen laesst; sollte sie auf der aufbewahrten alten
+    /// Fassung stehen, gilt derselbe Satz wie ohne diese Fassung
+    static func missingNotice(placement: SolutionVersions.Placement?) -> UIView {
+        if case .oldVersion? = placement { return changedNotice() }
+        return notice(CommunityTexts.pageNotShown, id: "solution.side.needsPDF")
+    }
+
+    /// Satz mittig auf ruhigem Grund statt der Seite (nie Striche ohne ihren Hintergrund)
+    static func notice(_ text: String, id: String) -> UIView {
         let box = UIView()
         box.translatesAutoresizingMaskIntoConstraints = false
         box.backgroundColor = .secondarySystemBackground
         box.isUserInteractionEnabled = false
         let label = UILabel()
-        label.text = SolutionVersions.pageChanged
+        label.text = text
         label.numberOfLines = 0
         label.textAlignment = .center
         label.font = .preferredFont(forTextStyle: .title3)
@@ -139,9 +157,9 @@ final class SolutionSideController: UIViewController, PDFPageOverlayViewProvider
             label.leadingAnchor.constraint(equalTo: box.leadingAnchor, constant: 24),
             label.trailingAnchor.constraint(equalTo: box.trailingAnchor, constant: -24),
         ])
-        box.accessibilityIdentifier = "solution.side.changed"
+        box.accessibilityIdentifier = id
         box.isAccessibilityElement = true
-        box.accessibilityLabel = SolutionVersions.pageChanged
+        box.accessibilityLabel = text
         return box
     }
 

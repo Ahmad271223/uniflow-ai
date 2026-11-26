@@ -119,7 +119,10 @@ final class AbnahmeV1AppTests: XCTestCase {
     func testReceivedSolutionMessageFollowsCommunityReading() {
         XCTAssertFalse(Entitlements(observe: false, plan: .free).allows(.communityRead))
         XCTAssertTrue(Entitlements(observe: false, plan: .plus).allows(.communityRead))
-        XCTAssertTrue(SolutionSharing.receivedMessage(label: "Lösung", canView: true).contains("„Ebenen“"))
+        // Text seit 26.11.2026: Loesungen oeffnen sich neben dem Dokument, nicht mehr unter „Ebenen“ ueber der Seite
+        let on = SolutionSharing.receivedMessage(label: "Lösung", canView: true)
+        XCTAssertTrue(on.contains("neben deinem Dokument"), on)
+        XCTAssertFalse(on.contains("Ebenen"), on)
         let off = SolutionSharing.receivedMessage(label: "Lösung", canView: false)
         XCTAssertTrue(off.contains("ab \(UFPlan.plus.name)"), "Lesen ab Plus (05.11.2026): \(off)")
         XCTAssertFalse(off.contains("erscheint"))
