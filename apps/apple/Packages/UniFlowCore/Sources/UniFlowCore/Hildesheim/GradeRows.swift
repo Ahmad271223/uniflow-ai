@@ -49,7 +49,11 @@ public enum GradeRows {
         return cells.contains { c in let l = c.lowercased(); return labels.contains { l.hasPrefix($0) } }
     }
 
-    public static func parse(rows: [[String]], abschluss: String = "") -> [QISGrade] {
+    /// `modules` (LSF Hildesheim, 26.11.2026, echtes Konto; `qis.parse_grade_rows(…, modules=True)`): Modulzeilen
+    /// "Prüfung vorhanden" ohne Note bleiben ("25010 | BM 1: Aufbau der Zahlbereiche | SoSe 26 | | Prüfung vorhanden |
+    /// 14": das Modul ist angefangen). Ohne sie fehlte den Teilmodulen darunter ihr Modul: der Studienverlauf zeigte
+    /// "Basismodul 1" als offen und die Teilmodule als nicht zugeordnet. Bereichszeilen und Zeilen ohne Nummer bleiben weg.
+    public static func parse(rows: [[String]], abschluss: String = "", modules: Bool = false) -> [QISGrade] {
         var out: [QISGrade] = []
         var mapped: [String?]?
         var ab = abschluss
@@ -79,7 +83,13 @@ public enum GradeRows {
                 fields["pruefungsnr"] = first
             }
             let note = fields["note"] ?? "", status = fields["status"] ?? ""
-            if status.lowercased() == "prüfung vorhanden" && note.isEmpty { continue }
+            if status.lowercased() == "prüfung vorhanden" && note.isEmpty {
+                let nr = (fields["pruefungsnr"] ?? "").trimmingCharacters(in: .whitespaces)
+                let text = fields["text"] ?? ""
+                let isModule = modules && !nr.isEmpty && nr.unicodeScalars.allSatisfy({ $0.value >= 48 && $0.value <= 57 })
+                    && !text.isEmpty && !GradesModel.isBereichText(text)
+                if !isModule { continue }      // Bereichs-/Kontozeile ("Prüfung vorhanden"), keine eigene Leistung
+            }
             // Konto-Zeilen des LSF (`lsfCells`) bleiben auch ohne Note und Status: sie trennen die Faecher
             guard let text = fields["text"], !text.isEmpty, !note.isEmpty || !status.isEmpty || text.hasPrefix(accountPrefix) else { continue }
             out.append(QISGrade(pruefungsnr: fields["pruefungsnr"], text: text, semester: fields["semester"], note: fields["note"],

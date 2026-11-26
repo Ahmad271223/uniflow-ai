@@ -757,9 +757,41 @@ def part_index(text, parts: list[tuple[str, str]]) -> int | None:
     return best
 
 
+# Modulbezeichner (26.11.2026, echtes Konto Uni Hildesheim): das Modulhandbuch nennt "Basismodul 1: Aufbau der
+# Zahlbereiche", der Notenspiegel des LSF "BM 1: Aufbau der Zahlbereiche" (dazu "AM 1: …", "VM 1: …", "M 3: …"). Vorher
+# passte nur der ganze Titel: die Module blieben "offen", ihre Teilmodule ("TM 1: Arithmetik und Algebra …") standen als
+# "nicht zugeordnet" da. Jetzt gilt der Name ohne Bezeichner, sonst der Bezeichner selbst (Art und Nummer).
+MODULE_WORD_RE = re.compile(r"^\s*([A-Za-zÄÖÜäöüß]*?)[Mm]odul\s*([0-9]{1,2})\s*:\s*(.*)$")
+MODULE_ABBR_RE = re.compile(r"^\s*([A-ZÄÖÜ]{0,3})M\s*([0-9]{1,2})\s*:\s*(.*)$")
+PENDING_STATUS = "prüfung vorhanden"
+PARTLY_REASON = "Angefangen – Rest nachholen"
+LATE_REASON = "Noch nicht abgelegt – nachholen"
+
+
+def module_tag(text) -> tuple[str, str] | None:
+    """("#b1", Name ohne Bezeichner) fuer "Basismodul 1: Aufbau der Zahlbereiche" und "BM 1: Aufbau der Zahlbereiche";
+    ("#1", …) fuer "Modul 1: …" / "M 1: …"; None ohne Bezeichner mit Nummer und Doppelpunkt"""
+    t = text_of(text)
+    m = MODULE_WORD_RE.match(t) or MODULE_ABBR_RE.match(t)
+    if not m:
+        return None
+    return "#" + fold(m.group(1))[:1] + str(int(m.group(2))), m.group(3).strip()
+
+
+def _tagged_module(text, by_key: dict) -> str | None:
+    """Katalogmodul einer Zeile mit Modulbezeichner: erst der Name ohne Bezeichner, dann der Bezeichner"""
+    tag = module_tag(text)
+    if tag is None:
+        return None
+    k = name_key(tag[1])
+    mid = by_key.get(k) if k else None
+    return mid if mid is not None else by_key.get(tag[0])
+
+
 def _index(mods: list[dict]) -> tuple[dict, dict, dict]:
     """(Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id, Teile -> Modul-id), jeweils das erste Modul; ein Teil
-    nur, wenn kein Modul so heisst"""
+    nur, wenn kein Modul so heisst. Titel mit Modulbezeichner ("Basismodul 1: …") stehen zusaetzlich unter dem Namen
+    ohne Bezeichner und unter dem Bezeichner ("#b1"; nur wenn ihn genau ein Modul traegt), ganze Titel gehen vor."""
     by_code: dict[str, str] = {}
     by_key: dict[str, str] = {}
     by_part: dict[str, list[tuple[str, str]]] = {}
@@ -770,6 +802,18 @@ def _index(mods: list[dict]) -> tuple[dict, dict, dict]:
         k = name_key(m.get("title"))
         if k and k not in by_key:
             by_key[k] = m["id"]
+    tags: dict[str, list[str]] = {}
+    for m in mods:
+        tag = module_tag(m.get("title"))
+        if tag is None:
+            continue
+        tags.setdefault(tag[0], []).append(m["id"])
+        k = name_key(tag[1])
+        if k and k not in by_key:
+            by_key[k] = m["id"]
+    for t, ids in tags.items():
+        if len(ids) == 1:
+            by_key[t] = ids[0]
     for m in mods:
         parts, _ = title_parts(m.get("title"))
         if parts and m["id"] not in by_part:
@@ -797,10 +841,14 @@ def _row_module(r: dict, by_code: dict, by_key: dict, by_part: dict | None = Non
     if mid is None:
         mid = by_key.get(name_key(r.get("text")))
     if mid is None:
+        mid = _tagged_module(r.get("text"), by_key)             # "BM 1: Aufbau der Zahlbereiche" (LSF Hildesheim)
+    if mid is None:
         mnr = text_of(r.get("modul_nr")).strip()
         mid = by_code.get(mnr) if mnr else None
         if mid is None and text_of(r.get("modul_text")).strip():
             mid = by_key.get(name_key(r.get("modul_text")))
+            if mid is None:
+                mid = _tagged_module(r.get("modul_text"), by_key)
     if mid is None and by_part:
         mid = _part_module(r.get("text"), by_part)
         if mid is None and text_of(r.get("modul_text")).strip():
@@ -834,6 +882,32 @@ def _parts_state(m: dict, passed: list[dict]) -> tuple[list[str], list[str]]:
         if t and t not in names:
             names.append(t)
     return names, [p[0] for i, p in enumerate(parts) if i not in done]
+
+
+def _exam_key(r: dict) -> str:
+    """Dieselbe Leistung ueber mehrere Versuche: Pruefungsnummer, sonst Namensschluessel"""
+    return text_of(r.get("pruefungsnr")).strip() or name_key(r.get("text"))
+
+
+def _begun(rows: list[dict]) -> tuple[list[str], float | int | None, list[dict]] | None:
+    """Angefangenes Modul (26.11.2026, LSF Hildesheim): die Modulzeile selbst steht auf "Prüfung vorhanden" (keine
+    Modulzeile bestanden), darunter sind Teilmodule bestanden. Vorher galt das Modul damit als bestanden. Ergebnis:
+    (Namen der bestandenen Teile mit LP, ihre LP wie in Uni & Noten, Zeilen ohne die bestandenen Teile und ihre
+    frueheren Fehlversuche); None, wenn das Modul nicht so gefuehrt wird."""
+    own = [r for r in rows if r.get("level") == "modul"]
+    if not any(text_of(r.get("status")).strip().lower() == PENDING_STATUS for r in own) \
+            or any(row_result(r) == "passed" for r in own):
+        return None
+    got = [r for r in rows if r.get("level") == "pruefung" and row_result(r) == "passed"]
+    keys = {_exam_key(r) for r in got}
+    lp = round(sum(num(r.get("lp_counted")) or 0 for r in got), 1)
+    lp = int(lp) if float(lp) == int(lp) else lp
+    names: list[str] = []
+    for r in got:
+        t = PART_SPLIT_RE.split(text_of(r.get("text")).strip())[0].strip()
+        if t and t not in names and (num(r.get("lp_counted")) or 0) > 0:
+            names.append(t)
+    return names, (lp if lp > 0 else None), [r for r in rows if _exam_key(r) not in keys]
 
 
 def _manual_module(r: dict, ids: set, by_code: dict, by_key: dict, by_part: dict) -> str | None:
@@ -1105,15 +1179,24 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         # Modul aus Teilen, die alle noetig sind ("Thermodynamik I / Chemie"): bestanden erst mit allen Teilen oder einer
         # bestandenen Zeile fuer das ganze Modul; bis dahin zaehlen die bestandenen Teile nicht als Fehlversuche
         done_parts, open_parts = _parts_state(m, passed)
+        lp_part = None
         if open_parts:
             done = {part_index(r.get("text"), title_parts(m.get("title"))[0]) for r in passed} - {None}
             rows = [r for r in rows if part_index(r.get("text"), title_parts(m.get("title"))[0]) not in done]
             passed = []
+        else:
+            done_parts = []
+            # das LSF fuehrt das Modul als angefangen ("Prüfung vorhanden"): bestandene Teilmodule sind Teile, kein
+            # bestandenes Modul; ihre frueheren Fehlversuche zaehlen nicht mehr
+            begun = _begun(rows)
+            if begun is not None:
+                done_parts, lp_part, rows = begun
+                passed = []
         failed_n, last_fail, final, known, qis_last = _attempts(rows, max_n)
         registered = [r for r in rows if row_result(r) == "registered"]
         st = {"status": None, "term": None, "attempt": None, "grade": None, "moved_from": None, "reason": None,
               "failed": failed_n, "final": final, "placed": False, "known": known, "max_attempts": max_n,
-              "qis_last": qis_last, "parts_done": done_parts if open_parts else [], "parts_open": open_parts}
+              "qis_last": qis_last, "parts_done": done_parts, "parts_open": open_parts, "lp_part": lp_part}
         sem = sem_of(m) or slot_sem.get(mid)
         rec = start + sem - 1 if sem else None
         own = placed.get(mid)
@@ -1141,7 +1224,7 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
             st.update(status="plan", term=own, placed=True)
             if own < lower:
                 st.update(term=next_fit(lower, turnus), placed=False, moved_from=term_name(own),
-                          reason="Noch nicht abgelegt – nachholen")
+                          reason=PARTLY_REASON if lp_part else LATE_REASON)
         elif rec is not None:
             t = next_fit(max(rec, start), turnus)
             st.update(status="plan", term=t)
@@ -1149,13 +1232,19 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
                 st.update(moved_from=term_name(rec),
                           reason=f"Wird nur im {'Wintersemester' if turnus == 'WS' else 'Sommersemester'} angeboten")
             if t < lower:
-                st.update(term=next_fit(lower, turnus), moved_from=term_name(rec), reason="Noch nicht abgelegt – nachholen")
+                st.update(term=next_fit(lower, turnus), moved_from=term_name(rec),
+                          reason=PARTLY_REASON if lp_part else LATE_REASON)
         else:
             st["status"] = "plan"                                   # ohne Fachsemester: unten auffuellen
         state[mid] = st
 
+    def rest_lp(i: str):
+        """LP, die ein Modul im Semester noch kostet: bei einem angefangenen Modul ohne die schon erreichten"""
+        part = state[i]["lp_part"]
+        return max(lp_of(by_id[i]) - part, 0) if part and state[i]["status"] != "bestanden" else lp_of(by_id[i])
+
     def load(t: int) -> float:
-        return sum(lp_of(by_id[i]) for i in included if state[i]["term"] == t)
+        return sum(rest_lp(i) for i in included if state[i]["term"] == t)
 
     for mid in included:
         st = state[mid]
@@ -1327,18 +1416,20 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
     counted: dict[str, list[str]] = {aid: [] for aid in area_by}
     n_done = {aid: 0 for aid in area_by}
 
-    def count(cands: list[str], ident: str, lp, passed: bool) -> None:
+    def count(cands: list[str], ident: str, lp, passed: bool, part=None) -> None:
         pick = next((x for x in cands if target[x] is None or used[x] < target[x]), cands[0])
         used[pick] += lp
         counted[pick].append(ident)
         if passed:
             done[pick] += lp
             n_done[pick] += 1
+        elif part:
+            done[pick] += min(part, lp) if lp else part     # angefangenes Modul: seine erreichten LP (26.11.2026)
 
     for mid in included:
         cands = [x for x in mem_of[mid] if x in active]
         if cands:
-            count(cands, mid, lp_of(by_id[mid]), state[mid]["status"] == "bestanden")
+            count(cands, mid, lp_of(by_id[mid]), state[mid]["status"] == "bestanden", state[mid]["lp_part"])
     for _, e in custom:
         if e["area"]:
             count([e["area"]], e["id"], e["lp"], e["status"] == "bestanden")
@@ -1480,7 +1571,7 @@ def compute(catalog: dict, grades: list[dict], settings: dict, today: str) -> di
         mine = [e for ct, e in custom if ct == t]
         here = [p for pt, p in places if pt == t]
         semesters.append({"term": term_name(t), "fachsemester": t - start + 1, "current": t == current,
-                          "lp": sum(lp_of(by_id[i]) for i in ids) + sum(e["lp"] for e in mine),
+                          "lp": sum(rest_lp(i) for i in ids) + sum(e["lp"] for e in mine),
                           "modules": [_entry(by_id[i], state[i], module_hints(by_id[i], state[i], state, by_id))
                                       for i in ids] + mine,
                           "slots": here, "lp_slots": sum(p["lp"] or 0 for p in here)})
@@ -1590,7 +1681,8 @@ def _entry(m: dict, st: dict, hints: list[str] | None = None) -> dict:
             "moved_from": st["moved_from"], "reason": st["reason"], "last_attempt": last_attempt(st),
             "attempt_known": st["known"], "max_attempts": st["max_attempts"],
             "final": bool(st["final"]) and st["status"] != "bestanden", "placed": st["placed"], "hints": hints or [],
-            **({"manual": True} if st.get("manual") else {})}
+            **({"manual": True} if st.get("manual") else {}),
+            **({"lp_part": st["lp_part"]} if st.get("lp_part") and st["status"] != "bestanden" else {})}
 
 
 def module_hints(m: dict, st: dict, state: dict, by_id: dict) -> list[str]:
@@ -1601,6 +1693,9 @@ def module_hints(m: dict, st: dict, state: dict, by_id: dict) -> list[str]:
     out = []
     if st.get("parts_open"):
         out.append(f"Teil bestanden: {', '.join(st['parts_done'])} – es fehlt noch: {', '.join(st['parts_open'])}")
+    elif st.get("parts_done"):
+        lp = f" ({fmt_lp(st['lp_part'])} von {fmt_lp(lp_of(m))} LP)" if st.get("lp_part") and lp_of(m) else ""
+        out.append(f"Teilweise bestanden{lp}: {', '.join(st['parts_done'])}")
     turnus = turnus_of(m.get("turnus"))
     if not fits(st["term"], turnus):
         out.append(f"Laut Katalog nur im {'Wintersemester' if turnus == 'WS' else 'Sommersemester'} angeboten")
