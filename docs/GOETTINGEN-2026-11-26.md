@@ -7,6 +7,10 @@ mit dem damaligen Stand von `release/1.0.8-alles` (51571948) gemischt. Arbeitsor
 anderen Sachen ziehen wir nach“. Darum ist Göttingen jetzt **auch im Release-Build zur Wahl**
 (`UF_SHIPPED_UNIVERSITIES: "luh hildesheim goettingen"`). Noten, Bescheinigungen, Mail und Mediacast kommen später.
 
+**Nachtrag 26.11.2026 (Inhaber, in einer anderen Sitzung auf die Frage „Soll Göttingen erst nach Build 50 kommen?“):
+„Ja, danach“.** Göttingen gehört also **nicht in Build 50 / 1.0.8**, sondern in einen späteren Build; welcher genau (51
+oder 53/54), klärt der Inhaber noch. Die Release-Einstellung oben gilt nur auf diesem Zweig.
+
 Grundlagen (nur auf dem Mac, nicht im Repo):
 - `~/Studora-Builds/goettingen/STRUKTUR-ECHT-STUDIP-2026-11-26.md` – echtes Stud.IP Göttingen (drei Blicke) und der
   öffentliche Speiseplan des Studierendenwerks
@@ -193,5 +197,5 @@ Für den Vergleich liegt eine Kopie von 51571948 unter `~/Studora-Builds/wt-goe-
 
 ## 7. Einbinden in den nächsten Build
 
-`uni/goettingen` enthält `release/1.0.8-alles` bis 51571948 und lässt sich ohne Konflikte darauf mischen. Mischen und
-bauen macht die Build-Sitzung. Danach Pflicht: Abschnitt „Vor dem Einreichen“ oben (Server-Update nur mit Okay).
+`uni/goettingen` enthält `release/1.0.8-alles` bis 51571948 und lässt sich ohne Konflikte darauf mischen. **Nicht in
+Build 50.** In welchen späteren Build, entscheidet der Inhaber; mischen und bauen macht dann die jeweilige Build-Sitzung. Danach Pflicht: Abschnitt „Vor dem Einreichen“ oben (Server-Update nur mit Okay).
