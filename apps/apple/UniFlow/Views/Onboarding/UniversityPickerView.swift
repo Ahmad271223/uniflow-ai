@@ -25,6 +25,9 @@ struct UniversityPickerView: View {
                     }
                 }
                 .padding(.top, 22.4)
+                if UFUniversityScope.newNotice(selection) != nil {
+                    UFUniversityNewNotice(university: selection).padding(.top, 12.8)
+                }
                 if UFReleaseUniversities.moreToCome {
                     Text(Self.moreNote)
                         .ufFont(13.12).foregroundStyle(UF.muted)

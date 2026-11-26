@@ -1,3 +1,4 @@
+import SwiftUI
 import UniFlowCore
 import WebKit
 import XCTest
@@ -249,6 +250,49 @@ final class GoettingenAppTests: XCTestCase {
     }
 
     // MARK: Was es dort nicht gibt, ist ausgeblendet
+
+    /// Hinweis „neu in StudiNow“ (Inhaber 26.11.2026: Goettingen in 1.0.8 „mit Verweis …, dass aktuell nur folgende
+    /// Funktionen vorhanden sind und … nachgezogen werden“): nur fuer Goettingen, nennt Vorhandenes und Fehlendes, kein Datum
+    func testNewUniversityNotice() throws {
+        let n = try XCTUnwrap(UFUniversityScope.newNotice(.goettingen))
+        XCTAssertEqual(n.title, "Universität Göttingen – neu in StudiNow")
+        for part in ["Stud.IP", "Dateien", "Stundenplan", "Terminen", "Nachrichten", "Ankündigungen", "Lehrenden", "Schwarze Brett",
+                     "Mensen (noch ohne Preise)"] {
+            XCTAssertTrue(n.have.contains(part), part)
+        }
+        for part in ["FlexNow", "eCampus", "Uni-Mail", "Vorlesungsaufzeichnungen", "sobald das möglich ist"] {
+            XCTAssertTrue(n.missing.contains(part), part)
+        }
+        let all = n.title + n.have + n.missing
+        XCTAssertNil(all.range(of: #"\d{4}|Januar|Februar|März|Sommer|Winter|Woche|Monat"#, options: .regularExpression), "kein Datum versprechen")
+        XCTAssertFalse(all.contains("iPad") || all.contains("iPhone"), "auf allen Geräten gleich")
+        for u in [UniversityKey.luh, .hildesheim, .hsh] { XCTAssertNil(UFUniversityScope.newNotice(u), u.rawValue) }
+        XCTAssertNil(UFUniversityScope.newNotice(nil))
+        // Kasten: Goettingen mit Titel und beiden Absaetzen, sonst nichts
+        func labels<V: View>(_ v: V) -> [String] {
+            let c = UIHostingController(rootView: v.frame(width: 600))
+            let w = UIWindow(frame: CGRect(x: 0, y: 0, width: 600, height: 600))
+            w.rootViewController = c
+            w.makeKeyAndVisible()
+            defer { w.isHidden = true }
+            RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+            var out: [String] = []
+            func visit(_ e: Any, _ d: Int) {
+                guard d < 40, let o = e as? NSObject else { return }
+                if let l = o.accessibilityLabel, !l.isEmpty { out.append(l) }
+                for x in o.accessibilityElements ?? [] { visit(x, d + 1) }
+                let k = o.accessibilityElementCount()
+                if k != NSNotFound, k > 0 { for i in 0..<min(k, 200) { if let x = o.accessibilityElement(at: i) { visit(x, d + 1) } } }
+                if let v = o as? UIView { for s in v.subviews { visit(s, d + 1) } }
+            }
+            c.view.layoutIfNeeded()
+            visit(c.view as Any, 0)
+            return out
+        }
+        let shown = labels(UFUniversityNewNotice(university: .goettingen)).joined(separator: "\n")
+        XCTAssertTrue(shown.contains(n.title) && shown.contains("Schon dabei") && shown.contains("Noch nicht dabei"), shown)
+        XCTAssertFalse(labels(UFUniversityNewNotice(university: .luh)).joined().contains("neu in StudiNow"))
+    }
 
     func testNotOfferedAreasAreHidden() {
         XCTAssertFalse(UFUniversityScope.readsGrades(.goettingen))

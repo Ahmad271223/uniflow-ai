@@ -11,6 +11,25 @@ anderen Sachen ziehen wir nach“. Darum ist Göttingen jetzt **auch im Release-
 „Ja, danach“.** Göttingen gehört also **nicht in Build 50 / 1.0.8**, sondern in einen späteren Build; welcher genau (51
 oder 53/54), klärt der Inhaber noch. Die Release-Einstellung oben gilt nur auf diesem Zweig.
 
+**Neue Entscheidung 26.11.2026 ca. 21:10 (Inhaber in der Build-Sitzung, wörtlich): „Noch in 1.0.8“** – Göttingen kommt
+mit 1.0.8 (Build 51). Davor: „kann man Göttingen auch schon rausbringen … mit Verweis bei Göttingen, dass aktuell nur
+folgende Funktionen vorhanden sind und bei technischer Möglichkeit, welche wir aktuell prüfen, nachgezogen werden, auch
+auf der Startseite soll das stehen, also Webseite“. Der Nachtrag „Ja, danach“ oben gilt damit nicht mehr. Umgesetzt:
+- **Hinweis in der App** (`UFUniversityScope.newNotice`, Kasten `UFUniversityNewNotice`): bei der Hochschulwahl beim
+  ersten Start (sobald Göttingen gewählt ist), im Dialog „Hochschule wechseln“, in der Karte „Hochschule“ der Einstellungen
+  und oben auf „Uni & Noten“. Wortlaut: „Universität Göttingen – neu in StudiNow. Schon dabei: Stud.IP mit Kursen,
+  Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu das Schwarze Brett und der Speiseplan der
+  Mensen (noch ohne Preise). Alle Lernfunktionen von StudiNow – Editor, Notizen, Karteikarten und je nach Tarif die KI –
+  gehen wie an jeder anderen Hochschule. Noch nicht dabei: Noten und Prüfungsanmeldung (FlexNow), Bescheinigungen und
+  Vorlesungsverzeichnis (eCampus), Uni-Mail und Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch
+  anbinden können, und ergänzen sie, sobald das möglich ist.“ Kein Datum (Test `testNewUniversityNotice`).
+- **Website** (`docs/release/STARTSEITE.md` → `site/index.html`, nur im Zweig, **nicht hochgeladen**): Zeile „Heute
+  angebunden“ mit „Neu: Universität Göttingen mit Stud.IP und Mensa“, Vertrauensleiste, Absatz `#goettingen` im
+  Abschnitt „Alles aus der Uni“ mit demselben Hinweis, Mensa-Quellen mit dem Studierendenwerk Göttingen, Frage „Für welche
+  Hochschulen ist StudiNow?“. Hochladen erst, wenn 1.0.8 im App Store ist (macht die Build-Sitzung); der Live-Stand liegt
+  in `~/Studora-Builds/wt-site-neuheiten` und ist hier nicht angefasst.
+- `release/1.0.8-alles` bis 52ff61a3 (Build 50 eingetragen, Rechtstexte) ist eingemischt, ohne Konflikte.
+
 Grundlagen (nur auf dem Mac, nicht im Repo):
 - `~/Studora-Builds/goettingen/STRUKTUR-ECHT-STUDIP-2026-11-26.md` – echtes Stud.IP Göttingen (drei Blicke) und der
   öffentliche Speiseplan des Studierendenwerks
@@ -28,7 +47,7 @@ Grundlagen (nur auf dem Mac, nicht im Repo):
 
 ### Vor dem Einreichen (Pflicht)
 
-1. **Server-Update (nur mit Okay des Inhabers):** Der laufende StudiNow-Dienst kennt `goettingen` nicht. Ein neuer
+1. **Server-Update (nur mit Okay des Inhabers; Entscheidung 26.11.2026: erst direkt vor der Veröffentlichung von 1.0.8):** Der laufende StudiNow-Dienst kennt `goettingen` nicht. Ein neuer
    Göttinger Nutzer bekäme beim Anlegen des StudiNow-Kontos „Unbekannte Hochschule“ (`university_unknown`) – keine KI,
    keine Probe über das Konto. Nötig sind aus diesem Zweig `app/universities.py`, `app/config.py`, `app/account_api.py`,
    `app/server.py`, `app/mensa.py`, `app/mensa_api.py`, `app/holidays.py`, `app/studip_lecturers.py`, `app/rooms.py` und die Daten `packages/shared-contracts/mensa.json`,
@@ -40,11 +59,22 @@ Grundlagen (nur auf dem Mac, nicht im Repo):
    Quelle des Speiseplans; `site/datenschutz.html` ist in diesem Zweig neu erzeugt (`tools/gen-site.py`). Live ist aber der
    Stand aus `~/Studora-Builds/wt-site-neuheiten` (uncommittet) – dort denselben Satz in Abschnitt 4b nachtragen; hochladen
    nur durch den Inhaber (`tools/site-hochladen.sh`).
-4. **Store-Texte (Vorschlag, nicht eingetragen):** Die Beschreibung mit Pro AI steht bei 3988 von 4000 Zeichen und hat
-   feste Prüfsätze (`tests/test_release_texts.py`); ich habe sie nicht geändert. Vorschlag für „Neu in dieser Version“:
-   „Neu: Universität Göttingen – Kurse, Dateien, Stundenplan, Nachrichten und Schwarzes Brett aus Stud.IP, dazu der
-   Speiseplan der Mensen.“ Für die Beschreibung müsste an anderer Stelle gekürzt werden.
-5. Prüfhinweise für Apple: unverändert (Prüfkonto ist LUH bzw. Demo).
+4. **Store-Texte (nur Entwurf, nicht in `APP-STORE.md` und nicht bei Apple eingetragen):** Nötig ist nichts – die Texte
+   nennen LUH und Hildesheim, das stimmt weiter, und keiner sagt „alle Hochschulen“. Empfohlen, weil die App Göttingen
+   zur Wahl stellt:
+   - *Neu in dieser Version* (1.0.8), ein Punkt: „• Neu: Universität Göttingen – Kurse, Dateien, Stundenplan, Termine,
+     Nachrichten und Lehrende aus Stud.IP, das Schwarze Brett und der Speiseplan der Mensen. Noten (FlexNow), eCampus und
+     Uni-Mail folgen, sobald wir sie anbinden können.“
+   - *Beschreibung (Pro AI, 3988 von 4000 Zeichen):* den Satz „Angebunden: LUH (Stud.IP, QIS) und Uni Hildesheim
+     (Learnweb, LSF), weitere Hochschulen folgen.“ ersetzen durch „Angebunden: LUH (Stud.IP, QIS), Uni Hildesheim
+     (Learnweb, LSF), neu Uni Göttingen (Stud.IP).“ – danach 3986 Zeichen. Dabei fällt „weitere Hochschulen folgen“ weg
+     (steht sonst nirgends in der Beschreibung); wer es behalten will, muss anderswo 14 Zeichen kürzen.
+   - *Schlüsselwörter* (100 von 100): unverändert lassen; „Göttingen“ ginge nur gegen ein anderes Wort.
+   - Feste Prüfsätze in `tests/test_release_texts.py` prüfen den alten Satz nicht wörtlich; nach dem Eintragen den Test
+     laufen lassen.
+5. **Prüfhinweise für Apple (Entwurf):** „Connected today: Leibniz Universität Hannover and Universität Hildesheim.“ →
+   „Connected today: Leibniz Universität Hannover, Universität Hildesheim and (new, Stud.IP only) Universität Göttingen.“
+   (+43 Zeichen, danach 3980 von 4000). Prüfkonto bleibt LUH bzw. Demo.
 
 ## 2. Was gebaut ist
 

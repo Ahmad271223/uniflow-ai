@@ -123,6 +123,10 @@ struct ServicesPage: View {
                        : lsf == nil
                        ? "Alle Dienste der Leibniz Universität an einem Ort, Notenspiegel" + (qisLocal == nil ? "" : " aus dem QIS") + " direkt in der App."
                        : "Alle Dienste der Universität Hildesheim an einem Ort, Notenspiegel aus dem LSF direkt in der App.")
+            // neue Hochschule mit Teil-Anbindung: was schon geht, was noch nicht (Inhaber 26.11.2026, Goettingen in 1.0.8)
+            if session.api?.isLocal == true, UFUniversityScope.newNotice(studip.university) != nil {
+                UFUniversityNewNotice(university: studip.university, identifier: "services.newnotice").padding(.bottom, 16)
+            }
             // ohne Notenportal: keine Kennzahlen (Schnitt, LP, "noch nicht abgerufen" - es gibt nichts abzurufen)
             if plain == nil {
             UFGrid(columns: 3) {

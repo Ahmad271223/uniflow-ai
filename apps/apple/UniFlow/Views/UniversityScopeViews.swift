@@ -56,8 +56,43 @@ enum UFUniversityScope {
 
     static func studyPlanTitle(_ u: UniversityKey) -> String { "Den Studienverlauf gibt es für die \(u.profile.short) noch nicht" }
 
+    /// Hinweis fuer eine neue Hochschule mit Teil-Anbindung (Inhaber 26.11.2026 zu Goettingen in 1.0.8: „mit Verweis …,
+    /// dass aktuell nur folgende Funktionen vorhanden sind und bei technischer Moeglichkeit, welche wir aktuell pruefen,
+    /// nachgezogen werden“). Nur, was wirklich gebaut ist; kein Datum. Bei der Hochschulwahl, in den Einstellungen und
+    /// auf „Uni & Noten“. nil: Hochschule ohne Hinweis
+    static func newNotice(_ u: UniversityKey?) -> (title: String, have: String, missing: String)? {
+        guard u == .goettingen else { return nil }
+        return ("Universität Göttingen – neu in StudiNow",
+                "Schon dabei: Stud.IP mit Kursen, Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu das Schwarze Brett und der Speiseplan der Mensen (noch ohne Preise). Alle Lernfunktionen von StudiNow – Editor, Notizen, Karteikarten und je nach Tarif die KI – gehen wie an jeder anderen Hochschule.",
+                "Noch nicht dabei: Noten und Prüfungsanmeldung (FlexNow), Bescheinigungen und Vorlesungsverzeichnis (eCampus), Uni-Mail und Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch anbinden können, und ergänzen sie, sobald das möglich ist.")
+    }
+
     static func studyPlanText(_ u: UniversityKey) -> String {
         "Für den Studienverlauf liest StudiNow Studiengang und Leistungen aus dem Notenspiegel der Hochschule. An der \(u.profile.name) liegen sie in \(u.profile.gradesSource); das ist noch nicht angebunden."
+    }
+}
+
+/// Kasten „neu in StudiNow: schon dabei / noch nicht dabei“ (`UFUniversityScope.newNotice`); ohne Hinweis leer
+struct UFUniversityNewNotice: View {
+    let university: UniversityKey?
+    var identifier = "university.newnotice"
+
+    var body: some View {
+        if let n = UFUniversityScope.newNotice(university) {
+            VStack(alignment: .leading, spacing: 6.4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    UFIcon("info", size: 15).foregroundStyle(UF.infoText)
+                    Text(n.title).ufFont(14.4, 650).foregroundStyle(UF.infoText).fixedSize(horizontal: false, vertical: true)
+                }
+                Text(n.have).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                Text(n.missing).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12.8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.infoSoft))
+            .accessibilityElement(children: .combine)
+            .accessibilityIdentifier(identifier)
+        }
     }
 }
 
