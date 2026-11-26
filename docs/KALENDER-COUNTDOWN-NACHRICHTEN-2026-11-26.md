@@ -46,8 +46,10 @@ Kalender **„StudiNow“** an und hält ihn aktuell.
 - **Abschalten** fragt nach und entfernt den Kalender „StudiNow“ ganz.
 - **In der Kalender-App gelöscht:** StudiNow legt ihn nicht ungefragt neu an, sondern schaltet den Abgleich aus und
   sagt es in der Karte.
-- **Wo:** bevorzugt „Auf meinem iPhone/iPad“ (bleibt auf dem Gerät). Gibt es den nicht (iCloud-Kalender an), in
-  iCloud; dann nutzen mehrere Geräte denselben Kalender „StudiNow“ (gleiche Kennungen, also nichts doppelt).
+- **Wo:** dort, wo die Kalender-App neue Termine anlegt (meist iCloud), sonst iCloud/andere CalDAV-Konten, zuletzt
+  „Auf meinem iPhone/iPad“; scheitert das Anlegen an einer Stelle, die nächste. In iCloud nutzen mehrere Geräte
+  denselben Kalender „StudiNow“ (gleiche Kennungen, also nichts doppelt). Vorher stand hier „lokal zuerst“ – geändert
+  nach dem Codevergleich, weil die Kalender-App lokale Kalender bei eingeschaltetem iCloud-Kalender oft gar nicht zeigt.
 
 **Besser/genauer als das Vorbild:** dort ein Kalender mit den nächsten 8 Wochen, höchstens einmal am Tag abgeglichen.
 Hier: Quelle ist der ganze Stundenplan der App (mit eigenen Terminen, Änderungen, Verlegungen, Ausfällen, Feiertagen,
@@ -101,9 +103,35 @@ Schnappschuss `home-widget.json`, neues Feld `messages`; alte Schnappschüsse bl
 Betreff, Uni-Mail dazu, Sperrbildschirm-Größen, genaue Zählung (Stud.IP-Stand und App-Stand), Schutz des Inhalts auf
 dem Sperrbildschirm, Antippen öffnet die richtige Seite.
 
+## Vergleich mit dem Code des Vorbilds (26.11.2026, nachmittags)
+
+Gelesen (nur gelesen, nichts übernommen): Kalender-Abgleich, Countdown, Widgets und Postfach der freien App (Stand
+7.11.2026). Dort: Kalender über die nächsten 8 Wochen ab „jetzt“, abgeglichen beim Öffnen der Startseite, Kennung als
+Prüfwert in der Adresse, Ausweichen auf andere Kalenderquellen, Abmelden entfernt den Kalender; Countdown in einer
+eigenen Karte („läuft, noch 35 Min“, „in 3 Std“, „morgen“), alle 30 Sekunden neu; Widget „Ungelesene Nachrichten“ nur
+als Zahl (klein, rund, Zeile).
+
+**Daraus bei uns behoben:**
+- Kalenderquelle wie oben (vorher „lokal zuerst“ – hätte bei iCloud-Nutzern unsichtbar sein können).
+- Nach einem Abgleich im Hintergrund (App zu) wird jetzt auch der Kalender nachgezogen (vorher erst beim Öffnen).
+- Nach einem Hintergrundlauf ohne offenes Fenster verschwand die Uni-Mail-Zahl aus dem Widget – jetzt bleibt der
+  letzte Stand (`HomeWidgetSync.keepingMail`, Test).
+
+**Wo das Vorbild weiter ist (nicht gebaut, Entscheidung des Inhabers):**
+1. **Gelesen in Stud.IP markieren.** Das Vorbild setzt eine Nachricht beim Öffnen in Stud.IP auf „gelesen“ und kann sie
+   wieder auf „ungelesen“ stellen. StudiNow schreibt bei Nachrichten nichts nach Stud.IP (seit 02.11.2026 bewusst nur
+   lesend). Folge bei uns: Öffnen der Seite „Nachrichten“ setzt die Zahl im Widget auf 0, auch wenn man nicht jede
+   Nachricht gelesen hat, und im Browser bleiben sie ungelesen. Möglich: (a) „gelesen“ je Nachricht nur in StudiNow
+   merken, (b) zusätzlich in Stud.IP setzen (schreibt ins Uni-Konto).
+2. **Erinnerung vor dem Termin** (Mitteilung z. B. 10 Minuten vor der Vorlesung, Wochenende ruhig) – haben wir nur für
+   Abgaben und Prüfungen.
+3. **Countdown an Tagen ohne Uni-Termin:** das Vorbild zeigt immer den nächsten Termin (eigene Karte). Bei uns gibt es an
+   solchen Tagen keine Karte „Heute an der Uni“ und damit keinen Countdown (Vorgabe „keine neue Karte“).
+4. **Schalter schon in der Einführung** (beim ersten Start) – bei uns nur in den Einstellungen.
+
 ## Getestet
 
-- **App-Tests** `UniFlowTests/KalenderCountdownNachrichtenAppTests` (17 Tests) auf eigenem iPad-Simulator (iPad Pro
+- **App-Tests** `UniFlowTests/KalenderCountdownNachrichtenAppTests` (18 Tests) auf eigenem iPad-Simulator (iPad Pro
   11 M5, iOS 27.2, `D8CDB2DD-…`) grün, darunter **gegen den echten Kalender des Simulators** (anlegen, zweiter Lauf
   ändert nichts, ändern, entfernen, fremdes Ereignis bleibt, Abschalten entfernt den Kalender, gelöschter Kalender wird
   erkannt). Dieser Test fand einen echten Fehler: lokale Kalender kennen „frei/beschäftigt“ nicht und hätten bei jedem
@@ -119,6 +147,8 @@ dem Sperrbildschirm, Antippen öffnet die richtige Seite.
   `WidgetSnapshot`, `Messages`.
 - **iPhone-Simulator** (iPhone 17 Pro, iOS 27.2, `3881184D-…`): `KalenderCountdownNachrichtenAppTests` (mit echtem
   Kalender), `WidgetSnapshot`, `Messages`, `OhneLernkalender` – 54 Tests, 0 Fehler.
+- Nach den Korrekturen aus dem Codevergleich: neue Tests, Widgets, Nachrichten und Quellen-Prüfungen (67 Tests) auf
+  iPad- und iPhone-Simulator erneut grün.
 - Nicht gelaufen: die ganze App-Suite (rund 290 Testdateien) und die UI-Tests.
 - Schon vorher so, nicht Teil dieses Auftrags: auf dem iPhone mit sehr großer Schrift bricht die Uhrzeitspalte in
   „Heute an der Uni“ um („10:“ / „15“), weil sie fest 44 pt breit ist.

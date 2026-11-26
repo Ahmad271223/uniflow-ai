@@ -361,6 +361,20 @@ final class KalenderCountdownNachrichtenAppTests: XCTestCase {
         XCTAssertEqual(HomeWidgetSync.sourceName(.luh), "Stud.IP")
     }
 
+    /// Lauf ohne Fenster (Hintergrund): Uni-Mail-Zahl und -Zeilen bleiben vom letzten Stand
+    func testBackgroundRunKeepsMailCount() throws {
+        let now = Date(timeIntervalSince1970: 1_795_400_000)
+        let old = try XCTUnwrap(HomeWidgetData.sampleMessages(now: now).messages)
+        var fresh = old
+        fresh.mailUnread = nil
+        fresh.lines = Array(old.lines.filter { !$0.isMail }.prefix(1))
+        let kept = try XCTUnwrap(HomeWidgetSync.keepingMail(fresh, from: old))
+        XCTAssertEqual(kept.mailUnread, 1)
+        XCTAssertEqual(kept.lines.map(\.isMail), [false, true])
+        XCTAssertEqual(HomeWidgetSync.keepingMail(fresh, from: nil), fresh, "ohne alten Stand: wie neu")
+        XCTAssertNil(HomeWidgetSync.keepingMail(nil, from: old), "keine Quelle mehr: nichts erfinden")
+    }
+
     func testBadgeIgnoresMessagesReadInStudIP() {
         let list = [msg("1", "2026-11-26T09:00:00+01:00", read: true), msg("2", "2026-11-26T10:00:00+01:00", read: nil),
                     msg("3", "2026-11-26T11:00:00+01:00", read: false)]

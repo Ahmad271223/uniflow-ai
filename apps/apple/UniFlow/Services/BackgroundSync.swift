@@ -645,7 +645,12 @@ final class BackgroundSyncController: ObservableObject {
         if let c, !due.isEmpty { await gradesAndNews(c, due: due, before: before, relogin: relogin, expired: expired) }
         if let c, !due.isEmpty, owns(c) { noteAutomaticResult(c, due: due, at: start) }
         // Widgets: neuer Stand von Stundenplan und Mensa fuer Home- und Sperrbildschirm (HomeWidgetSync)
-        if let c, containers.active === c { await HomeWidgetSync.refresh(api: c.api) }
+        if let c, containers.active === c {
+            HomeWidgetSync.mail = containers.uniMail                  // auch ohne offenes Fenster (Widget "Nachrichten")
+            await HomeWidgetSync.refresh(api: c.api)
+            // Termine im Kalender (26.11.2026): nach jedem Abgleich, auch im Hintergrund (nur wenn eingeschaltet)
+            await CalendarExport.shared.sync(api: c.api, demo: containers.demoActive, force: true)
+        }
         await schedule()                                         // nach jedem Lauf neu planen
         return ok
     }

@@ -14,8 +14,9 @@ import UniFlowCore
 //    ausserhalb des eigenen Kalenders fasst die App nie an. Vergangenes bleibt stehen.
 //  - Wann: nach jedem Abgleich, beim Oeffnen (hoechstens alle 10 Minuten), beim Wechsel in den Hintergrund (eigene
 //    Aenderungen am Stundenplan), beim Wechsel des Containers und wenn sich eine Einstellung aendert.
-//  - Nur lokal: EventKit auf dem Geraet, nichts an einen Server von StudiNow. Kalender bevorzugt "Auf meinem iPad"
-//    (lokal); gibt es den nicht (iCloud-Kalender an), iCloud. Abschalten entfernt den Kalender.
+//  - Nur EventKit auf dem Geraet, nichts an einen Server von StudiNow. Der Kalender entsteht dort, wo iOS neue Termine
+//    anlegt (meist iCloud: dann sehen ihn auch Mac und Watch; mehrere Geraete teilen ihn, gleiche Kennungen = nichts
+//    doppelt), sonst "Auf meinem iPad". Abschalten entfernt den Kalender.
 //  - Erlaubnis erst beim Einschalten (Vollzugriff: nur damit laesst sich ein eigener Kalender anlegen und abgleichen).
 
 /// Einstellungen des Kalender-Abgleichs (Geraet, `UserDefaults.standard`): Vorgabe aus
@@ -452,26 +453,41 @@ final class EventKitCalendarStore: CalendarEventStoring {
             if let c = store.calendar(withIdentifier: id) { return EventKitCalendarStore(store: store, calendar: c) }
             throw Problem.calendarDeleted
         }
-        guard let source = preferredSource(store) else { throw Problem.noSource }
-        if let c = store.calendars(for: .event).first(where: { $0.title == calendarTitle && $0.source.sourceIdentifier == source.sourceIdentifier
+        let sources = candidateSources(store)
+        guard !sources.isEmpty else { throw Problem.noSource }
+        let ids = Set(sources.map(\.sourceIdentifier))
+        if let c = store.calendars(for: .event).first(where: { $0.title == calendarTitle && ids.contains($0.source.sourceIdentifier)
                                                                  && $0.allowsContentModifications }) {
             defaults.set(c.calendarIdentifier, forKey: idKey)
             return EventKitCalendarStore(store: store, calendar: c)
         }
         let c = EKCalendar(for: .event, eventStore: store)
         c.title = calendarTitle
-        c.source = source
         if let color { c.cgColor = color }
-        try store.saveCalendar(c, commit: true)
-        defaults.set(c.calendarIdentifier, forKey: idKey)
-        return EventKitCalendarStore(store: store, calendar: c)
+        var lastError: Error = Problem.noSource
+        for source in sources {
+            c.source = source
+            do {
+                try store.saveCalendar(c, commit: true)
+                defaults.set(c.calendarIdentifier, forKey: idKey)
+                return EventKitCalendarStore(store: store, calendar: c)
+            } catch { lastError = error }
+        }
+        throw lastError
     }
 
-    /// "Auf meinem iPad/iPhone" (bleibt auf dem Geraet), sonst iCloud, sonst die Quelle des Standardkalenders
-    static func preferredSource(_ store: EKEventStore) -> EKSource? {
-        if let local = store.sources.first(where: { $0.sourceType == .local }) { return local }
-        if let icloud = store.sources.first(where: { $0.sourceType == .calDAV && $0.title.localizedCaseInsensitiveContains("icloud") }) { return icloud }
-        return store.defaultCalendarForNewEvents?.source
+    /// Wohin der Kalender darf, in dieser Reihenfolge: die Quelle, in der iOS neue Termine anlegt (meist iCloud), dann
+    /// iCloud bzw. andere CalDAV-Konten, zuletzt "Auf meinem iPad/iPhone". Nicht zuerst lokal: ist der iCloud-Kalender an,
+    /// zeigt die Kalender-App lokale Kalender oft gar nicht (Befund beim Vergleich mit dem Vorbild, 26.11.2026).
+    /// Abonnierte Kalender, Geburtstage und Exchange (keine eigenen Kalender) scheiden aus.
+    static func candidateSources(_ store: EKEventStore) -> [EKSource] {
+        var out: [EKSource] = []
+        if let d = store.defaultCalendarForNewEvents?.source, [.calDAV, .local].contains(d.sourceType) { out.append(d) }
+        out += store.sources.filter { $0.sourceType == .calDAV && $0.title.localizedCaseInsensitiveContains("icloud") }
+        out += store.sources.filter { $0.sourceType == .calDAV }
+        out += store.sources.filter { $0.sourceType == .local }
+        var seen = Set<String>()
+        return out.filter { seen.insert($0.sourceIdentifier).inserted }
     }
 
     /// Eigenen Kalender samt Inhalt entfernen (Abschalten); ohne gemerkten Kalender nichts
@@ -708,7 +724,7 @@ final class CalendarExport: ObservableObject {
 
     static let title = "Termine im Kalender"
     static let short = "StudiNow trägt deinen Stundenplan in einen eigenen Kalender „StudiNow“ in der Kalender-App ein und hält ihn aktuell."
-    static let longText = "Eingetragen wird, was in StudiNow im Stundenplan steht – mit Raum, Lehrenden und einem Link zurück in die App: Stud.IP, eigene Termine, Verlegungen und Ausfälle, wahlweise auch Abgaben, Prüfungen, Feiertage und vorlesungsfreie Zeit. Nach jedem Abgleich und beim Öffnen gleicht StudiNow den Kalender genau ab: Geändertes wird geändert, Entfallenes entfernt, nichts doppelt. Andere Kalender und Termine fasst StudiNow nie an. Der Kalender entsteht nur auf diesem Gerät (gibt es dort keinen lokalen Kalender, in iCloud). Nichts geht an einen Server von StudiNow. Ausschalten entfernt den Kalender „StudiNow“ wieder."
+    static let longText = "Eingetragen wird, was in StudiNow im Stundenplan steht – mit Raum, Lehrenden und einem Link zurück in die App: Stud.IP, eigene Termine, Verlegungen und Ausfälle, wahlweise auch Abgaben, Prüfungen, Feiertage und vorlesungsfreie Zeit. Nach jedem Abgleich und beim Öffnen gleicht StudiNow den Kalender genau ab: Geändertes wird geändert, Entfallenes entfernt, nichts doppelt. Andere Kalender und Termine fasst StudiNow nie an. Der Kalender entsteht dort, wo deine Kalender-App neue Termine anlegt – meist in iCloud, dann siehst du ihn auch auf deinen anderen Apple-Geräten. Nichts geht an einen Server von StudiNow. Ausschalten entfernt den Kalender „StudiNow“ wieder."
     static let deniedText = "StudiNow darf nicht auf den Kalender zugreifen. Erlaube es in den Einstellungen unter Datenschutz & Sicherheit → Kalender → StudiNow („Vollzugriff“) und schalte es danach hier erneut ein."
     static let writeOnlyText = "StudiNow darf Termine nur hinzufügen. Für einen eigenen, genau abgeglichenen Kalender braucht StudiNow „Vollzugriff“ (Einstellungen → Datenschutz & Sicherheit → Kalender → StudiNow)."
     static let deletedText = "Der Kalender „StudiNow“ wurde in der Kalender-App gelöscht. Der Abgleich ist deshalb aus; schalte ihn hier wieder ein, wenn du den Kalender zurückhaben willst."

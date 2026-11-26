@@ -70,9 +70,23 @@ enum HomeWidgetSync {
         let list = try? await api.value("/api/studip/messages")
         let mailOn = prefs.mail && (mail?.isConnected ?? false)
         let cached = mailOn ? await mail?.cachedInbox() : nil
-        return messages(list: list, mark: ActiveContainer.current?.defaults.string(forKey: MessagesInbox.seenKey),
-                        source: sourceName(ActiveContainer.current?.key.university), prefs: prefs,
-                        mailUnread: mailOn ? mail?.unseen : nil, mailListing: cached)
+        let out = messages(list: list, mark: ActiveContainer.current?.defaults.string(forKey: MessagesInbox.seenKey),
+                           source: sourceName(ActiveContainer.current?.key.university), prefs: prefs,
+                           mailUnread: mailOn ? mail?.unseen : nil, mailListing: cached)
+        // Uni-Mail unbekannt (Lauf ohne Fenster, Verbindung noch nicht gesetzt): letzten Stand behalten statt die Zahl
+        // verschwinden zu lassen (Befund beim Vergleich 26.11.2026)
+        guard mail == nil, prefs.mail else { return out }
+        return keepingMail(out, from: HomeWidgetStore.load()?.messages)
+    }
+
+    /// Uni-Mail-Zahl und -Zeilen aus dem alten Schnappschuss uebernehmen (reine Regel, WidgetSnapshot-Tests)
+    static func keepingMail(_ new: HomeWidgetData.Messages?, from old: HomeWidgetData.Messages?) -> HomeWidgetData.Messages? {
+        guard let old, let mailUnread = old.mailUnread else { return new }
+        guard var n = new else { return nil }
+        n.mailUnread = mailUnread
+        let room = max(0, HomeWidgetData.messageLines - n.lines.count)
+        n.lines += old.lines.filter(\.isMail).prefix(room)
+        return n
     }
 
     static func sourceName(_ u: UniversityKey?) -> String {
