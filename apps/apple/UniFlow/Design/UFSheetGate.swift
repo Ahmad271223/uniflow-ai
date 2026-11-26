@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Blaetter am Mac ("Designed for iPad", Befund 14.11.2026, macOS 26.6, docs/MAC-DURCHLAUF-2026-11-14.md):
 // SwiftUI baut den Inhalt eines Blatts dort einmal zu frueh auf, mit leerer Umgebung, noch bevor die Umgebung der
@@ -37,14 +38,99 @@ struct UFSheetGate<Content: View>: View {
     }
 }
 
+// Blatt und Hinweis zugleich (Meldung des Inhabers am Mac, 26.11.2026, Store-Version 1.0.7: "Auf meinem Mac gehen alle
+// Buttons nicht"): Steht ein Hinweis (`.alert`, z. B. "Bitte neu anmelden" beim Start) und wird in dem Moment ein Blatt
+// faellig (z. B. der einmalige Plus-Hinweis), lehnt UIKit das Blatt ab ("Attempt to present … which is already
+// presenting <SwiftUI.PlatformAlertController>"). SwiftUI schliesst daraufhin den Hinweis von selbst, haelt das Blatt
+// aber fuer offen und oeffnet bis zum Neustart der App kein weiteres mehr ("Currently, only presenting a single sheet is
+// supported") - an iPad, iPhone und Mac gleich (`SheetNachHinweisAppTests`). Auch Zuruecknehmen und neu Verlangen hilft
+// dann nicht. Darum haelt `UFSheetHold` ein faelliges Blatt zurueck, solange ein Hinweis steht, und gibt es frei, sobald
+// der Hinweis beantwortet ist. Ein Blatt, das schon offen ist, bleibt offen (Rueckfragen aus einem Blatt heraus).
+
+/// Haelt ein faelliges Blatt zurueck, solange ein Hinweis (UIAlertController) ueber einem Fenster der App steht
+final class UFSheetHold: ObservableObject {
+    /// zaehlt hoch, sobald der Hinweis weg ist: die oeffnende Ansicht fragt dann neu
+    @Published private(set) var released = 0
+    /// steht gerade ein Hinweis? (in Tests ersetzbar)
+    var alertOnScreen: () -> Bool = UFSheetHold.alertOnScreen
+    private var opened = false
+    private var watching: Task<Void, Never>?
+
+    /// Darf das Blatt jetzt offen sein? `wanted`: die Ansicht verlangt es
+    func pass(_ wanted: Bool) -> Bool {
+        guard wanted else {
+            opened = false
+            watching?.cancel()
+            watching = nil
+            return false
+        }
+        if opened { return true }
+        if alertOnScreen() {
+            watch()
+            return false
+        }
+        opened = true
+        return true
+    }
+
+    /// wartet, bis der Hinweis weg ist, und meldet es dann der Ansicht
+    private func watch() {
+        guard watching == nil else { return }
+        watching = Task { @MainActor [weak self] in
+            while let self, !Task.isCancelled, self.alertOnScreen() {
+                try? await Task.sleep(nanoseconds: 120_000_000)
+            }
+            guard let self, !Task.isCancelled else { return }
+            self.watching = nil
+            self.released += 1
+        }
+    }
+
+    /// Bindung fuer `.sheet(isPresented:)` usw.: offen erst, wenn kein Hinweis steht
+    func flag(_ isPresented: Binding<Bool>) -> Binding<Bool> {
+        Binding(get: { self.pass(isPresented.wrappedValue) }, set: { isPresented.wrappedValue = $0 })
+    }
+
+    /// Bindung fuer `.sheet(item:)` usw.
+    func item<Item>(_ item: Binding<Item?>) -> Binding<Item?> {
+        Binding(get: { self.pass(item.wrappedValue != nil) ? item.wrappedValue : nil }, set: { item.wrappedValue = $0 })
+    }
+
+    /// Hinweis ueber irgendeinem Fenster der App (auch waehrend er gerade verschwindet: UIKit lehnt bis zum Ende ab)
+    static func alertOnScreen() -> Bool { presented { $0 is UIAlertController } }
+
+    /// Irgendein Blatt, Vollbild-Blatt, Popover oder Hinweis ueber einem Fenster der App. Die umgekehrte Reihenfolge
+    /// geht ebenfalls schief: verlangt die Wurzel einen Hinweis, waehrend ein Blatt offen ist, schliesst SwiftUI das
+    /// Blatt, und der Hinweis erscheint nie. Von selbst kommende Fragen (`askForLoginIfDue`) warten darum, bis nichts
+    /// mehr offen ist.
+    static func presentationOnScreen() -> Bool { presented { _ in true } }
+
+    private static func presented(_ match: (UIViewController) -> Bool) -> Bool {
+        MainActor.assumeIsolated {
+            for scene in UIApplication.shared.connectedScenes {
+                guard let windows = (scene as? UIWindowScene)?.windows else { continue }
+                for window in windows {
+                    var controller = window.rootViewController?.presentedViewController
+                    while let c = controller {
+                        if match(c) { return true }
+                        controller = c.presentedViewController
+                    }
+                }
+            }
+            return false
+        }
+    }
+}
+
 struct UFSheetFlag<SheetContent: View>: ViewModifier {
     @Binding var isPresented: Bool
     let onDismiss: (() -> Void)?
     let sheetContent: () -> SheetContent
+    @StateObject private var hold = UFSheetHold()
 
     func body(content: Content) -> some View {
         content
-            .sheet(isPresented: $isPresented, onDismiss: onDismiss) { UFSheetGate(content: sheetContent) }
+            .sheet(isPresented: hold.flag($isPresented), onDismiss: onDismiss) { UFSheetGate(content: sheetContent) }
             .environment(\.ufSheetEnvironment, true)
     }
 }
@@ -53,10 +139,11 @@ struct UFSheetItem<Item: Identifiable, SheetContent: View>: ViewModifier {
     @Binding var item: Item?
     let onDismiss: (() -> Void)?
     let sheetContent: (Item) -> SheetContent
+    @StateObject private var hold = UFSheetHold()
 
     func body(content: Content) -> some View {
         content
-            .sheet(item: $item, onDismiss: onDismiss) { i in UFSheetGate { sheetContent(i) } }
+            .sheet(item: hold.item($item), onDismiss: onDismiss) { i in UFSheetGate { sheetContent(i) } }
             .environment(\.ufSheetEnvironment, true)
     }
 }
@@ -65,10 +152,11 @@ struct UFCoverFlag<SheetContent: View>: ViewModifier {
     @Binding var isPresented: Bool
     let onDismiss: (() -> Void)?
     let sheetContent: () -> SheetContent
+    @StateObject private var hold = UFSheetHold()
 
     func body(content: Content) -> some View {
         content
-            .fullScreenCover(isPresented: $isPresented, onDismiss: onDismiss) { UFSheetGate(content: sheetContent) }
+            .fullScreenCover(isPresented: hold.flag($isPresented), onDismiss: onDismiss) { UFSheetGate(content: sheetContent) }
             .environment(\.ufSheetEnvironment, true)
     }
 }
@@ -77,10 +165,11 @@ struct UFCoverItem<Item: Identifiable, SheetContent: View>: ViewModifier {
     @Binding var item: Item?
     let onDismiss: (() -> Void)?
     let sheetContent: (Item) -> SheetContent
+    @StateObject private var hold = UFSheetHold()
 
     func body(content: Content) -> some View {
         content
-            .fullScreenCover(item: $item, onDismiss: onDismiss) { i in UFSheetGate { sheetContent(i) } }
+            .fullScreenCover(item: hold.item($item), onDismiss: onDismiss) { i in UFSheetGate { sheetContent(i) } }
             .environment(\.ufSheetEnvironment, true)
     }
 }
@@ -90,10 +179,11 @@ struct UFPopoverFlag<SheetContent: View>: ViewModifier {
     let attachmentAnchor: PopoverAttachmentAnchor
     let arrowEdge: Edge?
     let sheetContent: () -> SheetContent
+    @StateObject private var hold = UFSheetHold()
 
     func body(content: Content) -> some View {
         content
-            .popover(isPresented: $isPresented, attachmentAnchor: attachmentAnchor, arrowEdge: arrowEdge) { UFSheetGate(content: sheetContent) }
+            .popover(isPresented: hold.flag($isPresented), attachmentAnchor: attachmentAnchor, arrowEdge: arrowEdge) { UFSheetGate(content: sheetContent) }
             .environment(\.ufSheetEnvironment, true)
     }
 }

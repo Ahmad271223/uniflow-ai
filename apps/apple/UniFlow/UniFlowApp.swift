@@ -305,6 +305,10 @@ struct UniFlowApp: App {
             await containers.renewExpiredSessions()
             // die Frage erscheint einmal, im zuletzt aktiven Fenster
             guard let source = background.loginReminderSource(), let scene = scenes.active else { return }
+            // nie ueber einem offenen Blatt fragen (26.11.2026): SwiftUI schloesse das Blatt (z. B. die Anmeldung, aus der
+            // der Nutzer gerade vom Passwort-Programm zurueckkommt), und die Frage erschiene nie. Dann beim naechsten
+            // Oeffnen der App fragen; die 6 Stunden beginnen erst mit einer gestellten Frage.
+            guard !UFSheetHold.presentationOnScreen() else { return }
             background.markLoginAsked()
             if await scene.overlay.confirm(UFDevice.adapt("Bitte neu anmelden\n\nDeine Anmeldung bei \(source) ist abgelaufen, und die Universität möchte dein Passwort erneut sehen. Melde dich neu an (iOS kann das gespeicherte Passwort einsetzen), damit der Abgleich weiterläuft.")) {
                 scene.router.go(.settings(tab: "uni"))
