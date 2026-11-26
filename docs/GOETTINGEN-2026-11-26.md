@@ -1,7 +1,11 @@
 # Uni Göttingen in StudiNow (Stand 26.11.2026)
 
-Zweig `uni/goettingen` (lokal, nicht gepusht), abgezweigt von `release/1.0.8-alles` (b1682e3a), Arbeitsordner
-`~/Studora-Builds/wt-goettingen`. Vorgesehen für **Build 53/54**, nicht für 1.0.8 / Build 50.
+Zweig `uni/goettingen` (lokal, nicht gepusht), abgezweigt von `release/1.0.8-alles` (b1682e3a), am 26.11.2026 abends
+mit dem damaligen Stand von `release/1.0.8-alles` (51571948) gemischt. Arbeitsordner `~/Studora-Builds/wt-goettingen`.
+
+**Inhaber 26.11.2026 abends:** „dann bau das für Uni Göttingen fertig, binde ein, das soll übermorgen mit reinkommen, die
+anderen Sachen ziehen wir nach“. Darum ist Göttingen jetzt **auch im Release-Build zur Wahl**
+(`UF_SHIPPED_UNIVERSITIES: "luh hildesheim goettingen"`). Noten, Bescheinigungen, Mail und Mediacast kommen später.
 
 Grundlagen (nur auf dem Mac, nicht im Repo):
 - `~/Studora-Builds/goettingen/STRUKTUR-ECHT-STUDIP-2026-11-26.md` – echtes Stud.IP Göttingen (drei Blicke) und der
@@ -12,16 +16,31 @@ Grundlagen (nur auf dem Mac, nicht im Repo):
 ## 1. Kurz
 
 - Göttingen ist die vierte Hochschule (`UniversityKey.goettingen`) mit eigenem Datenbereich, eigener Anmeldung und dem
-  vorhandenen Stud.IP-Abgleich. Im **Store-Build steht sie nicht zur Wahl** (Release `UF_SHIPPED_UNIVERSITIES` bleibt
-  `"luh hildesheim"`); in Debug, Simulator und Tests ja.
+  vorhandenen Stud.IP-Abgleich. Zur Wahl in Debug und (seit 26.11.2026 abends) im Release-Build.
 - Was über Stud.IP geht, ist eingebaut: Kurse, Ordner und Dateien samt Download, Stundenplan, Kalender, Kurstermine,
   Nachrichten, Neuigkeiten/Änderungen, Lehrende, Schwarzes Brett. Dazu der Mensaplan (ohne Preise).
 - Was Göttingen nicht in Stud.IP hat (Noten, Bescheinigungen, E-Mail, Mediacast-Videos), ist in der App ausgeblendet
   bzw. durch eine ruhige Karte „gibt es hier noch nicht – hier öffnen“ ersetzt.
 
-**Freigabe später:** In `apps/apple/project.yml` beim Release `UF_SHIPPED_UNIVERSITIES: "luh hildesheim goettingen"`
-setzen, `xcodegen generate`, dazu `tests/test_release_texts.py` (prüft heute ausdrücklich „ohne Göttingen“). Eine
-Kabel-Fassung fürs iPad des Inhabers geht vorher mit `xcodebuild … UF_SHIPPED_UNIVERSITIES="luh hildesheim goettingen"`.
+### Vor dem Einreichen (Pflicht)
+
+1. **Server-Update (nur mit Okay des Inhabers):** Der laufende StudiNow-Dienst kennt `goettingen` nicht. Ein neuer
+   Göttinger Nutzer bekäme beim Anlegen des StudiNow-Kontos „Unbekannte Hochschule“ (`university_unknown`) – keine KI,
+   keine Probe über das Konto. Nötig sind aus diesem Zweig `app/universities.py`, `app/config.py`, `app/account_api.py`,
+   `app/server.py`, `app/mensa.py`, `app/mensa_api.py` und die Daten `packages/shared-contracts/mensa.json`,
+   `rooms.json` (Tests: `tests/test_goettingen.py`, `tests/test_mensa.py`, `tests/test_account_contract.py`). Der Rest
+   des Dienstes ändert sich nicht; Hannover/Hildesheim sehen in der Web-App weiter nur ihre Hochschulen und Mensen.
+2. **Einmal mit echtem Konto in der App:** Der Inhaber meldet sich in der Testfassung selbst bei Stud.IP Göttingen an,
+   ein Abgleich läuft durch. Bis dahin ist nur gegen die Nachbildung geprüft (Abschnitt 3).
+3. **Datenschutz (Website):** `docs/release/DATENSCHUTZ.md` Abschnitt 4b nennt jetzt das Studierendenwerk Göttingen als
+   Quelle des Speiseplans; `site/datenschutz.html` ist in diesem Zweig neu erzeugt (`tools/gen-site.py`). Live ist aber der
+   Stand aus `~/Studora-Builds/wt-site-neuheiten` (uncommittet) – dort denselben Satz in Abschnitt 4b nachtragen; hochladen
+   nur durch den Inhaber (`tools/site-hochladen.sh`).
+4. **Store-Texte (Vorschlag, nicht eingetragen):** Die Beschreibung mit Pro AI steht bei 3988 von 4000 Zeichen und hat
+   feste Prüfsätze (`tests/test_release_texts.py`); ich habe sie nicht geändert. Vorschlag für „Neu in dieser Version“:
+   „Neu: Universität Göttingen – Kurse, Dateien, Stundenplan, Nachrichten und Schwarzes Brett aus Stud.IP, dazu der
+   Speiseplan der Mensen.“ Für die Beschreibung müsste an anderer Stelle gekürzt werden.
+5. Prüfhinweise für Apple: unverändert (Prüfkonto ist LUH bzw. Demo).
 
 ## 2. Was gebaut ist
 

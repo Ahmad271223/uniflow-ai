@@ -68,9 +68,8 @@ targets:
         # ("Ja, auch im Store"): Release (TestFlight, App Store, Kabel-Fassungen) bietet ihn an und er ist von selbst AN,
         # Ausschalten in den Einstellungen. Debug bleibt NO (Tests, Simulator): dort geht nie etwas weg.
         # Vor dem Einreichen muessen Nutzungsbedingungen + Datenschutz (Entwuerfe in docs/release) live sein.
-        # Uni Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md): im Code, in Debug und Tests zur Wahl; im Release
-        # NICHT, bis der Inhaber sie freigibt (dann "goettingen" an den Release-Wert haengen). Eine Kabel-Fassung fuer
-        # sein iPad bekommt sie mit `xcodebuild ... UF_SHIPPED_UNIVERSITIES="luh hildesheim goettingen"`.
+        # Uni Goettingen (26.11.2026, docs/GOETTINGEN-2026-11-26.md): Inhaber 26.11.2026 abends „das soll übermorgen mit
+        # reinkommen“ - ab dem naechsten Build auch im Release zur Wahl (Stud.IP, Schwarzes Brett, Mensa; Noten usw. folgen).
         Debug:
           UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh goettingen"
           UF_INTAKE_OFFERED: "NO"
@@ -84,9 +83,10 @@ targets:
           PRODUCT_BUNDLE_IDENTIFIER: $(UF_DEBUG_BUNDLE_ID)
           # CloudKit-Umgebung (UniFlow.entitlements, icloud-container-environment): Debug aus Xcode bleibt in Development
           UF_CLOUDKIT_ENVIRONMENT: Development
-        # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet
+        # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet.
+        # 26.11.2026 (Inhaber): dazu die Uni Goettingen
         Release:
-          UF_SHIPPED_UNIVERSITIES: "luh hildesheim"
+          UF_SHIPPED_UNIVERSITIES: "luh hildesheim goettingen"
           # Datei-Eingang aus (Inhaber 26.11.2026: "Eingang abschalten"). Der Dienst nimmt seit 26.11.2026 nichts mehr an
           # (LERNAPP_INTAKE_URL auskommentiert, 503 intake_off); 1.0.6 und 1.0.7 im Store waren mit YES gebaut.
           UF_INTAKE_OFFERED: "NO"
@@ -154,7 +154,8 @@ targets:
           - UIInterfaceOrientationPortrait
         # iCloud-Container der Community (leer ohne Config/Team.xcconfig; dann "Community nicht verfügbar")
         UFCloudKitContainer: $(UF_CLOUDKIT_CONTAINER)
-        # Hochschulen zur Wahl in diesem Build (Release seit Build 40 "luh hildesheim", siehe UF_SHIPPED_UNIVERSITIES oben)
+        # Hochschulen zur Wahl in diesem Build (Release seit Build 40 "luh hildesheim", ab dem Build nach 50 mit
+        # "goettingen", siehe UF_SHIPPED_UNIVERSITIES oben)
         UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)
         # Datei-Eingang: seit 26.11.2026 in Release und Debug aus (UF_INTAKE_OFFERED oben; CourseFileIntakeSetting.isOffered)
         UFIntakeOffered: $(UF_INTAKE_OFFERED)

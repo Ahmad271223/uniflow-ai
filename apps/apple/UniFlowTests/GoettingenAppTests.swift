@@ -302,15 +302,16 @@ final class GoettingenAppTests: XCTestCase {
             let spoken = MensaUI.accessibility(m, role: "student")
             XCTAssertFalse(spoken.contains("€") || spoken.contains("–,") || spoken.contains(", –"), spoken)
         }
-        XCTAssertEqual(MensaUI.sorts(for: meals), ["line"], "keine Sortierung nach Preis (und ohne Nährwerte keine nach Kalorien)")
-        XCTAssertTrue(MensaUI.sorts(for: []).contains("price"), "ohne geladene Gerichte wie bisher")
+        XCTAssertEqual(MensaUI.sorts(for: meals, priced: Mensa.sourceHasPrices("stwgoe")), ["line"],
+                       "keine Sortierung nach Preis (und ohne Nährwerte keine nach Kalorien)")
+        XCTAssertTrue(MensaUI.sorts(for: meals).contains("price"), "Quellen mit Preisen wie bisher")
         XCTAssertFalse(Mensa.sourceHasPrices("stwgoe"))
         // mit Preis (Hannover, Hildesheim) unveraendert
         let priced: JSONValue = ["name": "Chili", "prices": ["student": 3.8, "employee": .null, "guest": 5.2], "labels": ["rind"]]
         XCTAssertTrue(MensaUI.hasPrices(priced))
         XCTAssertEqual(MensaUI.priceText(priced, role: "student"), "3,80 €")
         XCTAssertEqual(MensaUI.priceText(priced, role: "employee"), "–", "nur diese Gruppe fehlt")
-        XCTAssertTrue(MensaUI.sorts(for: [priced]).contains("price"))
+        XCTAssertTrue(MensaUI.sorts(for: [priced], priced: Mensa.sourceHasPrices("studifutter")).contains("price"))
         XCTAssertTrue(MensaUI.accessibility(priced, role: "student").contains("3,80 €"))
         XCTAssertFalse(MensaUI.noPrices.isEmpty)
         XCTAssertFalse(MensaUI.porkUnknownHint.isEmpty)

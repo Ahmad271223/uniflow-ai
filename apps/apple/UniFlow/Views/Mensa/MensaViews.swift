@@ -88,10 +88,10 @@ enum MensaUI {
         ("carbohydrates", "Kohlenhydrate"), ("sugar", "davon Zucker"), ("fiber", "Ballaststoffe"), ("protein", "Eiweiß"), ("salt", "Salz")]
 
     /// Sortierungen, fuer die es Daten gibt (Kalorien/Eiweiss nur mit Naehrwerten), wie `availableSorts` im Web
-    static func sorts(for meals: [JSONValue]) -> [String] {
+    /// `priced: false`: Quelle ohne Preise je Gericht (Studierendenwerk Goettingen, `Mensa.sourceHasPrices`) - dann keine
+    /// Sortierung nach Preis
+    static func sorts(for meals: [JSONValue], priced: Bool = true) -> [String] {
         func has(_ k: String) -> Bool { meals.contains { $0["nutrition"]?[k]?.double != nil } }
-        // "Preis" nur, wenn es Preise gibt (Studierendenwerk Goettingen nennt keine); ohne geladene Gerichte wie bisher
-        let priced = meals.isEmpty || meals.contains(where: hasPrices)
         return Mensa.sorts.filter { $0 == "line" || ($0 == "price" && priced) || ($0 == "kcal" && has("energy_kcal")) || ($0 == "protein" && has("protein")) }
     }
 
@@ -340,7 +340,7 @@ struct MensaPage: View {
                 .accessibilityIdentifier("mensa.role")
             }
 
-            let sorts = MensaUI.sorts(for: menu?.list("days").flatMap { $0.list("meals") } ?? [])
+            let sorts = MensaUI.sorts(for: menu?.list("days").flatMap { $0.list("meals") } ?? [], priced: showsPrices)
             HStack(spacing: 6) {
                 Text("Sortieren").ufFont(13).foregroundStyle(UF.muted)
                 UFSelect(options: sorts.map { (value: $0, label: MensaUI.sortLabels[$0] ?? $0) },
@@ -459,7 +459,7 @@ struct MensaPage: View {
 
     /// Blatt "Filter" (iPhone): Kennzeichen, Allergene, Preisgruppe, Sortierung; wirkt sofort, "Fertig" schliesst
     private func filterSheet(_ list: JSONValue) -> some View {
-        let sorts = MensaUI.sorts(for: menu?.list("days").flatMap { $0.list("meals") } ?? [])
+        let sorts = MensaUI.sorts(for: menu?.list("days").flatMap { $0.list("meals") } ?? [], priced: showsPrices)
         return NavigationStack {
             Form {
                 Section("Essen") {

@@ -50,8 +50,9 @@ final class ReleaseUniversitiesAppTests: XCTestCase {
 
     func testDebugAndUpdate101OfferAllThree() {
         UFReleaseUniversities.withShipped(Set(UniversityKey.allCases)) {
-            XCTAssertEqual(UniversityPickerView.choices(), [.luh, .hildesheim, .hsh], "feste Reihenfolge")
-            XCTAssertEqual(UniversitySwitchDialog.choices(current: .hildesheim), [.luh, .hildesheim, .hsh])
+            // seit 26.11.2026 mit der Uni Goettingen
+            XCTAssertEqual(UniversityPickerView.choices(), [.luh, .hildesheim, .hsh, .goettingen], "feste Reihenfolge")
+            XCTAssertEqual(UniversitySwitchDialog.choices(current: .hildesheim), [.luh, .hildesheim, .hsh, .goettingen])
             XCTAssertTrue(UniversitySettingsCard.offersSwitch(current: .luh))
             XCTAssertFalse(UFReleaseUniversities.moreToCome)
             XCTAssertTrue(DeleteUniversityDataDialog.explanation(.luh).contains("Die Daten der Universität Hildesheim bleiben unberührt"))
