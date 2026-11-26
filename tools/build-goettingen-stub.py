@@ -133,7 +133,8 @@ def ics() -> str:
                   f"SUMMARY:{title}", f"LOCATION:{room}", "CATEGORIES:Sitzung", "LAST-MODIFIED:20260920T080000Z",
                   "CREATED:20260920T080000Z", "DTSTAMP:20261126T120000Z", f"UID:Stud.IP-SEM-{hid(f'event-{key}-{n}')}@studip.uni-goettingen.de",
                   "DESCRIPTION:", "END:VEVENT"]
-    return "\r\n".join(lines + ["END:VCALENDAR", ""])
+    # LF statt CRLF: das Repo speichert Text mit LF (.gitattributes), der Leser versteht beides
+    return "\n".join(lines + ["END:VCALENDAR", ""])
 
 
 def html_page(title: str, body: str) -> str:
