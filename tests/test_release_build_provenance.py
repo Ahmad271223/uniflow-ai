@@ -194,7 +194,7 @@ def test_build_42_is_in_review_as_1_0_4_and_the_server_runs_the_same_commit():
     assert "NICHT eingereicht" in r[49]["status"]
     assert r[50]["commit"] == "51571948" and r[50]["status"].startswith("hochgeladen (TestFlight), nicht eingereicht (ersetzt durch Build 51")
     assert r[51]["commit"] == "9a34bb32" and r[51]["status"].startswith("gebaut, nicht hochgeladen")
-    assert r[52]["status"].startswith(("vorbereitet, noch nicht hochgeladen: Version 1.0.8", "hochgeladen (TestFlight)"))
+    assert r[52]["commit"] == "67430b23" and r[52]["status"].startswith(("hochgeladen, nicht eingereicht", "in der Prüfung"))
     assert submitted() == 48, "24.11.2026: Build 48 als 1.0.7 in der Pruefung, 45 (1.0.6) ist veroeffentlicht"
     assert "Im App Store: 1.0.5 mit Build 44 seit 18.11.2026 abends (vom Inhaber freigegeben), davor 1.0.4 mit Build 42 seit 16.11.2026 10:49." in doc
     assert "keine Version" not in doc and "mit Build 41 seit" not in doc

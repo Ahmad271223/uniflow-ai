@@ -685,3 +685,24 @@ keinen Editor; Dokumente öffnen dort in der Leseansicht.
 Die Fassung nur mit Plus (ohne KI) liegt als Satz Build 11 unter `~/Studora-Builds/appstore-screenshots-v11/`; der
 frühere Satz mit KI-Motiven unter `~/Studora-Builds/appstore-screenshots/` ist überholt (er nennt „über dein
 ChatGPT“), nur dessen `reserve/13-tarife-light-portrait.png` bleibt der Prüf-Screenshot für Plus.
+
+
+## Version 1.0.8 (Build 52) – bei Apple eingetragen am 27.11.2026
+
+„Neu in dieser Version“ (de-DE), Beschreibung (neue Tarife, Göttingen, zweimal am Tag, ohne Stud.IP-Abgabe) und Prüfhinweise (englisch) stehen in App Store Connect; die Beschreibung hat 3921 Zeichen. Neue Käufe: `de.uniflow.plus.fuenfjahre` (READY_TO_SUBMIT), Monatsabos wieder im Verkauf, deutsche Abo-Texte als neue Fassung.
+
+```text whats-new-1.0.8
+Neu in 1.0.8:
+• Neu angebunden: Universität Göttingen – Kurse, Dateien, Stundenplan, Termine, Nachrichten, Ankündigungen und Schwarzes Brett aus Stud.IP, dazu Mensa und Vorlesungszeiten. Weitere Funktionen folgen, sobald sie technisch möglich sind.
+• Neue Tarife: StudiNow Plus für 1,99 € im Monat, Pro AI für 3,99 € im Monat oder 39,99 € im Jahr mit 120 KI-Credits jeden Monat – und neu das Bachelor+Master-Paket: StudiNow Plus 5 Jahre für einmal 39,99 €, ohne Abo.
+• Mitschrift: Gesprochenes wird direkt auf deinem Gerät zu Text – der Ton verlässt dein Gerät nicht.
+• Neu im Editor mit Pro AI: Textblöcke, Notizzettel, Klappkarten und Verweise zwischen Stellen in deinen Unterlagen.
+• Schreiben mit dem Apple Pencil: Die aufliegende Hand malt nichts mehr aus Versehen, und bei starkem Zoom zittert die Schrift nicht mehr.
+• Studienverlauf: Leistungspunkte werden richtig gezählt, auch bei Teilmodulen und im Zwei-Fächer-Bachelor. Dazu bestandene Module je Semester und eigene Module mit Stunden und Inhalt.
+• Noten aus QIS: Noten, LP und angemeldete Prüfungen erscheinen jetzt auch in Fällen, in denen sie bisher fehlten. „Nächste Klausuren“ zeigt auf Wunsch alle.
+• Hildesheim: Die Learnweb-Anmeldung beim ersten Start ist einfacher, und die App sagt klar, wenn das LSF nur einen Gastzugang gibt.
+• Community: Lösungen öffnest du auf iPad und Mac direkt neben deinem eigenen Dokument – so, wie sie beim Verfasser aussehen.
+• Abgleich: Die App holt die Daten aus den Uni-Portalen von selbst zweimal am Tag und die Uni-Mail alle 30 Minuten. Das schont dein Uni-Konto, und ein unterbrochener Abgleich läuft von selbst weiter.
+• Behoben: Auf manchen Geräten ließ sich nach dem Start kein Fenster mehr öffnen. Abstürze meldet die App ohne Konto an StudiNow, damit wir sie schneller beheben – abschaltbar in den Einstellungen.
+Dazu viele kleinere Verbesserungen und Fehlerbehebungen.
+```
