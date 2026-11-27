@@ -28,3 +28,12 @@ Datenbank: nur neue Tabelle `crash_reports` (CREATE TABLE IF NOT EXISTS), sonst 
 Pro AI 120 statt 80 Credits; Wochentests und neue Pool-Tests kosten Credits; KI nur mit nutzbaren Credits (429);
 neue Probe = 7 Tage Plus mit 25 Credits; Einladungen ohne Belohnungen (410, 1.0.7 zeigt noch den alten Hinweistext);
 Plus jährlich gilt weiter. Göttinger Konten lassen sich anlegen.
+
+## Nachtrag 18:52 – Sicherheitskorrekturen (`111488d5`)
+Freigabe des Inhabers auf „Soll ich die zwei Server-Lücken jetzt beheben, testen und einspielen?“: „Ja, beheben“.
+- Testkauf (Sandbox/Xcode) des Bachelor+Master-Pakets gilt höchstens `LERNAPP_SANDBOX_ONCE_DAYS` (Standard 1) Tage;
+  vorher 5 Jahre ohne Geld. Am Server gab es noch keinen Kauf dieser Art (`app_store_once`: 0 Zeilen).
+- `test_grading` und `mail_rewrite` kosten Credits („KI nur mit Credits“).
+Tests: Server 4156 + node 473 grün. Backup `uniflow-2026-11-27_1851.tar.gz`. `docker compose up -d --build`: healthy,
+keine Fehlerzeilen, `dienst-check.sh`: alle Prüfungen bestanden; im Dienst bestätigt (`charges_credits` True/True,
+`sandbox_once_days()` 1). Zurück auf `67430b23` wie oben.
