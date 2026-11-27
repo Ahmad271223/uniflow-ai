@@ -231,7 +231,8 @@ main.home h3 { margin: .9rem 0 .35rem; font-size: 1.1rem; }
 .plan .checks { border-top: 1px solid var(--line); padding-top: 1rem; font-size: .97rem; }
 .plans-group { margin: 0 0 .7rem; font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-text); }
 .plans-group.in-card { margin-bottom: .5rem; }
-.plans-2 { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); }
+.plans-solo { grid-template-columns: minmax(0, 1fr); }
+.plan-special { margin-top: .9rem; }
 .save { margin: .1rem 0 .3rem; color: var(--ok); font-weight: 700; font-size: .95rem; }
 .plan-special { position: relative; border: 2px solid var(--accent); background:
   linear-gradient(140deg, var(--accent-soft) 0%, var(--accent-soft) 45%, var(--bg) 100%); box-shadow: 0 30px 60px -24px var(--accent); padding-top: 2.2rem; }
@@ -284,7 +285,7 @@ main.doc { padding: 3rem 0 4.5rem; }
   .hero-grid { padding: 3.5rem 0 3rem; }
   .feature.alt .feature-text { order: 0; }
   .trust-list, .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .plans, .plans-2 { grid-template-columns: minmax(0, 1fr); max-width: 30rem; }
+  .plans, .plans-solo { grid-template-columns: minmax(0, 1fr); max-width: 30rem; }
   .save-big { font-size: 1.25rem; white-space: nowrap; }
   .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .footer-about { grid-column: 1 / -1; }

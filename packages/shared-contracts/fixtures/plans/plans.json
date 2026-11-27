@@ -219,16 +219,16 @@
  ],
  "offer_groups": [
   {
+   "key": "special",
+   "title": "Unser Special"
+  },
+  {
    "key": "monthly",
    "title": "Monatlich"
   },
   {
    "key": "yearly",
    "title": "Jährlich"
-  },
-  {
-   "key": "special",
-   "title": "Unser Special"
   }
  ],
  "entitlements": {

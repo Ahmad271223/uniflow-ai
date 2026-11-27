@@ -180,8 +180,10 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     # 27.11.2026 (Inhaber): monatlich Free -> Plus 1,99 -> Pro AI 3,99, jaehrlich Pro AI 39,99, stark hervorgehoben das
     # Bachelor+Master-Paket mit der Ersparnis gegenueber normalem Plus (Werte aus plans.savings)
     preise = flat.split('id="preise"')[1].split("</section>")[0]
-    assert preise.index("Monatlich") < preise.index("1,99 €") < preise.index("3,99 €") < preise.index("Jährlich") \
-        < preise.index("39,99 €") < preise.index("Bachelor+Master-Paket"), "Reihenfolge wie bestellt"
+    # 27.11.2026 (Inhaber "Ja, nach oben"): Special zuerst, dann Monatlich, dann Jaehrlich
+    m = preise.index("Monatlich")
+    assert preise.index("Bachelor+Master-Paket") < m < preise.index('id="p-plus"', m) < preise.index('id="p-pro"', m) \
+        < preise.index("Jährlich", m) < preise.index("pro Jahr", m), "Reihenfolge wie bestellt"
     assert '<article class="plan plan-special"' in html and "Unser Special" in preise
     assert "Du sparst 79,41 € (67 %)" in preise and "60 × 1,99 € = 119,40 €" in preise and "0,67 € im Monat" in preise
     assert "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €" in preise

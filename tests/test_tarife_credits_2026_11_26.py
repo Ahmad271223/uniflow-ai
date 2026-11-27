@@ -158,7 +158,7 @@ def test_overview_groups_and_savings_as_the_owner_ordered():
     das "Bachelor+Master-Paket" (Plus 5 Jahre 39,99 einmalig) mit der Ersparnis gegenueber normalem Plus."""
     from app import plans
     c = plans.contract()
-    assert [g["key"] for g in c["offer_groups"]] == ["monthly", "yearly", "special"]
+    assert [g["key"] for g in c["offer_groups"]] == ["special", "monthly", "yearly"]  # 27.11.: Special nach oben
     by = {o["product_id"]: o for o in c["offers"]}
     assert [(p, by[p]["group"], by[p]["price_cents"]) for p in by] == [
         ("de.uniflow.plus.monthly", "monthly", 199), (PRO_MONAT, "monthly", 399),

@@ -70,7 +70,8 @@ OFFERS: dict[str, dict] = {
                                    "name": "Bachelor+Master-Paket", "badge": "Unser Special", "highlight": True,
                                    "compare": "de.uniflow.plus.monthly"},
 }
-OFFER_GROUPS = (("monthly", "Monatlich"), ("yearly", "Jährlich"), ("special", "Unser Special"))
+# Reihenfolge auf App-Kaufseite und Startseite (Inhaber 27.11.2026 "Ja, nach oben"): Special zuerst
+OFFER_GROUPS = (("special", "Unser Special"), ("monthly", "Monatlich"), ("yearly", "Jährlich"))
 
 PLANS: dict[str, dict] = {
     "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": None,
