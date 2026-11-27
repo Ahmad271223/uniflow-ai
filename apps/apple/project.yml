@@ -77,7 +77,7 @@ targets:
         # 14.11.2026 (Inhaber): ab Build 40 (1.0.4) auch die Universitaet Hildesheim; die HsH bleibt ausgeblendet
         Release:
           UF_SHIPPED_UNIVERSITIES: "luh hildesheim"
-          UF_INTAKE_OFFERED: "YES"
+          UF_INTAKE_OFFERED: "NO"
           # 20.11.2026: Release immer Production, auch per Kabel installiert (Entwickler-Profil). Vorher lief eine Kabel-Fassung
           # still auf Development: das iPad des Inhabers (1.0.6/1.0.7 per Kabel) sah eine andere Community als der Mac
           # (1.0.5 aus TestFlight). TestFlight und App Store waren schon immer Production (docs/paritaet/COMMUNITY-UND-ABGLEICH-2026-11-09.md 3.1).
@@ -144,7 +144,7 @@ targets:
         UFCloudKitContainer: $(UF_CLOUDKIT_CONTAINER)
         # Hochschulen zur Wahl in diesem Build (Release seit Build 40 "luh hildesheim", siehe UF_SHIPPED_UNIVERSITIES oben)
         UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)
-        # Datei-Eingang: Release an, Debug aus (UF_INTAKE_OFFERED oben; CourseFileIntakeSetting.isOffered)
+        # Datei-Eingang: seit 26.11.2026 in Release und Debug aus (UF_INTAKE_OFFERED oben; CourseFileIntakeSetting.isOffered)
         UFIntakeOffered: $(UF_INTAKE_OFFERED)
         # Schrift der Web-App (Inter, Google Fonts, SIL Open Font License: UniFlow/Resources/Fonts/Inter-OFL.txt)
         UIAppFonts:
