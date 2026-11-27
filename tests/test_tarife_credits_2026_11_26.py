@@ -208,3 +208,30 @@ def test_refund_of_the_five_year_package_ends_plus_at_once(hosted, apple):
     st, d = notify(hosted, apple.notification("REFUND", once_tx(apple, u["id"], bought, otid="9300000000000001", revoked=True)))
     assert st == 200 and d["status"] == "revoked", d
     assert ent(hosted, h)["plan"] == "free"
+
+
+def test_pro_ai_on_top_of_the_package_and_plus_stays_after_pro_ai_ends(hosted, apple):
+    """Inhaber 27.11.2026: "man kann Pro AI dazu kaufen wenn man will, aber man behaelt weiterhin fuer 5 Jahre Plus".
+    Tarif = hoechste aktive Quelle: Paket + Pro AI -> Pro AI; Pro AI vorbei -> Plus aus dem Paket bis Kauf + 5 Jahre."""
+    from app import billing
+    u, h = user(hosted, "paket-und-pro@beispiel.de")
+    bought = datetime.now(UTC) - dt.timedelta(days=20)
+    assert verify(hosted, h, once_tx(apple, u["id"], bought, otid="9400000000000001"))[0] == 200
+    pro_end = datetime.now(UTC) + dt.timedelta(days=10)
+    assert verify(hosted, h, apple.tx(u["id"], "de.uniflow.proai.monthly", pro_end, otid="9400000000000002"))[0] == 200
+    assert ent(hosted, h)["plan"] == "pro_ai"
+    conn = billing.connect()
+    try:
+        assert billing.current_plan(conn, u["id"], now=pro_end - dt.timedelta(days=1)) == "pro_ai"
+        assert billing.current_plan(conn, u["id"], now=pro_end + dt.timedelta(days=1)) == "plus", "Paket laeuft weiter"
+        five = bought.replace(year=bought.year + 5)
+        assert billing.current_plan(conn, u["id"], now=five - dt.timedelta(days=1)) == "plus"
+        assert billing.current_plan(conn, u["id"], now=five + dt.timedelta(days=1)) == "free"
+    finally:
+        conn.close()
+    # Pro AI gekuendigt (EXPIRED-Meldung): Plus aus dem Paket bleibt sofort
+    from test_subscriptions import notify
+    st, d = notify(hosted, apple.notification("EXPIRED", apple.tx(u["id"], "de.uniflow.proai.monthly", datetime.now(UTC) - dt.timedelta(minutes=1),
+                                                                   otid="9400000000000002")))
+    assert st == 200, d
+    assert ent(hosted, h)["plan"] == "plus"
