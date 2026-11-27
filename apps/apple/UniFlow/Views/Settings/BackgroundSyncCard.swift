@@ -198,6 +198,7 @@ struct SyncNotificationsCard: View {
                 }
                 SettingsMore(summary: BackgroundSyncCard.newsShort, text: BackgroundSyncCard.newsText, identifier: "background.newsText")
                     .padding(.top, 4)
+                LectureReminderRows()                                   // Erinnerung vor der Vorlesung (27.11.2026)
                 if let hint {
                     Text(hint)
                         .ufFont(12.8, 600).foregroundStyle(UF.warn)

@@ -767,12 +767,21 @@ struct CalendarExportRefresher: View {
             .onChange(of: Trigger(runs: studip.finishedRuns, generation: containers.generation, demo: containers.demoActive), initial: true) { old, new in
                 // erster Aufruf beim Start: wie "Oeffnen" (gedrosselt)
                 let force = old != new
-                Task { await CalendarExport.shared.sync(api: containers.active?.api, demo: containers.demoActive, force: force) }
+                Task {
+                    await CalendarExport.shared.sync(api: containers.active?.api, demo: containers.demoActive, force: force)
+                    await LectureReminderScheduler.shared.refresh(containers)          // Erinnerung vor der Vorlesung
+                }
             }
             .onChange(of: scenePhase) { _, phase in
                 switch phase {
-                case .active: Task { await CalendarExport.shared.sync(api: containers.active?.api, demo: containers.demoActive, force: false) }
-                case .background: Task { await CalendarExport.shared.sync(api: containers.active?.api, demo: containers.demoActive, force: true) }
+                case .active: Task {
+                    await CalendarExport.shared.sync(api: containers.active?.api, demo: containers.demoActive, force: false)
+                    await LectureReminderScheduler.shared.refresh(containers)
+                }
+                case .background: Task {
+                    await CalendarExport.shared.sync(api: containers.active?.api, demo: containers.demoActive, force: true)
+                    await LectureReminderScheduler.shared.refresh(containers)
+                }
                 default: break
                 }
             }

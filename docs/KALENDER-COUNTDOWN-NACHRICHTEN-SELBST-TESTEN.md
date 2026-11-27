@@ -46,6 +46,17 @@ Widgets seit Build 47). Das legt Xcode beim ersten Gerätebau an – nur mit dei
 5. VoiceOver an (Einstellungen → Bedienungshilfen) und über die Zeile wischen.
    - richtig ist: „Beginnt in 25 Minuten“ bzw. „Läuft gerade, noch 35 Minuten“.
 
+## 2b. Erinnerung vor der Vorlesung
+
+1. Einstellungen → Uni-Zugang & Abgleich → Karte **„Mitteilungen“** → **„Vor jeder Vorlesung“** an.
+   - richtig ist: iOS fragt nach Mitteilungen (falls noch nie gefragt). Darunter „Wie lange vorher“ (10 Min).
+2. Auf „5 Min“ stellen und warten, bis 5 Minuten vor dem nächsten Termin.
+   - richtig ist: Mitteilung „In 5 Min: …“ mit Zeit und Raum. Antippen öffnet den Stundenplan an dem Tag.
+3. Einen Termin als ausgefallen markieren, StudiNow kurz verlassen.
+   - richtig ist: für ihn kommt keine Mitteilung mehr.
+4. Schalter aus.
+   - richtig ist: keine Erinnerungen vor Vorlesungen mehr; Erinnerungen an Abgaben bleiben.
+
 ## 3. Widget „Nachrichten“
 
 1. Home-Bildschirm lange drücken → „+“ / „Bearbeiten“ → **StudiNow** → **„Nachrichten“** (klein und mittel).

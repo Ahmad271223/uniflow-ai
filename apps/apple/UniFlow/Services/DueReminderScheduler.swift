@@ -258,7 +258,8 @@ final class DueReminderScheduler: ObservableObject {
             await withdrawAll()
             return true
         }
-        let plan = DueReminders.plan(items, container: container, now: now())
+        // Erinnerung vor der Vorlesung (27.11.2026) belegt bis zu `LectureReminders.budget` der 64 Plaetze von iOS
+        let plan = DueReminders.plan(items, container: container, now: now(), limit: DueReminders.limit - LectureReminderScheduler.reserved(defaults))
         let d = DueReminders.diff(pending: await notifier.pendingIdentifiers(), planned: plan)
         notifier.remove(d.remove)
         for r in d.add { await notifier.schedule(r) }
@@ -342,6 +343,7 @@ final class DueNotificationDelegate: NSObject, UNUserNotificationCenterDelegate,
     /// Erinnerungen an Abgaben/Pruefungen und an die Pruefungsanmeldung (`ExamRegistrationReminders`)
     static func isOwn(_ identifier: String) -> Bool {
         identifier.hasPrefix(DueReminders.prefix) || identifier.hasPrefix(ExamRegistrationReminders.prefix)
+            || identifier.hasPrefix(LectureReminders.prefix)
     }
 
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification,

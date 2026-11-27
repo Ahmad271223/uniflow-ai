@@ -650,6 +650,8 @@ final class BackgroundSyncController: ObservableObject {
             await HomeWidgetSync.refresh(api: c.api)
             // Termine im Kalender (26.11.2026): nach jedem Abgleich, auch im Hintergrund (nur wenn eingeschaltet)
             await CalendarExport.shared.sync(api: c.api, demo: containers.demoActive, force: true)
+            // Erinnerung vor der Vorlesung (27.11.2026): neu planen, auch ohne offenes Fenster
+            await LectureReminderScheduler.shared.refresh(containers)
         }
         await schedule()                                         // nach jedem Lauf neu planen
         return ok

@@ -7,6 +7,18 @@ Name, kein Logo.
 - Zweig: `app/kalender-countdown-nachrichten` (Ordner `~/Studora-Builds/wt-kalender-countdown`), abgezweigt von
   `release/1.0.8-alles` @ 75ddc104. Lokal committet, **nicht gepusht**, in **keinem** Build.
 - Ziel: der Build **nach** 1.0.8 (Build 50). Nichts davon ist in Build 50.
+- 27.11.2026: Auftrag des Inhabers (über die Hauptsitzung, wörtlich) „mach. al das jetzt este und implemntiere wenn zu
+  100% fertig ist“ → für **Version 1.0.9**. Zweig auf `release/1.0.8-alles` @ 502c00e4 gebracht (Merge 450b36ee).
+
+## Entscheidungen des Inhabers (27.11.2026, Rückfrage in dieser Sitzung)
+
+- Erinnerung vor der Vorlesung: **„Ja, Schalter, aus (Empfohlen)“** → gebaut, siehe Abschnitt 4.
+- Countdown an Tagen ohne Vorlesung: **„Nein, so lassen (Empfohlen)“**.
+- Schalter „Termine im Kalender“ in der Einführung: **„Nein, nur Einstellungen (Empfohlen)“**.
+- Vorgaben und Texte (Kalender aus, „Ganzes Semester“, „Fällt aus“, Sperrbildschirm ohne Betreff, kein
+  Nachrichtentext, Uni-Mail mitzählen, iOS-Erlaubnistext, Datenschutz-Absatz „Kalender und Widgets“):
+  **„Ja, so lassen (Empfohlen)“**. Den Absatz für Website und Dienst setzt die Hauptsitzung ein (unten,
+  „Was der Inhaber entscheiden muss“ Punkt 2, ergänzt um die Erinnerung).
 
 ## 1. Termine im Kalender
 
@@ -109,6 +121,24 @@ Schnappschuss `home-widget.json`, neues Feld `messages`; alte Schnappschüsse bl
 Betreff, Uni-Mail dazu, Sperrbildschirm-Größen, genaue Zählung (Stud.IP-Stand und App-Stand), Schutz des Inhalts auf
 dem Sperrbildschirm, Antippen öffnet die richtige Seite.
 
+## 4. Erinnerung vor der Vorlesung (27.11.2026)
+
+- Einstellungen → Karte **„Mitteilungen“** → Schalter **„Vor jeder Vorlesung“** (Vorgabe aus). Erst das Einschalten
+  fragt iOS nach Mitteilungen; abgelehnt: Schalter bleibt aus, Hinweis wie bei den anderen Mitteilungen.
+- Zeit wählbar: 5, 10 (Vorgabe), 15 oder 30 Minuten vorher.
+- Mitteilung: „In 10 Min: Analysis I“, darunter „10:15–11:45 · F 102“. Antippen öffnet den Stundenplan an dem Tag; ist
+  die App offen, erscheint sie als Banner.
+- Nur besuchte Termine: Ausfall, „nicht besucht“ und verlegt melden sich nicht (der verlegte am neuen Platz schon);
+  Ausfälle laut Stud.IP sind ausgeblendet wie überall. Raum und Zeit aus dem Vorkommen (Raumänderungen, Bearbeitung).
+- Höchstens 10 auf einmal, die frühesten zuerst (iOS behält nur 64 Mitteilungen je App). Solange der Schalter an ist,
+  rücken die Erinnerungen an Abgaben und Prüfungen von 60 auf 50 zusammen.
+- Neu geplant beim Öffnen, nach jedem Abgleich (auch im Hintergrund), beim Verlassen der App (eigene Änderungen im
+  Stundenplan) und beim Wechsel des Kontos. Demo plant nichts. Kennungen `de.uniflow.ai.lecture.*`, andere Mitteilungen
+  bleiben unberührt. Nichts geht an einen Server.
+- Für alle Tarife (wie der Kalender), nicht an Pro AI gebunden.
+- Code: `UniFlow/Services/LectureReminders.swift` (`LectureReminders`, `LectureReminderScheduler`,
+  `LectureReminderRows`); Tests `UniFlowTests/VorlesungErinnerungAppTests.swift` (5 Tests, echte lokale Datenbank).
+
 ## Vergleich mit dem Code des Vorbilds (26.11.2026, nachmittags)
 
 Gelesen (nur gelesen, nichts übernommen): Kalender-Abgleich, Countdown, Widgets und Postfach der freien App (Stand
@@ -126,11 +156,11 @@ als Zahl (klein, rund, Zeile).
 **Wo das Vorbild weiter ist (nicht gebaut, Entscheidung des Inhabers):**
 1. ~~Gelesen je Nachricht~~ – **entschieden und gebaut (26.11.2026): nur in StudiNow** (siehe Widget „Nachrichten“).
    Unterschied zum Vorbild bleibt: dort wird es auch in Stud.IP gesetzt, bei uns bewusst nicht.
-2. **Erinnerung vor dem Termin** (Mitteilung z. B. 10 Minuten vor der Vorlesung, Wochenende ruhig) – haben wir nur für
+2. ~~Erinnerung vor dem Termin~~ – **entschieden und gebaut (27.11.2026)**, Abschnitt 4. Vorher: Mitteilung z. B. 10 Minuten vor der Vorlesung – hatten wir nur für
    Abgaben und Prüfungen.
-3. **Countdown an Tagen ohne Uni-Termin:** das Vorbild zeigt immer den nächsten Termin (eigene Karte). Bei uns gibt es an
+3. **Countdown an Tagen ohne Uni-Termin** (27.11.2026: Inhaber „Nein, so lassen“): das Vorbild zeigt immer den nächsten Termin (eigene Karte). Bei uns gibt es an
    solchen Tagen keine Karte „Heute an der Uni“ und damit keinen Countdown (Vorgabe „keine neue Karte“).
-4. **Schalter schon in der Einführung** (beim ersten Start) – bei uns nur in den Einstellungen.
+4. **Schalter schon in der Einführung** (27.11.2026: Inhaber „Nein, nur Einstellungen“) (beim ersten Start) – bei uns nur in den Einstellungen.
 
 ## Getestet
 
@@ -192,7 +222,8 @@ als Zahl (klein, rund, Zeile).
    Raum, Lehrende, Link in die App) in einen eigenen Kalender „StudiNow“ auf deinem Gerät ein. Liegt dein Kalender in
    iCloud, synchronisiert Apple ihn wie deine anderen Kalender. StudiNow liest nur diesen eigenen Kalender. Die Widgets
    zeigen Termine, Mensa und die Zahl ungelesener Nachrichten mit Absender und Betreff aus den Daten auf deinem Gerät;
-   nichts davon geht an einen Server von StudiNow.“
+   nichts davon geht an einen Server von StudiNow. Schaltest du „Vor jeder Vorlesung“ ein, plant StudiNow die
+   Mitteilungen auf deinem Gerät; auch dafür geht nichts an einen Server.“
 3. **App-Datenschutz in App Store Connect / `PrivacyInfo.xcprivacy`:** keine neue Datenart (nichts verlässt das Gerät
    Richtung StudiNow; EventKit ist keine „Required Reason“-Schnittstelle). Hinweis: Der Kommentar im Manifest sagt noch
    „UserDefaults … keine App Group“ – seit den Widgets stimmt das nicht mehr (Text anpassen, keine neue Angabe nötig).
