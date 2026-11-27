@@ -53,8 +53,8 @@ struct SheetEditorView: View {
         .onReceive(NotificationCenter.default.publisher(for: UIResponder.keyboardWillHideNotification)) { _ in keyboardUp = false }
         .onChange(of: showAI) { _, open in
             model.dialogOpen = open || titleChart != nil
-            // Fehler der KI auch zeigen, wenn das Feld schon zu ist
-            if !open, let e = model.aiError { model.notice = e; model.aiError = nil }
+            // im Feld schon gelesen: nicht noch einmal unter der Tabelle zeigen
+            if !open { model.aiError = nil }
         }
         .onChange(of: model.aiError) { _, e in
             if let e, !showAI { model.notice = e; model.aiError = nil }
