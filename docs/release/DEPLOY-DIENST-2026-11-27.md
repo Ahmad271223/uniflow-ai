@@ -37,3 +37,9 @@ Freigabe des Inhabers auf „Soll ich die zwei Server-Lücken jetzt beheben, tes
 Tests: Server 4156 + node 473 grün. Backup `uniflow-2026-11-27_1851.tar.gz`. `docker compose up -d --build`: healthy,
 keine Fehlerzeilen, `dienst-check.sh`: alle Prüfungen bestanden; im Dienst bestätigt (`charges_credits` True/True,
 `sandbox_once_days()` 1). Zurück auf `67430b23` wie oben.
+
+## Nachtrag 18:56 – Sicherheits-Updates des Systems und Neustart
+Inhaber: „mach jz“. `unattended-upgrade`: libexpat1, libgssapi-krb5-2, libk5crypto3, libkrb5-3, libkrb5support0,
+libpcap0.8t64, python3-jwt (nur Sicherheits-Updates; 14 andere bleiben). Neustart 18:56:55, SSH 18:58, Container
+(unless-stopped) healthy, „Neustart nötig“ weg, `dienst-check.sh`: alle Prüfungen bestanden, ufw und fail2ban aktiv;
+von außen `/login` 200, API 401, studinow.app 200. Auszeit etwa 1,5 Minuten.
