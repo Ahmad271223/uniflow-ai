@@ -170,7 +170,14 @@ abgeschickt, keine Inhalte notiert):
 - Schwarzes Brett (Themenliste, RSS), Aufzeichnungs-Wege (403/500/leeres V3-JSON), Veranstaltungsarten.
 - Speiseplan des Studierendenwerks (öffentlich).
 
-**Nicht** mit dem echten Konto geprüft (nur gegen die Nachbildung):
+**Echter Kontotest in der App (27.11.2026, Build-Sitzung mit dem Inhaber, „Ja, angemeldet“, Debug-Build auf
+release/1.0.8-alles):** Anmeldung und Abgleich in Ordnung – 9 Kurse, 153 Dateien, 15 Stundenplan-Termine, 7 Nachrichten,
+9 Ankündigungen, 34 Einträge am Schwarzen Brett; Stundenplan, Nachrichten, Module, Übersicht angesehen. Drei Fehler dort
+gefunden und in release behoben: d9bda316 (maskiertes `&lt;div&gt;&lt;/div&gt;` am Ende von Nachrichten), 028ee2a8
+(Anführungszeichen im Titel trennten Vorlesung und Übung in zwei Module), 8f3cb718 (kurz „Offline – Stand vor …“ beim
+Laden). Die Hintergrund-Anmeldung ohne Fenster bleibt gesperrt, bis der Inhaber sie freigibt.
+
+Vor dem Kontotest **nicht** mit dem echten Konto geprüft (nur gegen die Nachbildung):
 - Die Anmeldung *in der App* selbst (Anmeldefenster, „Passwort merken“, Fehlermeldung bei falschem Passwort – deren
   Wortlaut ist geraten: `messagebox_error`). Die stille Neuanmeldung nach Ablauf der Sitzung; wie lange die Sitzung hält.
 - Ein voller Abgleich der App gegen das echte Stud.IP (Menge, Dauer, große Dateien, Unterordner, gesperrte Ordner).
