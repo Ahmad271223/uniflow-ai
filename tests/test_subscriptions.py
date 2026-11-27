@@ -57,7 +57,19 @@ def end_trial(user_id):
         conn.close()
 
 
-def user(app, email, plan="free", uni="luh", admin=False, verified=True):
+def give_credits(user_id, n=200, tid=None):
+    """Gekaufte Credits direkt in den Topf des Kontos (wie ein Kauf eines Credit-Pakets, ohne Apple). 26.11.2026 neues
+    Modell: die StudiNow-KI geht nur mit Credits; Plus hat keine Monats-Credits und nutzt dafuer gekaufte."""
+    from app import credits
+    conn = credits.connect()
+    try:
+        return credits.grant_purchase(conn, user_id, "test", tid or f"test-{user_id}-{n}", n, product_id="de.uniflow.credits.gross")
+    finally:
+        conn.close()
+
+
+def user(app, email, plan="free", uni="luh", admin=False, verified=True, credits=0):
+    """Konto nach der Probe mit Tarif `plan`; `credits` > 0: so viele gekaufte Credits dazu (give_credits)."""
     from app import accounts
     st, d = _j(asgi_call(app, "POST", "/api/account/register", body=json.dumps({"email": email, "password": "sehr-geheim-123", "university": uni})))
     assert st == 201, d
@@ -69,6 +81,8 @@ def user(app, email, plan="free", uni="luh", admin=False, verified=True):
         accounts.set_plan(d["user"]["id"], plan)
     if admin:
         accounts.set_role(d["user"]["id"], "admin")
+    if credits:
+        give_credits(d["user"]["id"], credits)
     return d["user"], {"Authorization": f"Bearer {d['token']}"}
 
 
@@ -223,8 +237,10 @@ def test_01_free_cannot_save_annotations(hosted):
     assert st == 200 and d["version"] == 0, "nichts gespeichert"
 
 
-def test_02_plus_can_annotate_but_syncs_notes_only_with_pro_ai(hosted):
-    """Plus schreibt Notizen (je Geraet); der Abgleich der Notizen zwischen Geraeten erst mit Pro AI (04.11.2026)."""
+def test_02_plus_can_annotate_and_syncs_notes(hosted):
+    """Plus schreibt Notizen und gleicht sie zwischen Geraeten ab. 26.11.2026 neues Modell: der Abgleich
+    (can_sync_annotations) gehoert zu Plus (frueher erst Pro AI, 04.11.2026); nach dem Herabstufen auf Free wird der
+    Abgleich der Notizen abgewiesen."""
     u, h = user(hosted, "plus@beispiel.de", plan="plus")
     add_file(hosted, h)
     st, d = put_note(hosted, h)
@@ -232,21 +248,30 @@ def test_02_plus_can_annotate_but_syncs_notes_only_with_pro_ai(hosted):
     push = {"device_id": "ipad", "items": [
         {"entity": "annotations", "id": "f1", "base_version": 1, "data": {"pages": {"1": {"objects": [{"id": "s2"}]}}}}]}
     st, d = _j(asgi_call(hosted, "POST", "/api/sync/push", headers=h, body=json.dumps(push)))
-    assert (d["results"][0]["status"], d["results"][0]["required_plan"]) == ("plan_required", "pro_ai")
+    assert st == 200 and d["results"][0]["status"] == "applied", d
     from app import accounts
-    accounts.set_plan(u["id"], "pro_ai")
+    accounts.set_plan(u["id"], "free")
+    push["items"][0]["base_version"] = 2
     st, d = _j(asgi_call(hosted, "POST", "/api/sync/push", headers=h, body=json.dumps(push)))
-    assert d["results"][0]["status"] == "applied"
+    assert (d["results"][0]["status"], d["results"][0]["required_plan"]) == ("plan_required", "plus"), d
 
 
 # ---------------------------------------------------------------- 3, 4, 5: Kontingente und Rechte je Tarif
 
-def test_03_plus_gets_four_new_ai_tests_per_month(hosted):
-    """Plus: 4 neue KI-Tests im Monat (Tabelle des Inhabers vom 04.11.2026; vorher 3)."""
-    from app import ai_backend
+def test_03_plus_gets_new_ai_tests_only_with_credits_and_the_quota_counts(hosted, monkeypatch):
+    """26.11.2026 neues Modell: Plus hat das Kontingent von Pro AI (20 neue KI-Tests im Monat, frueher 4), erzeugt neue
+    KI-Tests aber nur mit Credits. Ohne Credits: 429 credits_exhausted mit dem Stand, kein KI-Aufruf, nichts gezaehlt.
+    Mit gekauften Credits zaehlt jede Generierung, am Ende des Kontingents 429 quota_exhausted (hier auf 4 gesetzt)."""
+    from app import ai_backend, plans
     fake = FakeAI()
     ai_backend.set_provider(fake)
     u, h = user(hosted, "plus3@beispiel.de", plan="plus")
+    assert ent(hosted, h)["quotas"]["ai_tests_new"]["limit"] == 20
+    st, d = library_test(hosted, h, "Determinanten")
+    assert (st, d["code"], d["credits"]["available"], d["credits"]["can_buy"]) == (429, "credits_exhausted", 0, True), d
+    assert fake.calls == 0 and ent(hosted, h)["quotas"]["ai_tests_new"]["used"] == 0
+    give_credits(u["id"], 500)
+    monkeypatch.setitem(plans.QUOTAS["plus"], "ai_tests_new", 4)
     for topic in ("Determinanten", "Basiswechsel", "Orthogonalprojektion", "Spektralsatz"):
         st, d = library_test(hosted, h, topic)
         assert st == 200 and d["charged"] == "ai_tests_new" and d["generated"] >= 5, d
@@ -257,9 +282,11 @@ def test_03_plus_gets_four_new_ai_tests_per_month(hosted):
     assert (q["used"], q["limit"]) == (4, 4)
 
 
-def test_04_learning_stats_are_pro_ai_and_old_pro_connect_rows_count_as_pro_ai(hosted):
+def test_04_learning_stats_are_plus_and_old_pro_connect_rows_count_as_pro_ai(hosted):
     """Pro Connect gibt es seit dem 04.11.2026 nicht mehr: seine Rechte (Lernstatistik, Wiederholung, Empfehlungen,
-    Testliste) gehoeren zu Pro AI; eine alte Zeile mit pro_connect gilt wie Pro AI (plans.LEGACY_PLANS)."""
+    Testliste) gehoerten zu Pro AI; eine alte Zeile mit pro_connect gilt wie Pro AI (plans.LEGACY_PLANS).
+    26.11.2026 neues Modell: diese Rechte gibt es ab Plus; Free bekommt 403 mit dem Weg zu Plus."""
+    _, h_free = user(hosted, "f@beispiel.de")
     _, h_plus = user(hosted, "p@beispiel.de", plan="plus")
     u, h = user(hosted, "pc@beispiel.de", plan="pro_ai")
     e = ent(hosted, h)
@@ -270,8 +297,9 @@ def test_04_learning_stats_are_pro_ai_and_old_pro_connect_rows_count_as_pro_ai(h
     assert e["quotas"]["library_tests"]["unlimited"] and e["quotas"]["ai_tests_new"]["limit"] == 20
     for path in ("/api/learning/stats", "/api/learning/review", "/api/learning/recommendations"):
         assert asgi_call(hosted, "GET", path, headers=h)[0] == 200, path
-        st, d = _j(asgi_call(hosted, "GET", path, headers=h_plus))
-        assert (st, d["required_plan"]) == (403, "pro_ai"), path
+        assert asgi_call(hosted, "GET", path, headers=h_plus)[0] == 200, path
+        st, d = _j(asgi_call(hosted, "GET", path, headers=h_free))
+        assert (st, d["required_plan"]) == (403, "plus"), path
 
 
 def test_05_pro_ai_gets_twenty_tests_and_studora_ai(hosted):
@@ -285,9 +313,10 @@ def test_05_pro_ai_gets_twenty_tests_and_studora_ai(hosted):
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h, body=json.dumps({"mode": "explain", "page_text": "Matrizen"})))
     assert st == 200 and "Matrix" in d["answer"], d
     assert ent(hosted, h)["quotas"]["ai_assist"]["used"] == 1
+    # 26.11.2026 neues Modell: Plus hat das Recht, aber ohne Credits keine StudiNow-KI (429 statt 403 Pro AI)
     _, h_plus = user(hosted, "noai@beispiel.de", plan="plus")
     st, d = _j(asgi_call(hosted, "POST", "/api/ai/tutor", headers=h_plus, body=json.dumps({"mode": "explain"})))
-    assert (st, d["required_plan"]) == (403, "pro_ai")
+    assert (st, d["code"], d["credits"]["available"]) == (429, "credits_exhausted", 0), d
 
 
 def test_06_all_plans_keep_basic_functions(hosted):
@@ -337,7 +366,9 @@ def test_08_downgrade_takes_effect_at_renewal(hosted, apple):
                                               apple.renewal(otid, "de.uniflow.plus.monthly")))
     assert st == 200 and d["plan"] == "plus" and d["pending_plan"] is None
     e = ent(hosted, h)
-    assert e["plan"] == "plus" and not e["entitlements"]["can_use_ai_explanations"] and e["entitlements"]["can_annotate_pdf"]
+    # 26.11.2026 neues Modell: Plus hat die KI-Rechte, aber keine Monats-Credits mehr (KI nur mit gekauften Credits)
+    assert e["plan"] == "plus" and e["entitlements"]["can_annotate_pdf"]
+    assert (e["credits"]["allowance"], e["credits"]["available"]) == (0, 0), e["credits"]
 
 
 def test_09_10_expiry_disables_premium_but_keeps_notes(hosted, apple):
@@ -497,7 +528,8 @@ def test_13_parallel_generation_creates_no_duplicates(hosted):
     from app import ai_backend, test_library
     fake = FakeAI(delay=0.6)
     ai_backend.set_provider(fake)
-    heads = [user(hosted, f"par{i}@beispiel.de", plan="plus")[1] for i in range(2)]
+    # 26.11.2026 neues Modell: neue KI-Tests mit Plus nur mit Credits
+    heads = [user(hosted, f"par{i}@beispiel.de", plan="plus", credits=200)[1] for i in range(2)]
     results = []
 
     def run(h):
@@ -552,7 +584,7 @@ def test_harder_test_uses_harder_questions_or_generates_only_missing(hosted):
              "difficulty": 5} for i in range(3)]
     test_library.add(easy, meta, "studora_ai", "auto_checked")
     test_library.add(hard, {**meta, "difficulty": 5}, "studora_ai", "auto_checked")
-    _, h = user(hosted, "hart@beispiel.de", plan="plus")
+    _, h = user(hosted, "hart@beispiel.de", plan="plus", credits=200)     # 26.11.2026 neues Modell: KI nur mit Credits
     st, d = library_test(hosted, h, "Matrizen Spur", count=5, difficulty=4, harder=True)
     assert st == 200 and d["charged"] == "ai_tests_new" and fake.calls == 1, d
     st, t = _j(asgi_call(hosted, "GET", f"/api/tests/{d['test_id']}", headers=h))
@@ -646,7 +678,9 @@ def test_plans_fixture_is_current():
 
 def test_plan_table_matches_the_order():
     from app import plans
-    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 1999, 3999], "drei Tarife, nur Jahresabos (09.11.2026)"
+    # 26.11.2026 neues Modell: Plus 1,99 EUR im Monat (oder 39,99 EUR fuer 5 Jahre, plans.OFFERS), Pro AI 39,99 EUR im Jahr
+    assert [plans.PLANS[k]["price_cents"] for k in plans.ORDER] == [0, 199, 3999], "drei Tarife (26.11.2026)"
+    assert [plans.PLANS[k]["period"] for k in plans.ORDER] == [None, "month", "year"]
     assert plans.ORDER == ("free", "plus", "pro_ai") and not any(plans.PLANS[k].get("legacy") for k in plans.ORDER)
     assert [plans.is_sellable(k) for k in ("free", "plus", "pro_ai", "pro_connect")] == [False, True, True, False]
     for low, high in zip(plans.ORDER, plans.ORDER[1:]):
@@ -691,11 +725,13 @@ def test_replayed_request_id_gets_409_and_no_provider_call_tutor(hosted):
     assert ent(hosted, h2)["quotas"]["ai_assist"]["used"] == 1
 
 
-def test_replayed_request_id_gets_409_and_no_provider_call_library(hosted):
-    from app import ai_backend
+def test_replayed_request_id_gets_409_and_no_provider_call_library(hosted, monkeypatch):
+    from app import ai_backend, plans
     fake = FakeAI()
     ai_backend.set_provider(fake)
-    _, h = user(hosted, "wdh-lib@beispiel.de", plan="plus")
+    # 26.11.2026 neues Modell: Plus erzeugt neue KI-Tests nur mit Credits und hat 20 je Monat; hier auf 4 gesetzt
+    monkeypatch.setitem(plans.QUOTAS["plus"], "ai_tests_new", 4)
+    _, h = user(hosted, "wdh-lib@beispiel.de", plan="plus", credits=500)
     for i, topic in enumerate(("Determinanten", "Basiswechsel", "Orthogonalprojektion", "Spektralsatz")):
         st, d = library_test(hosted, h, topic, request_id=f"lib-{i}")
         assert st == 200 and d["charged"] == "ai_tests_new", d
@@ -743,13 +779,16 @@ def test_other_accounts_request_id_gives_no_bypass_and_failed_call_refunds_only_
 
 def test_yearly_products_map_to_the_same_plan():
     """Seit 09.11.2026 nur Jahresabos (Plus 19,99 EUR, Pro AI 39,99 EUR); die frueheren Monatsprodukte gelten weiter wie
-    ihr Tarif, stehen aber nicht mehr im Vertrag."""
+    ihr Tarif, stehen aber nicht mehr im Vertrag. 26.11.2026 neues Modell: Plus ist wieder das Monatsabo (1,99 EUR) oder
+    5 Jahre einmalig; das Jahres-Plus gilt weiter als Plus, wird aber nicht mehr verkauft."""
     from app import plans as P
     assert P.plan_for_product("de.uniflow.plus.yearly") == "plus"
     assert P.plan_for_product("de.uniflow.proai.yearly") == "pro_ai"
     assert P.plan_for_product("de.uniflow.plus.monthly") == "plus"
     assert P.plan_for_product("de.uniflow.free.yearly") is None
+    assert P.plan_for_product("de.uniflow.plus.fuenfjahre") == "plus"
     c = P.contract()["plans"]
-    assert (c["plus"]["price_cents"], c["pro_ai"]["price_cents"]) == (1999, 3999)
+    assert (c["plus"]["price_cents"], c["pro_ai"]["price_cents"]) == (199, 3999)
+    assert (c["plus"]["apple_product_id"], c["pro_ai"]["apple_product_id"]) == ("de.uniflow.plus.monthly", "de.uniflow.proai.yearly")
     assert c["free"]["apple_product_id"] is None and c["free"]["period"] is None
     assert all("price_cents_yearly" not in c[k] for k in P.ORDER)

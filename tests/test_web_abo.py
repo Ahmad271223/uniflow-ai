@@ -5,7 +5,8 @@ der Entscheidung des Inhabers vom 04.11.2026.
   Konto-Pflicht, tests/test_account_mode.py): keine Kaufwege; StudiNow Pro AI steht ohne Preis und ohne Knopf als
   "kommt mit dem StudiNow-Dienst" da.
 - Dienst mit Stripe: Kaufknoepfe nur an Plus und Pro AI, nie an Free; waehrend der Probe ist kein Tarif "Dein Tarif",
-  die Karte "Pro AI" traegt "Probe läuft" und bleibt kaufbar. Nach der Probe gilt seit 05.11.2026 die Abo-Pflicht im
+  die Karte "Pro AI" traegt "Probe läuft" und bleibt kaufbar (26.11.2026 neues Modell: die Probe ist Plus, die Karte
+  "Plus" traegt "Probe läuft"). Nach der Probe gilt seit 05.11.2026 die Abo-Pflicht im
   Web (Entscheidung des Inhabers, app/access.py): "Kein aktives Abo", nur ansehen und exportieren, kein "Bei Free
   bleiben" mehr (bewusst geaendert, vorher war Free dort "Dein Tarif").
 - Nirgends Pro Connect, "1 Woche gratis" oder ein Einfuehrungsangebot.
@@ -44,7 +45,8 @@ def test_local_pro_ai_card_has_no_price_and_no_buy_path(served):  # noqa: F811
             cards = _cards(page)
             assert [c["name"] for c in cards] == ["StudiNow Free", "StudiNow Plus", "StudiNow Pro AI"], "genau drei Karten"
             free, plus, pro = cards
-            assert "0 €" in free["text"] and "19,99 €" in plus["text"] and "/ Jahr" in plus["text"] and "Monat" not in plus["text"].split("Jahr")[0]
+            # 26.11.2026 neues Modell: Plus 1,99 € im Monat (oder einmalig 39,99 € fuer 5 Jahre in der Apple-App)
+            assert "0 €" in free["text"] and "1,99 € / Monat" in plus["text"] and "39,99 € für 5 Jahre" in plus["text"], plus["text"]
             assert "kommt mit dem StudiNow-Dienst" in pro["text"] and "Braucht den StudiNow-Dienst" in pro["text"]
             assert "39,99" not in pro["text"] and "€" not in pro["text"], "Pro AI ohne Preis"
             assert all(c["buttons"] == [] and c["buy"] == 0 for c in cards), "im Einzelplatz kein Knopf an einer Karte"
@@ -90,12 +92,14 @@ def test_hosted_trial_then_free_cards_and_buy_buttons(served_hosted, with_stripe
             cards = _cards(page)
             assert [c["name"] for c in cards] == ["StudiNow Free", "StudiNow Plus", "StudiNow Pro AI"]
             free, plus, pro = cards
-            assert "19,99 € / Jahr" in plus["text"] and "39,99 € / Jahr" in pro["text"] and "kommt mit dem StudiNow-Dienst" not in pro["text"]
+            # 26.11.2026 neues Modell: Plus 1,99 € im Monat, Pro AI 39,99 € im Jahr; die Probe ist Plus (Karte Plus traegt
+            # "Probe läuft", frueher Pro AI)
+            assert "1,99 € / Monat" in plus["text"] and "39,99 € / Jahr" in pro["text"] and "kommt mit dem StudiNow-Dienst" not in pro["text"]
             assert free["buy"] == 0 and plus["buy"] == 1 and pro["buy"] == 1, "Kaufen: Plus und Pro AI, nie Free"
-            assert "Probe läuft" in pro["badges"] and "Dein Tarif" not in sum((c["badges"] for c in cards), [])
+            assert "Probe läuft" in plus["badges"] and "Dein Tarif" not in sum((c["badges"] for c in cards), [])
             view = page.inner_text("#view")
-            assert "Probe: alles wie StudiNow Pro AI" in view and "ohne Zahlungsdaten" in view and "nie von selbst kostenpflichtig" in view
-            assert page.evaluate("document.querySelector('#view .sub').textContent.trim()") == "Probe: alles wie StudiNow Pro AI"
+            assert "Probe: alles wie StudiNow Plus" in view and "ohne Zahlungsdaten" in view and "nie von selbst kostenpflichtig" in view
+            assert page.evaluate("document.querySelector('#view .sub').textContent.trim()") == "Probe: alles wie StudiNow Plus"
             assert not VERBOTEN.search(view), view[:400]
             ctx.close()
 

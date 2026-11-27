@@ -33,7 +33,13 @@ def _count(app, headers, ref):
     return _j(asgi_call(app, "POST", PATH, body=json.dumps({"ref": ref}), headers=headers))
 
 
-def test_p43_06_adopt_quota_counts_per_account_across_devices(hosted):
+def test_p43_06_adopt_quota_counts_per_account_across_devices(hosted, monkeypatch):
+    """26.11.2026 neues Modell: Plus hat die Stapel unbegrenzt wie Pro AI (Fair Use 300, frueher 4 je Monat); die
+    Zaehlung je Konto ueber alle Geraete gilt weiter - hier mit einer Grenze von 4 geprueft."""
+    from app import plans
+    _, probe = user(hosted, "stapel-grenze@beispiel.de", plan="plus")
+    assert _count(hosted, probe, "community:stapel-0")[1]["limit"] == 300, "Plus: Fair Use 300"
+    monkeypatch.setitem(plans.QUOTAS["plus"], "card_stacks_adopted", 4)
     u, ipad1 = user(hosted, "stapel-konto@beispiel.de", plan="plus")
     ipad2 = _login(hosted, "stapel-konto@beispiel.de")                  # zweites Geraet, dasselbe Konto
     st, d = _count(hosted, ipad1, "community:stapel-1")

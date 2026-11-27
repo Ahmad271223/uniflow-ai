@@ -130,7 +130,7 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     assert "Im App Store laden" in html and "<strong>Jetzt im App Store</strong> für iPad und iPhone." in flat
     assert "Bald verfügbar" not in html and "iPhone-Version kommt bald" not in flat and "iPhone-Version folgt" not in flat
     iphone = flat.split("Gibt es StudiNow fürs iPhone?")[1].split("</details>")[0]
-    for s in ("Ja.", "Apple Pencil weiter am iPad", "StudiNow Free gilt für ein Gerät", "mit Pro AI nutzt du iPhone und iPad zusammen"):
+    for s in ("Ja.", "Apple Pencil weiter am iPad", "StudiNow Free gilt für ein Gerät", "mit Plus oder Pro AI nutzt du iPhone und iPad zusammen"):  # 26.11.2026
         assert s in iphone, s
     for anchor in ("laden", "uni", "funktionen", "so-gehts", "preise", "fragen"):
         assert f'id="{anchor}"' in html, anchor
@@ -166,12 +166,14 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
         assert s in mensa, s
     # Tarife wie app/plans.py, Probe wie docs/PREISLISTE.md
     from app import plans
-    for key, price in (("free", "0 €"), ("plus", "19,99 €"), ("pro_ai", "39,99 €")):
+    # Neues Modell (Entscheidung des Inhabers vom 26.11.2026, Zweig tarif/credits-neu): Plus 1,99 € im Monat oder
+    # 39,99 € einmalig fuer 5 Jahre, Pro AI 39,99 € im Jahr mit 120 Credits je Monat, KI nur mit Credits
+    for key, price in (("free", "0 €"), ("plus", "1,99 €"), ("pro_ai", "39,99 €")):
         assert plans.PLANS[key]["name"] in html and f'<span class="amount">{price}</span>' in html, key
-    # nur Jahresabos (Entscheidung des Inhabers vom 09.11.2026)
-    assert plans.PLANS["plus"]["price_cents"] == 1999 and plans.PLANS["pro_ai"]["price_cents"] == 3999
-    assert "pro Monat</span>" not in html and "um ein Jahr" in flat
-    assert "7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten" in flat and "deine Daten bleiben" in flat
+    assert "39,99 € für 5 Jahre" in flat and "kein Abo, endet von selbst" in flat
+    assert "120 Credits jeden Monat neu" in flat and "funktioniert nur mit Credits" in flat and "in Free nicht" in flat
+    assert "um einen Monat" in flat and "um ein Jahr" in flat
+    assert "7 Tage alles wie StudiNow Plus, dazu 25 Credits" in flat and "deine Daten bleiben" in flat
     assert "24 Stunden" in flat and 'href="nutzungsbedingungen.html"' in html
     assert html.count("<details>") >= 5 and "<summary>" in html
     # ehrlich: keine Formulare/Suchfelder, keine Nutzerzahlen oder Stimmen, kein Anbieter-Name der KI
@@ -199,18 +201,18 @@ def test_start_page_images_are_small_demo_screenshots_for_light_and_dark():
 
 
 def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_promises():
-    """https://studinow.app/i/<CODE> (docs/EINLADUNGEN.md): erklaert die Einladung, fuehrt zum App Store, Stufen wie
-    in app/invites.py, Pfade relativ zur Wurzel (../), nicht in der Navigation, kein Skript."""
+    """https://studinow.app/i/<CODE> (docs/EINLADUNGEN.md): erklaert die Einladung, fuehrt zum App Store, seit
+    27.11.2026 ohne Belohnungen, Pfade relativ zur Wurzel (../), nicht in der Navigation, kein Skript."""
     html = page("i/index.html")
     assert html.startswith("<!doctype html>\n<html lang=\"de\">") and "<script" not in html
     assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../favicon.png"' in html and 'href="../index.html"' in html
     assert '<main id="inhalt" class="doc invite">' in html and "<h1>Du bist zu StudiNow eingeladen</h1>" in html
     assert 'class="btn btn-store" href="https://apps.apple.com/de/app/id6830632088"' in html and "Im App Store laden" in html
     assert "<strong>Jetzt im App Store</strong> für iPad und iPhone." in html and "Bald verfügbar" not in html
-    for s in ("1 Monat StudiNow Plus gratis", "3 Monate StudiNow Plus gratis", "12 Monate StudiNow Plus gratis",
-              "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 € für das Jahr)", "30 Tage", "Pro Person zählt eine Einladung",
-              "Angebotscodes", "nie automatisch", "nichts kaufen und nichts teilen"):
+    for s in ("30 Tage", "Pro Person zählt eine Einladung", "nichts kaufen und nichts teilen"):
         assert s in html, s
+    # seit 27.11.2026 keine Belohnungen (Inhaber)
+    assert not re.search(r"Belohnung|gratis|Angebotscode|Plus-Preis", html)
     assert 'href="../support.html"' in html and 'href="../datenschutz.html"' in html and "aria-current" not in html
     assert 'src="../logo.png"' in html and 'href="../index.html#preise"' in html
     assert not re.search(r"\bKI\b|ChatGPT|OpenAI", html), "keine KI-Versprechen auf oeffentlichen Seiten (docs/release/README.md)"

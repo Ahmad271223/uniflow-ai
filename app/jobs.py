@@ -274,6 +274,10 @@ class HostedQuota:
             conn.close()
         if limit <= 0:
             return f"Wochentests mit KI gibt es ab {plans.PLANS['plus']['name']} (dein Tarif: {plans.PLANS[plan]['name']})."
+        # 26.11.2026: StudiNow-KI nur mit Credits (die Wochentests kosten Credits, ai_backend.CREDIT_PURPOSES)
+        from . import entitlements
+        if plans.needs_credits("can_generate_studora_ai_tests") and entitlements.credits_available(self.user["id"]) <= 0:
+            return "Für Wochentests mit KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad."
         if used >= limit:
             return f"Kontingent für neue KI-Tests in diesem Monat aufgebraucht ({used} von {limit}); nächster Versuch im neuen Monat."
         return None

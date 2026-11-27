@@ -268,6 +268,16 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
     # Durch ein Upgrade ersetzte Transaktion (isUpgraded): gilt nicht mehr, setzt den Tarif nie zurueck (Audit P36-R3)
     stale = bool(seen and signed and signed < seen[1]) or bool(tx.get("isUpgraded"))
     expires = _ms_iso(tx.get("expiresDate"))
+    # Einmal bezahlt fuer Jahre (26.11.2026, plans.OFFERS kind non_renewing, "39,99 EUR einmalig fuer 5 Jahre"): Apple
+    # nennt kein Ende, der Dienst rechnet es aus der Kaufzeit; eigene Quelle, damit ein Monatsabo daneben es nie ueberschreibt
+    once = (plans.offer(tx.get("productId")) or {}).get("kind") == "non_renewing"
+    source = "app_store_once" if once else "app_store"
+    if once:
+        bought = _ms_iso(tx.get("purchaseDate") or tx.get("originalPurchaseDate"))
+        end = plans.offer_end(tx.get("productId"), billing._parse_utc(bought)) if bought else None
+        if end is None:
+            raise AppleError("jws_invalid", "Die Kaufdaten nennen keine Kaufzeit.")
+        expires, renewal = end.isoformat(), None
     ntype, subtype = notification or (None, None)
     if tx.get("revocationDate") or ntype in REVOKING:
         status = "revoked"
@@ -287,18 +297,18 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
     # Verlaengerungsinfo). Das ist kein Ablauf, solange die Frist aus DID_FAIL_TO_RENEW/GRACE_PERIOD fuer dieses Abo
     # laeuft; erst GRACE_PERIOD_EXPIRED bzw. das Ende der Frist beendet sie.
     if status == "expired" and ntype is None:
-        cur = conn.execute("SELECT status, expires_at FROM entitlements WHERE user_id=? AND source='app_store' "
-                           "AND original_transaction_id=?", (uid, otid)).fetchone()
+        cur = conn.execute("SELECT status, expires_at FROM entitlements WHERE user_id=? AND source=? "
+                           "AND original_transaction_id=?", (uid, source, otid)).fetchone()
         if cur and cur[0] == "grace" and billing._row_active(cur[0], cur[1], t.isoformat()):
             stale = True
-    will_renew = bool(renewal.get("autoRenewStatus", 1)) if renewal else True
+    will_renew = False if once else (bool(renewal.get("autoRenewStatus", 1)) if renewal else True)
     pending = None
     if renewal and renewal.get("autoRenewProductId"):
         nxt = plans.plan_for_product(renewal["autoRenewProductId"])
         if nxt and nxt != plan:
             pending = nxt            # Wechsel zur naechsten Verlaengerung (Downgrade); ein Upgrade wirkt bei Apple sofort
     if not stale:
-        billing.set_entitlement(conn, uid, "app_store", plan, original_transaction_id=otid, expires_at=expires,
+        billing.set_entitlement(conn, uid, source, plan, original_transaction_id=otid, expires_at=expires,
                                 status=status, will_renew=will_renew, pending_plan=pending,
                                 environment=tx.get("environment"), now=t)
         conn.execute("""INSERT INTO apple_transactions(original_transaction_id, user_id, last_signed_date, product_id, updated_at)
@@ -306,7 +316,7 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
                         last_signed_date=excluded.last_signed_date, product_id=excluded.product_id, updated_at=excluded.updated_at""",
                      (otid, uid, signed, tx.get("productId"), t.isoformat()))
     row = conn.execute("SELECT plan, status, expires_at, will_renew, pending_plan, environment FROM entitlements "
-                       "WHERE user_id=? AND source='app_store'", (uid,)).fetchone()
+                       "WHERE user_id=? AND source=?", (uid, source)).fetchone()
     if row is None:              # nur eine ersetzte Transaktion gemeldet, noch kein Abo-Stand
         return {"plan": None, "status": None, "expires_at": None, "will_renew": False, "pending_plan": None,
                 "original_transaction_id": otid, "environment": None, "stale": stale}

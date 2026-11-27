@@ -25,7 +25,7 @@ import uuid
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from . import ai_backend, config, db, entitlements, test_library
+from . import ai_backend, config, db, entitlements, plans, test_library
 from .math_style import MATH_STYLE_JSON
 
 router = APIRouter()
@@ -136,6 +136,10 @@ def create_library_test(request: Request, body: dict = Body(...)):
         if len(found) >= MIN_TEST and may_reuse:
             entitlements.consume(request, "library_tests", rid + ":lib")
             return from_pool(found, len(found), 0, "library_tests")
+        # 26.11.2026 neues Modell: der Tarif (Plus, Pro AI) darf neue KI-Tests erzeugen, es fehlen nur die Credits ->
+        # 429 credits_exhausted mit dem Stand (die App zeigt die Credit-Pakete), nicht "zu wenig Fragen"
+        if plans.has(entitlements.plan_of(user), "can_generate_studora_ai_tests"):
+            raise entitlements.no_credits(user)
         raise HTTPException(409, {"detail": "Zu diesem Thema gibt es noch nicht genug geprüfte Fragen.", "code": "not_enough_questions"})
 
     entitlements.require_verified_for_ai(request)            # erzeugen kostet StudiNow-KI-Budget: nur mit bestaetigter E-Mail

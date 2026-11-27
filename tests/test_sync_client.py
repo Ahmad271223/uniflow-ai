@@ -171,9 +171,10 @@ def test_notes_for_a_file_not_yet_on_this_pc_wait(two_devices):
         assert json.loads(db.row(conn, "SELECT data FROM annotations WHERE file_id='studip-neu-9'")["data"])["pages"]["p1"]["objects"][0]["id"] == "x"
 
 
-@pytest.mark.parametrize("plan", ["free", "plus"])
-def test_free_and_plus_keep_notes_local_but_sync_plans(two_devices, plan):
-    """Plus gilt je Geraet (Entscheidung des Inhabers vom 04.11.2026): Notizen bleiben lokal, Plaene gleichen ab."""
+@pytest.mark.parametrize("plan, notes_sync", [("free", False), ("plus", True)])
+def test_free_keeps_notes_local_plus_syncs_them_and_plans_always_sync(two_devices, plan, notes_sync):
+    """Free: Notizen bleiben lokal, Plaene gleichen ab. Frueher galt auch Plus je Geraet (Entscheidung des Inhabers vom
+    04.11.2026); 26.11.2026 neues Modell: Plus gleicht die Notizen ab (can_sync_annotations ab Plus)."""
     app, ipad = two_devices
     from app import accounts, db, sync_client
     u = accounts.authenticate(ipad["Authorization"][7:])
@@ -182,9 +183,10 @@ def test_free_and_plus_keep_notes_local_but_sync_plans(two_devices, plan):
         conn.execute("INSERT INTO modules(name) VALUES ('Nur Plan')")
         conn.execute("INSERT INTO annotations(file_id, data, version) VALUES (?, ?, 1)", (FILE, json.dumps(page("lokal"))))
     out = sync_client.run()
-    assert out["ok"] and out["plan_required"], out
+    assert out["ok"] and bool(out["plan_required"]) is not notes_sync, out
     changes, _ = ipad_pull(app, ipad)
-    assert [m["name"] for m in changes["modules"]] == ["Nur Plan"] and "annotations" not in changes
+    assert [m["name"] for m in changes["modules"]] == ["Nur Plan"]
+    assert ("annotations" in changes) is notes_sync, changes.keys()
 
 
 def test_first_link_keeps_changed_settings_against_fresh_defaults(two_devices):

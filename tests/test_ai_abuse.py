@@ -44,7 +44,7 @@ def test_unverified_account_gets_no_studora_ai(hosted):
     ai_backend.set_provider(fake)
     u, h = trial_account(hosted, "neu@beispiel.de", verified=False)
     st, d = _j(asgi_call(hosted, "GET", "/api/entitlements", headers=h))
-    assert d["plan"] == "pro_ai" and d["source"] == "trial"
+    assert d["plan"] == "plus" and d["source"] == "trial"           # 26.11.2026 neues Modell: Probe = Plus
     assert _j(asgi_call(hosted, "GET", "/api/account/me", headers=h))[1]["user"]["email_verified"] is False
     st, d = tutor(hosted, h, "Matrizen")
     assert (st, d["code"]) == (403, "email_unverified") and "E-Mail-Adresse" in d["detail"]

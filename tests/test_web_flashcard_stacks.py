@@ -89,18 +89,15 @@ def test_ai_cards_share_and_adopt_in_the_browser(served_hosted, monkeypatch):  #
                 wait_text(page, "#toastEl", "Stapel geteilt")
                 ctx.close()
 
-                # Plus-Konto: Schloss beim KI-Auftrag, Reiter Karteikarten im Community-Kanal, uebernehmen
+                # Plus-Konto: Reiter Karteikarten im Community-Kanal, uebernehmen. 26.11.2026 neues Modell: Plus hat das
+                # Recht auf KI-Karteikarten (nur mit Credits, die prueft der Dienst: 429) - kein Schloss mehr am Auftrag
                 ctx = browser.new_context(bypass_csp=True)
                 login(ctx, base, tl)
                 page = ctx.new_page()
                 page.on("pageerror", lambda e: errors.append(str(e)))
                 page.goto(f"{base}/#/cards")
                 page.wait_for_selector("#aiOrder", timeout=T)
-                assert page.locator("#aiOrder rect").count() == 1, "Schloss statt Funken"
-                page.click("#aiOrder")
-                page.wait_for_selector(".modal a[href='#/abo']", timeout=T)
-                assert "Pro AI" in page.inner_text(".modal")
-                page.click(".modal button[data-close]")
+                assert page.locator("#aiOrder rect").count() == 0, "Funken statt Schloss: Plus hat das Recht"
                 page.goto(f"{base}/#/community?space={key}&tab=cards")
                 page.wait_for_selector("#ccPanel [data-adopt]", timeout=T)
                 assert "Woche 3" in page.inner_text("#ccPanel") and "4 Karten" in page.inner_text("#ccPanel")

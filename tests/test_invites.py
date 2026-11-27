@@ -1,7 +1,11 @@
 """Einladungen mit Angebotscodes (app/invites.py, app/invites_api.py, docs/EINLADUNGEN.md, Entscheidung des Inhabers
 04.11.2026): Links nur in der Probewoche und hoechstens 20, 30 Tage gueltig, Einloesung nur durch neue Konten (nach dem
 Link, einmal je Person, nie das eigene), Stufen 5/10/20 aus der gemeinsamen Fixture, Belohnung je Stufe einmal als
-Angebotscode mit Apples Einloese-Adresse, leerer Vorrat 409, Vorrat nur fuer Admins, Loeschen des Kontos, Export."""
+Angebotscode mit Apples Einloese-Adresse, leerer Vorrat 409, Vorrat nur fuer Admins, Loeschen des Kontos, Export.
+
+Seit 27.11.2026 gibt es keine Belohnungen mehr (Inhaber: "gar keine mehr, entnimm das komplett"): `TIERS` ist leer,
+Einloesen und Hochladen antworten 410 (test_rewards_are_off_*). Die Tests der ruhenden Stufen-Technik laufen mit der
+frueheren Tabelle (`rewards_on`), damit sie heil bleibt, falls der Inhaber Belohnungen wieder einschaltet."""
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -13,6 +17,27 @@ from test_subscriptions import _j, end_trial, hosted, user  # noqa: F401 - hoste
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE = ROOT / "packages" / "shared-contracts" / "fixtures" / "invites" / "cases.json"
+
+
+OLD_TIERS = (
+    {"count": 5, "choices": ("plus",), "label": "1 Monat Plus gratis"},
+    {"count": 10, "choices": ("plus",), "label": "3 Monate Plus gratis"},
+    {"count": 20, "choices": ("plus", "proai"), "label": "12 Monate Plus gratis oder Pro AI 12 Monate zum Plus-Preis"},
+)
+OLD_LABELS = {
+    (5, "plus"): "1 Monat StudiNow Plus gratis",
+    (10, "plus"): "3 Monate StudiNow Plus gratis",
+    (20, "plus"): "12 Monate StudiNow Plus gratis",
+    (20, "proai"): "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)",
+}
+
+
+@pytest.fixture
+def rewards_on(monkeypatch):
+    """Die Stufen bis 26.11.2026 (ruhende Technik pruefen)."""
+    from app import invites
+    monkeypatch.setattr(invites, "TIERS", OLD_TIERS)
+    monkeypatch.setattr(invites, "REWARD_LABELS", OLD_LABELS)
 
 
 def get(app, headers):
@@ -67,6 +92,35 @@ def test_reward_tiers_match_the_shared_fixture():
     assert (contract["max_links"], contract["link_days"], contract["create_days"], contract["link_base"]) == \
         (fx["max_links"], fx["link_days"], fx["create_days"], fx["link_base"])
     assert invites.reward_tier(-3) is None
+    # seit 27.11.2026 keine Belohnungen: keine Stufe, auch nicht bei 100 Personen
+    assert fx["tiers"] == [] and invites.TIERS == () and invites.reward_tier(100) is None
+
+
+def test_rewards_are_off_claim_and_upload_answer_410(hosted):
+    from app import invites
+    u, h = trial_account(hosted, "keine-belohnung@beispiel.de")
+    d = get(hosted, h)
+    assert (d["tiers"], d["tier"]) == ([], None), d
+    st, d = claim(hosted, h, 5)
+    assert (st, d["code"]) == (410, "invite_rewards_off") and d["detail"] == invites.REWARDS_OFF_MESSAGE, d
+    st, d = claim(hosted, h, 20, "proai")
+    assert (st, d["code"]) == (410, "invite_rewards_off"), d
+    _, admin = user(hosted, "betrieb-aus@beispiel.de", admin=True)
+    st, d = upload(hosted, admin, "plus", 5, ["PLUS5-A"])
+    assert (st, d["code"]) == (410, "invite_rewards_off"), d
+    # Links und Teilen bleiben
+    st, d = create(hosted, h)
+    assert st == 201 and d["invite"]["url"].startswith("https://studinow.app/i/"), d
+
+
+def test_rewards_are_off_in_every_public_text():
+    import re
+    texts = [ROOT / "docs" / "release" / "EINLADUNG.md", ROOT / "site" / "i" / "index.html",
+             ROOT / "apps" / "apple" / "Packages" / "UniFlowCore" / "Sources" / "UniFlowCore" / "Account" / "InviteRewards.swift",
+             ROOT / "apps" / "apple" / "UniFlow" / "Views" / "Settings" / "InviteView.swift"]
+    for f in texts:
+        t = f.read_text(encoding="utf-8")
+        assert not re.search(r"Plus gratis|zum Plus-Preis|19,99", t), f
 
 
 def test_codes_are_ten_unambiguous_characters_and_normalized():
@@ -88,7 +142,7 @@ def test_create_only_in_the_trial_week_and_at_most_twenty(hosted):
     u, h = trial_account(hosted, "ich@beispiel.de")
     d = get(hosted, h)
     assert (d["codes"], d["arrived"], d["max_links"], d["can_create"], d["tier"]) == ([], 0, 20, True, None)
-    assert [t["count"] for t in d["tiers"]] == [5, 10, 20] and not any(t["reached"] or t["claimable"] for t in d["tiers"])
+    assert d["tiers"] == [], "seit 27.11.2026 keine Belohnungen"
     assert "stock" not in d, "Vorrat nur fuer den Betrieb"
     st, d = create(hosted, h)
     assert st == 201 and d["invite"]["url"] == "https://studinow.app/i/" + d["invite"]["code"] and len(d["codes"]) == 1
@@ -168,6 +222,7 @@ def test_redeem_counts_new_accounts_once_never_self_and_only_in_the_window(hoste
 
 # ---------------------------------------------------------------- Stufen und Belohnungen
 
+@pytest.mark.usefixtures("rewards_on")
 def test_tiers_and_claims_hand_out_offer_codes_once_per_tier(hosted, monkeypatch):
     monkeypatch.setenv("LERNAPP_APPLE_APP_ID", "6741234567")
     _, admin = user(hosted, "betrieb@beispiel.de", admin=True)
@@ -197,9 +252,12 @@ def test_tiers_and_claims_hand_out_offer_codes_once_per_tier(hosted, monkeypatch
     assert st == 200, d
     assert (d["offer_code"], d["already"], d["reward"]) == ("PLUS5-A", False, "1 Monat StudiNow Plus gratis")
     assert d["redeem_url"] == "https://apps.apple.com/redeem?ctx=offercodes&id=6741234567&code=PLUS5-A"
-    assert d["apple_product_id"] == "de.uniflow.plus.yearly"
+    # 26.11.2026 neues Modell: das angebotene Plus-Produkt ist wieder das Monatsabo (plans.PLANS); welche Stufe die
+    # Einladung kuenftig belohnt, ist noch offen (docs/TARIFE-CREDITS-2026-11-26.md "Offen")
+    assert d["apple_product_id"] == "de.uniflow.plus.monthly"
     st, me = _j(asgi_call(hosted, "GET", "/api/entitlements", headers=h))
-    assert me["plan"] == "pro_ai" and me["source"] == "trial", "nur die Probe, kein von uns gesetzter Tarif"
+    # die laufende Probe ist seit 26.11.2026 Plus (frueher Pro AI)
+    assert me["plan"] == "plus" and me["source"] == "trial", "nur die Probe, kein von uns gesetzter Tarif"
     # zweites Mal: derselbe Code, kein zweiter aus dem Vorrat
     st, d = claim(hosted, h, 5)
     assert (st, d["offer_code"], d["already"]) == (200, "PLUS5-A", True)
@@ -219,6 +277,7 @@ def test_tiers_and_claims_hand_out_offer_codes_once_per_tier(hosted, monkeypatch
     assert (st, d["offer_code"], d["choice"], d["already"]) == (200, "PROAI20-A", "proai", True)
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_empty_stock_is_a_409_with_german_text_and_admins_see_the_warning(hosted, monkeypatch):
     monkeypatch.delenv("LERNAPP_APPLE_APP_ID", raising=False)
     from app import invites
@@ -241,6 +300,7 @@ def test_empty_stock_is_a_409_with_german_text_and_admins_see_the_warning(hosted
     assert get(hosted, admin)["stock_warning"] == ["plus:5", "plus:10", "plus:20", "pro_ai:20"]
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_offer_code_upload_needs_an_admin(hosted):
     _, h = trial_account(hosted, "normal@beispiel.de")
     st, d = upload(hosted, h, "plus", 5, codes=["A"])
@@ -252,6 +312,7 @@ def test_offer_code_upload_needs_an_admin(hosted):
 
 # ---------------------------------------------------------------- Loeschen und Export
 
+@pytest.mark.usefixtures("rewards_on")
 def test_purge_removes_invites_redemptions_and_rewards_but_keeps_handed_out_codes(hosted):
     from app import accounts, invites
     _, admin = user(hosted, "betrieb@beispiel.de", admin=True)
@@ -289,6 +350,7 @@ def test_purge_removes_invites_redemptions_and_rewards_but_keeps_handed_out_code
     assert (st, d["code"]) == (400, "invite_account_older")
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_export_lists_own_invites_without_guest_identities(hosted):
     import io
     import zipfile
@@ -330,6 +392,7 @@ def test_code_space_is_large_and_a_collision_draws_again(hosted, monkeypatch):
     assert sorted(c["code"] for c in d["codes"]) == sorted([first, "KKKKKKKKKK"])
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_rate_limits_on_create_redeem_and_claim(hosted, monkeypatch):
     """Je Konto gezaehlt, auch fehlgeschlagene Versuche (sonst liessen sich fremde Codes durchprobieren); 429 mit
     deutschem Text und Retry-After; ein anderes Konto ist nicht betroffen."""
@@ -374,6 +437,7 @@ def test_rate_limits_on_create_redeem_and_claim(hosted, monkeypatch):
     assert invites.limit_of("invite_claim_user") == invites.LIMITS["invite_claim_user"]
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_upload_ignores_malformed_lines_and_caps_the_batch(hosted):
     from app import invites
     _, admin = user(hosted, "betrieb@beispiel.de", admin=True)
@@ -407,6 +471,7 @@ def test_upload_ignores_malformed_lines_and_caps_the_batch(hosted):
     assert asgi_call(hosted, "GET", "/api/billing/offer-codes", headers=pro)[0] == 403
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_offer_codes_never_reach_others_errors_or_logs(hosted, caplog):
     """Ein Angebotscode erscheint nur in der Antwort an das Konto, das ihn abholt (und beim Admin nur als Zahl im
     Vorrat); nie in Fehlern, nie in der Uebersicht anderer, nie im Protokoll."""
@@ -451,6 +516,7 @@ def test_offer_codes_never_reach_others_errors_or_logs(hosted, caplog):
     assert (e.value.status, e.value.code) == (409, "offer_codes_exhausted") and "GEHEIM" not in e.value.message
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_no_enumeration_of_other_accounts_codes_or_counts(hosted):
     """Uebersicht und Export zeigen nur Eigenes; Antworten beim Einloesen nennen weder Einladenden noch dessen Zahlen."""
     a, ha = trial_account(hosted, "a@beispiel.de")
@@ -471,6 +537,7 @@ def test_no_enumeration_of_other_accounts_codes_or_counts(hosted):
         assert a["id"] not in json.dumps(d) and set(d) <= {"detail", "code"}
 
 
+@pytest.mark.usefixtures("rewards_on")
 def test_parallel_claims_hand_out_one_code_and_exhaust_cleanly(hosted):
     """Zwei gleichzeitige Abholungen desselben Kontos: ein Code, einer aus dem Vorrat; zwei Konten um den letzten Code:
     einer bekommt ihn, der andere 409 (BEGIN IMMEDIATE)."""

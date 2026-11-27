@@ -1,6 +1,12 @@
 """StudiNow-Tarife und Berechtigungen: die eine Tabelle fuer Server, Web, Windows und die Apps.
 
-Entscheidung des Inhabers vom 04.11.2026 (docs/PREISLISTE.md, docs/ABO-SYSTEM.md): drei Tarife Free, Plus, Pro AI.
+Neues Modell (Entscheidung des Inhabers vom 26.11.2026, docs/TARIFE-CREDITS-2026-11-26.md): verkauft werden nur noch
+Free; StudiNow Plus (1,99 EUR im Monat als Monatsabo oder 39,99 EUR einmalig fuer 5 Jahre, `OFFERS`); StudiNow Pro AI
+(39,99 EUR im Jahr = Plus + 120 Credits je Monat, die jeden Monat neu aufgeladen werden). Credits kann man in Plus und
+Pro AI dazukaufen, in Free nicht. Plus hat alle Funktionen ausser der KI; die StudiNow-KI (Rechte mit `needs_credits`)
+geht nur mit Credits (Monats-Credits von Pro AI, gekaufte oder die der Probe, app/entitlements.py `has`).
+
+Frueher (Entscheidung des Inhabers vom 04.11.2026, docs/PREISLISTE.md, docs/ABO-SYSTEM.md): drei Tarife Free, Plus, Pro AI.
 Seit 09.11.2026 (abends, docs/release/ABO-NUR-JAHR-2026-11-09.md) nur noch Jahresabos: Plus 19,99 EUR, Pro AI
 39,99 EUR im Jahr (Endkundenpreise, `price_cents` mit `period` "year", `apple_product_id` = Jahresabo). Die frueheren
 Monatsabos (1,99 / 3,99 EUR) werden nirgends mehr angeboten; ihre Apple-Produkte gelten beim Pruefen eines Kaufs weiter
@@ -40,19 +46,42 @@ LEGACY_PLANS = {"pro_connect": "pro_ai"}
 
 # nicht mehr angebotene Apple-Produkte -> Tarif: ein Kauf damit gilt weiter (Belege, Verlaengerungen, Sandbox), sie
 # stehen aber in keiner Liste, keinem Vertrag und keinem Text. Monatsabos bis 09.11.2026, Pro Connect bis 04.11.2026.
-LEGACY_PRODUCTS = {"de.uniflow.plus.monthly": "plus", "de.uniflow.proai.monthly": "pro_ai",
-                   "de.uniflow.proconnect.monthly": "pro_connect"}
+# Seit 26.11.2026 auch das Jahres-Plus (19,99 EUR) und die Pro-AI-Abos; das Monats-Plus ist wieder das angebotene Produkt.
+LEGACY_PRODUCTS = {"de.uniflow.plus.yearly": "plus", "de.uniflow.proconnect.monthly": "pro_connect"}
+
+# Was verkauft wird (26.11.2026): Plus und Pro AI (Free hat keinen Kauf)
+SELLABLE = ("plus", "pro_ai")
+
+# Die Angebote je Produkt (26.11.2026, Pro AI monatlich seit 27.11.2026). `kind`: auto_renewable (Abo, Apple/Stripe
+# verlaengern) oder non_renewing (einmal bezahlt, gilt `years` Jahre ab Kauf; bei Apple ein "Nicht verlaengerndes Abo",
+# das Ende rechnet der Dienst: apple_store.apply_transaction, `offer_end`). Reihenfolge = Reihenfolge der Uebersicht.
+# `group` (Inhaber 27.11.2026, Tarifuebersicht in App und Startseite): "monthly" (Free -> Plus 1,99 -> Pro AI 3,99),
+# "yearly" (Pro AI 39,99) und "special" (ganz stark hervorgehoben: "Bachelor+Master-Paket", Plus 5 Jahre einmalig).
+# `compare`: gegen welches Monatsabo die Ersparnis gerechnet wird (`savings`).
+OFFERS: dict[str, dict] = {
+    "de.uniflow.plus.monthly": {"plan": "plus", "kind": "auto_renewable", "price_cents": 199, "period": "month",
+                                "label": "1,99 € im Monat", "group": "monthly"},
+    "de.uniflow.proai.monthly": {"plan": "pro_ai", "kind": "auto_renewable", "price_cents": 399, "period": "month",
+                                 "label": "3,99 € im Monat", "group": "monthly"},
+    "de.uniflow.proai.yearly": {"plan": "pro_ai", "kind": "auto_renewable", "price_cents": 3999, "period": "year",
+                                "label": "39,99 € im Jahr", "group": "yearly", "compare": "de.uniflow.proai.monthly"},
+    "de.uniflow.plus.fuenfjahre": {"plan": "plus", "kind": "non_renewing", "price_cents": 3999, "years": 5,
+                                   "label": "39,99 € einmalig für 5 Jahre", "group": "special",
+                                   "name": "Bachelor+Master-Paket", "badge": "Unser Special", "highlight": True,
+                                   "compare": "de.uniflow.plus.monthly"},
+}
+OFFER_GROUPS = (("monthly", "Monatlich"), ("yearly", "Jährlich"), ("special", "Unser Special"))
 
 PLANS: dict[str, dict] = {
     "free": {"rank": 0, "name": "StudiNow Free", "price_cents": 0, "currency": "EUR", "period": None,
              "apple_product_id": None,
              "tagline": "Studium organisieren und Unterlagen lesen"},
-    "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 1999, "currency": "EUR", "period": "year",
-             "apple_product_id": "de.uniflow.plus.yearly",
-             "tagline": "Mit Stift auf deinen Unterlagen schreiben, eigene Karteikarten und Community"},
+    "plus": {"rank": 1, "name": "StudiNow Plus", "price_cents": 199, "currency": "EUR", "period": "month",
+             "apple_product_id": "de.uniflow.plus.monthly",
+             "tagline": "Alle Funktionen ohne KI – KI mit Credits dazu"},
     "pro_ai": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 3999, "currency": "EUR", "period": "year",
                "apple_product_id": "de.uniflow.proai.yearly",
-               "tagline": "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"},
+               "tagline": "Alles aus Plus und 120 Credits für die StudiNow-KI – jeden Monat neu"},
     # nur fuer alte Zeilen (LEGACY_PLANS): Rang wie Pro AI, nicht in ORDER, nicht kaufbar, nicht sichtbar; sein
     # frueheres Produkt steht in LEGACY_PRODUCTS
     "pro_connect": {"rank": 2, "name": "StudiNow Pro AI", "price_cents": 3999, "currency": "EUR", "period": "year",
@@ -84,7 +113,7 @@ ENTITLEMENTS: dict[str, dict] = {
     "can_write_community_comments": {"from": "plus", "label": "Community-Kommentare schreiben", "status": "available"},
     "can_share_solutions": {"from": "plus", "label": "Eigene Lösungen teilen", "status": "available"},
     "can_access_shared_tests": {"from": "plus", "label": "Tests aus der StudiNow-Bibliothek", "status": "available"},
-    "can_generate_studora_ai_tests": {"from": "plus", "label": "Neue KI-Tests von StudiNow", "status": "available"},
+    "can_generate_studora_ai_tests": {"from": "plus", "needs_credits": True, "label": "Neue KI-Tests von StudiNow", "status": "available"},
     # Eigene Karteikarten (Entscheidung 04.11.2026): anlegen, bearbeiten, ueben, Stapel, teilen und geteilte bzw.
     # Wochenstapel uebernehmen ab Plus. Lesen (GET /api/flashcards, /api/flashcard-stacks) bleibt in jedem Tarif frei:
     # nach der Probe sind die eigenen Karten in Free weiter sichtbar, nur nicht mehr bearbeit- oder uebbar.
@@ -94,32 +123,32 @@ ENTITLEMENTS: dict[str, dict] = {
     # (vorher ab Plus seit 11.11.2026, davor in jedem Tarif). Steht hier, damit die Reihenfolge des Vertrags gleich
     # bleibt. Die Fristen- und Terminlisten und die Karte "Klausuren und Tests: bald und neu erkannt" bleiben in jedem
     # Tarif sichtbar, gesperrt sind nur die Mitteilungen.
-    "can_use_due_reminders": {"from": "pro_ai", "label": "Erinnerungen an Abgaben und Klausuren", "status": "available"},
+    "can_use_due_reminders": {"from": "plus", "label": "Erinnerungen an Abgaben und Klausuren", "status": "available"},
     # KI-Chat (Entscheidung des Inhabers 15.11.2026: "pro ai und plus können kaufen aber plus sollen ki nur chat benutzen
     # können ohne ki lernhilfe"): die freie Frage an die KI in der KI-Hilfe (Aufgabe `tutor:ask`, CREDIT_PACKS
     # `chat_purposes`). Plus hat keine Monats-Credits: der Chat laeuft dort allein aus gekauften Credits. Alles andere
     # (Erklaeren, Karteikarten, Tests, Lernplan, Zusammenfassungen, KI-Mail) bleibt KI-Lernhilfe ab Pro AI.
-    "can_use_ai_chat": {"from": "plus", "label": "KI-Chat mit gekauften Credits (Fragen an die KI)", "status": "available"},
+    "can_use_ai_chat": {"from": "plus", "needs_credits": True, "label": "KI-Chat mit gekauften Credits (Fragen an die KI)", "status": "available"},
     # Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect). Die Endpunkte /api/learning/* gibt es,
     # eine Oberflaeche dafuer noch nicht (Web und iPad): darum coming_soon, nie als enthalten beworben.
-    "can_use_advanced_analytics": {"from": "pro_ai", "label": "Lernstatistik über alle Module", "status": "coming_soon"},
-    "can_use_advanced_planner": {"from": "pro_ai", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "coming_soon"},
-    "can_review_wrong_answers": {"from": "pro_ai", "label": "Automatische Wiederholung falscher Antworten", "status": "coming_soon"},
-    "can_use_extended_test_history": {"from": "pro_ai", "label": "Vollständige Testliste (Free und Plus: die letzten 10)", "status": "available"},
-    "can_get_recommendations": {"from": "pro_ai", "label": "Personalisierte Lernempfehlungen", "status": "coming_soon"},
+    "can_use_advanced_analytics": {"from": "plus", "label": "Lernstatistik über alle Module", "status": "coming_soon"},
+    "can_use_advanced_planner": {"from": "plus", "label": "Intelligente Lernplanung (Empfehlungen für die Woche)", "status": "coming_soon"},
+    "can_review_wrong_answers": {"from": "plus", "label": "Automatische Wiederholung falscher Antworten", "status": "coming_soon"},
+    "can_use_extended_test_history": {"from": "plus", "label": "Vollständige Testliste (Free und Plus: die letzten 10)", "status": "available"},
+    "can_get_recommendations": {"from": "plus", "label": "Personalisierte Lernempfehlungen", "status": "coming_soon"},
     # Pro AI (StudiNow-KI ueber das Backend)
-    "can_use_ai_explanations": {"from": "pro_ai", "label": "KI-Erklärungen zu Aufgaben", "status": "available"},
-    "can_use_ai_generated_questions": {"from": "pro_ai", "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
-    "can_use_ai_summaries": {"from": "pro_ai", "label": "KI-Zusammenfassungen", "status": "available"},
+    "can_use_ai_explanations": {"from": "plus", "needs_credits": True, "label": "KI-Erklärungen zu Aufgaben", "status": "available"},
+    "can_use_ai_generated_questions": {"from": "plus", "needs_credits": True, "label": "Automatische Lernfragen und Wiederholungsaufgaben", "status": "available"},
+    "can_use_ai_summaries": {"from": "plus", "needs_credits": True, "label": "KI-Zusammenfassungen", "status": "available"},
     # KI-Lernempfehlungen: noch kein Endpunkt und keine Oberflaeche (04.11.2026), darum nicht als enthalten beworben
-    "can_use_ai_recommendations": {"from": "pro_ai", "label": "KI-gestützte Lernempfehlungen", "status": "coming_soon"},
+    "can_use_ai_recommendations": {"from": "plus", "needs_credits": True, "label": "KI-gestützte Lernempfehlungen", "status": "coming_soon"},
     # Entscheidung des Inhabers vom 04.11.2026: Plus gilt je Geraet, der Abgleich der Notizen zwischen iPad, PC und Web
     # (Geraete-Abgleich G2, /api/sync/push) erst mit Pro AI
-    "can_sync_annotations": {"from": "pro_ai", "label": "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)", "status": "available"},
+    "can_sync_annotations": {"from": "plus", "label": "Notizen auf allen Geräten (Abgleich zwischen iPad, PC und Web)", "status": "available"},
     # Fertige KI-Fragen je Vorlesungswoche aus der Bibliothek (04.11.2026, app/week_library.py, app/week_library_api.py,
     # docs/BIBLIOTHEK-WOCHENFRAGEN.md): 2-3 Saetze zu je 15 Fragen mit Loesungen und Erklaerungen, nur im Dienst.
     # KI-Karteikarten auf Auftrag (Modul, Lernwoche, Anzahl) haengen an can_use_ai_generated_questions.
-    "can_use_prepared_week_sets": {"from": "pro_ai", "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "available"},
+    "can_use_prepared_week_sets": {"from": "plus", "needs_credits": True, "label": "Fertige KI-Fragen zu jeder Vorlesungswoche mit Erklärungen", "status": "available"},
 }
 
 # Kontingente je Abrechnungsmonat (Tabelle des Inhabers vom 04.11.2026). None = unbegrenzt mit Fair-Use-Grenze (FAIR_USE).
@@ -128,7 +157,8 @@ ENTITLEMENTS: dict[str, dict] = {
 # uebernehmen, Plus 4 je Monat, Pro AI unbegrenzt (Fair Use); derselbe Stapel zaehlt im Monat nur einmal.
 QUOTAS: dict[str, dict[str, int | None]] = {
     "free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0, "ai_mail": 0},
-    "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4, "ai_mail": 0},
+    # 26.11.2026: Plus wie frueher Pro AI; die KI-Kontingente gelten nur mit Credits (Rechte mit `needs_credits`)
+    "plus": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150, "card_stacks_adopted": None, "ai_mail": 50},
     "pro_ai": {"ai_tests_new": 20, "library_tests": None, "ai_assist": 150, "card_stacks_adopted": None, "ai_mail": 50},
 }
 QUOTAS["pro_connect"] = QUOTAS["pro_ai"]        # alte Zeilen gelten wie Pro AI
@@ -146,7 +176,8 @@ QUOTA_LABELS = {"ai_tests_new": "Neue StudiNow-KI-Tests", "library_tests": "Test
 
 # Credits je Kalendermonat fuer die StudiNow-KI (app/credits.py; 1 Credit = 1 Cent KI-Kosten, 24.11.2026): Pro AI 80 (= hoechstens 0,80 EUR, Inhaber 24.11.2026),
 # sonst 0; die Probe hat 25. Standardwerte, die der Betrieb per Umgebungsvariable (LERNAPP_CREDITS_*) aendern kann.
-CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 80, "trial": 25}
+# 26.11.2026 (Inhaber): Pro AI 120 Credits je Monat (hoechstens 1,20 EUR KI-Kosten), neu aufgeladen am 1.; Plus 0
+CREDITS: dict[str, int] = {"free": 0, "plus": 0, "pro_ai": 120, "trial": 25}
 
 # Credit-Pakete zum Nachkaufen (Auftrag des Inhabers vom 15.11.2026, docs/KI-CREDITS-2026-11-15.md): Verbrauchskaeufe im
 # App Store. Gekaufte Credits verfallen nie und werden erst nach den Monats-Credits verbraucht (app/credits.py).
@@ -192,8 +223,63 @@ def is_legacy(plan: str) -> bool:
 
 
 def is_sellable(plan: str) -> bool:
-    """Kaufbar: ein Tarif aus ORDER ausser Free (alte Schluessel wie pro_connect nie)."""
-    return plan in ORDER and plan != "free"
+    """Kaufbar: nur die Tarife aus SELLABLE (seit 26.11.2026 Plus und Pro AI; Free und alte Schluessel nie)."""
+    return plan in SELLABLE
+
+
+def needs_credits(entitlement: str) -> bool:
+    """Gilt dieses Recht nur mit Credits (StudiNow-KI, 26.11.2026)? Der Tarif allein reicht dann nicht."""
+    return bool(ENTITLEMENTS.get(entitlement, {}).get("needs_credits"))
+
+
+def offer(product_id: str | None) -> dict | None:
+    """Angebot zu einem Apple-Produkt (OFFERS) oder None."""
+    return OFFERS.get(product_id or "")
+
+
+def offer_months(product_id: str | None) -> int | None:
+    """Laufzeit eines Angebots in Monaten (Monat 1, Jahr 12, 5 Jahre 60)."""
+    o = offer(product_id)
+    if not o:
+        return None
+    if o["kind"] == "non_renewing":
+        return 12 * int(o["years"])
+    return {"month": 1, "year": 12}.get(o.get("period"))
+
+
+def euro(cents: int) -> str:
+    """119,40 €"""
+    return f"{cents // 100},{cents % 100:02d} €"
+
+
+def savings(product_id: str | None) -> dict | None:
+    """Ersparnis gegenueber dem Monatsabo in `compare` ueber dieselbe Laufzeit (Inhaber 27.11.2026: "zeig wie viel man
+    spart zu normal Plus"). Bachelor+Master-Paket: 60 x 1,99 = 119,40 EUR, gespart 79,41 EUR (67 %), 0,67 EUR im Monat.
+    Pro AI jaehrlich: 12 x 3,99 = 47,88 EUR, gespart 7,89 EUR (16 %)."""
+    o = offer(product_id)
+    if not o or not o.get("compare"):
+        return None
+    months = offer_months(product_id)
+    regular = OFFERS[o["compare"]]["price_cents"] * months
+    saved = regular - o["price_cents"]
+    per_month = (o["price_cents"] + months // 2) // months          # kaufmaennisch gerundet
+    return {"months": months, "regular_cents": regular, "saved_cents": saved,
+            "saved_percent": round(100 * saved / regular), "per_month_cents": per_month,
+            "text": f"Du sparst {euro(saved)} ({round(100 * saved / regular)} %) gegenüber {months} × "
+                    f"{euro(OFFERS[o['compare']]['price_cents'])} = {euro(regular)}",
+            "per_month_text": f"nur {euro(per_month)} im Monat"}
+
+
+def offer_end(product_id: str | None, purchased_at):
+    """Ende eines einmal bezahlten Angebots (non_renewing): Kaufzeit + `years` Jahre (29.02. -> 28.02.). Sonst None."""
+    o = offer(product_id)
+    if not o or o["kind"] != "non_renewing" or purchased_at is None:
+        return None
+    y = purchased_at.year + int(o["years"])
+    try:
+        return purchased_at.replace(year=y)
+    except ValueError:                       # 29. Februar in einem Nicht-Schaltjahr
+        return purchased_at.replace(year=y, day=28)
 
 
 def rank(plan: str) -> int:
@@ -229,6 +315,8 @@ def plan_for_product(product_id: str | None) -> str | None:
     for key, p in PLANS.items():
         if product_id == p["apple_product_id"]:
             return key
+    if product_id in OFFERS:
+        return OFFERS[product_id]["plan"]
     return LEGACY_PRODUCTS.get(product_id)
 
 
@@ -298,7 +386,8 @@ def can_use_purchased_credits(plan: str | None, purpose: str | None = None) -> b
 # Probe fuer jedes neue Konto (Entscheidung 30.10.2026, iPad 04.11.2026): 7 Tage alles wie Pro AI mit CREDITS["trial"]
 # Credits, danach Aufforderung, einen Tarif zu waehlen; ohne Wahl gilt Free, Daten bleiben. Quelle "trial" in
 # app/billing.py, nie verlaengerbar, einmal je Konto.
-TRIAL = {"days": 7, "plan": "pro_ai"}
+# 26.11.2026: die Probe ist Plus (alles) mit CREDITS["trial"] Credits fuer die KI (Inhaber: "7 Tage Plus + 25 Credits")
+TRIAL = {"days": 7, "plan": "plus"}
 
 
 def contract() -> dict:
@@ -307,7 +396,10 @@ def contract() -> dict:
         "version": 1,
         "order": list(ORDER),
         "trial": {**TRIAL, "credits": CREDITS["trial"]},
-        "plans": {k: {**PLANS[k], "entitlements": entitlements(k), "quotas": QUOTAS[k], "credits": CREDITS[k]} for k in ORDER},
+        "plans": {k: {**PLANS[k], "entitlements": entitlements(k), "quotas": QUOTAS[k], "credits": CREDITS[k],
+                      "sellable": is_sellable(k)} for k in ORDER},
+        "offers": [{"product_id": pid, **o, "savings": savings(pid)} for pid, o in OFFERS.items()],
+        "offer_groups": [{"key": k, "title": t} for k, t in OFFER_GROUPS],
         "entitlements": ENTITLEMENTS,
         "quotas": {"labels": QUOTA_LABELS, "fair_use": FAIR_USE},
         "credits": dict(CREDITS),

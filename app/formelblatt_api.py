@@ -12,13 +12,18 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
-from . import config, entitlements, formelblatt
+from . import config, entitlements, formelblatt, plans
 
 router = APIRouter()
 
 
-def _user(request: Request) -> tuple[str, str]:
-    entitlements.require(request, "can_use_ai_explanations")
+def _user(request: Request, needs_credits: bool = True) -> tuple[str, str]:
+    """`needs_credits` False (26.11.2026 neues Modell): ein gekauftes Blatt abholen (pdf) braucht den Tarif, aber keine
+    verfuegbaren Credits - sonst kaeme ein Konto mit aufgebrauchten Credits nicht mehr an seinen Kauf."""
+    if needs_credits or not config.is_hosted():
+        entitlements.require(request, "can_use_ai_explanations")
+    elif not plans.has(entitlements.plan_of(entitlements.user_of(request)), "can_use_ai_explanations"):
+        raise entitlements.forbidden("can_use_ai_explanations")
     user = entitlements.require_verified_for_ai(request)
     if user:
         return str(user["id"]), config.normalize_university(user.get("university"))
@@ -63,7 +68,7 @@ async def buy(request: Request, sheet_id: str) -> dict:
 
 @router.get("/api/formelblatt/{sheet_id}/pdf")
 async def pdf(request: Request, sheet_id: str):
-    uid, uni = _user(request)
+    uid, uni = _user(request, needs_credits=False)
     try:
         path = await run_in_threadpool(formelblatt.pdf_for, uid, uni, _id(sheet_id))
     except formelblatt.SheetError as e:

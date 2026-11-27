@@ -48,7 +48,7 @@ def test_parallel_requests_cannot_exceed_quota(db_path):
     threads = [threading.Thread(target=worker, args=(i,)) for i in range(20)]
     [t.start() for t in threads]
     [t.join(30) for t in threads]
-    n = plans.QUOTAS["plus"]["ai_tests_new"]                      # 4 seit der Tabelle vom 04.11.2026
+    n = plans.QUOTAS["plus"]["ai_tests_new"]                      # 20 seit dem neuen Modell (26.11.2026), vorher 4
     assert results.count(True) == n, f"Plus erlaubt genau {n} neue KI-Tests, {results.count(True)} wurden vergeben"
 
 
@@ -65,9 +65,10 @@ def test_refund_returns_quota(db_path):
     billing.set_entitlement(c, "u3", "manual", "plus", now=NOW)
     for i in range(plans.QUOTAS["plus"]["ai_tests_new"]):
         assert billing.consume(c, "u3", "ai_tests_new", f"x{i}", NOW).ok
-    assert not billing.consume(c, "u3", "ai_tests_new", "x9", NOW).ok
+    # 26.11.2026 neues Modell: Plus hat 20 statt 4 - die Anfrage-IDs danach duerfen keine der ersten sein
+    assert not billing.consume(c, "u3", "ai_tests_new", "x-zu-viel", NOW).ok
     assert billing.refund(c, "u3", "ai_tests_new", "x1")
-    assert billing.consume(c, "u3", "ai_tests_new", "x10", NOW).ok
+    assert billing.consume(c, "u3", "ai_tests_new", "x-danach", NOW).ok
 
 
 def test_quota_resets_each_month(db_path):
@@ -75,8 +76,9 @@ def test_quota_resets_each_month(db_path):
     billing.set_entitlement(c, "u4", "manual", "plus", now=NOW)
     for i in range(plans.QUOTAS["plus"]["ai_tests_new"]):
         assert billing.consume(c, "u4", "ai_tests_new", f"m{i}", NOW).ok
-    assert not billing.consume(c, "u4", "ai_tests_new", "m9", NOW).ok
-    assert billing.consume(c, "u4", "ai_tests_new", "m10", NOW + timedelta(days=10)).ok, "November: neues Kontingent"
+    # 26.11.2026 neues Modell: Plus hat 20 statt 4 - die Anfrage-IDs danach duerfen keine der ersten sein
+    assert not billing.consume(c, "u4", "ai_tests_new", "m-zu-viel", NOW).ok
+    assert billing.consume(c, "u4", "ai_tests_new", "m-november", NOW + timedelta(days=10)).ok, "November: neues Kontingent"
 
 
 def test_expired_subscription_downgrades_without_data_loss(db_path):

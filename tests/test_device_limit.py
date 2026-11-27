@@ -17,9 +17,10 @@ from test_subscriptions import _j, end_trial, hosted, user  # noqa: F401
 CAPS = {"X-StudiNow-Caps": "device_limit"}
 PW = "sehr-geheim-123"
 KINDS = ("free", "plus", "pro_ai", "trial")
-# Zustand des ZWEITEN Geraets je Tarif (das erste ist immer ok)
-SECOND = {"free": "blocked", "plus": "hint_plus", "pro_ai": "ok", "trial": "ok"}
-PRICE = {"upgrade_plan": "pro_ai", "price_cents": 3999, "currency": "EUR", "period": "year"}
+# Zustand des ZWEITEN Geraets je Tarif (das erste ist immer ok). 26.11.2026 neues Modell: Plus hat den Abgleich
+# (can_sync_annotations ab Plus) und laeuft wie Pro AI ohne Hinweis; der Hinweis fuer Free nennt Plus (1,99 EUR im Monat)
+SECOND = {"free": "blocked", "plus": "ok", "pro_ai": "ok", "trial": "ok"}
+PRICE = {"upgrade_plan": "plus", "price_cents": 199, "currency": "EUR", "period": "month"}
 
 
 def account(app, kind, email):
@@ -61,7 +62,8 @@ def use_this(app, headers):
 # ---------------------------------------------------------------- reine Regel
 
 @pytest.mark.parametrize("plan, device, primary, state", [
-    ("free", "a", "a", "ok"), ("free", "b", "a", "blocked"), ("plus", "a", "a", "ok"), ("plus", "b", "a", "hint_plus"),
+    # 26.11.2026 neues Modell: Plus hat den Abgleich, das zweite Geraet ist ok (frueher hint_plus)
+    ("free", "a", "a", "ok"), ("free", "b", "a", "blocked"), ("plus", "a", "a", "ok"), ("plus", "b", "a", "ok"),
     ("pro_ai", "b", "a", "ok"), ("pro_connect", "b", "a", "ok"),
     ("free", None, "a", "ok"), ("free", "b", None, "ok"), ("gibtsnicht", "b", "a", "blocked"), (None, "b", "a", "blocked")])
 def test_rule(plan, device, primary, state):
@@ -70,11 +72,12 @@ def test_rule(plan, device, primary, state):
 
 
 def test_upgrade_plan_follows_the_sync_right():
-    """Der Hinweis nennt den Tarif, der den Abgleich zwischen Geraeten hat (Pro AI, 39,99 EUR im Jahr)."""
+    """Der Hinweis nennt den Tarif, der den Abgleich zwischen Geraeten hat. 26.11.2026 neues Modell: Plus (1,99 EUR im
+    Monat) statt Pro AI (39,99 EUR im Jahr)."""
     from app import device_limit, plans
-    assert device_limit.upgrade_plan() == "pro_ai" == plans.ENTITLEMENTS["can_sync_annotations"]["from"]
-    assert (plans.PLANS["pro_ai"]["price_cents"], plans.PLANS["pro_ai"]["period"]) == (3999, "year")
-    assert not plans.has("plus", "can_sync_annotations"), "Plus bleibt ohne Abgleich (je Geraet)"
+    assert device_limit.upgrade_plan() == "plus" == plans.ENTITLEMENTS["can_sync_annotations"]["from"]
+    assert (plans.PLANS["plus"]["price_cents"], plans.PLANS["plus"]["period"]) == (199, "month")
+    assert plans.has("plus", "can_sync_annotations"), "Plus hat seit 26.11.2026 den Abgleich"
 
 
 # ---------------------------------------------------------------- Matrix: Tarif x erstes/zweites Geraet
@@ -187,7 +190,8 @@ def test_purchase_lifts_the_block_and_expiry_brings_it_back(hosted):
     accounts.set_plan(u["id"], "pro_ai")
     assert ent(hosted, h2)["device"]["state"] == "ok", "nach dem Kauf von Pro AI sofort frei"
     accounts.set_plan(u["id"], "plus")
-    assert ent(hosted, h2)["device"]["state"] == "hint_plus", "Plus wird nie gesperrt"
+    # 26.11.2026 neues Modell: Plus hat den Abgleich und laeuft wie Pro AI ohne Hinweis (frueher hint_plus)
+    assert ent(hosted, h2)["device"]["state"] == "ok", "Plus wird nie gesperrt"
     accounts.set_plan(u["id"], "free")
     assert ent(hosted, h2)["device"]["state"] == "blocked"
 
@@ -196,7 +200,8 @@ def test_trial_counts_like_its_plan_and_free_after_it_blocks_the_second_device(h
     u = account(hosted, "trial", "probe@beispiel.de")
     _, h1 = login(hosted, "probe@beispiel.de", "ipad-1", "iPad")
     _, h2 = login(hosted, "probe@beispiel.de", "iphone-1", "iPhone")
-    assert ent(hosted, h2)["plan"] == "pro_ai" and ent(hosted, h2)["device"]["state"] == "ok"
+    # 26.11.2026 neues Modell: die Probe ist Plus (mit Abgleich)
+    assert ent(hosted, h2)["plan"] == "plus" and ent(hosted, h2)["device"]["state"] == "ok"
     end_trial(u["id"])
     assert ent(hosted, h2)["plan"] == "free" and ent(hosted, h2)["device"]["state"] == "blocked", "beim naechsten Kontakt"
     assert ent(hosted, h1)["device"]["state"] == "ok"

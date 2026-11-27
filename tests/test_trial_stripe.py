@@ -27,14 +27,16 @@ def test_new_account_gets_seven_days_of_everything(hosted):
     from app import billing, plans
     u, h = register(hosted, "neu@beispiel.de")
     e = ent(hosted, h)
-    assert e["plan"] == plans.TRIAL["plan"] == "pro_ai" and e["source"] == "trial" and e["will_renew"] is False
+    # 26.11.2026 neues Modell: die Probe ist Plus mit 25 Credits (frueher Pro AI)
+    assert e["plan"] == plans.TRIAL["plan"] == "plus" and e["source"] == "trial" and e["will_renew"] is False
+    assert (e["credits"]["allowance"], e["credits"]["plan"]) == (25, "plus:trial")
     assert e["trial"]["active"] and e["trial"]["granted"] and e["trial"]["days_left"] == 7 and not e["needs_plan_choice"]
     assert e["entitlements"]["can_annotate_pdf"] and e["entitlements"]["can_use_ai_explanations"]
     conn = billing.connect()
     try:
         ends = dt.datetime.fromisoformat(e["trial"]["ends_at"])
         assert 6.99 < (ends - dt.datetime.now(UTC)).total_seconds() / 86400 <= 7.0
-        assert billing.current_plan(conn, u["id"], ends - dt.timedelta(seconds=1)) == "pro_ai"
+        assert billing.current_plan(conn, u["id"], ends - dt.timedelta(seconds=1)) == "plus"
         assert billing.current_plan(conn, u["id"], ends) == "free", "zum Ablauf zurueck auf Free"
         assert billing.start_trial(conn, u["id"]) is None, "nur einmal je Konto"
         later = ends + dt.timedelta(days=1)
@@ -78,7 +80,8 @@ def test_plan_choice_endpoint(hosted, monkeypatch):
 
 def test_plans_contract_names_the_trial(hosted):
     st, d = _j(asgi_call(hosted, "GET", "/api/billing/plans"))
-    assert st == 200 and d["trial"] == {"days": 7, "plan": "pro_ai", "credits": 25} and d["purchase"]["web"]["available"] is False
+    # 26.11.2026 neues Modell: Probe = Plus mit 25 Credits
+    assert st == 200 and d["trial"] == {"days": 7, "plan": "plus", "credits": 25} and d["purchase"]["web"]["available"] is False
 
 
 # ================================================================ Stripe
@@ -220,7 +223,8 @@ def test_checkout_completed_sets_the_plan_and_events_count_once(hosted, stripe):
     st, d = webhook(hosted, payload, sig)
     assert st == 200 and d["applied"] and d["plan"] == "plus" and d["user_id"] == u["id"] and d["will_renew"] is True, d
     e = ent(hosted, h)
-    assert e["plan"] == "pro_ai" and e["source"] == "trial", "die laufende Probe ist hoeher und gilt weiter"
+    # 26.11.2026 neues Modell: die Probe ist selbst Plus; Probe + bezahltes Plus bleibt fuer die Credits die Probe (25)
+    assert e["plan"] == "plus" and e["trial"]["active"] and (e["credits"]["allowance"], e["credits"]["plan"]) == (25, "plus:trial"), e
     conn = billing.connect()
     try:
         billing.end_trial(conn, u["id"])
@@ -314,7 +318,8 @@ def test_portal_downgrade_is_scheduled_to_the_period_end(hosted, stripe):
     d = webhook(hosted, payload, sig)[1]
     assert d["plan"] == "plus" and d["pending_plan"] is None
     e = ent(hosted, h)
-    assert e["plan"] == "plus" and e["pending_plan"] is None and not e["entitlements"]["can_use_ai_explanations"]
+    # 26.11.2026 neues Modell: Plus hat die KI-Rechte, aber keine Monats-Credits (frueher: gar keine KI)
+    assert e["plan"] == "plus" and e["pending_plan"] is None and e["credits"]["allowance"] == 0
 
 
 def test_schedule_without_a_real_change_sets_no_pending_plan(hosted, stripe):

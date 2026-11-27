@@ -32,8 +32,8 @@ def test_contract_for_the_apps_shows_three_plans_and_no_old_names():
     assert not ALT.search(text), "Vertrag nennt weder Pro Connect noch ein Einfuehrungsangebot"
     assert "proconnect" not in text and "pro_connect" not in text
     assert [plans.PLANS[k]["name"] for k in plans.ORDER] == ["StudiNow Free", "StudiNow Plus", "StudiNow Pro AI"]
-    # die 7 Tage Probe gelten fuer alle wie Pro AI (kein Plus-Angebot)
-    assert plans.TRIAL == {"days": 7, "plan": "pro_ai"}
+    # die 7 Tage Probe gelten fuer alle gleich; 26.11.2026 neues Modell: 7 Tage Plus mit 25 Credits (frueher wie Pro AI)
+    assert plans.TRIAL == {"days": 7, "plan": "plus"} and plans.CREDITS["trial"] == 25
 
 
 def test_web_plan_texts_match_trial_free_and_service_wording():
@@ -45,7 +45,8 @@ def test_web_plan_texts_match_trial_free_and_service_wording():
     assert "ohne Abo kannst du deine Daten weiter ansehen und exportieren" in abo and "GATE_TEXTS.lockedText" in abo
     # Plus gilt je Geraet: der Hinweis beim Abgleich nennt Pro AI, nicht Plus
     link = (STATIC / "studora-link.js").read_text(encoding="utf-8")
-    assert "erst mit StudiNow Pro AI zwischen deinen Geräten" in link and "gleichen ab StudiNow Plus ab" not in link
+    # 26.11.2026 neues Modell: Notizen-Abgleich ab Plus
+    assert "erst mit StudiNow Plus oder Pro AI zwischen deinen Geräten" in link and "Plus gilt je Gerät" not in link
 
 
 def test_price_list_and_decisions_agree_with_plans_py():

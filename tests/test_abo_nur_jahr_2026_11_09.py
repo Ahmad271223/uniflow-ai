@@ -4,6 +4,11 @@
 de.uniflow.proai.monthly, 3,99 EUR) bleiben beim Pruefen eines Kaufs lesbar (gelten wie der Tarif), werden aber
 nirgends mehr angeboten oder genannt. Free, 7 Tage Probe (25 Credits), Pro AI 100 Credits im Monat bleiben.
 Bericht: docs/release/ABO-NUR-JAHR-2026-11-09.md.
+
+26.11.2026 neues Modell (docs/TARIFE-CREDITS-2026-11-26.md): Plus ist wieder das Monatsabo (de.uniflow.plus.monthly,
+1,99 EUR) oder 39,99 EUR einmalig fuer 5 Jahre (de.uniflow.plus.fuenfjahre); Pro AI bleibt das Jahresabo. Das
+Jahres-Plus und das Monats-Pro-AI gelten weiter, werden aber nicht mehr angeboten. Die Vertrags- und Einladungs-Tests
+unten pruefen den neuen Stand; die Text-Tests den der Texte in diesem Zweig.
 """
 from __future__ import annotations
 
@@ -19,18 +24,23 @@ def _read(rel: str) -> str:
     return (ROOT / rel).read_text(encoding="utf-8")
 
 
-def test_contract_offers_only_the_yearly_products():
+def test_contract_offers_only_the_products_on_sale():
+    """26.11.2026 neues Modell: angeboten werden Plus monatlich, Plus 5 Jahre und Pro AI jaehrlich - sonst nichts."""
     from app import plans as P
     c = P.contract()["plans"]
-    assert (c["plus"]["price_cents"], c["pro_ai"]["price_cents"]) == (1999, 3999)
-    assert (c["plus"]["period"], c["pro_ai"]["period"]) == ("year", "year")
-    assert c["plus"]["apple_product_id"] == "de.uniflow.plus.yearly"
+    assert (c["plus"]["price_cents"], c["pro_ai"]["price_cents"]) == (199, 3999)
+    assert (c["plus"]["period"], c["pro_ai"]["period"]) == ("month", "year")
+    assert c["plus"]["apple_product_id"] == "de.uniflow.plus.monthly"
     assert c["pro_ai"]["apple_product_id"] == "de.uniflow.proai.yearly"
     assert c["free"]["price_cents"] == 0 and c["free"]["apple_product_id"] is None
+    assert [o["product_id"] for o in P.contract()["offers"]] == ["de.uniflow.plus.monthly", "de.uniflow.plus.fuenfjahre",
+                                                                "de.uniflow.proai.yearly"]
     text = json.dumps(P.contract(), ensure_ascii=False)
-    assert "monthly" not in text and "price_cents_yearly" not in text and "apple_product_id_yearly" not in text
+    for old in ("de.uniflow.plus.yearly", "de.uniflow.proai.monthly", "price_cents_yearly", "apple_product_id_yearly"):
+        assert old not in text, old
     fixture = _read("packages/shared-contracts/fixtures/plans/plans.json")
-    assert "monthly" not in fixture and '"price_cents": 1999' in fixture and '"price_cents": 3999' in fixture
+    assert "de.uniflow.plus.yearly" not in fixture and "de.uniflow.proai.monthly" not in fixture
+    assert '"price_cents": 199,' in fixture and '"price_cents": 3999' in fixture
 
 
 def test_old_monthly_products_still_unlock_their_plan():
@@ -42,14 +52,15 @@ def test_old_monthly_products_still_unlock_their_plan():
     assert P.plan_for_product("de.uniflow.free.yearly") is None and P.plan_for_product(None) is None
 
 
-def test_invite_rewards_use_the_yearly_products():
+def test_invite_rewards_are_gone():
+    """27.11.2026: keine Belohnungen fuer Einladungen mehr (Inhaber "gar keine mehr, entnimm das komplett"); die ruhende
+    Technik zeigt weiter auf die angebotenen Produkte (Plus monatlich, Pro AI jaehrlich)."""
     from app import invites
-    assert invites.CHOICES["plus"]["apple_product_id"] == "de.uniflow.plus.yearly"
+    assert invites.TIERS == () and invites.REWARD_LABELS == {}
+    assert invites.CHOICES["plus"]["apple_product_id"] == "de.uniflow.plus.monthly"
     assert invites.CHOICES["proai"]["apple_product_id"] == "de.uniflow.proai.yearly"
-    label = invites.REWARD_LABELS[(20, "proai")]
-    assert "19,99 €" in label and "39,99 €" in label and not any(p in label for p in OLD_PRICES)
     cases = _read("packages/shared-contracts/fixtures/invites/cases.json")
-    assert label in cases and not any(p in cases for p in OLD_PRICES)
+    assert "gratis" not in cases and not any(p in cases for p in OLD_PRICES)
 
 
 def test_web_plan_page_shows_the_yearly_price_only():
@@ -58,24 +69,33 @@ def test_web_plan_page_shows_the_yearly_price_only():
     assert "/ Jahr" in js
 
 
-def test_public_texts_name_only_the_yearly_prices():
+# 26.11.2026 neues Modell: nicht mehr verkauft sind Plus im Jahr (19,99), Pro AI im Monat (3,99) und die Preise vom
+# 07.11.2026 (21,99 / 41,99); 1,99 EUR ist wieder der Preis von Plus im Monat
+SOLD_NO_MORE = (r"19,99\s*(€|EUR)", r"3,99\s*(€|EUR)\s*(im|pro|/)\s*Monat", r"21,99\s*(€|EUR)", r"41,99\s*(€|EUR)")
+
+
+def test_public_texts_name_only_the_prices_on_sale():
+    """26.11.2026 neues Modell (frueher: nur die Jahrespreise): die oeffentlichen Texte nennen Plus 1,99 € im Monat bzw.
+    39,99 € fuer 5 Jahre und Pro AI 39,99 € im Jahr, keinen nicht mehr verkauften Preis."""
     for rel in ("docs/release/STARTSEITE.md", "docs/release/NUTZUNGSBEDINGUNGEN.md", "docs/release/EINLADUNG.md",
                 "site/index.html", "site/nutzungsbedingungen.html", "site/i/index.html", "README.md",
                 "docs/PREISLISTE.md", "docs/ABO-SYSTEM.md", "docs/release/TESTFLIGHT-500-2026-11-08.md"):
         t = _read(rel)
-        for p in OLD_PRICES:
-            assert not re.search(r"(?<![\d,])" + re.escape(p) + r"\s*(€|EUR)", t), f"{rel}: {p} €"
-        assert "monatlich kündbar" not in t and "monatlicher oder jährlicher Zahlung" not in t, rel
+        for p in SOLD_NO_MORE:
+            assert not re.search(r"(?<![\d,])" + p, t), f"{rel}: {p}"
+        assert "monatlicher oder jährlicher Zahlung" not in t, rel
     for rel in ("docs/release/STARTSEITE.md", "site/index.html", "docs/release/NUTZUNGSBEDINGUNGEN.md",
                 "site/nutzungsbedingungen.html"):
         t = _read(rel)
-        assert "19,99 €" in t and "39,99 €" in t, rel
+        assert "1,99 €" in t and "39,99 €" in t, rel
 
 
-def test_terms_describe_the_yearly_renewal():
-    nb = _read("docs/release/NUTZUNGSBEDINGUNGEN.md")
-    assert "19,99 € pro Jahr" in nb and "39,99 € pro Jahr" in nb
-    assert "verlängert sich automatisch um ein Jahr" in nb and "24 Stunden vor Ablauf" in nb
+def test_terms_describe_the_renewal():
+    """26.11.2026 neues Modell: Plus monatlich oder 5 Jahre einmalig (verlaengert sich nicht), Pro AI jaehrlich."""
+    nb = " ".join(_read("docs/release/NUTZUNGSBEDINGUNGEN.md").split())
+    assert "Monatsabo für 1,99 € im Monat" in nb and "39,99 € pro Jahr" in nb
+    assert "einmalig für 39,99 € für 5 Jahre" in nb and "Es verlängert sich nicht" in nb
+    assert "verlängert sich automatisch um denselben Zeitraum" in nb and "24 Stunden vor Ablauf" in nb
     assert "einen Monat bzw. ein Jahr" not in nb
 
 
@@ -87,11 +107,13 @@ def test_app_store_texts_name_only_the_yearly_subscriptions():
         assert s not in t, s
 
 
-def test_ipad_offers_only_the_yearly_products():
-    """Statische Pruefung der Swift-Quellen; das Verhalten pruefen PlanContractTests und AboNurJahrAppTests."""
+def test_ipad_offers_only_the_products_on_sale():
+    """Statische Pruefung der Swift-Quellen; das Verhalten pruefen PlanContractTests und AboNurJahrAppTests.
+    26.11.2026 neues Modell (Stand der Swift-Quellen in diesem Zweig): verkauft werden die Angebote UFOffer (Plus
+    monatlich, Plus 5 Jahre einmalig, Pro AI jaehrlich)."""
     plans_swift = _read("apps/apple/UniFlow/Purchases/Plans.swift")
-    assert "static var sellableProductIDs: [String] { sellable.compactMap(\\.productID) }" in plans_swift
-    assert "var productID: String? { productID(.yearly) }" in plans_swift
+    assert "static var sellableProductIDs: [String] { UFOffer.allCases.map(\\.productID) }" in plans_swift
+    assert 'case plusMonthly = "de.uniflow.plus.monthly"' in plans_swift and 'case plusFiveYears = "de.uniflow.plus.fuenfjahre"' in plans_swift
     picker = _read("apps/apple/UniFlow/Views/Onboarding/PlanPickerView.swift")
     assert "plans.billing" not in picker and "günstiger" not in picker
     store = _read("apps/apple/UniFlow/Purchases/PurchaseStore.swift")
@@ -99,4 +121,5 @@ def test_ipad_offers_only_the_yearly_products():
     sk = json.loads(_read("apps/apple/UniFlowTests/UniFlow.storekit"))
     subs = [s for g in sk["subscriptionGroups"] for s in g["subscriptions"]]
     assert sorted((s["productID"], s["displayPrice"], s["recurringSubscriptionPeriod"]) for s in subs) == [
-        ("de.uniflow.plus.yearly", "19.99", "P1Y"), ("de.uniflow.proai.yearly", "39.99", "P1Y")]
+        ("de.uniflow.plus.monthly", "1.99", "P1M"), ("de.uniflow.proai.yearly", "39.99", "P1Y")]
+    assert [p["productID"] for p in sk.get("nonRenewingSubscriptions") or []] == ["de.uniflow.plus.fuenfjahre"]
