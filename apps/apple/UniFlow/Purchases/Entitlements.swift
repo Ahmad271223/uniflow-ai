@@ -120,7 +120,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         switch self {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
-        case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App"
+        case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App (je nach Hochschule)"
         case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen\(LearnCalendar.text(" und Lernplan-Vorschläge", off: "")) – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
         case .communityRead: return "Lösungen anderer finden, laden und \(UFEditorAvailability.available ? "im Editor" : "auf leeren Seiten") ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
@@ -315,6 +315,17 @@ enum UFPlanCard {
                              icon: "sparkles")
     }
 
+    /// Zusatz unter den Zeilen auf der Tarifseite (27.11.2026): Pro AI kann weitere Credits dazukaufen (Credit-Pakete wie
+    /// Plus). Nicht Teil von `included`, weil es kein eigenes Recht von Pro AI ist.
+    static func extraRows(_ plan: UFPlan) -> [UFPlanCardRow] {
+        guard plan == .proAI else { return [] }
+        return [UFPlanCardRow(title: "Weitere Credits jederzeit dazukaufen",
+                              detail: "Credit-Pakete in der App, gekaufte Credits verfallen nicht", icon: "sparkles")]
+    }
+
+    /// alle Zeilen einer Karte der Tarifseite
+    static func rows(_ plan: UFPlan) -> [UFPlanCardRow] { included(plan) + extraRows(plan) }
+
     /// Kurzbeschreibung auf der Karte wie im Vertrag (`UFPlan.tagline`, 26.11.2026)
     static func tagline(_ plan: UFPlan) -> String? {
         guard UFFeatureMatrix.hasAvailableExtras(in: plan) else { return nil }
@@ -446,6 +457,8 @@ final class Entitlements: ObservableObject {
     @Published private(set) var purchasedOffer: UFOffer?
     /// Produkt des gueltigen Kaufs (auch ein frueheres); nil ohne Kauf
     @Published private(set) var purchasedProductID: String?
+    /// alle gueltigen Angebote (27.11.2026: das Bachelor+Master-Paket kann neben Pro AI laufen; dann kein zweiter Kauf)
+    @Published private(set) var activeOffers: Set<UFOffer> = []
     /// verlaengert sich das gueltige Abo? false = gekuendigt, laeuft bis `expiresAt`; nil = unbekannt bzw. Free
     @Published private(set) var willRenew: Bool?
     /// Abo noch nicht geprueft (erster Abruf von currentEntitlements laeuft)
@@ -701,6 +714,7 @@ final class Entitlements: ObservableObject {
         rightsEnd = currentEntry.flatMap(UFEntitlementResolver.rightsEnd)
         purchasedOffer = current.flatMap { UFOffer(productID: $0.productID) }
         purchasedProductID = current?.productID
+        activeOffers = Set(activeEntries.keys.compactMap { UFOffer(productID: $0) })
         willRenew = currentEntry?.isNonRenewing == true ? false : renewal?.willAutoRenew
         pendingPlan = renewal.flatMap {
             UFEntitlementResolver.pendingPlan(current: p, willAutoRenew: $0.willAutoRenew, autoRenewProductID: $0.productID)
@@ -762,10 +776,12 @@ final class Entitlements: ObservableObject {
     func setPlanForTesting(_ p: UFPlan) { plan = p; loading = false }
 
     /// nur Tests: gekaufter Tarif ohne StoreKit (Kaufseite, Credit-Regel)
-    func setPurchasedForTesting(_ p: UFPlan, offer: UFOffer? = nil, expiresAt: Date? = nil, willRenew: Bool? = nil) {
+    func setPurchasedForTesting(_ p: UFPlan, offer: UFOffer? = nil, expiresAt: Date? = nil, willRenew: Bool? = nil,
+                                alsoActive: Set<UFOffer> = []) {
         purchasedPlan = p
         purchasedOffer = offer
         purchasedProductID = offer?.productID
+        activeOffers = Set(offer.map { [$0] } ?? []).union(alsoActive)
         self.expiresAt = expiresAt
         self.willRenew = willRenew
         loading = false

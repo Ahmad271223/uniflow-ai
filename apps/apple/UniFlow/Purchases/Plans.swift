@@ -3,7 +3,8 @@ import Foundation
 // StudiNow-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, docs/PREISLISTE.md). Seit 26.11.2026
 // (Entscheidung des Inhabers, neues Tarifmodell, docs/TARIFE-CREDITS-2026-11-26.md): StudiNow Free (0 EUR); StudiNow
 // Plus mit allen Funktionen, 1,99 EUR im Monat (Auto-Abo) oder 39,99 EUR einmalig fuer 5 Jahre (nicht verlaengerndes
-// Abo, `UFOffer`); StudiNow Pro AI, 39,99 EUR im Jahr = Plus und 120 Credits je Monat. Die StudiNow-KI geht in jedem
+// Abo, "Bachelor+Master-Paket", `UFOffer`); StudiNow Pro AI = Plus und 120 Credits je Monat, 3,99 EUR im Monat (seit
+// 27.11.2026 wieder verkauft) oder 39,99 EUR im Jahr. Die StudiNow-KI geht in jedem
 // Tarif nur mit Credits (Rechte mit `needsCredits`). Pro Connect gibt es nicht mehr; sein Schluessel `pro_connect` und
 // sein Produkt gelten wie Pro AI (`UFPlan(rawValue:)`, `UFPlan(productID:)`, wie plans.LEGACY_PLANS im Dienst). Quelle
 // aller Werte ist app/plans.py; tools/gen-plans-fixture.py schreibt daraus
@@ -123,10 +124,10 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     var lower: UFPlan? { UFPlan.allCases.last { $0 < self } }
 
     /// Produkte frueherer Angebote, die wie ein heutiger Tarif gelten (plans.LEGACY_PRODUCTS im Dienst): das Plus-
-    /// Jahresabo 19,99 EUR (bis 26.11.2026), das Pro-AI-Monatsabo (bis 09.11.2026) und Pro Connect (bis 04.11.2026). Sie
-    /// werden nicht mehr angeboten, ein Kauf damit gilt weiter.
+    /// Jahresabo 19,99 EUR (bis 26.11.2026) und Pro Connect (bis 04.11.2026). Sie werden nicht mehr angeboten, ein Kauf
+    /// damit gilt weiter. Das Pro-AI-Monatsabo (bis 09.11.2026 Altprodukt) ist seit 27.11.2026 wieder ein Angebot
+    /// (`UFOffer.proAIMonthly`, 3,99 EUR).
     static let legacyProductIDs: [String: UFPlan] = ["de.uniflow.plus.yearly": .plus,
-                                                     "de.uniflow.proai.monthly": .proAI,
                                                      "de.uniflow.proconnect.monthly": .proAI]
 
     /// Produkt -> Tarif; fremde und nicht mehr gueltige Produkte (z. B. das fruehere de.uniflow.pro.monthly) geben
@@ -140,14 +141,53 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     static var paid: [UFPlan] { allCases.filter { $0.productID != nil } }
 }
 
-/// Ein angebotenes Apple-Produkt (plans.json `offers`, 26.11.2026). Reihenfolge = Reihenfolge der Knoepfe.
+/// Bereich der Tarifseite (plans.json `offer_groups`, 27.11.2026): Monatlich, Jaehrlich, Unser Special
+enum UFOfferGroup: String, CaseIterable, Identifiable {
+    // Reihenfolge auf der Seite (Inhaber 27.11.2026 "Ja, nach oben"): Unser Special zuerst, dann Monatlich, Jaehrlich
+    case special
+    case monthly
+    case yearly
+
+    var id: String { rawValue }
+
+    /// Ueberschrift des Bereichs (`title`)
+    var title: String {
+        switch self {
+        case .monthly: return "Monatlich"
+        case .yearly: return "Jährlich"
+        case .special: return "Unser Special"
+        }
+    }
+
+    /// Angebote des Bereichs in der Reihenfolge der Karten
+    var offers: [UFOffer] { UFOffer.allCases.filter { $0.group == self } }
+}
+
+/// Ersparnis eines Angebots gegenueber dem Monatsabo (plans.json `offers[].savings`, Werte aus app/plans.py). Die Texte
+/// nennen Euro-Betraege des Vertrags; die Seite zeigt sie nur, wenn der Store genau diese Preise in Euro liefert
+/// (`UFOfferText.savingsApply`), sonst stimmte der Vergleich in einem anderen Land nicht.
+struct UFOfferSavings: Equatable {
+    let months: Int
+    let regularCents: Int
+    let savedCents: Int
+    let savedPercent: Int
+    let perMonthCents: Int
+    let text: String
+    let perMonthText: String
+}
+
+/// Ein angebotenes Apple-Produkt (plans.json `offers`, 27.11.2026). Reihenfolge wie im Vertrag: Plus monatlich, Pro AI
+/// monatlich, Pro AI jaehrlich, Plus 5 Jahre (Bachelor+Master-Paket).
 enum UFOffer: String, CaseIterable, Identifiable {
     /// StudiNow Plus, 1,99 EUR im Monat (Auto-Abo in der Gruppe "StudiNow")
     case plusMonthly = "de.uniflow.plus.monthly"
-    /// StudiNow Plus, 39,99 EUR einmalig fuer 5 Jahre (nicht verlaengerndes Abo, StoreKit `.nonRenewable`)
-    case plusFiveYears = "de.uniflow.plus.fuenfjahre"
+    /// StudiNow Pro AI, 3,99 EUR im Monat (Auto-Abo in der Gruppe "StudiNow", Stufe wie Pro AI jaehrlich; seit 27.11.2026)
+    case proAIMonthly = "de.uniflow.proai.monthly"
     /// StudiNow Pro AI, 39,99 EUR im Jahr (Auto-Abo in der Gruppe "StudiNow")
     case proAIYearly = "de.uniflow.proai.yearly"
+    /// StudiNow Plus, 39,99 EUR einmalig fuer 5 Jahre (nicht verlaengerndes Abo, StoreKit `.nonRenewable`):
+    /// "Bachelor+Master-Paket", auf der Tarifseite als "Unser Special" hervorgehoben
+    case plusFiveYears = "de.uniflow.plus.fuenfjahre"
 
     /// `kind` in plans.json
     enum Kind: String {
@@ -163,7 +203,46 @@ enum UFOffer: String, CaseIterable, Identifiable {
     var plan: UFPlan {
         switch self {
         case .plusMonthly, .plusFiveYears: return .plus
-        case .proAIYearly: return .proAI
+        case .proAIMonthly, .proAIYearly: return .proAI
+        }
+    }
+
+    /// Bereich der Tarifseite (`group`)
+    var group: UFOfferGroup {
+        switch self {
+        case .plusMonthly, .proAIMonthly: return .monthly
+        case .proAIYearly: return .yearly
+        case .plusFiveYears: return .special
+        }
+    }
+
+    /// eigener Name des Angebots (`name`): nur das Paket
+    var name: String? { self == .plusFiveYears ? "Bachelor+Master-Paket" : nil }
+
+    /// Abzeichen (`badge`) und starke Hervorhebung (`highlight`): nur das Paket
+    var badge: String? { self == .plusFiveYears ? "Unser Special" : nil }
+    var highlight: Bool { self == .plusFiveYears }
+
+    /// Vergleichsangebot der Ersparnis (`compare`): Pro AI jaehrlich gegen Pro AI monatlich, das Paket gegen Plus monatlich
+    var compare: UFOffer? {
+        switch self {
+        case .proAIYearly: return .proAIMonthly
+        case .plusFiveYears: return .plusMonthly
+        case .plusMonthly, .proAIMonthly: return nil
+        }
+    }
+
+    /// Ersparnis gegenueber `compare` (`savings`, Werte aus plans.json; PlanContractTests prueft sie)
+    var savings: UFOfferSavings? {
+        switch self {
+        case .proAIYearly:
+            return UFOfferSavings(months: 12, regularCents: 4788, savedCents: 789, savedPercent: 16, perMonthCents: 333,
+                                  text: "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €", perMonthText: "nur 3,33 € im Monat")
+        case .plusFiveYears:
+            return UFOfferSavings(months: 60, regularCents: 11940, savedCents: 7941, savedPercent: 67, perMonthCents: 67,
+                                  text: "Du sparst 79,41 € (67 %) gegenüber 60 × 1,99 € = 119,40 €", perMonthText: "nur 0,67 € im Monat")
+        case .plusMonthly, .proAIMonthly:
+            return nil
         }
     }
 
@@ -173,6 +252,7 @@ enum UFOffer: String, CaseIterable, Identifiable {
     var priceCents: Int {
         switch self {
         case .plusMonthly: return 199
+        case .proAIMonthly: return 399
         case .plusFiveYears, .proAIYearly: return 3999
         }
     }
@@ -180,7 +260,7 @@ enum UFOffer: String, CaseIterable, Identifiable {
     /// Zeitraum eines Abos (`period`): month, year; nil beim einmaligen Kauf
     var period: String? {
         switch self {
-        case .plusMonthly: return "month"
+        case .plusMonthly, .proAIMonthly: return "month"
         case .proAIYearly: return "year"
         case .plusFiveYears: return nil
         }
@@ -193,6 +273,7 @@ enum UFOffer: String, CaseIterable, Identifiable {
     var label: String {
         switch self {
         case .plusMonthly: return "1,99 € im Monat"
+        case .proAIMonthly: return "3,99 € im Monat"
         case .plusFiveYears: return "39,99 € einmalig für 5 Jahre"
         case .proAIYearly: return "39,99 € im Jahr"
         }
@@ -215,16 +296,23 @@ enum UFOffer: String, CaseIterable, Identifiable {
 
 // MARK: - Was das iPad anbietet
 
-/// Welche Tarife die App anbietet (Entscheidung des Inhabers vom 26.11.2026): StudiNow Free, Plus (Monatsabo oder 5 Jahre
-/// einmalig) und Pro AI (Jahresabo), kein Apple-Einfuehrungsangebot, dafuer 7 Tage Probe wie Plus mit 25 Credits
-/// (LocalTrial.swift). Die Pro-AI-Karte erscheint nur, wenn StoreKit das Produkt `de.uniflow.proai.yearly` liefert,
-/// sonst zeigt die Seite nur Free und Plus. Pro Connect gibt es nicht mehr (Entscheidung 04.11.2026).
+/// Welche Tarife die App anbietet (Entscheidung des Inhabers vom 26./27.11.2026): StudiNow Free, Plus (Monatsabo oder 5
+/// Jahre einmalig als Bachelor+Master-Paket) und Pro AI (Monats- oder Jahresabo), kein Apple-Einfuehrungsangebot, dafuer
+/// 7 Tage Probe wie Plus mit 25 Credits (LocalTrial.swift). Pro AI erscheint nur, wenn StoreKit eines seiner Produkte
+/// liefert, sonst zeigt die Seite nur Free und Plus. Pro Connect gibt es nicht mehr (Entscheidung 04.11.2026).
 enum UFPlanCatalog {
     /// auf dem iPad waehlbar
     static let sellable: [UFPlan] = [.free, .plus, .proAI]
 
-    /// Apple-Produkte, die die App laedt und anbietet (plans.json `offers`): Plus monatlich, Plus 5 Jahre, Pro AI jaehrlich
+    /// Apple-Produkte, die die App laedt und anbietet (plans.json `offers`): Plus monatlich, Pro AI monatlich, Pro AI
+    /// jaehrlich, Plus 5 Jahre
     static var sellableProductIDs: [String] { UFOffer.allCases.map(\.productID) }
+
+    /// kurzer Preis-Hinweis fuer Stellen ausserhalb der Tarifseite (Inhaber 27.11.2026): "ab 3,99 € im Monat"
+    static let proAIFrom = "ab 3,99 € im Monat"
+
+    /// "StudiNow Pro AI (ab 3,99 € im Monat)"
+    static var proAIWithPrice: String { "\(UFPlan.proAI.name) (\(proAIFrom))" }
 
     /// Tarife, deren Karte nur mit geliefertem Produkt erscheint (Pro AI: erst mit dem Dienst im Store)
     static let needsProduct: Set<UFPlan> = [.proAI]
@@ -240,13 +328,30 @@ enum UFPlanCatalog {
     /// (Pro AI wird mit 1.0 verkauft, Entscheidung 07.11.2026: kein "folgt"/"kommt später", nur der ehrliche Grund)
     static let proAIMissingNote = "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden. Öffne die Seite später noch einmal."
 
-    /// Karten der Tarifwahl: Free und Plus immer, Pro AI nur mit Produkt aus dem Store (`loaded`), dazu ein laufender
-    /// Tarif, der gerade nicht angeboten wird – wer ihn hat, sieht ihn mit "Abo verwalten" (nie eine Karte, die fehlt)
+    /// Karten der Tarifwahl: Free und Plus immer, Pro AI nur mit einem seiner Produkte aus dem Store (`loaded`: monatlich
+    /// oder jaehrlich), dazu ein laufender Tarif, der gerade nicht angeboten wird – wer ihn hat, sieht ihn mit "Abo
+    /// verwalten" (nie eine Karte, die fehlt)
     static func cards(current: UFPlan, loaded: Set<String>) -> [UFPlan] {
         UFPlan.allCases.filter { p in
             guard p != current else { return true }
             guard sellable.contains(p) else { return false }
-            return !needsProduct.contains(p) || p.productID.map(loaded.contains) == true
+            return !needsProduct.contains(p) || p.offers.contains { loaded.contains($0.productID) }
+        }
+    }
+
+    /// Karten der Tarifseite je Bereich (27.11.2026): Monatlich Free, Plus, Pro AI; Jaehrlich Pro AI; Unser Special das
+    /// Bachelor+Master-Paket. Free und Plus monatlich stehen immer da (ohne Produkt "Preis zurzeit nicht verfügbar"), die
+    /// anderen Angebote nur mit Produkt aus dem Store. Ein laufender Kauf behaelt seine Karte (`owned`; ohne Angebot, etwa
+    /// ein frueheres Produkt, das erste Angebot seines Tarifs), auch wenn der Store sie gerade nicht liefert.
+    static func sections(current: UFPlan, owned: UFOffer? = nil, loaded: Set<String>) -> [UFPlanSection] {
+        let fallback: UFOffer? = owned == nil && current != .free && !current.offers.contains { loaded.contains($0.productID) }
+            ? current.offers.first : nil
+        return UFOfferGroup.allCases.compactMap { g in
+            var c: [UFPlanOfferCard] = g == .monthly ? [.free] : []
+            for o in g.offers where loaded.contains(o.productID) || o == .plusMonthly || o == owned || o == fallback {
+                c.append(.offer(o))
+            }
+            return c.isEmpty ? nil : UFPlanSection(group: g, cards: c)
         }
     }
 
@@ -258,6 +363,26 @@ enum UFPlanCatalog {
         case .proAI: return proAIServiceNote
         }
     }
+}
+
+/// Eine Karte der Tarifseite: Free oder ein Angebot (27.11.2026)
+enum UFPlanOfferCard: Hashable, Identifiable {
+    case free
+    case offer(UFOffer)
+
+    var id: String { offer?.productID ?? "free" }
+    var plan: UFPlan { offer?.plan ?? .free }
+    var offer: UFOffer? {
+        if case .offer(let o) = self { return o }
+        return nil
+    }
+}
+
+/// Ein Bereich der Tarifseite mit seinen Karten
+struct UFPlanSection: Equatable, Identifiable {
+    let group: UFOfferGroup
+    let cards: [UFPlanOfferCard]
+    var id: String { group.rawValue }
 }
 
 // MARK: - Rechte aus dem Vertrag

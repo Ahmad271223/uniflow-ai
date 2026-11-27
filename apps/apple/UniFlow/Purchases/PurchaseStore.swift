@@ -1,9 +1,9 @@
 import StoreKit
 import SwiftUI
 
-/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. Angeboten werden seit 26.11.2026 (Entscheidung des
-/// Inhabers, `UFOffer`): StudiNow Plus monatlich (de.uniflow.plus.monthly) und Pro AI jaehrlich (de.uniflow.proai.yearly)
-/// in einer Abo-Gruppe, dazu Plus einmalig fuer 5 Jahre (de.uniflow.plus.fuenfjahre, nicht verlaengerndes Abo ausserhalb
+/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. Angeboten werden seit 26./27.11.2026 (Entscheidung des
+/// Inhabers, `UFOffer`): StudiNow Plus monatlich (de.uniflow.plus.monthly), Pro AI monatlich (de.uniflow.proai.monthly)
+/// und Pro AI jaehrlich (de.uniflow.proai.yearly, gleiche Stufe wie monatlich) in einer Abo-Gruppe, dazu Plus einmalig fuer 5 Jahre (de.uniflow.plus.fuenfjahre, nicht verlaengerndes Abo ausserhalb
 /// der Gruppe: Apple nennt kein Ende, `UFOffer.end` rechnet es). Die Pro-AI-Karte erscheint nur, wenn StoreKit das
 /// Produkt liefert. Kein Apple-Einfuehrungsangebot: die 7 Tage Probe laufen auf dem iPad ohne Zahlungsdaten
 /// (LocalTrial.swift). Upgrade und Downgrade innerhalb der Gruppe regelt Apple: hoeher gilt sofort, kleiner ab der
@@ -14,7 +14,7 @@ import SwiftUI
 /// Den Tarif fuehrt `Entitlements` (Transaction.currentEntitlements, Transaction.updates).
 @MainActor
 final class PurchaseStore: ObservableObject {
-    /// angebotene Produkte (`UFPlanCatalog.sellableProductIDs`: Plus monatlich, Plus 5 Jahre, Pro AI jaehrlich)
+    /// angebotene Produkte (`UFPlanCatalog.sellableProductIDs`: Plus monatlich, Pro AI monatlich und jaehrlich, Plus 5 Jahre)
     static let productIDs = UFPlanCatalog.sellableProductIDs
 
     /// Ergebnis eines Kaufs; nur bei `.success` geht die Tarifwahl weiter
@@ -201,6 +201,47 @@ enum UFOfferText {
 
     /// Hinweis am 5-Jahres-Knopf bei laufendem Monatsabo: das Abo laeuft daneben weiter, bis es gekuendigt ist
     static let onceWithSubscriptionNote = "Dein Monatsabo läuft daneben weiter. Kündige es danach unter „Abo verwalten“."
+
+    /// Hinweis am Paket bei laufendem Pro AI (Inhaber 27.11.2026): Pro AI laeuft weiter, bis es gekuendigt ist; mit dem
+    /// Paket allein gibt es keine Monats-Credits
+    static let onceWithProAINote = "Dein Pro-AI-Abo läuft daneben weiter. Kündige es danach unter „Abo verwalten“ – mit dem Paket allein gibt es keine Monats-Credits mehr."
+
+    /// Hinweis am Paket je nach laufendem Abo (nil ohne Abo)
+    static func onceNote(subscribed plan: UFPlan?) -> String? {
+        guard let plan, plan != .free else { return nil }
+        return plan == .proAI ? onceWithProAINote : onceWithSubscriptionNote
+    }
+
+    /// Paket: "StudiNow Plus für 5 Jahre"
+    static func packageContent(years: Int) -> String { "\(UFPlan.plus.name) für \(years) Jahre" }
+
+    /// Stimmen die Ersparnis-Texte aus dem Vertrag (Euro-Betraege, `UFOffer.savings`) mit den Preisen des Stores? Nur dann
+    /// zeigt die Seite sie: Preis des Angebots wie im Vertrag in EUR, das Vergleichsangebot (wenn geladen) ebenso.
+    static func savingsApply(_ offer: UFOffer, price: Decimal, currency: String, comparePrice: Decimal?) -> Bool {
+        guard offer.savings != nil, let compare = offer.compare, currency.uppercased() == "EUR" else { return false }
+        guard price == Decimal(offer.priceCents) / 100 else { return false }
+        return comparePrice.map { $0 == Decimal(compare.priceCents) / 100 } ?? true
+    }
+
+    /// Kaufknopf bei laufendem Abo: im selben Tarif "Zu jährlich wechseln" bzw. "Zu monatlich wechseln", sonst wie
+    /// `switchButton(to:)`
+    static func switchButton(to offer: UFOffer, from current: UFOffer?) -> String {
+        guard let current, current.plan == offer.plan else { return switchButton(to: offer.plan) }
+        return offer.period == "year" ? "Zu jährlich wechseln" : "Zu monatlich wechseln"
+    }
+
+    /// Hinweis zum Wechsel: im selben Tarif (gleiche Stufe, anderer Zeitraum) ab der naechsten Verlaengerung (Apple),
+    /// sonst wie `switchNote(to:from:)`
+    static func switchNote(to offer: UFOffer, from current: UFOffer?, currentPlan: UFPlan) -> String {
+        guard let current, current.plan == offer.plan else { return switchNote(to: offer.plan, from: currentPlan) }
+        return crossgradeNote
+    }
+
+    /// Hinweis an Pro AI bei laufendem Bachelor+Master-Paket (Inhaber 27.11.2026): Pro AI kommt dazu, Plus aus dem Paket
+    /// laeuft weiter und gilt wieder, wenn Pro AI endet
+    static let proAIBesidePackageNote = "Plus aus deinem Bachelor+Master-Paket läuft weiter. Endet Pro AI, gilt wieder Plus bis zum Ende des Pakets."
+
+    static let crossgradeNote = "Gilt ab der nächsten Verlängerung, bis dahin läuft dein jetziges Abo weiter."
 
     /// "26. November 2031"
     static func dayYear(_ d: Date) -> String {

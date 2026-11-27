@@ -385,6 +385,6 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertTrue(status.title.hasPrefix("Probe aktiv: alle Funktionen bis "), status.title)
         XCTAssertTrue(status.title.hasSuffix("(noch 7 Tage)"), status.title)
         XCTAssertFalse(PlanPickerView.subtitle(proAI: false).contains("Pro AI"), "ohne Produkt aus dem Store kein Pro AI im Text")
-        XCTAssertTrue(PlanPickerView.subtitle(proAI: true).contains("StudiNow Pro AI bringt dazu 120 Credits jeden Monat über den StudiNow-Dienst"))
+        XCTAssertTrue(PlanPickerView.subtitle(proAI: true).contains("StudiNow Pro AI bringt jeden Monat 120 Credits mit."))
     }
 }

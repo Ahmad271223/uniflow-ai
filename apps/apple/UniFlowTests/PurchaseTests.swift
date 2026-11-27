@@ -92,12 +92,12 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// dem Produkt. Pro Connect und das fruehere Pro gibt es nicht, auch nicht auf Nachfrage.
     func test0ProductsCarryNoIntroductoryOffer() async throws {
         let (store, ent) = await makeStore()
-        // die drei Angebote (26.11.2026): Plus monatlich, Plus 5 Jahre einmalig, Pro AI jaehrlich
+        // die vier Angebote (27.11.2026): Plus monatlich, Pro AI monatlich und jaehrlich, Plus 5 Jahre einmalig
         XCTAssertEqual(Set(store.products.map(\.id)), Set(UFOffer.allCases.map(\.productID)))
         XCTAssertEqual(store.products.first?.id, "de.uniflow.plus.monthly", "nach Preis: 1,99 € zuerst")
         let other = try await Product.products(for: ["de.uniflow.proconnect.monthly", "de.uniflow.pro.monthly",
-                                                     "de.uniflow.plus.yearly", "de.uniflow.proai.monthly"])
-        XCTAssertEqual(other.map(\.id), [], "kein frueheres Produkt (Jahres-Plus, Monats-Pro-AI, Pro Connect, Pro) in der Konfiguration der App")
+                                                     "de.uniflow.plus.yearly"])
+        XCTAssertEqual(other.map(\.id), [], "kein frueheres Produkt (Jahres-Plus, Pro Connect, Pro) in der Konfiguration der App")
         XCTAssertEqual(ent.plan, .free)
         for (plan, unit, word, renew) in [(UFPlan.plus, Product.SubscriptionPeriod.Unit.month, "Monat", "monatlich"), (.proAI, .year, "Jahr", "jährlich")] {
             let p = try XCTUnwrap(store.product(for: plan), plan.rawValue)

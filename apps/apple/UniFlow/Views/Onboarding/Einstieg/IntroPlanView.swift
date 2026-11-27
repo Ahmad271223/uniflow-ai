@@ -3,9 +3,10 @@ import SwiftUI
 
 // Probe und Tarife (neuer Einstieg, vorletzter Schritt): oben auf der Buehne die laufende 7-Tage-Probe ("alles wie Plus,
 // ohne Zahlungsdaten", `UFLocalTrial` startet sie mit der Anmeldung von selbst) und was sie freischaltet
-// (`UFPlanCard.included`, nur was auf dem iPad wirklich geht). Darunter "Und nach der Probe?": Free, Plus, Pro AI als
-// Kacheln, Preise nur aus StoreKit (`Product.displayPrice`, Hauptprodukt: Plus monatlich, Pro AI jaehrlich; die 5 Jahre
-// Plus stehen unter "Alle Details vergleichen"), Pro AI nur mit Produkt aus dem Store. Hauptknopf: mit Free/der Probe
+// (`UFPlanCard.included`, nur was auf dem iPad wirklich geht). Darunter "Und nach der Probe?" in drei Bereichen
+// (Inhaber 27.11.2026): Monatlich Free, Plus 1,99, Pro AI 3,99; Jaehrlich Pro AI 39,99 mit Ersparnis; "Unser Special" das
+// Bachelor+Master-Paket (Plus 5 Jahre einmalig) stark hervorgehoben. Jede Kachel mit der vollstaendigen Liste, was der
+// Tarif kann (`PlanFeatureList`). Preise nur aus StoreKit (`Product.displayPrice`), Angebote nur mit Produkt aus dem Store. Hauptknopf: mit Free/der Probe
 // weiter oder das gewaehlte Abo kaufen, vorher der Hinweis mit Haken (§ 327h BGB, `UFPurchaseNotice`; ohne Haken geht
 // der Kauf nicht). Darunter die Pflichtangaben (Richtlinie 3.1.2): Laufzeit,
 // Verlaengerung, Kuendigung, Kaeufe wiederherstellen, Nutzungsbedingungen, Datenschutzerklaerung. "Alle Details
@@ -32,7 +33,8 @@ struct IntroPlanView: View {
     let onDone: () -> Void
     @StateObject private var store: PurchaseStore
     @ObservedObject private var ent: Entitlements
-    @State private var selected: UFPlan = .free
+    /// gewaehltes Angebot; nil = Free bzw. die Probe
+    @State private var selected: UFOffer?
     @State private var details = false
     @State private var info: String?
     @Environment(\.openURL) private var openURL
@@ -48,7 +50,7 @@ struct IntroPlanView: View {
     }
 
     var body: some View {
-        IntroPlanLayout(trialDays: ent.runningTrial?.daysLeft, proAIOffered: offered.contains(.proAI), plans: offered,
+        IntroPlanLayout(trialDays: ent.runningTrial?.daysLeft, proAIOffered: offered.contains { $0.plan == .proAI }, offers: offered,
                         selected: $selected, price: price, loading: store.loadingProducts, busy: store.busy,
                         message: info ?? store.lastError, onPrimary: primary, onCompare: { details = true },
                         onRestore: { Task { await store.restore() } }, onLegal: { openURL($0) },
@@ -66,18 +68,28 @@ struct IntroPlanView: View {
             }
     }
 
-    /// Tarife zur Wahl: Free, Plus und Pro AI nur mit Produkt aus StoreKit
-    private var offered: [UFPlan] { UFPlanCatalog.cards(current: ent.purchasedPlan, loaded: store.loadedProductIDs) }
+    /// Angebote zur Wahl (neben Free): Plus monatlich immer, die anderen nur mit Produkt aus StoreKit
+    private var offered: [UFOffer] {
+        UFOffer.allCases.filter { $0 == .plusMonthly || store.loadedProductIDs.contains($0.productID) }
+    }
 
-    private func price(_ plan: UFPlan) -> IntroPlanPrice? {
-        guard plan != .free, let p = store.product(for: plan) else { return nil }
+    private func price(_ o: UFOffer) -> IntroPlanPrice? {
+        guard let p = store.product(for: o) else { return nil }
+        let savings = o.savings.flatMap {
+            UFOfferText.savingsApply(o, price: p.price, currency: p.priceFormatStyle.currencyCode,
+                                     comparePrice: o.compare.flatMap { store.product(for: $0)?.price }) ? $0 : nil
+        }
+        if o.kind == .nonRenewing, let years = o.years {
+            return IntroPlanPrice(display: p.displayPrice, per: "einmalig", summary: UFOfferText.onceSummary(price: p.displayPrice, years: years),
+                                  button: UFOfferText.onceButton(price: p.displayPrice, years: years), savings: savings)
+        }
         return IntroPlanPrice(display: p.displayPrice, per: UFOfferText.per(value: p.ufPeriod.0, unit: p.ufPeriod.1),
                               summary: UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod),
-                              button: UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod))
+                              button: UFOfferText.button(plan: o.plan, price: p.displayPrice, period: p.ufPeriod), savings: savings)
     }
 
     private func primary() {
-        guard selected != .free, let p = store.product(for: selected) else { onDone(); return }
+        guard let selected, let p = store.product(for: selected) else { onDone(); return }
         // nie ohne bestaetigten Hinweis (§ 327h BGB)
         guard UFPurchaseNotice.allowsPurchase(confirmed: noticeConfirmed) else { info = UFPurchaseNotice.needsConfirm; return }
         Task {
@@ -97,6 +109,8 @@ struct IntroPlanPrice: Equatable {
     let per: String
     let summary: String
     let button: String
+    /// Ersparnis aus dem Vertrag, nur wenn die Store-Preise dazu passen (`UFOfferText.savingsApply`)
+    var savings: UFOfferSavings? = nil
 }
 
 /// Aufbau der Seite (ohne StoreKit, fuer Bilder und Tests)
@@ -104,9 +118,11 @@ struct IntroPlanLayout: View {
     /// Resttage der laufenden Probe; nil = keine Probe (auf diesem iPad schon genutzt)
     let trialDays: Int?
     let proAIOffered: Bool
-    let plans: [UFPlan]
-    @Binding var selected: UFPlan
-    let price: (UFPlan) -> IntroPlanPrice?
+    /// Angebote neben Free (UFOffer-Reihenfolge)
+    let offers: [UFOffer]
+    /// nil = Free bzw. die Probe
+    @Binding var selected: UFOffer?
+    let price: (UFOffer) -> IntroPlanPrice?
     var loading = false
     var busy = false
     var message: String?
@@ -118,8 +134,8 @@ struct IntroPlanLayout: View {
     var notice: Binding<Bool>? = nil
 
     /// Hauptknopf antippbar? Free bzw. die Probe immer, ein Kauf erst mit bestaetigtem Hinweis
-    static func primaryEnabled(selected: UFPlan, busy: Bool, confirmed: Bool?) -> Bool {
-        !busy && (selected == .free || confirmed != false)
+    static func primaryEnabled(selected: UFOffer?, busy: Bool, confirmed: Bool?) -> Bool {
+        !busy && (selected == nil || confirmed != false)
     }
 
     var body: some View {
@@ -132,18 +148,18 @@ struct IntroPlanLayout: View {
                         Text(trialDays == nil ? "Tarif wählen" : IntroPlanText.afterTitle)
                             .ufFont(22, 700, em: -0.01).foregroundStyle(UF.text)
                             .accessibilityAddTraits(.isHeader)
-                        IntroPlanTiles(plans: plans, selected: $selected, price: price, loading: loading, trial: trialDays != nil)
+                        IntroPlanTiles(offers: offers, selected: $selected, price: price, loading: loading, trial: trialDays != nil)
                         if let message {
                             Text(message).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                         }
-                        if selected != .free, let notice {
+                        if selected != nil, let notice {
                             PurchaseNoticeCard(confirmed: notice)
                         }
                         VStack(spacing: 10) {
-                            IntroCTA(title: ctaTitle, icon: selected == .free ? "arrow-right" : nil,
+                            IntroCTA(title: ctaTitle, icon: selected == nil ? "arrow-right" : nil,
                                      enabled: Self.primaryEnabled(selected: selected, busy: busy, confirmed: notice?.wrappedValue), action: onPrimary)
                                 .accessibilityIdentifier("intro.plan.primary")
-                            if selected != .free, let p = price(selected) {
+                            if let selected, let p = price(selected) {
                                 Text(p.summary).ufFont(12.8).foregroundStyle(UF.muted).multilineTextAlignment(.center)
                             }
                             Button(IntroPlanText.compare, action: onCompare)
@@ -164,8 +180,8 @@ struct IntroPlanLayout: View {
     }
 
     private var ctaTitle: String {
-        if selected == .free { return trialDays == nil ? IntroPlanText.startFree : IntroPlanText.startTrial }
-        return price(selected)?.button ?? "\(selected.name) wählen"
+        guard let selected else { return trialDays == nil ? IntroPlanText.startFree : IntroPlanText.startTrial }
+        return price(selected)?.button ?? "\(selected.name ?? selected.plan.name) wählen"
     }
 }
 
@@ -258,73 +274,127 @@ struct IntroPlanNowList: View {
     }
 }
 
-/// Free, Plus, Pro AI nebeneinander (schmal untereinander)
+/// Drei Bereiche (27.11.2026): Monatlich Free, Plus, Pro AI nebeneinander (schmal untereinander), Jaehrlich Pro AI,
+/// "Unser Special" das Bachelor+Master-Paket
 struct IntroPlanTiles: View {
-    let plans: [UFPlan]
-    @Binding var selected: UFPlan
-    let price: (UFPlan) -> IntroPlanPrice?
+    let offers: [UFOffer]
+    @Binding var selected: UFOffer?
+    let price: (UFOffer) -> IntroPlanPrice?
     let loading: Bool
     let trial: Bool
 
+    private func cards(_ g: UFOfferGroup) -> [UFPlanOfferCard] {
+        (g == .monthly ? [.free] : []) + g.offers.filter(offers.contains).map { .offer($0) }
+    }
+
     var body: some View {
-        UFGridLayout(spacing: 12, minWidth: 220) {
-            ForEach(plans, id: \.self) { p in
-                IntroPlanTile(plan: p, selected: selected == p, price: price(p), loading: loading, trial: trial) {
-                    selected = p
+        VStack(alignment: .leading, spacing: 18) {
+            ForEach(UFOfferGroup.allCases) { g in
+                if !cards(g).isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(g.title).ufFont(13.12, 700, em: 0.04).foregroundStyle(UF.muted).textCase(.uppercase)
+                            .accessibilityAddTraits(.isHeader)
+                        if g == .monthly {
+                            UFGridLayout(spacing: 12, minWidth: 220) {
+                                ForEach(cards(g)) { tile($0) }
+                            }
+                            .environment(\.ufFillsCell, true)
+                        } else {
+                            ForEach(cards(g)) { tile($0) }
+                        }
+                    }
                 }
             }
         }
-        .environment(\.ufFillsCell, true)
+    }
+
+    private func tile(_ c: UFPlanOfferCard) -> some View {
+        IntroPlanTile(card: c, selected: selected == c.offer, price: c.offer.flatMap(price), loading: loading, trial: trial) {
+            selected = c.offer
+        }
     }
 }
 
 struct IntroPlanTile: View {
-    let plan: UFPlan
+    let card: UFPlanOfferCard
     let selected: Bool
     let price: IntroPlanPrice?
     let loading: Bool
     let trial: Bool
     let action: () -> Void
 
+    private var plan: UFPlan { card.plan }
+    private var special: Bool { card.offer?.highlight == true }
+    private var shape: RoundedRectangle { RoundedRectangle(cornerRadius: special ? 20 : 16, style: .continuous) }
+
     var body: some View {
         Button(action: action) {
             VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text(plan.name).ufFont(16.5, 650).foregroundStyle(UF.text)
-                    Spacer(minLength: 6)
-                    Circle().strokeBorder(selected ? UF.accent : UF.lineStrong, lineWidth: selected ? 6.5 : 1.5)
-                        .frame(width: 22, height: 22)
-                }
+                head
                 priceLine
-                if let t = UFPlanCard.tagline(plan) {
+                if let s = price?.savings {
+                    PlanSavingsLine(savings: s, strong: special).padding(.top, 2)
+                }
+                if let t = UFPlanCard.tagline(plan), !special {
                     Text(t).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 }
+                if plan == .plus { Text(UFPlanCatalog.plusServiceNote).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true) }
+                Rectangle().fill(special ? UF.accent.opacity(0.35) : UF.line).frame(height: 1).padding(.vertical, 6)
+                PlanFeatureList(plan: plan, columns: card.offer?.group == .special || card.offer?.group == .yearly)
                 Spacer(minLength: 0)
                 if plan == .free && trial {
                     UFBadge("nach der Probe von selbst", tone: .neutral)
                 }
             }
-            .padding(16)
+            .multilineTextAlignment(.leading)
+            .padding(special ? 20 : 16)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(selected ? UF.accentSoft.opacity(0.55) : UF.surface))
-            .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(selected ? UF.accent : UF.line, lineWidth: selected ? 2 : 1))
-            .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(shape.fill(background))
+            .overlay(shape.strokeBorder(selected || special ? UF.accent : UF.line, lineWidth: special ? (selected ? 3.5 : 2.5) : (selected ? 2 : 1)))
+            .ufShadow(special ? .lg : .none)
+            .contentShape(shape)
         }
         .buttonStyle(UFPressStyle())
         .accessibilityAddTraits(selected ? .isSelected : [])
-        .accessibilityIdentifier("intro.plan.\(plan.rawValue)")
+        .accessibilityIdentifier("intro.plan.\(card.offer.map { PlanPickerView.buyIdentifier($0).replacingOccurrences(of: "plans.buy.", with: "") } ?? "free")")
+    }
+
+    private var background: AnyShapeStyle {
+        if special { return AnyShapeStyle(LinearGradient(colors: [UF.accentSoft, UF.surface], startPoint: .topLeading, endPoint: .bottomTrailing)) }
+        return AnyShapeStyle(selected ? UF.accentSoft.opacity(0.55) : UF.surface)
+    }
+
+    @ViewBuilder private var head: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 6) {
+                if special, let o = card.offer {
+                    PlanSpecialBadge(text: o.badge ?? UFOfferGroup.special.title)
+                    Text(o.name ?? plan.name).ufFont(20.8, 750, em: -0.02).foregroundStyle(UF.text)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(UFOfferText.packageContent(years: o.years ?? 5)).ufFont(14.5, 600).foregroundStyle(UF.accentText)
+                } else {
+                    Text(plan.name).ufFont(16.5, 650).foregroundStyle(UF.text)
+                }
+            }
+            Spacer(minLength: 6)
+            Circle().strokeBorder(selected ? UF.accent : UF.lineStrong, lineWidth: selected ? 6.5 : 1.5)
+                .frame(width: 22, height: 22)
+        }
     }
 
     @ViewBuilder private var priceLine: some View {
-        if plan == .free {
+        if plan == .free && card.offer == nil {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
                 Text("0 €").ufFont(24, 700, em: -0.02).foregroundStyle(UF.text)
                 Text("dauerhaft").ufFont(13.12).foregroundStyle(UF.muted)
             }
         } else if let price {
             HStack(alignment: .firstTextBaseline, spacing: 3) {
-                Text(price.display).ufFont(24, 700, em: -0.02).foregroundStyle(UF.text)
+                Text(price.display).ufFont(special ? 30 : 24, 700, em: -0.02).foregroundStyle(UF.text)
                 Text(price.per).ufFont(13.12).foregroundStyle(UF.muted)
+            }
+            if special {
+                Text(price.summary).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
             }
         } else {
             Text(loading ? "Preis wird geladen …" : "Preis zurzeit nicht verfügbar").ufFont(13.12).foregroundStyle(UF.muted)

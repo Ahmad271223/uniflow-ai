@@ -460,7 +460,8 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         expect(env, "1,99")
         station(env, "06-tarife", back: false, markers: [UFPlan.free.name, UFPlan.plus.name, "/Jahr", PlanPickerView.LegalPage.terms.rawValue,
                                                          PlanPickerView.LegalPage.privacy.rawValue, "Käufe wiederherstellen"])
-        XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos (09.11.2026):\n" + dump(env))
+        // 27.11.2026 neue Tarife: Bereiche "Unser Special", "Monatlich", "Jährlich"
+        XCTAssertTrue(shows(env, "Monatlich") && shows(env, "Unser Special"), "Bereiche der Tarifseite:\n" + dump(env))
         for word in ["Geld zurück", "Preis zurzeit nicht verfügbar", "Mit ChatGPT anmelden"] {
             XCTAssertFalse(shows(env, word), "Tarife: „\(word)“ im Bild")
         }
@@ -610,7 +611,7 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
                       "Tarifblatt mit Preisen:\n" + dump(env))
         station(env, "31-tarif-jaehrlich", markers: [PlanPickerView.title(.settings), UFPlan.plus.name + " für 1,99", UFPlan.proAI.name + " für 39,99", "/Jahr", "/Monat", "Käufe wiederherstellen"])
         XCTAssertNil(segmented(env), "kein Umschalter der Zahlweise")
-        XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos:\n" + dump(env))
+        XCTAssertTrue(shows(env, "Monatlich"), "Bereich Monatlich (27.11.2026):\n" + dump(env))
         if !tap("Schließen", in: env) { dismissPresented(env) }
         XCTAssertTrue(env.wait(timeout: 5) { env.hosting.presentedViewController == nil }, "Tarifblatt geschlossen")
 

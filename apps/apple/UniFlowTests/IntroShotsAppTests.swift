@@ -26,13 +26,16 @@ final class IntroShotsAppTests: XCTestCase {
         return m
     }
 
-    static func price(_ p: UFPlan) -> IntroPlanPrice? {
-        switch p {
-        case .free: return nil
-        case .plus: return IntroPlanPrice(display: "1,99 €", per: "/Monat", summary: "1,99 €/Monat, verlängert sich monatlich, jederzeit zum Laufzeitende kündbar",
-                                          button: "StudiNow Plus für 1,99 €/Monat")
-        case .proAI: return IntroPlanPrice(display: "39,99 €", per: "/Jahr", summary: "39,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar",
-                                           button: "StudiNow Pro AI für 39,99 €/Jahr")
+    static func price(_ o: UFOffer) -> IntroPlanPrice? {
+        switch o {
+        case .plusMonthly: return IntroPlanPrice(display: "1,99 €", per: "/Monat", summary: "1,99 €/Monat, verlängert sich monatlich, jederzeit zum Laufzeitende kündbar",
+                                                 button: "StudiNow Plus für 1,99 €/Monat")
+        case .proAIMonthly: return IntroPlanPrice(display: "3,99 €", per: "/Monat", summary: "3,99 €/Monat, verlängert sich monatlich, jederzeit zum Laufzeitende kündbar",
+                                                  button: "StudiNow Pro AI für 3,99 €/Monat")
+        case .proAIYearly: return IntroPlanPrice(display: "39,99 €", per: "/Jahr", summary: "39,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar",
+                                                 button: "StudiNow Pro AI für 39,99 €/Jahr", savings: o.savings)
+        case .plusFiveYears: return IntroPlanPrice(display: "39,99 €", per: "einmalig", summary: UFOfferText.onceSummary(price: "39,99 €", years: 5),
+                                                   button: UFOfferText.onceButton(price: "39,99 €", years: 5), savings: o.savings)
         }
     }
 
@@ -96,9 +99,9 @@ final class IntroShotsAppTests: XCTestCase {
     }
 
     private struct IntroPlanShot: View {
-        @State private var selected: UFPlan = .free
+        @State private var selected: UFOffer?
         var body: some View {
-            IntroPlanLayout(trialDays: 7, proAIOffered: true, plans: [.free, .plus, .proAI], selected: $selected,
+            IntroPlanLayout(trialDays: 7, proAIOffered: true, offers: UFOffer.allCases, selected: $selected,
                             price: IntroShotsAppTests.price, onPrimary: {}, onCompare: {}, onRestore: {}, onLegal: { _ in })
         }
     }

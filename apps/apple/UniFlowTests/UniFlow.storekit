@@ -87,6 +87,26 @@
         {
           "adHocOffers": [],
           "codeOffers": [],
+          "displayPrice": "3.99",
+          "familyShareable": false,
+          "groupNumber": 1,
+          "internalID": "6500000014",
+          "localizations": [
+            {
+              "description": "Alles aus Plus und 120 Credits im Monat",
+              "displayName": "StudiNow Pro AI",
+              "locale": "de"
+            }
+          ],
+          "productID": "de.uniflow.proai.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "StudiNow Pro AI monatlich",
+          "subscriptionGroupID": "21500001",
+          "type": "RecurringSubscription"
+        },
+        {
+          "adHocOffers": [],
+          "codeOffers": [],
           "displayPrice": "39.99",
           "familyShareable": false,
           "groupNumber": 1,

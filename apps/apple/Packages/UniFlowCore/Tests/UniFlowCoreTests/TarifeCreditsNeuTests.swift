@@ -160,4 +160,57 @@ final class TarifeCreditsNeuTests: XCTestCase {
         XCTAssertTrue(StudiNowAIAccess.aiPlans.isSuperset(of: ["plus", "pro_ai"]))
         XCTAssertFalse(StudiNowAIAccess.aiPlans.contains("free"))
     }
+
+    // MARK: Pro AI monatlich, Bereiche und Ersparnis (27.11.2026)
+
+    /// plans.json: Pro AI monatlich (3,99 €) gehoert zu Pro AI und bringt dieselben 120 Credits wie jaehrlich; die
+    /// Angebote stehen in den Bereichen Monatlich, Jaehrlich, Unser Special; Plus jaehrlich ist kein Angebot mehr
+    func testProAIMonthlyIsProAIWith120CreditsInTheContract() throws {
+        let c = try plansContract()
+        let offers = try XCTUnwrap(c["offers"]?.array)
+        XCTAssertEqual(offers.compactMap { $0["product_id"]?.string },
+                       ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly", "de.uniflow.proai.yearly", "de.uniflow.plus.fuenfjahre"])
+        XCTAssertEqual(offers.compactMap { $0["group"]?.string }, ["monthly", "monthly", "yearly", "special"])
+        XCTAssertEqual(c["offer_groups"]?.array?.compactMap { $0["key"]?.string }, ["special", "monthly", "yearly"])
+        XCTAssertEqual(c["offer_groups"]?.array?.compactMap { $0["title"]?.string }, ["Unser Special", "Monatlich", "Jährlich"])
+        let monthly = try XCTUnwrap(offers.first { $0["product_id"]?.string == "de.uniflow.proai.monthly" })
+        XCTAssertEqual(monthly["plan"]?.string, "pro_ai")
+        XCTAssertEqual(monthly["kind"]?.string, "auto_renewable")
+        XCTAssertEqual(monthly["price_cents"]?.int, 399)
+        XCTAssertEqual(monthly["period"]?.string, "month")
+        XCTAssertEqual(c["plans"]?["pro_ai"]?["credits"]?.int, 120, "Pro AI monatlich: 120 Credits wie jaehrlich")
+        XCTAssertEqual(StudiNowAIText.proAIMonthlyCredits, 120)
+        XCTAssertFalse(offers.contains { $0["product_id"]?.string == "de.uniflow.plus.yearly" }, "Plus jaehrlich wird nicht angeboten")
+        // Paket: Name, Abzeichen, Hervorhebung, nur dieses
+        let special = offers.filter { $0["highlight"]?.bool == true }
+        XCTAssertEqual(special.compactMap { $0["product_id"]?.string }, ["de.uniflow.plus.fuenfjahre"])
+        XCTAssertEqual(special.first?["name"]?.string, "Bachelor+Master-Paket")
+        XCTAssertEqual(special.first?["badge"]?.string, "Unser Special")
+        XCTAssertEqual(special.first?["kind"]?.string, "non_renewing")
+        XCTAssertEqual(special.first?["years"]?.int, 5)
+    }
+
+    /// Ersparnis in plans.json nachgerechnet und als Text: Pro AI jaehrlich gegen 12 x monatlich, Paket gegen 60 x Plus
+    func testSavingsInTheContractAddUp() throws {
+        let offers = try XCTUnwrap(try plansContract()["offers"]?.array)
+        func offer(_ id: String) throws -> JSONValue { try XCTUnwrap(offers.first { $0["product_id"]?.string == id }, id) }
+        let expected = [("de.uniflow.proai.yearly", "de.uniflow.proai.monthly", 12, "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €", "nur 3,33 € im Monat"),
+                        ("de.uniflow.plus.fuenfjahre", "de.uniflow.plus.monthly", 60, "Du sparst 79,41 € (67 %) gegenüber 60 × 1,99 € = 119,40 €", "nur 0,67 € im Monat")]
+        for (id, compare, months, text, perMonth) in expected {
+            let o = try offer(id)
+            XCTAssertEqual(o["compare"]?.string, compare, id)
+            let s = try XCTUnwrap(o["savings"]?.object, id)
+            let price = try XCTUnwrap(o["price_cents"]?.int, id)
+            let comparePrice = try XCTUnwrap(try offer(compare)["price_cents"]?.int, id)
+            XCTAssertEqual(s["months"]?.int, months, id)
+            XCTAssertEqual(s["regular_cents"]?.int, months * comparePrice, id)
+            XCTAssertEqual(s["saved_cents"]?.int, months * comparePrice - price, id)
+            XCTAssertEqual(s["saved_percent"]?.int, Int((Double(months * comparePrice - price) * 100 / Double(months * comparePrice)).rounded()), id)
+            XCTAssertEqual(s["text"]?.string, text, id)
+            XCTAssertEqual(s["per_month_text"]?.string, perMonth, id)
+        }
+        for id in ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly"] {
+            XCTAssertNil(try offer(id)["savings"]?.object, id)
+        }
+    }
 }

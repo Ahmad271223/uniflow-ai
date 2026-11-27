@@ -882,7 +882,7 @@ private struct AppAccountCards: View {
                 if !ent.loading { UFBadge(ent.statusLabel, tone: ent.plan == .free ? .neutral : .ok) }
             }
             Text(canSwitchPlan
-                 ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
+                 ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen. \(UFPlan.proAI.name) gibt es \(UFPlanCatalog.proAIFrom)."
                  : "Die Auswahl zwischen \(Self.planNames) folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
             Text(UFTrialTexts.perAppleID).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)

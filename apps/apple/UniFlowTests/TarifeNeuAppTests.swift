@@ -28,19 +28,22 @@ final class TarifeNeuAppTests: StoreKitSessionTestCase {
     // MARK: Angebote
 
     func testOffersAndFormerProducts() {
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.plus.fuenfjahre", "de.uniflow.proai.yearly"])
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly", "de.uniflow.proai.yearly",
+                                                  "de.uniflow.plus.fuenfjahre"])
         XCTAssertEqual(UFPlan.plus.productID, "de.uniflow.plus.monthly")
         XCTAssertEqual(UFPlan.proAI.productID, "de.uniflow.proai.yearly")
         XCTAssertNil(UFPlan.free.productID)
         XCTAssertEqual(UFOffer.plusFiveYears.plan, .plus)
         XCTAssertEqual(UFOffer.plusFiveYears.years, 5)
         XCTAssertNil(UFOffer.plusFiveYears.period)
-        // nicht mehr verkauft, ein frueherer Kauf gilt weiter: Plus-Jahresabo als Plus, Pro-AI-Monatsabo als Pro AI
+        // nicht mehr verkauft, ein frueherer Kauf gilt weiter: Plus-Jahresabo als Plus; Pro AI monatlich ist wieder ein
+        // Angebot (27.11.2026) und gilt als Pro AI
         let later = Date().addingTimeInterval(86_400)
         XCTAssertEqual(UFEntitlementResolver.plan(from: [.init(productID: "de.uniflow.plus.yearly", expirationDate: later)], now: Date()), .plus)
         XCTAssertEqual(UFEntitlementResolver.plan(from: [.init(productID: "de.uniflow.proai.monthly", expirationDate: later)], now: Date()), .proAI)
         XCTAssertFalse(PurchaseStore.productIDs.contains("de.uniflow.plus.yearly"))
-        XCTAssertFalse(PurchaseStore.productIDs.contains("de.uniflow.proai.monthly"))
+        XCTAssertTrue(PurchaseStore.productIDs.contains("de.uniflow.proai.monthly"))
+        XCTAssertNil(UFPlan.legacyProductIDs["de.uniflow.proai.monthly"], "kein Altprodukt mehr")
         XCTAssertTrue(UFPlan.plus.productIDs.contains("de.uniflow.plus.yearly"), "frueheres Plus zaehlt als Kauf von Plus")
     }
 
@@ -58,12 +61,26 @@ final class TarifeNeuAppTests: StoreKitSessionTestCase {
         let pro = try XCTUnwrap(store.product(for: .proAIYearly))
         XCTAssertEqual(pro.price, Decimal(string: "39.99"))
         XCTAssertEqual(pro.ufPeriod.1, .year)
+        // Pro AI monatlich (27.11.2026): Auto-Abo 3,99 € je Monat, dieselbe Gruppe wie Pro AI jaehrlich
+        let proMonthly = try XCTUnwrap(store.product(for: .proAIMonthly))
+        XCTAssertEqual(proMonthly.price, Decimal(string: "3.99"))
+        XCTAssertEqual(proMonthly.type, .autoRenewable)
+        XCTAssertEqual(proMonthly.ufPeriod.0, 1)
+        XCTAssertEqual(proMonthly.ufPeriod.1, .month)
+        XCTAssertEqual(proMonthly.displayName, UFPlan.proAI.name)
+        XCTAssertEqual(proMonthly.subscription?.subscriptionGroupID, pro.subscription?.subscriptionGroupID)
+        XCTAssertEqual(proMonthly.subscription?.subscriptionGroupID, monthly.subscription?.subscriptionGroupID)
+        XCTAssertEqual(store.product(for: .proAI)?.id, pro.id, "Hauptprodukt von Pro AI bleibt das Jahresabo")
         XCTAssertEqual(store.product(for: .plus)?.id, monthly.id, "Hauptprodukt von Plus ist das Monatsabo")
         // Texte vor dem Kauf
         XCTAssertEqual(UFOfferText.onceSummary(price: "39,99 €", years: 5), "39,99 € einmalig, gilt 5 Jahre ab dem Kauf, verlängert sich nicht")
         XCTAssertEqual(UFOfferText.onceButton(price: "39,99 €", years: 5), "5 Jahre für 39,99 € einmalig")
         XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: (1, .month)), "1,99 €/Monat, verlängert sich monatlich, jederzeit zum Laufzeitende kündbar")
         XCTAssertTrue(PlanPickerView.legalText.contains("5 Jahre ab dem Kauf und verlängert sich nicht"), PlanPickerView.legalText)
+        // Pflichttext (27.11.2026): Plus monatlich, Pro AI monatlich und jaehrlich verlaengern sich, das Paket nicht
+        XCTAssertTrue(PlanPickerView.legalText.contains("StudiNow Plus monatlich sowie StudiNow Pro AI monatlich und jährlich sind Abos mit automatischer Verlängerung"),
+                      PlanPickerView.legalText)
+        XCTAssertTrue(PlanPickerView.legalText.contains("Das Bachelor+Master-Paket (StudiNow Plus für 5 Jahre) bezahlst du einmal"), PlanPickerView.legalText)
         XCTAssertTrue(PlanPickerView.legalText.contains("24 Stunden vor Ablauf"))
     }
 
@@ -125,7 +142,382 @@ final class TarifeNeuAppTests: StoreKitSessionTestCase {
                        "kein Abo der Gruppe: Pro AI ist ein Kauf, kein Wechsel")
         XCTAssertFalse(PlanPickerView.showsOnceButton(purchased: ent.purchasedPlan, offer: ent.purchasedOffer, giftCovers: false, loaded: true),
                        "solange die 5 Jahre gelten, kein zweiter 5-Jahres-Knopf")
+        XCTAssertTrue(ent.activeOffers.contains(.plusFiveYears))
         XCTAssertTrue(UFOfferText.onceNote(.plus, until: expires).hasPrefix("Einmal bezahlt – StudiNow Plus gilt bis "))
+    }
+
+    // MARK: Pro AI monatlich (27.11.2026)
+
+    /// Pro AI monatlich ist Pro AI: 3,99 € im Monat, 120 Credits wie jaehrlich, Bereich "Monatlich"
+    func testProAIMonthlyIsProAIWith120Credits() {
+        let o = UFOffer.proAIMonthly
+        XCTAssertEqual(o.productID, "de.uniflow.proai.monthly")
+        XCTAssertEqual(o.plan, .proAI)
+        XCTAssertEqual(o.kind, .autoRenewable)
+        XCTAssertEqual(o.priceCents, 399)
+        XCTAssertEqual(o.period, "month")
+        XCTAssertEqual(o.label, "3,99 € im Monat")
+        XCTAssertEqual(o.group, .monthly)
+        XCTAssertNil(o.savings)
+        XCTAssertEqual(UFPlan(productID: o.productID), .proAI)
+        let later = Date().addingTimeInterval(20 * 86_400)
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [.init(productID: o.productID, expirationDate: later)], now: Date()), .proAI)
+        let ent = Entitlements(observe: false, plan: .free)
+        ent.setPurchasedForTesting(.proAI, offer: .proAIMonthly)
+        XCTAssertEqual(ent.plan, .proAI)
+        XCTAssertEqual(ent.plan.monthlyCredits, 120, "120 Credits im Monat wie Pro AI jaehrlich")
+        XCTAssertTrue(ent.canBuyCredits)
+        XCTAssertTrue(UFRichNotes.allowed(plan: ent.plan))
+        // Wechsel monatlich <-> jaehrlich: gleicher Tarif, eigene Texte
+        XCTAssertEqual(UFOfferText.switchButton(to: .proAIYearly, from: .proAIMonthly), "Zu jährlich wechseln")
+        XCTAssertEqual(UFOfferText.switchButton(to: .proAIMonthly, from: .proAIYearly), "Zu monatlich wechseln")
+        XCTAssertEqual(UFOfferText.switchButton(to: .proAIMonthly, from: .plusMonthly), "Zu StudiNow Pro AI wechseln")
+        XCTAssertEqual(UFOfferText.switchNote(to: .proAIYearly, from: .proAIMonthly, currentPlan: .proAI), UFOfferText.crossgradeNote)
+        XCTAssertEqual(UFOfferText.switchNote(to: .plusMonthly, from: .proAIMonthly, currentPlan: .proAI),
+                       "Gilt ab der nächsten Verlängerung, bis dahin bleibt StudiNow Pro AI.")
+        // "Aktueller Tarif" auf der Karte des gekauften Angebots
+        XCTAssertTrue(PlanPickerView.isCurrent(.offer(.proAIMonthly), purchased: .proAI, offer: .proAIMonthly, loading: false, trial: false))
+        XCTAssertFalse(PlanPickerView.isCurrent(.offer(.proAIYearly), purchased: .proAI, offer: .proAIMonthly, loading: false, trial: false))
+        XCTAssertFalse(PlanPickerView.isCurrent(.offer(.plusMonthly), purchased: .proAI, offer: .proAIMonthly, loading: false, trial: false))
+        XCTAssertEqual(PlanPickerView.buyIdentifier(.proAIMonthly), "plans.buy.pro_ai.month")
+        XCTAssertEqual(PlanPickerView.buyIdentifier(.proAIYearly), "plans.buy.pro_ai")
+        XCTAssertEqual(PlanPickerView.buyIdentifier(.plusMonthly), "plans.buy.plus")
+        // Hinweise ausserhalb der Tarifseite
+        XCTAssertEqual(UFPlanCatalog.proAIFrom, "ab 3,99 € im Monat")
+        XCTAssertEqual(UFPlanCatalog.proAIWithPrice, "StudiNow Pro AI (ab 3,99 € im Monat)")
+        // Pro-AI-Karte: Credits jeden Monat und weitere dazukaufen
+        XCTAssertEqual(UFPlanCard.rows(.proAI).map(\.title), ["120 Credits für die StudiNow-KI – jeden Monat", "Weitere Credits jederzeit dazukaufen"])
+        XCTAssertEqual(UFPlanCard.intro(.proAI), "Alles aus StudiNow Plus, dazu:")
+        XCTAssertEqual(UFPlanCard.intro(.plus), "Alles aus StudiNow Free, dazu:")
+        XCTAssertTrue(UFPlanCard.rows(.plus).contains { $0.title == UFFeature.aiChat.title }, "Plus: KI mit gekauften Credits")
+    }
+
+    /// Kauf von Pro AI monatlich in der StoreKit-Testsitzung: Pro AI, Angebot monatlich, verlaengert sich
+    func testProAIMonthlyPurchaseInTheStore() async throws {
+        try requireVisibleTestPurchases()
+        let (store, ent) = await makeStore()
+        let p = try XCTUnwrap(store.product(for: .proAIMonthly))
+        let outcome = await store.purchase(p)
+        XCTAssertEqual(outcome, .success, store.lastError ?? "")
+        await waitForPlan(ent, .proAI)
+        XCTAssertEqual(ent.purchasedPlan, .proAI)
+        XCTAssertEqual(ent.purchasedOffer, .proAIMonthly)
+        XCTAssertEqual(ent.plan.monthlyCredits, 120)
+        XCTAssertTrue(PlanPickerView.hasSubscription(purchased: ent.purchasedPlan, offer: ent.purchasedOffer, loading: false))
+        // das Paket bleibt daneben kaufbar, mit dem Hinweis zum Kuendigen
+        XCTAssertTrue(PlanPickerView.showsOnceButton(purchased: ent.purchasedPlan, offer: ent.purchasedOffer, giftCovers: false, loaded: true,
+                                                     ownsOnce: ent.activeOffers.contains(.plusFiveYears)))
+        XCTAssertEqual(UFOfferText.onceNote(subscribed: ent.purchasedPlan), UFOfferText.onceWithProAINote)
+    }
+
+    // MARK: Drei Bereiche, Reihenfolge, Ersparnis (27.11.2026)
+
+    func testSectionsInOrderMonthlyYearlySpecial() {
+        let all = Set(UFOffer.allCases.map(\.productID))
+        let s = UFPlanCatalog.sections(current: .free, loaded: all)
+        XCTAssertEqual(s.map(\.group), [.special, .monthly, .yearly], "Special zuerst (Inhaber 27.11.2026)")
+        XCTAssertEqual(s.map(\.group.title), ["Unser Special", "Monatlich", "Jährlich"])
+        XCTAssertEqual(s[0].cards, [.offer(.plusFiveYears)])
+        XCTAssertEqual(s[1].cards, [.free, .offer(.plusMonthly), .offer(.proAIMonthly)], "Free, dann Plus 1,99, dann Pro AI 3,99")
+        XCTAssertEqual(s[2].cards, [.offer(.proAIYearly)])
+        XCTAssertEqual(UFOfferGroup.monthly.offers, [.plusMonthly, .proAIMonthly])
+        XCTAssertEqual(UFOfferGroup.yearly.offers, [.proAIYearly])
+        XCTAssertEqual(UFOfferGroup.special.offers, [.plusFiveYears])
+        // Paket: Name, Abzeichen, Hervorhebung
+        XCTAssertEqual(UFOffer.plusFiveYears.name, "Bachelor+Master-Paket")
+        XCTAssertEqual(UFOffer.plusFiveYears.badge, "Unser Special")
+        XCTAssertTrue(UFOffer.plusFiveYears.highlight)
+        XCTAssertEqual(UFOffer.allCases.filter(\.highlight), [.plusFiveYears], "nur das Paket ist hervorgehoben")
+        XCTAssertEqual(UFOfferText.packageContent(years: 5), "StudiNow Plus für 5 Jahre")
+        // ohne Produkte: Free und Plus (ohne Preis), keine leeren Bereiche
+        XCTAssertEqual(UFPlanCatalog.sections(current: .free, loaded: []), [UFPlanSection(group: .monthly, cards: [.free, .offer(.plusMonthly)])])
+        // nur Pro AI jaehrlich im Store: Monatlich ohne Pro AI
+        let yearlyOnly = UFPlanCatalog.sections(current: .free, loaded: ["de.uniflow.plus.monthly", "de.uniflow.proai.yearly"])
+        XCTAssertEqual(yearlyOnly.map(\.group), [.monthly, .yearly])
+        XCTAssertEqual(yearlyOnly[0].cards, [.free, .offer(.plusMonthly)])
+        // wer Pro AI monatlich hat, sieht seine Karte auch ohne Produkt aus dem Store
+        let owned = UFPlanCatalog.sections(current: .proAI, owned: .proAIMonthly, loaded: [])
+        XCTAssertEqual(owned.first?.cards, [.free, .offer(.plusMonthly), .offer(.proAIMonthly)])
+        // ein frueheres Pro-Produkt ohne Angebot (Pro Connect): die erste Pro-AI-Karte
+        XCTAssertEqual(UFPlanCatalog.sections(current: .proAI, owned: nil, loaded: []).first?.cards, [.free, .offer(.plusMonthly), .offer(.proAIMonthly)])
+    }
+
+    /// Ersparnis-Texte aus plans.json (`offers[].savings`): genau dieselben Texte, gerechnet aus den Preisen des Vertrags
+    func testSavingsTextsMatchTheFixture() throws {
+        let url = ContainerTestBed.repoURL("packages/shared-contracts/fixtures/plans/plans.json")
+        let c = try JSONValue.parse(String(contentsOf: url, encoding: .utf8))
+        let offers = try XCTUnwrap(c["offers"]?.array)
+        func cents(_ v: JSONValue?) -> Int? { v?.double.map { Int($0) } }
+        XCTAssertEqual(offers.compactMap { $0["product_id"]?.string }, UFOffer.allCases.map(\.productID))
+        for (o, offer) in zip(offers, UFOffer.allCases) {
+            XCTAssertEqual(o["group"]?.string, offer.group.rawValue, offer.productID)
+            guard let s = offer.savings else {
+                XCTAssertNil(o["savings"]?.object, offer.productID)
+                continue
+            }
+            XCTAssertEqual(o["savings"]?["text"]?.string, s.text, offer.productID)
+            XCTAssertEqual(o["savings"]?["per_month_text"]?.string, s.perMonthText, offer.productID)
+            XCTAssertEqual(cents(o["savings"]?["saved_cents"]), s.savedCents, offer.productID)
+            // nachgerechnet: Monate x Vergleichspreis, minus Preis, Prozent gerundet
+            let compare = try XCTUnwrap(offer.compare, offer.productID)
+            XCTAssertEqual(s.regularCents, s.months * compare.priceCents, offer.productID)
+            XCTAssertEqual(s.savedCents, s.regularCents - offer.priceCents, offer.productID)
+            XCTAssertEqual(s.savedPercent, Int((Double(s.savedCents) * 100 / Double(s.regularCents)).rounded()), offer.productID)
+            XCTAssertEqual(s.perMonthCents, Int((Double(offer.priceCents) / Double(s.months)).rounded()), offer.productID)
+        }
+        XCTAssertEqual(UFOffer.proAIYearly.savings?.text, "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €")
+        XCTAssertEqual(UFOffer.plusFiveYears.savings?.text, "Du sparst 79,41 € (67 %) gegenüber 60 × 1,99 € = 119,40 €")
+        XCTAssertEqual(UFOffer.plusFiveYears.savings?.perMonthText, "nur 0,67 € im Monat")
+        // gezeigt nur mit passenden Store-Preisen in Euro
+        XCTAssertTrue(UFOfferText.savingsApply(.plusFiveYears, price: Decimal(string: "39.99")!, currency: "EUR", comparePrice: Decimal(string: "1.99")!))
+        XCTAssertTrue(UFOfferText.savingsApply(.proAIYearly, price: Decimal(string: "39.99")!, currency: "EUR", comparePrice: nil))
+        XCTAssertFalse(UFOfferText.savingsApply(.proAIYearly, price: Decimal(string: "39.99")!, currency: "USD", comparePrice: nil), "anderes Land")
+        XCTAssertFalse(UFOfferText.savingsApply(.proAIYearly, price: Decimal(string: "44.99")!, currency: "EUR", comparePrice: nil), "anderer Preis")
+        XCTAssertFalse(UFOfferText.savingsApply(.proAIYearly, price: Decimal(string: "39.99")!, currency: "EUR", comparePrice: Decimal(string: "4.99")!))
+        XCTAssertFalse(UFOfferText.savingsApply(.plusMonthly, price: Decimal(string: "1.99")!, currency: "EUR", comparePrice: nil), "keine Ersparnis")
+    }
+
+    /// Plus jaehrlich (19,99 €, bis 26.11.2026) gilt weiter als Plus, wird aber nicht angeboten; die Plus-Karte traegt
+    /// "Aktueller Tarif"
+    func testPlusYearlyStillCountsAsPlus() {
+        XCTAssertEqual(UFPlan(productID: "de.uniflow.plus.yearly"), .plus)
+        XCTAssertNil(UFOffer(productID: "de.uniflow.plus.yearly"))
+        XCTAssertFalse(UFPlanCatalog.sellableProductIDs.contains("de.uniflow.plus.yearly"))
+        let later = Date().addingTimeInterval(200 * 86_400)
+        XCTAssertEqual(UFEntitlementResolver.plan(from: [.init(productID: "de.uniflow.plus.yearly", expirationDate: later)], now: Date()), .plus)
+        XCTAssertTrue(PlanPickerView.isCurrent(.offer(.plusMonthly), purchased: .plus, offer: nil, loading: false, trial: false))
+        XCTAssertFalse(PlanPickerView.isCurrent(.offer(.plusFiveYears), purchased: .plus, offer: nil, loading: false, trial: false))
+        XCTAssertTrue(PlanPickerView.hasSubscription(purchased: .plus, offer: nil, loading: false))
+    }
+
+    /// Das Paket neben laufendem Pro AI (Inhaber 27.11.2026): angeboten, mit dem Hinweis, Pro AI unter "Abo verwalten" zu
+    /// kuendigen; ohne Pro AI gibt es dann keine Monats-Credits mehr
+    func testPackageIsOfferedBesideProAIWithNote() throws {
+        XCTAssertTrue(PlanPickerView.showsOnceButton(purchased: .proAI, offer: .proAIYearly, giftCovers: false, loaded: true))
+        XCTAssertTrue(PlanPickerView.showsOnceButton(purchased: .proAI, offer: .proAIMonthly, giftCovers: false, loaded: true))
+        XCTAssertFalse(PlanPickerView.showsOnceButton(purchased: .proAI, offer: .proAIYearly, giftCovers: false, loaded: true, ownsOnce: true),
+                       "Paket schon gekauft: kein zweiter Kauf")
+        XCTAssertFalse(PlanPickerView.showsOnceButton(purchased: .plus, offer: .plusFiveYears, giftCovers: false, loaded: true))
+        XCTAssertFalse(PlanPickerView.showsOnceButton(purchased: .free, offer: nil, giftCovers: true, loaded: true))
+        XCTAssertFalse(PlanPickerView.showsOnceButton(purchased: .free, offer: nil, giftCovers: false, loaded: false))
+        let note = try XCTUnwrap(UFOfferText.onceNote(subscribed: .proAI))
+        XCTAssertTrue(note.contains("Kündige es danach unter „Abo verwalten“"), note)
+        XCTAssertTrue(note.contains("mit dem Paket allein gibt es keine Monats-Credits mehr"), note)
+        XCTAssertEqual(UFOfferText.onceNote(subscribed: .plus), UFOfferText.onceWithSubscriptionNote)
+        XCTAssertNil(UFOfferText.onceNote(subscribed: .free))
+        XCTAssertNil(UFOfferText.onceNote(subscribed: nil))
+        // auf der Seite: Pro AI gekauft, Knopf des Pakets und der Hinweis stehen da
+        let ent = Entitlements(observe: false)
+        ent.setPurchasedForTesting(.proAI, offer: .proAIYearly)
+        let page = try hostPlanPage(ent)
+        defer { page.close() }
+        // die Seite liest beim Oeffnen StoreKit neu (ohne Kauf in der Testsitzung): danach den Testkauf wieder setzen
+        settleThenSet(page) { ent.setPurchasedForTesting(.proAI, offer: .proAIYearly) }
+        XCTAssertTrue(page.wait(20) { page.element("plans.plus.once") != nil && page.texts().contains(UFOfferText.onceWithProAINote) }, page.texts())
+        XCTAssertTrue(page.texts().contains("Aktueller Tarif"), page.texts())
+    }
+
+    /// Paket aktiv, Pro AI dazukaufen (Inhaber 27.11.2026): Pro AI gilt, solange es laeuft; endet es (oder ist es
+    /// gekuendigt und abgelaufen), gilt Plus aus dem Paket bis Kauf + 5 Jahre. Der Tarif ist immer der hoechste Kauf.
+    func testPackagePlusProAIGivesProAIAndAfterwardsPlus() throws {
+        let bought = try date("2026-11-27T10:00:00Z")
+        let pkg = UFEntitlementEntry(productID: UFOffer.plusFiveYears.productID, purchaseDate: bought)
+        let pkgEnd = try XCTUnwrap(UFOffer.plusFiveYears.end(purchasedAt: bought))
+        for (offer, days) in [(UFOffer.proAIMonthly, 30.0), (.proAIYearly, 365.0)] {
+            let pro = UFEntitlementEntry(productID: offer.productID, expirationDate: bought.addingTimeInterval(days * 86_400))
+            XCTAssertEqual(UFEntitlementResolver.plan(from: [pkg, pro], now: bought.addingTimeInterval(86_400)), .proAI, offer.productID)
+            XCTAssertEqual(UFEntitlementResolver.carrying(.proAI, in: [pkg, pro], now: bought)?.productID, offer.productID)
+            // Pro AI abgelaufen (z. B. gekuendigt): das Paket gilt weiter als Plus
+            let after = bought.addingTimeInterval((days + 1) * 86_400)
+            XCTAssertEqual(UFEntitlementResolver.plan(from: [pkg, pro], now: after), .plus, offer.productID)
+            XCTAssertEqual(UFEntitlementResolver.carrying(.plus, in: [pkg, pro], now: after)?.productID, UFOffer.plusFiveYears.productID)
+            // bis Kauf + 5 Jahre, danach Free
+            XCTAssertEqual(UFEntitlementResolver.plan(from: [pkg, pro], now: pkgEnd.addingTimeInterval(-60)), .plus)
+            XCTAssertEqual(UFEntitlementResolver.plan(from: [pkg, pro], now: pkgEnd), .free)
+            // erstattetes Pro AI: sofort wieder Plus
+            var refunded = pro
+            refunded.revocationDate = bought.addingTimeInterval(2 * 86_400)
+            XCTAssertEqual(UFEntitlementResolver.plan(from: [pkg, refunded], now: bought.addingTimeInterval(3 * 86_400)), .plus)
+        }
+        // Hinweis an den Pro-AI-Knoepfen nur mit Paket
+        XCTAssertTrue(PlanPickerView.showsBesidePackageNote(.proAIMonthly, activeOffers: [.plusFiveYears]))
+        XCTAssertTrue(PlanPickerView.showsBesidePackageNote(.proAIYearly, activeOffers: [.plusFiveYears, .proAIYearly]))
+        XCTAssertFalse(PlanPickerView.showsBesidePackageNote(.proAIYearly, activeOffers: []))
+        XCTAssertFalse(PlanPickerView.showsBesidePackageNote(.plusMonthly, activeOffers: [.plusFiveYears]))
+        XCTAssertTrue(UFOfferText.proAIBesidePackageNote.contains("Plus aus deinem Bachelor+Master-Paket läuft weiter"))
+        // mit Paket ist Pro AI ein Kauf, kein Wechsel in der Gruppe
+        XCTAssertFalse(PlanPickerView.hasSubscription(purchased: .plus, offer: .plusFiveYears, loading: false))
+    }
+
+    /// Auf der Seite: mit Paket sind beide Pro-AI-Knoepfe nach dem Haken antippbar, mit dem Hinweis; das Paket selbst
+    /// hat keinen zweiten Kaufknopf
+    func testPlanPageWithPackageOffersProAI() throws {
+        let ent = Entitlements(observe: false)
+        ent.setPurchasedForTesting(.plus, offer: .plusFiveYears, expiresAt: Date().addingTimeInterval(4 * 365 * 86_400), willRenew: false)
+        let page = try hostPlanPage(ent)
+        defer { page.close() }
+        settleThenSet(page) {
+            ent.setPurchasedForTesting(.plus, offer: .plusFiveYears, expiresAt: Date().addingTimeInterval(4 * 365 * 86_400), willRenew: false)
+        }
+        XCTAssertTrue(page.wait(20) {
+            page.element("plans.buy.pro_ai.month") != nil && page.element("plans.buy.pro_ai") != nil
+                && page.texts().contains(UFOfferText.proAIBesidePackageNote)
+        }, page.texts())
+        XCTAssertTrue(page.texts().contains("StudiNow Pro AI für 3,99 €/Monat"), page.texts())
+        XCTAssertTrue(page.texts().contains("StudiNow Pro AI für 39,99 €/Jahr"), page.texts())
+        XCTAssertTrue(page.texts().contains(UFOfferText.proAIBesidePackageNote), page.texts())
+        XCTAssertNil(page.element("plans.plus.once"), "Paket gilt schon: kein zweiter Kauf")
+        let check = try XCTUnwrap(page.element("plans.notice.confirm"))
+        XCTAssertTrue(check.accessibilityActivate())
+        XCTAssertTrue(page.wait(5) {
+            page.element("plans.buy.pro_ai.month")?.accessibilityTraits.contains(.notEnabled) == false
+                && page.element("plans.buy.pro_ai")?.accessibilityTraits.contains(.notEnabled) == false
+        }, "Pro AI dazukaufen nicht gesperrt")
+    }
+
+    /// Kaufseite: drei Bereiche in dieser Reihenfolge, Preise, Ersparnis, Special mit Abzeichen
+    func testPlanPageShowsTheThreeSectionsWithSavings() throws {
+        let page = try hostPlanPage(Entitlements(observe: false))
+        defer { page.close() }
+        XCTAssertTrue(page.wait(20) { page.texts().contains("StudiNow Pro AI für 3,99 €/Monat") }, page.texts())
+        let t = page.texts()
+        for part in ["Monatlich", "Jährlich", "Unser Special", "Bachelor+Master-Paket", "StudiNow Plus für 5 Jahre",
+                     "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €", "nur 3,33 € im Monat",
+                     "Du sparst 79,41 € (67 %) gegenüber 60 × 1,99 € = 119,40 €", "nur 0,67 € im Monat",
+                     "StudiNow Plus für 1,99 €/Monat", "StudiNow Pro AI für 39,99 €/Jahr", "5 Jahre für 39,99 € einmalig",
+                     "Alles aus StudiNow Free, dazu:", "Alles aus StudiNow Plus, dazu:", "Weitere Credits jederzeit dazukaufen",
+                     "120 Credits für die StudiNow-KI – jeden Monat", UFPurchaseNotice.title] {
+            XCTAssertTrue(t.contains(part), "fehlt: \(part)\n\(t)")
+        }
+        XCTAssertNotNil(page.element("plans.special.badge"))
+        // Reihenfolge von oben nach unten (Inhaber 27.11.2026 "Ja, nach oben"): Unser Special, Monatlich, Jaehrlich
+        let ys = ["plans.section.special", "plans.section.monthly", "plans.section.yearly"].compactMap { id in
+            page.element(id).map { $0.accessibilityFrame.minY }
+        }
+        XCTAssertEqual(ys.count, 3, t)
+        XCTAssertEqual(ys, ys.sorted(), "Reihenfolge der Bereiche")
+        // Monatlich: Free vor Plus vor Pro AI (Knoepfe nebeneinander bzw. untereinander)
+        let order = ["plans.buy.plus", "plans.buy.pro_ai.month"].compactMap { page.element($0)?.accessibilityFrame }
+        XCTAssertEqual(order.count, 2)
+        if order.count == 2 { XCTAssertTrue(order[0].minX < order[1].minX || order[0].minY < order[1].minY, "\(order)") }
+        // alle Kaufknoepfe ohne Haken gesperrt
+        for id in ["plans.buy.plus", "plans.buy.pro_ai.month", "plans.buy.pro_ai", "plans.plus.once"] {
+            let e = try XCTUnwrap(page.element(id), id)
+            XCTAssertTrue(e.accessibilityTraits.contains(.notEnabled), "\(id) ohne Haken gesperrt")
+        }
+    }
+
+    /// Bilder der Kaufseite (nur mit TEST_RUNNER_UF_SCREENSHOT_DIR): Bildschirmgroesse des Geraets, oben und weiter
+    /// gescrollt bis zum Special, hell und dunkel; dazu die ganze Seite in einem Bild
+    func testPlanPageScreenshots() throws {
+        guard let path = ProcessInfo.processInfo.environment["UF_SCREENSHOT_DIR"], !path.isEmpty else {
+            throw XCTSkip("nur mit UF_SCREENSHOT_DIR")
+        }
+        let dir = URL(fileURLWithPath: path, isDirectory: true)
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let phone = UIDevice.current.userInterfaceIdiom == .phone
+        // Groessen der App-Store-Bildschirmfotos: iPad 13" 2064 x 2752 (1032 x 1376 pt, 2x), iPhone 6,9" 1320 x 2868 (440 x 956 pt, 3x)
+        let size = phone ? CGSize(width: 440, height: 956) : CGSize(width: 1032, height: 1376)
+        let scale: CGFloat = phone ? 3 : 2
+        let device = phone ? "iphone-1320x2868" : "ipad-2064x2752"
+        UFPurchaseNotice.confirm(in: UFPurchaseNotice.defaults, false)
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        defer { Self.accessibilityAutomation(false) }
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: CGRect(origin: .zero, size: size))
+        window.frame = CGRect(origin: .zero, size: size)
+        let hosting = UIHostingController(rootView: PlanPickerView(context: .onboarding, entitlements: Entitlements(observe: false)) {}
+            .background(UF.bg))
+        window.rootViewController = hosting
+        window.makeKeyAndVisible()
+        defer { window.isHidden = true; window.rootViewController = nil }
+        func scrollView(_ v: UIView) -> UIScrollView? {
+            if let s = v as? UIScrollView, s.contentSize.height > s.bounds.height { return s }
+            for c in v.subviews { if let s = scrollView(c) { return s } }
+            return nil
+        }
+        func snap(_ name: String) throws {
+            let format = UIGraphicsImageRendererFormat()
+            format.scale = scale
+            format.opaque = true
+            let png = UIGraphicsImageRenderer(bounds: hosting.view.bounds, format: format).pngData { _ in
+                _ = hosting.view.drawHierarchy(in: hosting.view.bounds, afterScreenUpdates: true)
+            }
+            try png.write(to: dir.appendingPathComponent("\(device)-\(name).png"))
+        }
+        let end = Date().addingTimeInterval(20)
+        while Date() < end, !(LayoutWidthAuditTests.elements(in: hosting.view).contains { ($0.accessibilityLabel ?? "").contains("3,99") }) {
+            RunLoop.main.run(until: Date().addingTimeInterval(0.2))
+        }
+        for (style, tone) in [(UIUserInterfaceStyle.light, "hell"), (.dark, "dunkel")] {
+            window.overrideUserInterfaceStyle = style
+            RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+            let sv = try XCTUnwrap(scrollView(hosting.view), "keine scrollbare Seite")
+            let maxY = max(0, sv.contentSize.height - sv.bounds.height + sv.adjustedContentInset.bottom)
+            var y: CGFloat = 0
+            var i = 1
+            while true {
+                sv.setContentOffset(CGPoint(x: 0, y: min(y, maxY) - sv.adjustedContentInset.top), animated: false)
+                RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+                try snap("kaufseite-\(tone)-\(i)")
+                if y >= maxY { break }
+                y += sv.bounds.height * 0.8
+                i += 1
+            }
+            // ein Bild, das oben mit der Karte "Unser Special" beginnt (Bereichsueberschrift darueber)
+            sv.setContentOffset(.zero, animated: false)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+            let head = try XCTUnwrap(LayoutWidthAuditTests.elements(in: hosting.view)
+                .first { EditorToolbarTests.identifier($0) == "plans.section.special" }, "Bereich Unser Special fehlt")
+            let top = head.accessibilityFrame.minY - window.frame.minY - 24
+            sv.setContentOffset(CGPoint(x: 0, y: min(maxY, max(0, top)) - sv.adjustedContentInset.top), animated: false)
+            RunLoop.main.run(until: Date().addingTimeInterval(0.8))
+            try snap("kaufseite-\(tone)-special")
+            sv.setContentOffset(.zero, animated: false)
+        }
+    }
+
+    @MainActor
+    private struct HostedPage {
+        let window: UIWindow
+        let hosting: UIViewController
+        func elements() -> [NSObject] { LayoutWidthAuditTests.elements(in: hosting.view) }
+        func element(_ id: String) -> NSObject? { elements().first { EditorToolbarTests.identifier($0) == id } }
+        func texts() -> String {
+            elements().flatMap { [$0.accessibilityLabel, $0.accessibilityValue].compactMap { $0 } }.joined(separator: "\n")
+                .replacingOccurrences(of: "\u{00A0}", with: " ").replacingOccurrences(of: "\u{202F}", with: " ")
+        }
+        func wait(_ seconds: Double = 20, _ check: () -> Bool) -> Bool {
+            let end = Date().addingTimeInterval(seconds)
+            while Date() < end, !check() { RunLoop.main.run(until: Date().addingTimeInterval(0.2)) }
+            return check()
+        }
+        func close() {
+            window.isHidden = true
+            _ = Self.automation(false)
+        }
+        static func automation(_ on: Bool) -> Bool { TarifeNeuAppTests.accessibilityAutomation(on) }
+    }
+
+    /// Wartet, bis die Seite Produkte geladen und StoreKit neu gelesen hat (`.task`), dann setzt `set` den Testkauf erneut
+    private func settleThenSet(_ page: HostedPage, _ set: () -> Void) {
+        _ = page.wait(20) { page.texts().contains("3,99") }
+        RunLoop.main.run(until: Date().addingTimeInterval(2))
+        set()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.5))
+    }
+
+    private func hostPlanPage(_ ent: Entitlements) throws -> HostedPage {
+        UFPurchaseNotice.confirm(in: UFPurchaseNotice.defaults, false)
+        XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
+        let frame = CGRect(x: 0, y: 0, width: 1180, height: 6000)
+        let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+        let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
+        window.frame = frame
+        let hosting = UIHostingController(rootView: PlanPickerView(context: .settings, entitlements: ent) {})
+        window.rootViewController = hosting
+        window.makeKeyAndVisible()
+        return HostedPage(window: window, hosting: hosting)
     }
 
     // MARK: Pro AI 120 Credits
@@ -249,7 +641,7 @@ final class TarifeNeuAppTests: StoreKitSessionTestCase {
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
         defer { Self.accessibilityAutomation(false) }
         let ent = Entitlements(observe: false)
-        let frame = CGRect(x: 0, y: 0, width: 1180, height: 2600)
+        let frame = CGRect(x: 0, y: 0, width: 1180, height: 6000)
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
         window.frame = frame
@@ -291,7 +683,7 @@ final class TarifeNeuAppTests: StoreKitSessionTestCase {
     }
 
     @discardableResult
-    private static func accessibilityAutomation(_ on: Bool) -> Bool {
+    fileprivate static func accessibilityAutomation(_ on: Bool) -> Bool {
         guard let h = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW), let f = dlsym(h, "_AXSSetAutomationEnabled") else { return false }
         typealias SetEnabled = @convention(c) (Int32) -> Void
         unsafeBitCast(f, to: SetEnabled.self)(on ? 1 : 0)
