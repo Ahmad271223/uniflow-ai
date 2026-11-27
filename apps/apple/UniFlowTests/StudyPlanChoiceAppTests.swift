@@ -427,7 +427,8 @@ final class StudyPlanChoiceAppTests: XCTestCase {
         var ok = false
         Task { ok = await hub.drop(["labor"], on: "SoSe 28") }
         XCTAssertTrue(env.wait { t.count("POST", "/api/study-plan/settings") == 1 })
-        XCTAssertTrue(ok)
+        // die Aufgabe kehrt erst nach dem Neuladen zurueck; am Mac (27.11.2026) einen Moment nach dem POST
+        XCTAssertTrue(env.wait { ok })
         XCTAssertEqual(lastPost(t)?["placements"]?["labor"], "SoSe 28")
         XCTAssertTrue(env.wait { self.labels(env.view).contains { $0.hasPrefix("Labor Technische Informatik verschoben nach SoSe 28 – im 5. Semester") } },
                       dump(env.view))
