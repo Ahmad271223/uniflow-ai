@@ -342,14 +342,30 @@ final class SheetEditorModel: ObservableObject {
 
     var filterValues: [String] { sheet.filterValues(col: active.col, calc) }
     func isFiltered(_ col: Int) -> Bool { !(sheet.filters[col] ?? []).isEmpty }
-    func isHiddenByFilter(_ value: String) -> Bool { sheet.filters[active.col]?.contains(value) == true }
+    /// Erste Zelle der Spalte, die so aussieht (fuer Eintraege, die eine Zahl in anderem Format meinen)
+    private func cellValue(showing value: String, col: Int) -> SheetValue {
+        for row in sheet.firstDataRow..<sheet.rows {
+            let r = SheetRef(col: col, row: row)
+            if sheet.display(r, calc) == value { return calc.value(r) }
+        }
+        return .text(value)
+    }
+
+    func isHiddenByFilter(_ value: String) -> Bool {
+        guard let set = sheet.filters[active.col] else { return false }
+        return Sheet.filterHides(set, value, cellValue(showing: value, col: active.col))
+    }
 
     func toggleFilter(_ value: String) {
         settle()
         let col = active.col
+        let v = cellValue(showing: value, col: col)
         change {
             var set = $0.filters[col] ?? []
-            if set.contains(value) { set.remove(value) } else { set.insert(value) }
+            if Sheet.filterHides(set, value, v) {
+                // auch Eintraege derselben Zahl in anderem Format
+                set = set.filter { !Sheet.filterHides([$0], value, v) }
+            } else { set.insert(value) }
             $0.filters[col] = set.isEmpty ? nil : set
         }
     }

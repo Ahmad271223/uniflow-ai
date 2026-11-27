@@ -26,7 +26,9 @@ extension ObjectEditing {
 
     /// Grosse Ansicht oeffnen: zum Bearbeiten mit Plus, sonst zum Ansehen (rollen, zoomen, kopieren) - eine lange
     /// Tabelle passt nicht ganz auf die Seite. `title`: Name im Kopf (Tabelle als eigene Datei: der Name des Dokuments).
-    func openSheet(key: String, id: String, title: String = "Tabelle") {
+    /// `isNew`: eben mit dem Werkzeug angelegt - bleibt sie leer, ist sie nach "Fertig" wieder weg (keine leeren
+    /// Tabellen auf der Seite)
+    func openSheet(key: String, id: String, title: String = "Tabelle", isNew: Bool = false) {
         guard let c = controller else { return }
         guard c.presentedViewController == nil else { return }
         // nur ansehen: ohne Plus - und in Dokumenten, die man nicht aendern darf (geteilte Loesung, alte Fassung)
@@ -50,7 +52,13 @@ extension ObjectEditing {
             let shown = SheetHostBox()
             let host = UIHostingController(rootView: SheetEditorView(model: model, onSave: { [weak self] s in
                 await self?.saveSheet(s, key: key, id: id, original: o) ?? false
-            }, onClose: { shown.host?.dismiss(animated: true) }))
+            }, onClose: { [weak self] in
+                if isNew, model.sheet.cells.isEmpty, model.sheet.charts.isEmpty {
+                    self?.clearSelection()
+                    Task { await self?.commit(key, undoable: false) { PageObjectEdit.delete($0, ids: [id]) } }
+                }
+                shown.host?.dismiss(animated: true)
+            }))
             shown.host = host
             host.modalPresentationStyle = .fullScreen
             c.present(host, animated: true)

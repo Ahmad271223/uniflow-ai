@@ -378,7 +378,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
                 guard await commit(key, { $0 + [o] }) else { return }
                 setTool(.select)
                 select(key: key, ids: [id], in: await objects(key))
-                openSheet(key: key, id: id)
+                openSheet(key: key, id: id, isNew: true)
             }
         case .text, .sticky:
             let kind = tool

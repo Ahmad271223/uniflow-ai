@@ -447,6 +447,8 @@ final class SheetBoxView: UIView {
     /// Hoechstens so viele Bildpunkte fuer einen Kasten (rund 16 MB)
     static let pixelBudget: CGFloat = 4_000_000
     private var prepared: SheetRender.Prepared?
+    /// Das Objekt, das der Kasten zeigt (die Seite verwendet unveraenderte Kaesten wieder)
+    private(set) var object: JSONValue?
     /// Aufloesung, die die Seite fuer diesen Zoom haben moechte (vor der Grenze)
     private var wantedScale: CGFloat = UIScreen.main.scale
 
@@ -463,6 +465,7 @@ final class SheetBoxView: UIView {
     required init?(coder: NSCoder) { fatalError("init(coder:) wird nicht genutzt") }
 
     func show(_ o: JSONValue) {
+        object = o
         prepared = SheetRender.Prepared(o)
         bounds = CGRect(origin: .zero, size: prepared?.size ?? CGSize(width: 1, height: 1))
         // die Grenze gilt auch, wenn der Kasten groesser geworden ist (mehr Zeilen, Diagramm dazu)

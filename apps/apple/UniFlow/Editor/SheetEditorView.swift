@@ -378,7 +378,7 @@ struct SheetEditorView: View {
                     .accessibilityIdentifier("sheet.ai.error")
             }
             HStack(alignment: .center, spacing: 10) {
-                Text("Deine Tabelle und dein Wunsch gehen an die KI. Das zählt wie eine Frage an die KI.")
+                Text("Deine Tabelle und dein Wunsch gehen an die StudiNow-KI. Das kostet Credits wie eine Frage an die KI.")
                     .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 if model.aiBusy {

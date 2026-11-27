@@ -435,13 +435,23 @@ public struct Sheet: Equatable, Sendable {
         }.map(\.0)
     }
 
+    /// Versteckt dieser Filter-Eintrag die Zelle? Eingetragen ist, was die Zelle zeigte; eine Zahl passt auch nach einem
+    /// anderen Zahlenformat noch (eingetragen "5", jetzt "5,00 €") - verglichen wird dann die Zahl ohne Format
+    public static func filterHides(_ hide: Set<String>, _ shown: String, _ value: SheetValue) -> Bool {
+        if hide.contains(shown) { return true }
+        guard case .number(let d) = value else { return false }
+        return hide.contains(SheetText.general(d)) || hide.contains { SheetText.parseNumber($0).map { SheetText.same($0.value, d) } ?? false }
+    }
+
     /// Zeilen, die ein Filter gerade versteckt
     public func hiddenRows(_ calc: SheetCalc) -> Set<Int> {
         let active = filters.filter { !$0.value.isEmpty && $0.key < cols }
         guard !active.isEmpty, rows > firstDataRow else { return [] }
         var out = Set<Int>()
         for row in firstDataRow..<rows {
-            for (col, hide) in active where hide.contains(display(SheetRef(col: col, row: row), calc)) { out.insert(row); break }
+            for (col, hide) in active where Sheet.filterHides(hide, display(SheetRef(col: col, row: row), calc), calc.value(SheetRef(col: col, row: row))) {
+                out.insert(row); break
+            }
         }
         return out
     }

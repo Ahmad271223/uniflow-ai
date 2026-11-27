@@ -1100,7 +1100,13 @@ public enum SheetFormula {
                 guard name == "COUNTIF" ? args.count == 2 : (2...3).contains(args.count) else { return .error(.syntax) }
                 let test = Criterion(scalar(args[1]))
                 let source = args[0].values
-                let target = args.count == 3 ? args[2].values : source
+                var target = args.count == 3 ? args[2].values : source
+                // wie Excel: Der Summenbereich hat immer die Form des Pruefbereichs, ab seiner linken oberen Zelle
+                if args.count == 3, case .many(let r0, _) = args[0], case .many(let r2, _) = args[2],
+                   r2.rows.count != r0.rows.count || r2.cols.count != r0.cols.count {
+                    let fitted = SheetRange(r2.from, SheetRef(col: r2.from.col + r0.cols.count - 1, row: r2.from.row + r0.rows.count - 1))
+                    target = fitted.refs.map(cell)
+                }
                 var sum = 0.0, k = 0
                 for (i, v) in source.enumerated() where test.matches(v) {
                     if name == "COUNTIF" { k += 1; continue }
@@ -1257,7 +1263,8 @@ public enum SheetFormula {
             switch v {
             case .number(let d): number = d
             case .bool(let b): text = b ? "WAHR" : "FALSCH"
-            case .empty: text = ""
+            // wie Excel: Eine leere Zelle als Bedingung zaehlt wie 0 (fuer leere Zellen: "")
+            case .empty: number = 0
             case .error: any = false; op = "!"
             case .text(let s):
                 var rest = Substring(s)

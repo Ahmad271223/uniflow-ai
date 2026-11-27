@@ -261,6 +261,8 @@ final class PageObjectsView: UIView {
     private var hiddenIDs: Set<String> = []
     /// Aufloesung fuer Formen und Text (`PageInkView.setRenderScale`)
     private var renderScale: CGFloat = 0
+    /// Tabellen-Kaesten des vorigen Aufbaus (nach Kennung), solange `show` laeuft
+    private var reusableSheets: [String: SheetBoxView] = [:]
     /// Zuletzt gezeigter Inhalt (fuer `update(images:)`)
     private var shown: (template: String?, placeholder: String?, objects: [JSONValue])?
     /// Zuletzt gezeigte Objekte (Treffer fuer das Kontextmenue, das nicht warten kann)
@@ -356,6 +358,10 @@ final class PageObjectsView: UIView {
         // erst die Ansichten, dann die uebrigen Ebenen: vorher wurden zuerst alle Ebenen entfernt, auch die der
         // Ansichten; deren Entfernen lief danach ueber eine Ansicht ohne Ebene (Absturz in `removeFromSuperview`,
         // Fokus-System, gefunden 10.11.2026 beim Verschieben eines Textfelds mit Handschrift)
+        // Tabellen, die sich nicht geaendert haben, behalten ihr Bild: Eine grosse Tabelle wurde sonst bei jeder Aenderung
+        // auf der Seite (ein Strich am Rand, ein verschobener Zettel) neu gerechnet und ganz neu gezeichnet
+        reusableSheets = Dictionary(subviews.compactMap { v in (v as? SheetBoxView).flatMap { b in b.object.map { (b, $0) } } }
+            .compactMap { b, o in o["id"]?.string.map { ($0, b) } }, uniquingKeysWith: { a, _ in a })
         subviews.forEach { $0.removeFromSuperview() }
         layer.sublayers?.forEach { $0.removeFromSuperlayer() }
         placed = [:]
@@ -543,7 +549,9 @@ final class PageObjectsView: UIView {
         }
         switch o["type"]?.string {
         case "text" where SheetObject.isSheet(o):
-            let box = SheetBoxView(object: o)
+            let reuse = reusableSheets.removeValue(forKey: id)
+            let box = reuse.flatMap { $0.object == o ? $0 : nil } ?? SheetBoxView(object: o)
+            box.transform = .identity
             let size = box.bounds.size
             box.layer.anchorPoint = .zero
             box.alpha = CGFloat(alpha)

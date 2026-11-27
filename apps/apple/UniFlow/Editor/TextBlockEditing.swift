@@ -325,7 +325,12 @@ extension ObjectEditing {
         let size = TextBlockRender.size(o)
         var out = o
         if x + Double(size.width) > Double(page.width) { out["x"] = .number((max(0, Double(page.width - size.width)) * 100).rounded() / 100) }
-        if y + Double(size.height) > Double(page.height) { out["y"] = .number((max(0, Double(page.height - size.height)) * 100).rounded() / 100) }
+        if y + Double(size.height) > Double(page.height) {
+            // auf Linien rastet der Block danach auf die naechste Linie ein: eine halbe Linie Luft, damit er auch dann
+            // nicht unten uebersteht
+            let air = TextBlock.isSnapped(o) ? TextBlock.lineStep / 2 : 0
+            out["y"] = .number((max(0, Double(page.height - size.height) - air) * 100).rounded() / 100)
+        }
         return out
     }
 

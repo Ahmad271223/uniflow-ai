@@ -133,8 +133,9 @@ struct LibraryNewDialog: View {
     /// ersten Oeffnen auf die erste Seite (`SheetDocuments.pending`)
     private func newSheetDocument() async {
         guard UFRichNotes.allowed(plan: Entitlements.shared.plan) else { toast.show(ObjectEditing.sheetLockedHint); return }
-        guard let api = session.api else { return }
-        var fields = NotebookDialog.fields(kind: "notebook", title: SheetDocuments.defaultTitle, template: "blank",
+        guard let name = await overlay.prompt("Name der Tabelle:", value: SheetDocuments.defaultTitle), let api = session.api else { return }
+        let title = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? SheetDocuments.defaultTitle : name
+        var fields = NotebookDialog.fields(kind: "notebook", title: title, template: "blank",
                                            format: PageFormats.defaultNotebook, orientation: .landscape)
         if let moduleID { fields["module_id"] = "\(moduleID)" }
         if let folderID { fields["folder_id"] = "\(folderID)" }

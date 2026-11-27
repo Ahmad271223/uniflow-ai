@@ -334,4 +334,31 @@ final class SheetReviewTests: XCTestCase {
         XCTAssertEqual(c.cells.count, SheetAI.maxCells)
         XCTAssertEqual(c.cells.keys.map(\.row).max(), 149)
     }
+
+    // MARK: Fertigstellung fuer 1.0.9 (27.11.2026)
+
+    func testSummewennWieExcelLeeresKriteriumUndSummenbereichAndererForm() {
+        let cells = ["A1": "0", "A2": "5", "A3": "", "A4": "0", "B1": "1", "B2": "2", "B3": "3", "B4": "4", "C1": "10", "C2": "20", "C3": "30", "C4": "40"]
+        // Bedingung aus einer leeren Zelle zaehlt wie 0
+        XCTAssertEqual(value("=ZÄHLENWENN(A1:A4;D1)", cells), .number(2))
+        // "" zaehlt leere Zellen
+        XCTAssertEqual(value("=ZÄHLENWENN(A1:A4;\"\")", cells), .number(1))
+        // Summenbereich nur mit seiner linken oberen Zelle: dieselbe Form wie der Pruefbereich (A1:A4 → C1:C4)
+        XCTAssertEqual(value("=SUMMEWENN(A1:A4;0;C1)", cells), .number(50))
+        XCTAssertEqual(value("=SUMMEWENN(A1:A4;0;C1:C2)", cells), .number(50))
+        XCTAssertEqual(value("=SUMMEWENN(A1:A4;0;B1:C4)", cells), .number(5), "breiter: nur die erste Spalte gilt")
+    }
+
+    func testFilterGreiftAuchNachAnderemZahlenformat() {
+        var s = sheet(["A1": "Preis", "A2": "5", "A3": "7", "A4": "5"])
+        s.filters[0] = ["5"]
+        XCTAssertEqual(s.hiddenRows(s.calc()), [1, 3])
+        s.restyle(SheetRange("A2:A4")!) { $0.format = "e" }
+        XCTAssertEqual(s.display(SheetRef("A2")!, s.calc()), "5,00 €")
+        XCTAssertEqual(s.hiddenRows(s.calc()), [1, 3], "der Eintrag \"5\" greift weiter")
+        // mit Punkt getippt und mit Komma: dieselbe Zahl
+        var t = sheet(["A1": "x", "A2": "1.5", "A3": "1,5", "A4": "2"])
+        t.filters[0] = ["1,5"]
+        XCTAssertEqual(t.hiddenRows(t.calc()), [1, 2])
+    }
 }

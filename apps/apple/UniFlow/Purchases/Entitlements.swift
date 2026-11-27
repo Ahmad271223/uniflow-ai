@@ -123,7 +123,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App (je nach Hochschule)"
         case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen\(LearnCalendar.text(" und Lernplan-Vorschläge", off: "")) – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
         case .communityRead: return "Lösungen anderer finden, laden und \(UFEditorAvailability.available ? "im Editor" : "auf leeren Seiten") ansehen, melden und blockieren, Lerngruppen beitreten"
-        case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
+        case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Textblöcke wie in Word, Notizzettel, Klappkarten zum Abfragen, Verweise, Tabellen mit Formeln und Diagrammen, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
         case .shareSolutions: return "Als verschlüsselte Datei weitergeben und in der Community veröffentlichen, Lerngruppen anlegen"
         case .splitView: return "Mit Skriptsuche zur Aufgabe"
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"

@@ -716,6 +716,36 @@ final class SheetAppTests: XCTestCase {
         XCTAssertEqual(after?["x"]?.double ?? 0, 595 - w - 2, accuracy: 0.01, "nicht gewachsen: bleibt, wo sie lag")
     }
 
+    // MARK: Fertigstellung fuer 1.0.9 (27.11.2026)
+
+    func testLeereNeueTabelleVerschwindetNachFertigUndUnveraenderteBleibtAlsBild() async throws {
+        let s = try await open()
+        let page = try await overlay(s, key: s.blank)
+        s.editor.choose(.select)
+        s.editor.tools.select(.sheet)
+        try await BildProbe.tap(CGPoint(x: 120, y: 200), on: page, in: s.window)
+        try await BildProbe.wait("grosse Ansicht offen") { s.editor.presentedViewController is UIHostingController<SheetEditorView> }
+        let host = try XCTUnwrap(s.editor.presentedViewController as? UIHostingController<SheetEditorView>)
+        host.rootView.onClose()                                    // "Fertig" ohne Eingabe
+        try await BildProbe.wait("zu") { s.editor.presentedViewController == nil }
+        try await BildProbe.wait("leere Tabelle wieder weg") { await s.store.objects(forPageKey: s.blank).isEmpty }
+
+        // eine Tabelle auf der Seite behaelt ihr Bild, wenn sich daneben etwas aendert
+        let o = SheetObject.object(id: "t", x: 60, y: 100, sheet: table(), page: (595, 842))
+        await s.store.editObjects(pageKey: s.blank) { $0 + [o] }
+        try await BildProbe.wait("gezeigt") { page.objectsView.subviews.contains { $0 is SheetBoxView } }
+        let before = try XCTUnwrap(page.objectsView.subviews.first { $0 is SheetBoxView })
+        await s.store.editObjects(pageKey: s.blank) { $0 + [PageObjectEdit.text(id: "x", x: 300, y: 600, text: "daneben")] }
+        try await BildProbe.wait("neu aufgebaut") { page.objectsView.shownObjects.count == 2 }
+        let after = page.objectsView.subviews.first { $0 is SheetBoxView }
+        XCTAssertTrue(after === before, "derselbe Kasten, nicht neu gerechnet und gezeichnet")
+        // aendert sich die Tabelle, kommt ein neuer Kasten
+        var t = table()
+        t.set("Neu", at: SheetRef("A2")!)
+        _ = await s.editor.objects.saveSheet(t, key: s.blank, id: "t")
+        try await BildProbe.wait("neuer Stand") { (page.objectsView.subviews.first { $0 is SheetBoxView }) !== before }
+    }
+
     // MARK: KI-Hilfe
 
     private final class Asked {
