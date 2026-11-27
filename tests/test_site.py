@@ -143,21 +143,21 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     # (Richtlinie 2.3, keine irrefuehrende Werbung); Systeme als Chips; Mensa mit Quellen und "ohne Gewähr".
     # Entscheidung 07.11.2026: 1.0 nur die LUH, Hochschule Hannover und Uni Hildesheim "in Kürze" (1.0.1).
     # 16.11.2026: mit 1.0.4 ist die Universitaet Hildesheim angebunden; die Hochschule Hannover bleibt "in Kürze"
+    # 27.11.2026 (Inhaber: „überall raus“): die Hochschule Hannover wird nirgends mehr angekündigt
     assert '<p class="eyebrow">Lernmanagementsystem für Hochschulen in ganz Deutschland</p>' in html
     assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong> und <strong>Universität Hildesheim</strong>\. "
-                     r"In Kürze: Hochschule Hannover\. Weitere Hochschulen folgen\.", flat)
+                     r"Weitere Hochschulen folgen\.", flat)
     assert "Heute für die Leibniz Universität Hannover und die Universität Hildesheim." in flat
-    assert "In Kürze Hochschule Hannover, weitere Hochschulen" in flat and "In Kürze Hochschule Hannover und Uni Hildesheim" not in flat
+    assert "Hochschule Hannover" not in flat, "27.11.2026: HsH nirgends ankündigen"
     assert "Deine fehlt?" in flat and 'href="mailto:support@studinow.app">Schreib uns</a>' in flat
     assert not re.search(r"alle(n)? (deutschen )?Hochschulen|jede(r)? Hochschule|alle(n)? Unis", flat), "nicht alle Hochschulen angebunden"
     assert "Zuerst für die Leibniz Universität Hannover" not in flat
     assert not re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong>, <strong>Hochschule Hannover", flat), "HsH erst 1.0.1"
     assert ('<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li><li>Learnweb</li><li>LSF</li>'
-            '<li class="soon">In Kürze: Moodle, HISinOne</li></ul>') in html
+            '</ul>') in html
     assert "Abgeben in Stud.IP</h3>" in html and "(Moodle in Kürze)" in flat
     faq = flat.split("Für welche Hochschulen ist StudiNow?")[1].split("</details>")[0]
-    for s in ("ganz Deutschland", "zum Start mit voller Anbindung an die Leibniz Universität Hannover", "In Kürze folgt die Hochschule Hannover",
-              "und die Universität Hildesheim (Learnweb, LSF)", "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
+    for s in ("ganz Deutschland", "zum Start mit voller Anbindung an die Leibniz Universität Hannover", "und die Universität Hildesheim (Learnweb, LSF)", "Weitere Hochschulen folgen", "support@studinow.app", "nicht mit den Hochschulen verbunden"):
         assert s in faq, s
     assert "Modulkatalogen von über 300 Studiengängen und Fächern" in flat or "Modulkataloge von über 300 Studiengängen und Fächern" in flat
     mensa = flat.split('id="mensa"')[1].split("</section>")[0]

@@ -40,7 +40,7 @@ iPad und iPhone. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen
 <p class="unis">:i-tablet: <span><strong>StudiNow ist eine iPad-App</strong> und läuft auch auf dem iPhone.
 Mac, Android und Windows kommen demnächst dazu.</span></p>
 <p class="unis">:i-cap: <span>Heute angebunden: <strong>Leibniz Universität Hannover</strong> und
-<strong>Universität Hildesheim</strong>. In Kürze: Hochschule Hannover. Weitere Hochschulen folgen. Deine fehlt?
+<strong>Universität Hildesheim</strong>. Weitere Hochschulen folgen. Deine fehlt?
 <a href="mailto:support@studinow.app">Schreib uns</a>.</span></p>
 <div class="cta" id="laden">
 <a class="btn btn-store" href="https://apps.apple.com/de/app/id6830632088" aria-describedby="store-note">:i-download: Im App Store laden</a>
@@ -75,7 +75,7 @@ testen, ohne Zahlungsdaten.</p>
 <li>:i-lock: <span><strong>Kein Uni-Passwort auf unseren Servern.</strong> Du meldest dich bei deiner Hochschule an, nicht bei uns. Wenn du willst, merkt sich nur dein iPad das Passwort.</span></li>
 <li>:i-tablet: <span><strong>Deine Daten auf deinem iPad.</strong> Unterlagen, Notizen und Termine liegen lokal.</span></li>
 <li>:i-eye-off: <span><strong>Kein Tracking, keine Werbung.</strong> Keine Analyse-Werkzeuge Dritter.</span></li>
-<li>:i-cap: <span><strong>Heute für die Leibniz Universität Hannover und die Universität Hildesheim.</strong> In Kürze Hochschule Hannover, weitere Hochschulen in Deutschland folgen.</span></li>
+<li>:i-cap: <span><strong>Heute für die Leibniz Universität Hannover und die Universität Hildesheim.</strong> Weitere Hochschulen in Deutschland folgen.</span></li>
 </ul>
 </section>
 
@@ -85,7 +85,7 @@ testen, ohne Zahlungsdaten.</p>
 <h2 id="uni-title">Alles aus der Uni, ohne fünf Tabs</h2>
 <p>Melde dich einmal wie gewohnt an. StudiNow gleicht deine Kurse ab und ordnet alles nach Modulen, das aktuelle
 Semester zuerst.</p>
-<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li><li>Learnweb</li><li>LSF</li><li class="soon">In Kürze: Moodle, HISinOne</li></ul>
+<ul class="systems" aria-label="Angebundene Hochschulsysteme"><li>Stud.IP</li><li>QIS</li><li>Learnweb</li><li>LSF</li></ul>
 </div>
 <ul class="tiles">
 <li>:i-folder: <h3>Unterlagen kommen von selbst</h3><p>Neue Skripte, Folien und Übungsblätter landen im richtigen Modulordner. Erst das aktuelle Semester, ältere folgen im Hintergrund.</p></li>
@@ -122,7 +122,7 @@ offenen Seite oder nimm das ganze Dokument, zum Beispiel „Erkläre die ganze V
 <div class="feature-text">
 <h2 id="f-verlauf">Studienverlauf und Prüfungsanmeldung im Blick</h2>
 <p>StudiNow bringt die Modulkataloge von über 300 Studiengängen und Fächern mit: an der Leibniz Universität Hannover
-und der Universität Hildesheim, in Kürze auch an der Hochschule Hannover. Du siehst deine Leistungspunkte, was in deinem
+und der Universität Hildesheim. Du siehst deine Leistungspunkte, was in deinem
 Plan als Nächstes kommt und welche Prüfungen du im Meldezeitraum anmelden solltest.</p>
 <ul class="checks">
 <li>Leistungspunkte und Semesterplan aus deinem Modulkatalog</li>
@@ -376,7 +376,7 @@ du angelegt hast, bleibt da.</p>
 <summary>Für welche Hochschulen ist StudiNow?</summary>
 <p>StudiNow ist ein Lernmanagementsystem für Hochschulen in ganz Deutschland – zum Start mit voller Anbindung an die Leibniz Universität Hannover
 (Stud.IP, QIS) und die Universität Hildesheim (Learnweb, LSF), mit den Modulkatalogen der Studiengänge und dem Speiseplan
-der Mensen. In Kürze folgt die Hochschule Hannover (Moodle, HISinOne, QIS). Weitere Hochschulen folgen. Deine
+der Mensen. Weitere Hochschulen folgen. Deine
 fehlt? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
 <p>StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und
 Noten sind immer die Systeme deiner Hochschule.</p>
