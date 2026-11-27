@@ -72,7 +72,8 @@ def test_web_plan_page_shows_the_yearly_price_only():
 
 # 26.11.2026 neues Modell: nicht mehr verkauft sind Plus im Jahr (19,99), Pro AI im Monat (3,99) und die Preise vom
 # 07.11.2026 (21,99 / 41,99); 1,99 EUR ist wieder der Preis von Plus im Monat
-SOLD_NO_MORE = (r"19,99\s*(€|EUR)", r"3,99\s*(€|EUR)\s*(im|pro|/)\s*Monat", r"21,99\s*(€|EUR)", r"41,99\s*(€|EUR)")
+# 27.11.2026: Pro AI im Monat (3,99) wird wieder verkauft
+SOLD_NO_MORE = (r"19,99\s*(€|EUR)", r"21,99\s*(€|EUR)", r"41,99\s*(€|EUR)")
 
 
 def test_public_texts_name_only_the_prices_on_sale():
@@ -122,5 +123,6 @@ def test_ipad_offers_only_the_products_on_sale():
     sk = json.loads(_read("apps/apple/UniFlowTests/UniFlow.storekit"))
     subs = [s for g in sk["subscriptionGroups"] for s in g["subscriptions"]]
     assert sorted((s["productID"], s["displayPrice"], s["recurringSubscriptionPeriod"]) for s in subs) == [
-        ("de.uniflow.plus.monthly", "1.99", "P1M"), ("de.uniflow.proai.yearly", "39.99", "P1Y")]
+        ("de.uniflow.plus.monthly", "1.99", "P1M"), ("de.uniflow.proai.monthly", "3.99", "P1M"),
+        ("de.uniflow.proai.yearly", "39.99", "P1Y")]  # 27.11.2026: Pro AI auch monatlich
     assert [p["productID"] for p in sk.get("nonRenewingSubscriptions") or []] == ["de.uniflow.plus.fuenfjahre"]
