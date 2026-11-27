@@ -614,3 +614,30 @@ Bewusst offen bzw. am iPad zu prüfen:
 - Testfassung fürs iPad: `test/ipad-editor-whisper-tabelle` @ 3ce90118 (= Stand des iPads 88e732c1 + `editor/tabelle`),
   57 Tests grün, Gerätefassung gebaut (`~/Studora-Builds/dd-kombi-tabelle-geraet`, 26.11. 16:21), **nicht aufgespielt**.
 - Nicht gelaufen: Mac (die Build-50-Sitzung fuhr gerade ihren Mac-Lauf), echtes Gerät, echte KI.
+
+### 12.5 „Teste bis zum geht nicht mehr“ (26./27.11.2026)
+
+- **Zufalls- und Lasttests** (`SheetFuzzTests`): 400 Zufallstabellen, 5000 Zeichen-Suppen, gleiche Ergebnisse in jeder
+  Reihenfolge, Speichern/Lesen, Zeilen einfügen und wieder löschen, Kopieren hin und zurück, Sortieren, Zahlen hin und
+  zurück, 3000 kaputte KI-Antworten, volle Tabelle 500 × 52. **Fund:** Bei Formeln, die über Umwege mit sich selbst
+  rechnen, hing das Ergebnis von der Reihenfolge ab → jetzt Kreis-Erkennung über alle Bezüge (Tarjan), jede Formel im
+  Kreis zeigt `#ZIRKEL!` (`9d272e1b`). Zeiten wie in der App gebaut (optimiert): volle Tabelle rechnen 0,1 s,
+  „Fertig“ 0,35 s, sichtbarer Ausschnitt 9 ms.
+- **Zweite Durchsicht** der eigenen Korrekturen (20 Punkte), Rückschritte behoben (`80472c0e`): Ausschneiden +
+  Einfügen wie Excel (Bezüge im Block wandern mit), ohne Pro AI bleiben Tabellen/Klappkarten/Verweise beim Ausschneiden
+  liegen, „7 → 7 %“ nur beim Tippen, geschützte Dokumente nur zum Ansehen, Einpassen nur bei Wachstum, KI darf eine
+  vorhandene Tabelle ganz füllen (Meldung nennt, was nicht passte), Gitter-Gesten, Bild je Objekt bis 64 MB und nie
+  unschärfer als der Bildschirm, Klappkarten-Werkzeug bleibt aktiv, späte Verweis-Antwort überschreibt nichts.
+  Bewusst gelassen: „3.142“ ist 3142 (deutsche Schreibweise), `=SQRT(2,25)` (englischer Name mit deutschem Komma).
+- **Ganzer App-Lauf** auf dem Stand des iPads (`3ce90118`, iPad-Simulator): 2298 Tests, 22 rot. Davon auch auf dem
+  früheren Stand rot: Store-Bilder, Klausur-Generator (2), Video daneben (2), Logo in der Seitenleiste (2), Mac-Test.
+  Editor-Messungen (Strich, Zoom, Lasso) einzeln wiederholt grün bzw. unter gleichen Bedingungen gleich schnell wie
+  vorher (Lasso 60–100 ms beide) – rot nur unter Rechnerlast (Lastwert bis 246).
+- **Mac** (erstmals für die Editor-Neuheiten, `tools/mac-test.sh`): 19 Fehler, alle auch auf dem Stand vor den
+  Korrekturen; Ursache Test-Annahmen (Halten zum Greifen gibt es am Mac nicht; Doppelklick-Zeit) → Tests angepasst
+  (`6ebdc008`), danach 49 grün, 9 bewusst übersprungen.
+- **Rundgang von Hand** im iPad-Simulator: Neu → Tabelle öffnet groß, Tippen erscheint sofort in der Zelle, Eingabe
+  in leeren Zellen lässt die Tabelle nicht wachsen, KI-Feld und Filter öffnen (über die Mac-Schranke), KI-Fehler
+  verständlich, „Fertig“ sichert auf die Seite, Reiter heißt „Tabelle“; mit Plus öffnet sie zum Ansehen (Schloss,
+  „Schließen“, Doppeltipp bearbeitet nicht). Kleinigkeit behoben: KI-Fehler stand nach dem Schließen des Felds doppelt.
+- Nicht prüfbar ohne den Inhaber: echte KI (im Simulator keine), echtes Gerät mit Stift.
