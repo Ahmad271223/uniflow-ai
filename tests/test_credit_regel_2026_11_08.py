@@ -119,8 +119,8 @@ def test_trial_plus_upgrade_to_pro_ai_mid_month_gives_100(hosted):
 
 
 def test_month_change_in_the_middle_of_the_trial(hosted):
-    """Rahmen je Kalendermonat: Oktober 25, im November eine neue Zeile mit 25 (Rest des Oktobers verfaellt), nach dem
-    Ende der Probe 0."""
+    """Rahmen je Kalendermonat: Oktober 25; seit 27.11.2026 (Sicherheitspruefung: die Probe hat ihre 25 Credits EINMAL)
+    im November eine neue Zeile nur mit dem Rest der Probe (25 - 10 = 15), nach dem Ende der Probe 0."""
     from app import credits
     for combo in ("trial", "trial+plus"):
         uid = _account(f"wechsel-{combo.replace('+', '-')}@beispiel.de")
@@ -133,7 +133,7 @@ def test_month_change_in_the_middle_of_the_trial(hosted):
             conn.close()
         okt, nov, after = _balance(uid, T_OCT), _balance(uid, T_NOV), _balance(uid, T_AFTER)
         assert (okt["period"], okt["allowance"], okt["used"], okt["remaining"]) == ("2026-10", 25, 10, 15), combo
-        assert (nov["period"], nov["allowance"], nov["used"], nov["remaining"]) == ("2026-11", 25, 0, 25), combo
+        assert (nov["period"], nov["allowance"], nov["used"], nov["remaining"]) == ("2026-11", 15, 0, 15), combo
         assert (after["period"], after["allowance"]) == ("2026-11", 0), combo
 
 
