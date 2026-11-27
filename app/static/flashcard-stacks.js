@@ -34,10 +34,10 @@ export function weekOptions(weeks, currentWeek, preset) {
   return [...ws.map(w => ({ ...w, selected: w === pick })), { value: "module", label: "Ganzes Modul", week: null, selected: !pick }];
 }
 
-/** Zugang zum KI-Auftrag: ohne Pro AI ein Schloss mit Weg zur Tarifseite */
+/** Zugang zum KI-Auftrag: ohne das Recht (Free) ein Schloss mit Weg zur Tarifseite; ohne Credits antwortet der Dienst 429 */
 export function aiAccess(can) {
   return can(AI_RIGHT) ? { locked: false } :
-    { locked: true, text: "KI-Karteikarten gibt es mit StudiNow Pro AI: Fach, Lernwoche und Anzahl wählen, die KI macht den Rest.", href: "#/abo" };
+    { locked: true, text: "KI-Karteikarten gibt es ab StudiNow Plus mit Credits: Fach, Lernwoche und Anzahl wählen, die KI macht den Rest.", href: "#/abo" };
 }
 
 /** Teilen und Uebernehmen: ab Plus (eigene Karteikarten) */

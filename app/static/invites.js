@@ -57,8 +57,7 @@ export async function viewInvites(_, __, view) {
       <p class="muted small" style="margin:0 0 .6rem">${esc(L.createHint(ov))}</p>
       ${codes.length ? `<div class="list">${codes.map(c => `<div class="item inv-link${c.expired ? " muted" : ""}" style="flex-wrap:wrap"><div class="main" style="flex:1 1 16rem;min-width:0"><div class="title" style="white-space:normal;word-break:break-all">${esc(c.url)}</div><div class="sub">${esc(L.linkStatus(c))}</div></div>
         ${c.expired ? "" : `<div class="row" style="gap:.3rem;flex-wrap:wrap"><button class="btn sm" data-share="${esc(c.code)}">${icon("share", 13)} Teilen</button><button class="btn ghost sm" data-copy="${esc(c.code)}">${icon("copy", 13)} Kopieren</button><button class="btn ghost sm" data-qr="${esc(c.code)}">QR-Code</button></div>`}</div>`).join("")}</div>`
-        : `<p class="muted">Noch kein Link angelegt.</p>`}</section>
-    ${L.WEB_REWARDS ? "" : `<section class="card flat"><p class="small muted" style="margin:0">${icon("info", 14)} ${esc(L.REWARDS_NOTE)}</p></section>`}</div>`;
+        : `<p class="muted">Noch kein Link angelegt.</p>`}</section></div>`;
   const byCode = k => codes.find(c => c.code === k);
   $$("[data-share]", view).forEach(b => b.onclick = () => share(byCode(b.dataset.share).url));
   $$("[data-copy]", view).forEach(b => b.onclick = () => copy(byCode(b.dataset.copy).url));

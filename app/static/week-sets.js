@@ -19,8 +19,8 @@ function ensureCss() {
 const head = (extra = "") => `<div class="ws-head">${icon("sparkles", 16)}<b>Fertige Fragen</b>${extra}</div>`;
 
 function lockedHtml() {
-  return `<div class="ws-card locked">${head(`<span class="badge neutral">${LOCK} Pro AI</span>`)}
-    <p class="small" style="margin:.35rem 0">Mit StudiNow Pro AI bekommst du zu jeder Vorlesungswoche 2–3 fertige Sätze mit je 15 Fragen, dazu Themen, Hinweise und Lösungen mit Erklärung.</p>
+  return `<div class="ws-card locked">${head(`<span class="badge neutral">${LOCK} Plus</span>`)}
+    <p class="small" style="margin:.35rem 0">Ab StudiNow Plus mit Credits bekommst du zu jeder Vorlesungswoche 2–3 fertige Sätze mit je 15 Fragen, dazu Themen, Hinweise und Lösungen mit Erklärung.</p>
     <a class="btn sm" href="#/abo">${LOCK} Tarife ansehen</a></div>`;
 }
 

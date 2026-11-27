@@ -23,13 +23,15 @@ const QUOTA_TXT = (q, key, labels) => {
 };
 // Entscheidung 05.11.2026: Free ohne Community und ohne StudiNow-KI (eigenes ChatGPT zu Folien fragen, sobald freigegeben),
 // Community ab Plus, Karteikarten-Stapel von StudiNow: Plus 4 je Monat, Pro AI unbegrenzt (Fair Use)
+// Neues Modell (Entscheidung des Inhabers 26.11.2026): Plus mit allen Funktionen ohne KI (1,99 € im Monat oder 39,99 €
+// einmalig fuer 5 Jahre), Pro AI = Plus + 120 Credits je Monat; die StudiNow-KI geht nur mit Credits
 const POSITION = {
   free: "Organisieren, lesen, Stundenplan – kostenlos. Ohne Community und ohne StudiNow-KI.",
-  // Plus gilt je Geraet (Entscheidung 04.11.2026): Notizen-Abgleich zwischen iPad, PC und Web erst mit Pro AI
-  // Plus (Entscheidung des Inhabers 15.11.2026): KI-Chat mit gekauften Credits; die KI-Lernhilfe bleibt Pro AI
-  plus: "Schreiben mit Apple Pencil, Textmarker und Textfeldern (je Gerät), Community und eigene Karteikarten. KI-Chat mit gekauften Credits.",
-  pro_ai: "Komfortabel: KI-Lernhilfe inklusive mit 80 Credits im Monat, weitere Credits zum Nachkaufen. Wochentests aus deinen Unterlagen. Kein eigenes ChatGPT-Konto nötig, Notizen auf Hochschul-Dokumenten auf allen Geräten.",
+  plus: "Alle Funktionen ohne KI: Schreiben mit Apple Pencil, Community, Karteikarten, Notizen auf allen Geräten, Erinnerungen. Die StudiNow-KI mit Credits, die du dazukaufst.",
+  pro_ai: "Alles aus Plus, dazu 120 Credits für die StudiNow-KI – jeden Monat neu, weitere zum Nachkaufen.",
 };
+// Einmal bezahlte Angebote eines Tarifs (contract.offers, kind non_renewing), z. B. "39,99 € einmalig für 5 Jahre"
+const onceOffers = (contract, key) => (contract.offers || []).filter(o => o.plan === key && o.kind === "non_renewing");
 
 // Funktionen der StudiNow-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)
 const AI_FEATURES = new Set(["can_generate_studora_ai_tests", "can_use_ai_chat", "can_use_ai_explanations", "can_use_ai_generated_questions", "can_use_ai_summaries", "can_use_ai_recommendations", "can_use_prepared_week_sets"]);
@@ -41,7 +43,7 @@ function featureRows(contract, key) {
   if (idx > 0) rows.push(`<li class="off">${icon("check", 13)} Alles aus ${esc(contract.plans[order[idx - 1]].name)}</li>`);
   for (const [name, e] of own) {
     if (e.status === "available" && AI_FEATURES.has(name) && !contract.studora_ai_configured) rows.push(`<li class="off">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">in Vorbereitung</span></li>`);
-    else if (e.status === "available") rows.push(`<li>${icon("check", 13)} ${esc(e.label)}</li>`);
+    else if (e.status === "available") rows.push(`<li>${icon("check", 13)} ${esc(e.label)}${e.needs_credits ? ` <span class="badge neutral">mit Credits</span>` : ""}</li>`);
     else if (e.status === "coming_soon") rows.push(`<li class="off">${icon("clock", 13)} ${esc(e.label)} <span class="badge neutral">kommt bald</span></li>`);
     else if (name === "chatgpt_connection_premium") rows.push(`<li class="off">${icon("clock", 13)} Eigenes ChatGPT verbinden und zu Folien fragen <span class="badge neutral">in Vorbereitung</span></li>`);
   }
@@ -110,8 +112,9 @@ export async function viewAbo(_, params, view) {
     return `<article class="plan${isCur ? " is-current" : ""}${key === "pro_ai" ? " is-top" : ""}">
       <header><h2>${esc(p.name)}</h2></header>
       ${soon ? `<div class="plan-price"><b class="plan-soon" style="font-size:1.1rem;line-height:1.4">kommt mit dem StudiNow-Dienst</b></div>`
-        : `<div class="plan-price"><b>${euro(p.price_cents)}</b><span>${p.price_cents ? " / Jahr" : ""}</span></div>`}
-      ${key === "pro_ai" ? `<div class="plan-tag"><span class="badge info">ohne eigenes ChatGPT</span></div>` : ""}
+        : `<div class="plan-price"><b>${euro(p.price_cents)}</b><span>${p.price_cents ? (p.period === "month" ? " / Monat" : " / Jahr") : ""}</span></div>`}
+      ${onceOffers(contract, key).map(o => `<p class="small muted">oder einmalig <b>${euro(o.price_cents)}</b> für ${o.years} Jahre – kein Abo, endet von selbst (in der Apple-App)</p>`).join("")}
+      ${key === "pro_ai" ? `<div class="plan-tag"><span class="badge info">${p.credits} Credits jeden Monat</span></div>` : ""}
       ${action ? `<div class="plan-act">${action}</div>` : ""}
       <p class="plan-pos">${esc(POSITION[key] || p.tagline)}</p>
       <div class="plan-facts">${facts}</div>
@@ -166,7 +169,7 @@ export async function viewAbo(_, params, view) {
 export function planChoicePrompt(me) {
   try { if (sessionStorage.getItem("plan-choice-prompted")) return; sessionStorage.setItem("plan-choice-prompted", "1"); } catch {}
   const m = modal(`<h2 style="margin-top:0">${icon("sparkles", 18)} Deine Probe ist vorbei</h2>
-    <p class="small muted">Sieben Tage lang war alles frei wie in StudiNow Pro AI. Wähle jetzt einen Tarif – oder bleib bei Free. Deine Notizen, Karten und Tests bleiben in jedem Fall erhalten und lesbar; bei Free ist nur das Bearbeiten und die KI gesperrt.</p>
+    <p class="small muted">Sieben Tage lang war alles frei wie in StudiNow Plus, mit Credits für die KI. Wähle jetzt einen Tarif – oder bleib bei Free. Deine Notizen, Karten und Tests bleiben in jedem Fall erhalten und lesbar; bei Free ist nur das Bearbeiten und die KI gesperrt.</p>
     <div class="row wrap" style="gap:.5rem;margin-top:.8rem"><a class="btn primary" href="#/abo" data-close>Tarife ansehen</a><button class="btn" id="pcFree">Bei Free bleiben</button><button class="btn ghost" data-close>Später</button></div>`);
   $("#pcFree", m).onclick = async () => { try { await api("/billing/plan-choice", { method: "POST", body: { plan: "free" } }); toast("Du bleibst bei Free"); if (state.entitlements) state.entitlements.needs_plan_choice = false; } catch (e) { toast(e.message, 5000); } m.remove(); };
 }
