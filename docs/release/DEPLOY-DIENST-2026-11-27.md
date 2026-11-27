@@ -43,3 +43,12 @@ Inhaber: „mach jz“. `unattended-upgrade`: libexpat1, libgssapi-krb5-2, libk5
 libpcap0.8t64, python3-jwt (nur Sicherheits-Updates; 14 andere bleiben). Neustart 18:56:55, SSH 18:58, Container
 (unless-stopped) healthy, „Neustart nötig“ weg, `dienst-check.sh`: alle Prüfungen bestanden, ufw und fail2ban aktiv;
 von außen `/login` 200, API 401, studinow.app 200. Auszeit etwa 1,5 Minuten.
+
+## Nachtrag 21:18 – Sicherheitspunkte 1.0.9, Server-Teil (`sicherheit/1.0.9` @ 0a1018cd)
+Inhaber auf „Soll ich die zwei Server-Teile jetzt auf den Server spielen?“: „Ja, einspielen“.
+- Probe-Credits einmal (credits._month): im neuen Monat nur der Rest der 25.
+- Absturzmeldungen in eigener Datei `/data/crash_reports.db` (accounts.db hatte nie eine Tabelle crash_reports),
+  DAY_TOTAL 5 000, IP_LIMIT 60/h, Tag voll -> 503 busy + Retry-After (App sendet später).
+- App-Teile desselben Zweigs (Prüfsummen der Mitschrift, feste Paketversionen) wirken erst mit einem neuen Build.
+Tests: Server 4160 + node 473 grün; Backup `uniflow-2026-11-27_2116.tar.gz`; healthy, keine Fehlerzeilen,
+`dienst-check.sh`: alle Prüfungen bestanden. Zurück: `git archive 502c00e4` wie oben.
