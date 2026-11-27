@@ -161,15 +161,19 @@
    "kind": "auto_renewable",
    "price_cents": 199,
    "period": "month",
-   "label": "1,99 € im Monat"
+   "label": "1,99 € im Monat",
+   "group": "monthly",
+   "savings": null
   },
   {
-   "product_id": "de.uniflow.plus.fuenfjahre",
-   "plan": "plus",
-   "kind": "non_renewing",
-   "price_cents": 3999,
-   "years": 5,
-   "label": "39,99 € einmalig für 5 Jahre"
+   "product_id": "de.uniflow.proai.monthly",
+   "plan": "pro_ai",
+   "kind": "auto_renewable",
+   "price_cents": 399,
+   "period": "month",
+   "label": "3,99 € im Monat",
+   "group": "monthly",
+   "savings": null
   },
   {
    "product_id": "de.uniflow.proai.yearly",
@@ -177,7 +181,54 @@
    "kind": "auto_renewable",
    "price_cents": 3999,
    "period": "year",
-   "label": "39,99 € im Jahr"
+   "label": "39,99 € im Jahr",
+   "group": "yearly",
+   "compare": "de.uniflow.proai.monthly",
+   "savings": {
+    "months": 12,
+    "regular_cents": 4788,
+    "saved_cents": 789,
+    "saved_percent": 16,
+    "per_month_cents": 333,
+    "text": "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €",
+    "per_month_text": "nur 3,33 € im Monat"
+   }
+  },
+  {
+   "product_id": "de.uniflow.plus.fuenfjahre",
+   "plan": "plus",
+   "kind": "non_renewing",
+   "price_cents": 3999,
+   "years": 5,
+   "label": "39,99 € einmalig für 5 Jahre",
+   "group": "special",
+   "name": "Bachelor+Master-Paket",
+   "badge": "Unser Special",
+   "highlight": true,
+   "compare": "de.uniflow.plus.monthly",
+   "savings": {
+    "months": 60,
+    "regular_cents": 11940,
+    "saved_cents": 7941,
+    "saved_percent": 67,
+    "per_month_cents": 67,
+    "text": "Du sparst 79,41 € (67 %) gegenüber 60 × 1,99 € = 119,40 €",
+    "per_month_text": "nur 0,67 € im Monat"
+   }
+  }
+ ],
+ "offer_groups": [
+  {
+   "key": "monthly",
+   "title": "Monatlich"
+  },
+  {
+   "key": "yearly",
+   "title": "Jährlich"
+  },
+  {
+   "key": "special",
+   "title": "Unser Special"
   }
  ],
  "entitlements": {

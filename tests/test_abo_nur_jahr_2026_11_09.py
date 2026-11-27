@@ -33,13 +33,14 @@ def test_contract_offers_only_the_products_on_sale():
     assert c["plus"]["apple_product_id"] == "de.uniflow.plus.monthly"
     assert c["pro_ai"]["apple_product_id"] == "de.uniflow.proai.yearly"
     assert c["free"]["price_cents"] == 0 and c["free"]["apple_product_id"] is None
-    assert [o["product_id"] for o in P.contract()["offers"]] == ["de.uniflow.plus.monthly", "de.uniflow.plus.fuenfjahre",
-                                                                "de.uniflow.proai.yearly"]
+    # 27.11.2026: Pro AI auch monatlich (3,99 EUR) wieder im Verkauf; das Jahres-Plus bleibt draussen
+    assert [o["product_id"] for o in P.contract()["offers"]] == ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly",
+                                                                "de.uniflow.proai.yearly", "de.uniflow.plus.fuenfjahre"]
     text = json.dumps(P.contract(), ensure_ascii=False)
-    for old in ("de.uniflow.plus.yearly", "de.uniflow.proai.monthly", "price_cents_yearly", "apple_product_id_yearly"):
+    for old in ("de.uniflow.plus.yearly", "price_cents_yearly", "apple_product_id_yearly"):
         assert old not in text, old
     fixture = _read("packages/shared-contracts/fixtures/plans/plans.json")
-    assert "de.uniflow.plus.yearly" not in fixture and "de.uniflow.proai.monthly" not in fixture
+    assert "de.uniflow.plus.yearly" not in fixture
     assert '"price_cents": 199,' in fixture and '"price_cents": 3999' in fixture
 
 

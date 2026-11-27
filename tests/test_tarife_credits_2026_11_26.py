@@ -14,13 +14,16 @@ from test_subscriptions import FakeAI, apple, ent, hosted, user, verify  # noqa:
 FUENF = "de.uniflow.plus.fuenfjahre"
 
 
-def once_tx(signer, user_id, bought: datetime, otid="9100000000000001"):
+def once_tx(signer, user_id, bought: datetime, otid="9100000000000001", revoked=False):
     """Signierte Transaktion des 5-Jahres-Kaufs wie von StoreKit 2: nicht verlaengernd, ohne expiresDate."""
     signer.seq += 1
     ms = lambda d: int(d.timestamp() * 1000)
-    return signer.sign({"transactionId": otid, "originalTransactionId": otid, "productId": FUENF, "bundleId": "de.uniflow.ai",
-                        "type": "Non-Renewing Subscription", "purchaseDate": ms(bought), "environment": "Sandbox",
-                        "signedDate": ms(dt.datetime.now(UTC)) + signer.seq, "appAccountToken": str(uuid.UUID(hex=user_id))})
+    p = {"transactionId": otid, "originalTransactionId": otid, "productId": FUENF, "bundleId": "de.uniflow.ai",
+         "type": "Non-Renewing Subscription", "purchaseDate": ms(bought), "environment": "Sandbox",
+         "signedDate": ms(dt.datetime.now(UTC)) + signer.seq, "appAccountToken": str(uuid.UUID(hex=user_id))}
+    if revoked:
+        p["revocationDate"] = ms(dt.datetime.now(UTC))
+    return signer.sign(p)
 
 
 def test_contract_has_the_new_offers_and_rights():
@@ -29,9 +32,11 @@ def test_contract_has_the_new_offers_and_rights():
     assert plans.PLANS["plus"]["apple_product_id"] == "de.uniflow.plus.monthly"
     assert plans.PLANS["pro_ai"]["price_cents"] == 3999 and plans.PLANS["pro_ai"]["period"] == "year"
     assert plans.CREDITS == {"free": 0, "plus": 0, "pro_ai": 120, "trial": 25}
-    assert [o["product_id"] for o in plans.contract()["offers"]] == ["de.uniflow.plus.monthly", FUENF, "de.uniflow.proai.yearly"]
-    assert plans.OFFERS[FUENF] == {"plan": "plus", "kind": "non_renewing", "price_cents": 3999, "years": 5,
-                                  "label": "39,99 € einmalig für 5 Jahre"}
+    assert [o["product_id"] for o in plans.contract()["offers"]] == ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly",
+                                                                     "de.uniflow.proai.yearly", FUENF]
+    o = plans.OFFERS[FUENF]
+    assert (o["plan"], o["kind"], o["price_cents"], o["years"], o["label"]) == ("plus", "non_renewing", 3999, 5,
+                                                                                "39,99 € einmalig für 5 Jahre")
     assert [plans.is_sellable(p) for p in ("free", "plus", "pro_ai", "pro_connect")] == [False, True, True, False]
     # frueher verkaufte Produkte gelten weiter
     assert plans.plan_for_product("de.uniflow.plus.yearly") == "plus" and plans.plan_for_product("de.uniflow.proai.monthly") == "pro_ai"
@@ -141,3 +146,65 @@ def test_trial_is_plus_with_25_credits(hosted):
     me = ent(hosted, h)
     assert me["plan"] == "plus" and me["trial"]["active"] is True, me
     assert me["credits"]["allowance"] == 25 and me["credits"]["can_buy"] is False
+
+
+# ---------------------------------------------------------------- 27.11.2026: Pro AI monatlich + Tarifuebersicht
+
+PRO_MONAT = "de.uniflow.proai.monthly"
+
+
+def test_overview_groups_and_savings_as_the_owner_ordered():
+    """Inhaber 27.11.2026: monatlich Free -> Plus 1,99 -> Pro AI 3,99, jaehrlich Pro AI 39,99, ganz stark hervorgehoben
+    das "Bachelor+Master-Paket" (Plus 5 Jahre 39,99 einmalig) mit der Ersparnis gegenueber normalem Plus."""
+    from app import plans
+    c = plans.contract()
+    assert [g["key"] for g in c["offer_groups"]] == ["monthly", "yearly", "special"]
+    by = {o["product_id"]: o for o in c["offers"]}
+    assert [(p, by[p]["group"], by[p]["price_cents"]) for p in by] == [
+        ("de.uniflow.plus.monthly", "monthly", 199), (PRO_MONAT, "monthly", 399),
+        ("de.uniflow.proai.yearly", "yearly", 3999), (FUENF, "special", 3999)]
+    paket = by[FUENF]
+    assert (paket["name"], paket["badge"], paket["highlight"]) == ("Bachelor+Master-Paket", "Unser Special", True)
+    sv = paket["savings"]
+    assert (sv["months"], sv["regular_cents"], sv["saved_cents"], sv["saved_percent"], sv["per_month_cents"]) == (60, 11940, 7941, 67, 67)
+    assert sv["text"] == "Du sparst 79,41 € (67 %) gegenüber 60 × 1,99 € = 119,40 €" and sv["per_month_text"] == "nur 0,67 € im Monat"
+    sy = by["de.uniflow.proai.yearly"]["savings"]
+    assert (sy["regular_cents"], sy["saved_cents"], sy["saved_percent"]) == (4788, 789, 16)
+    assert by["de.uniflow.plus.monthly"]["savings"] is None and by[PRO_MONAT]["savings"] is None
+    assert PRO_MONAT not in plans.LEGACY_PRODUCTS and plans.plan_for_product(PRO_MONAT) == "pro_ai"
+
+
+def test_pro_ai_monthly_purchase_unlocks_pro_ai_with_120_credits(hosted, apple, monkeypatch):
+    from datetime import timedelta
+    monkeypatch.delenv("LERNAPP_CREDITS_PRO_AI", raising=False)
+    u, h = user(hosted, "pro-monat@beispiel.de")
+    st, d = verify(hosted, h, apple.tx(u["id"], PRO_MONAT, datetime.now(UTC) + timedelta(days=30), otid="9200000000000001"))
+    assert st == 200, d
+    me = ent(hosted, h)
+    assert me["plan"] == "pro_ai" and me["will_renew"] is not False, me
+    c = credits_of(hosted, h)
+    assert (c["allowance"], c["available"]) == (120, 120), c
+
+
+def test_existing_plus_yearly_subscriptions_keep_plus_but_it_is_not_sold(hosted, apple):
+    """Bestehende Jahres-Plus-Abos (19,99 EUR, bis 26.11.2026 verkauft) gelten weiter; angeboten wird das Produkt nicht."""
+    from datetime import timedelta
+    from app import plans
+    u, h = user(hosted, "plus-jahr@beispiel.de")
+    st, d = verify(hosted, h, apple.tx(u["id"], "de.uniflow.plus.yearly", datetime.now(UTC) + timedelta(days=200), otid="9200000000000002"))
+    assert st == 200, d
+    me = ent(hosted, h)
+    assert me["plan"] == "plus" and me["entitlements"]["can_sync_annotations"], me
+    assert "de.uniflow.plus.yearly" not in plans.OFFERS and plans.plan_for_product("de.uniflow.plus.yearly") == "plus"
+
+
+def test_refund_of_the_five_year_package_ends_plus_at_once(hosted, apple):
+    """Erstattung/Widerruf (REFUND bzw. revocationDate) beendet das Paket sofort, wie bei den Abos."""
+    from test_subscriptions import notify
+    u, h = user(hosted, "paket-erstattet@beispiel.de")
+    bought = datetime.now(UTC) - dt.timedelta(days=3)
+    assert verify(hosted, h, once_tx(apple, u["id"], bought, otid="9300000000000001"))[0] == 200
+    assert ent(hosted, h)["plan"] == "plus"
+    st, d = notify(hosted, apple.notification("REFUND", once_tx(apple, u["id"], bought, otid="9300000000000001", revoked=True)))
+    assert st == 200 and d["status"] == "revoked", d
+    assert ent(hosted, h)["plan"] == "free"
