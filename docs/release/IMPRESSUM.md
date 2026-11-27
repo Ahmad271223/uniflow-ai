@@ -1,6 +1,6 @@
 # Impressum
 
-**Stand 14.11.2026.** Pflichtangaben nach § 5 Digitale-Dienste-Gesetz (DDG).
+**Stand 26.11.2026.** Pflichtangaben nach § 5 Digitale-Dienste-Gesetz (DDG).
 
 ## Angaben nach § 5 DDG
 
@@ -24,8 +24,7 @@ Ahmad Fakih, Anschrift wie oben
 
 **Verbraucherstreitbeilegung**<br>
 Wir sind nicht verpflichtet und nicht bereit, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle
-teilzunehmen (§ 36 VSBG). (Die EU-Plattform zur Online-Streitbeilegung wurde am 20.07.2025 eingestellt; ein Link
-dorthin gehört nicht mehr ins Impressum.)
+teilzunehmen (§ 36 VSBG).
 
 **Hinweis zu den Hochschulen**<br>
 StudiNow ist ein eigenständiges Angebot und nicht mit der Leibniz Universität Hannover oder der Universität

@@ -229,10 +229,22 @@ enum GradesModel {
 
     /// `_level`: mit Spalte "Prf.Art" (LUH, `artColumn`: eine Zeile traegt PL/SL) entscheidet allein die Art: PL/SL ist
     /// eine Leistung, ohne Art eine Modul- oder Bereichszeile (auch mit Wert in "Versuch")
-    private static func level(_ r: [String: JSONValue], artColumn: Bool = false) -> String {
-        if isBereichText(text(r["text"]) ?? "") { return "bereich" }
+    /// 26.11.2026: Eine Zeile mit Pruefungsart PL/SL ist immer eine Leistung, auch wenn ihr Name wie ein Bereich
+    /// anfaengt ("Vertiefung Regelungstechnik", "Schwerpunkt Energietechnik: …"; vorher zaehlte sie nie). Mit Spalte
+    /// "Prf.Art" ist eine Zeile ohne Art, ohne Semester, ohne Datum und ohne Versuch eine Bereichs-/Summenzeile, wie
+    /// immer sie heisst (im QIS der LUH reicht ihre Zelle ueber Art und Semester; vorher nur am Namen "Kompetenzbereich …"
+    /// erkannt, ein "Pflichtbereich" zaehlte als Modul mit und seine LP doppelt). Modulzeilen tragen Semester und Datum.
+    /// `terms`: die Tabelle hat eine Semesterspalte mit Werten (LUH; das LSF Hildesheim nennt keine Semester)
+    private static func level(_ r: [String: JSONValue], artColumn: Bool = false, terms: Bool = false) -> String {
+        let t = text(r["text"]) ?? ""
+        if t.hasPrefix(GradeRows.accountPrefix) { return "bereich" }
+        if ["PL", "SL"].contains(text(r["art"]) ?? "") { return "pruefung" }
+        if isBereichText(t) { return "bereich" }
         if truthy(r["art"]) { return "pruefung" }
-        if artColumn && text(r["source"]) != "anmeldung" { return "modul" }
+        if artColumn && text(r["source"]) != "anmeldung" {
+            let blank = ["semester", "datum", "versuch"].allSatisfy { PyText.strip(text(r[$0]) ?? "").isEmpty }
+            return blank && terms ? "bereich" : "modul"
+        }
         return PyText.strip(text(r["versuch"]) ?? "").isEmpty ? "modul" : "pruefung"
     }
 
@@ -300,7 +312,8 @@ enum GradesModel {
         }
         // Spalte "Prf.Art" vorhanden (LUH): PL/SL sind Leistungen, Zeilen ohne Art Modul- oder Bereichszeilen
         let artColumn = out.contains { ["PL", "SL"].contains(text($0["art"]) ?? "") }
-        for i in out.indices { out[i]["level"] = .string(level(out[i], artColumn: artColumn)) }
+        let terms = out.contains { parseTerm(text($0["semester"])) != nil }
+        for i in out.indices { out[i]["level"] = .string(level(out[i], artColumn: artColumn, terms: terms)) }
         return count(out)
     }
 
@@ -339,8 +352,12 @@ enum GradesModel {
         return (iso.isEmpty ? isoDate(text(r["datum"])) : iso, rowTerm(r) ?? -1, i)
     }
 
-    /// `_parent`: Modulzeile (Index) einer Pruefungszeile oder nil
-    private static func parent(_ m: [[String: JSONValue]], _ i: Int) -> Int? {
+    /// `_parent`: Modulzeile (Index) einer Pruefungszeile oder nil. `assigned`: LP der bestandenen Pruefungen, die
+    /// einer Modulzeile schon zugeordnet sind. Ueber "die Modulzeile davor" (ohne Namens- oder Nummerntreffer) kommt eine
+    /// Pruefung nur noch dazu, solange die LP des Moduls nicht schon belegt sind (26.11.2026): sonst ist sie eine eigene
+    /// Leistung ohne Modulzeile (vorher schluckte "Mathematik I" (8 LP, Pruefung 8 LP) eine "Technische Mechanik II"
+    /// desselben Semesters, deren 5 LP fehlten).
+    private static func parent(_ m: [[String: JSONValue]], _ i: Int, assigned: [Int: Double] = [:]) -> Int? {
         let p = m[i]
         let mods = m.indices.filter { lvl(m[$0]) == "modul" && text(m[$0]["source"]) != "anmeldung" }
         let key = nameKey(p)
@@ -361,6 +378,8 @@ enum GradesModel {
             if l != "modul" || text(m[j]["source"]) == "anmeldung" { return nil }
             if isTrue(m[j]["passed"]), let pm = chrono(text(m[j]["semester_norm"]) ?? ""),
                let pp = chrono(text(p["semester_norm"]) ?? ""), pp > pm { return nil }
+            let own = lp(m[j])
+            if own > 0, (assigned[j] ?? 0) >= own, lp(p) > 0 { return nil }
             return j
         }
         return nil
@@ -403,8 +422,10 @@ enum GradesModel {
         for i in m.indices where candidate(m[i]) && !keep.contains(i) { m[i]["superseded"] = true; m[i]["graded"] = false }
 
         var kids: [Int: [Int]] = [:], alone: [Int] = []
+        var assigned: [Int: Double] = [:]
         for i in m.indices where lvl(m[i]) == "pruefung" {
-            let j = parent(m, i)
+            let j = parent(m, i, assigned: assigned)
+            if let j, isTrue(m[i]["passed"]), !isTrue(m[i]["superseded"]) { assigned[j, default: 0] += lp(m[i]) }
             // Modul der Leistung (QIS: die Modulzeile davor; Nummer und Text fuer Studienverlauf und Anzeige)
             if let j {
                 let n = nr(m[j])

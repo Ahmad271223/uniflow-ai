@@ -508,16 +508,23 @@ def test_clear_credentials_removes_legacy_vault_values_and_consent(hosted):
     assert json.loads(asgi_call(hosted, "GET", "/api/credentials", headers=h)[2])["password_set"] is False
 
 
-def test_weekly_quota_follows_the_plan(hosted):
-    from app import accounts, billing, jobs
+def test_weekly_quota_follows_the_plan(hosted, monkeypatch):
+    """26.11.2026 neues Modell: Plus hat 20 neue KI-Tests im Monat wie Pro AI (frueher 4); die Zaehlung wird hier mit
+    einer Grenze von 4 geprueft. (Offen: HostedQuota prueft keine Credits - das Konto bekommt hier gekaufte Credits,
+    damit der Test nicht festschreibt, ob Plus ohne Credits KI-Wochentests bekommt.)"""
+    from app import accounts, billing, jobs, plans
+    from test_subscriptions import give_credits
     u = accounts.register("quota@beispiel.de", "sehr-geheim-123", "luh")
     accounts.end_trial(u["id"])
     q = jobs.HostedQuota(accounts.get_user(u["id"]))
     assert "Plus" in q.check() and "Free" in q.check(), "Free: keine KI-Wochentests, mit Grund"
     accounts.set_plan(u["id"], "plus")
+    give_credits(u["id"], 200)
+    assert plans.quota_limit("plus", "ai_tests_new") == 20
+    monkeypatch.setitem(plans.QUOTAS["plus"], "ai_tests_new", 4)
     q = jobs.HostedQuota(accounts.get_user(u["id"]))
     assert q.check() is None
-    for i in range(4):                                                  # Plus: 4 neue KI-Tests im Monat (04.11.2026)
+    for i in range(4):
         q.consume(f"weekly:{i}:1")
     q.consume("weekly:0:1")                                             # dieselbe Anfrage zaehlt einmal
     conn = billing.connect()

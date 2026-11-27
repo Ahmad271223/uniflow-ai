@@ -180,8 +180,23 @@ public enum UniLoginForms {
         ignoredContainers: hisinoneHidden, markers: ["name=\"fdsa\"", "id=\"fdsa\""], failureMarkers: generalFailure,
         confirmed: true, openers: ["button[id$=\"overlayShowButton\"]", "button.login_overlay_button"])
 
+    /// Stud.IP Goettingen, eigenes Formular ("Direkt") auf dispatch.php/login. Am 26.11.2026 an der echten Seite ohne
+    /// Anmeldung gelesen: form#login-form (name login_form, POST auf dieselbe Adresse), input#loginname, input#password,
+    /// button#submit_login (name "Login"), dazu versteckt security_token, login_ticket, resolution. Die Anmeldung selbst
+    /// (Inhaber, im Browser) ging ohne zweiten Faktor. Nach einer Ablehnung zeigt Stud.IP wieder dieses Formular mit
+    /// einer Fehlermeldung (`messagebox_error`); der Text der Meldung ist am echten Rechner nicht geprueft.
+    public static let goettingenStudIP = UniLoginForm(
+        id: "goettingen-studip", university: .goettingen, name: "Stud.IP der Uni Göttingen (eigenes Formular)",
+        target: UniversityLoginTarget(host: UniversityProfile.goettingenStudIP.host ?? "studip.uni-goettingen.de",
+                                      pathPrefix: "/dispatch.php/login"),
+        userFields: ["input#loginname", "input[name=\"loginname\"]"],
+        passwordFields: ["input#password", "input[name=\"password\"]"],
+        submitButtons: ["button#submit_login", "button[name=\"Login\"]", "form#login-form button[type=\"submit\"]"],
+        markers: ["name=\"loginname\"", "id=\"loginname\""],
+        failureMarkers: generalFailure + ["messagebox_error", "Bei der Anmeldung trat ein Fehler auf"], confirmed: true)
+
     public static let all: [UniLoginForm] = [luhWebSSO, luhQIS, luhSOGo, hildesheimCAS, hildesheimCASBare, hildesheimLSF,
-                                             hildesheimPLuS, hildesheimSOGo, hshMoodle, hshIdP, hshCampus]
+                                             hildesheimPLuS, hildesheimSOGo, hshMoodle, hshIdP, hshCampus, goettingenStudIP]
 
     /// Formulare einer Hochschule (eine Zugangskennung fuer alle: LUH-ID, UNI-Account, SSO-Account)
     public static func forms(_ u: UniversityKey) -> [UniLoginForm] { all.filter { $0.university == u } }

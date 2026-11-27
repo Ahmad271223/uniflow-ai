@@ -25,7 +25,7 @@ final class LocalTrialP44Tests: XCTestCase {
         let id = newID()
         r.records[UFLocalTrial.scope(userID: id)] = UFTrialRecords(keychain: start, cloud: nil)
         e.beginLocalTrial(userID: id, records: r, now: Date())
-        XCTAssertEqual(e.plan, .proAI, "Probe laeuft noch gut eine Sekunde")
+        XCTAssertEqual(e.plan, .plus, "Probe (wie Plus) laeuft noch gut eine Sekunde")
         XCTAssertEqual(e.localTrial?.daysLeft, 1)
         let end = Date().addingTimeInterval(6)
         while Date() < end, e.plan != .free { try? await Task.sleep(nanoseconds: 200_000_000) }
@@ -88,7 +88,7 @@ final class LocalTrialP44Tests: XCTestCase {
         let r2 = UFMemoryTrialRecords()
         let id2 = newID()
         e.beginLocalTrial(userID: id2, records: r2, now: t0)
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus)
         e.refreshLocalTrial(now: day(8))
         XCTAssertEqual(e.plan, .free)
         e.refreshLocalTrial(now: day(3))
@@ -132,8 +132,8 @@ final class LocalTrialP44Tests: XCTestCase {
     // MARK: P44-13 Tarif-Matrix
 
     /// Was jeder Stand zeigt und freischaltet (Free, Probe, Plus, Pro AI, Probe+Plus, Probe des Kontos). KI nur ueber
-    /// den Dienst: Plus nie, Pro AI und Probe nur angemeldet (Credits beim Dienst: Probe 25, Plus 0, Pro AI 100,
-    /// Probe+Plus 25 bis Probeende, AUDIT-2026-11-08-PAKET-21-22.md)
+    /// den Dienst und nur angemeldet; seit 26.11.2026 auch mit Plus, aber nur mit Credits (Probe 25, Plus 0 plus gekaufte,
+    /// Pro AI 120, Probe+Plus 25 bis Probeende; die Credits prueft `StudiNowCreditGate` bzw. der Dienst)
     func testPlanMatrixPerState() {
         let running = UFLocalTrial.state(startedAt: t0, now: day(1))
         let over = UFLocalTrial.state(startedAt: t0, now: day(8))
@@ -141,10 +141,10 @@ final class LocalTrialP44Tests: XCTestCase {
                      let servicePlan: String?; let serviceTrial: Bool; let plan: UFPlan; let ai: StudiNowAIAccess }
         let rows: [Row] = [
             Row(name: "Free", service: nil, purchased: .free, local: over, servicePlan: "free", serviceTrial: false, plan: .free, ai: .planRequired),
-            Row(name: "Probe iPad", service: nil, purchased: .free, local: running, servicePlan: nil, serviceTrial: false, plan: .proAI, ai: .ready),
-            Row(name: "Plus", service: nil, purchased: .plus, local: over, servicePlan: "plus", serviceTrial: false, plan: .plus, ai: .planRequired),
+            Row(name: "Probe iPad", service: nil, purchased: .free, local: running, servicePlan: nil, serviceTrial: false, plan: .plus, ai: .ready),
+            Row(name: "Plus", service: nil, purchased: .plus, local: over, servicePlan: "plus", serviceTrial: false, plan: .plus, ai: .ready),
             Row(name: "Pro AI", service: nil, purchased: .proAI, local: over, servicePlan: "pro_ai", serviceTrial: false, plan: .proAI, ai: .ready),
-            Row(name: "Probe iPad + Plus", service: nil, purchased: .plus, local: running, servicePlan: "plus", serviceTrial: false, plan: .plus, ai: .planRequired),
+            Row(name: "Probe iPad + Plus", service: nil, purchased: .plus, local: running, servicePlan: "plus", serviceTrial: false, plan: .plus, ai: .ready),
             Row(name: "Probe Konto", service: .proAI, purchased: .free, local: over, servicePlan: "pro_ai", serviceTrial: true, plan: .proAI, ai: .ready),
             Row(name: "Probe Konto + Plus", service: .proAI, purchased: .plus, local: over, servicePlan: "pro_ai", serviceTrial: true, plan: .proAI, ai: .ready),
         ]
@@ -153,15 +153,15 @@ final class LocalTrialP44Tests: XCTestCase {
             XCTAssertEqual(plan, r.plan, r.name)
             XCTAssertEqual(UFFeatureMatrix.access(.pencilWriting, plan: plan).isAllowed, plan >= .plus, r.name)
             XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: plan).isAllowed, plan >= .plus, r.name)
-            XCTAssertEqual(UFFeatureMatrix.access(.aiHelp, plan: plan).isAllowed, plan == .proAI, r.name)
+            XCTAssertEqual(UFFeatureMatrix.access(.aiHelp, plan: plan).isAllowed, plan >= .plus, r.name)
             XCTAssertEqual(StudiNowAIAccess.decide(serviceConfigured: true, signedIn: true, localPlan: plan.rawValue,
                                                    servicePlan: r.servicePlan, serviceTrialActive: r.serviceTrial), r.ai, r.name)
         }
-        // Plus ohne Probe: nie KI, auch nicht ohne Antwort des Dienstes
+        // Plus: KI mit Credits, auch ohne Antwort des Dienstes; ohne Anmeldung erst anmelden (seit 26.11.2026; vorher nie KI)
         XCTAssertEqual(StudiNowAIAccess.decide(serviceConfigured: true, signedIn: true, localPlan: "plus", servicePlan: nil,
-                                               serviceTrialActive: false), .planRequired)
+                                               serviceTrialActive: false), .ready)
         XCTAssertEqual(StudiNowAIAccess.decide(serviceConfigured: true, signedIn: false, localPlan: "plus", servicePlan: nil,
-                                               serviceTrialActive: false), .planRequired)
+                                               serviceTrialActive: false), .signInRequired)
         // Pro AI ohne Anmeldung: Hinweis zur Anmeldung, nichts geht an den Dienst
         XCTAssertEqual(StudiNowAIAccess.decide(serviceConfigured: true, signedIn: false, localPlan: "pro_ai", servicePlan: nil,
                                                serviceTrialActive: false), .signInRequired)

@@ -25,6 +25,6 @@ def test_invites_forwarded_with_account(service):
     st, r = _j(asgi_call(app, "POST", "/api/invites/redeem", body=json.dumps({"code": r["invite"]["code"]})))
     assert st == 400 and r["code"] == "invite_self"                     # Fehler des Dienstes kommen unveraendert an
     st, r = _j(asgi_call(app, "POST", "/api/invites/claim", body=json.dumps({"tier": 5})))
-    assert st == 403 and r["code"] == "invite_tier_not_reached"
+    assert st == 410 and r["code"] == "invite_rewards_off"             # seit 27.11.2026 keine Belohnungen
     # Vorrat der Angebotscodes gibt es nur im Dienst
     assert _j(asgi_call(app, "GET", "/api/billing/offer-codes"))[0] == 501

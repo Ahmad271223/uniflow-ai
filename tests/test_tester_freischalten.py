@@ -19,9 +19,10 @@ def _run(argv, now=None):
     return code, rows, lines[-1] if lines else ""
 
 
-def test_extended_trial_gives_the_tester_pro_ai_scope_with_trial_credits(hosted):
+def test_extended_trial_gives_the_tester_trial_scope_with_trial_credits(hosted):
     """Konto mit verbrauchter Probe: nach dem Werkzeug laeuft die Probe 14 Tage, GET /api/entitlements meldet sie wie eine
-    frische Probe (Pro-AI-Umfang, Quelle trial, Probe-Credits), keine Aufforderung zur Tarifwahl."""
+    frische Probe (Umfang der Probe, Quelle trial, Probe-Credits), keine Aufforderung zur Tarifwahl.
+    26.11.2026 neues Modell: die Probe ist Plus mit 25 Credits (frueher Pro-AI-Umfang)."""
     from app import plans
     u, h = user(hosted, "tester@beispiel.de")                  # user() beendet die Probe des neuen Kontos
     e = ent(hosted, h)
@@ -30,8 +31,8 @@ def test_extended_trial_gives_the_tester_pro_ai_scope_with_trial_credits(hosted)
     assert code == 0 and len(rows) == 1 and rows[0]["tage"] == 14 and rows[0]["probe_vorher"].startswith("vorbei"), rows
     assert "1 Konto/Konten freigeschaltet" in summary
     e = ent(hosted, h)
-    assert e["plan"] == plans.TRIAL["plan"] == "pro_ai" and e["source"] == "trial" and e["paid_plan"] == "free"
-    assert e["trial"]["active"] and e["trial"]["days_left"] == 14 and e["trial"]["plan"] == "pro_ai" and not e["needs_plan_choice"]
+    assert e["plan"] == plans.TRIAL["plan"] == "plus" and e["source"] == "trial" and e["paid_plan"] == "free"
+    assert e["trial"]["active"] and e["trial"]["days_left"] == 14 and e["trial"]["plan"] == "plus" and not e["needs_plan_choice"]
     assert e["entitlements"]["can_annotate_pdf"] and e["entitlements"]["can_use_ai_explanations"]
     assert e["credits"]["allowance"] == plans.CREDITS["trial"], "Probe-Credits, nicht die 100 von Pro AI"
     assert e["access"]["state"] == "trial" and e["access"]["trial_days_left"] == 14
@@ -65,8 +66,9 @@ def test_registration_window_selects_only_accounts_created_in_it(hosted):
 
 
 def test_paid_or_sandbox_subscription_stays_and_the_highest_plan_wins(hosted):
-    """Ein Tester mit Sandbox-Plus behaelt sein Abo; die verlaengerte Probe (Pro-AI-Umfang) gilt daneben, solange sie
-    laeuft, danach wieder Plus."""
+    """Ein Tester mit Sandbox-Plus behaelt sein Abo; die verlaengerte Probe gilt daneben, solange sie laeuft, danach
+    wieder Plus. 26.11.2026 neues Modell: die Probe ist selbst Plus; obenauf liegt sie bei den Credits (Probe + bezahltes
+    Plus bleibt Probe: 25 Credits, Kennung plus:trial), danach Plus ohne Monats-Credits."""
     from app import billing
     u, h = user(hosted, "plus-tester@beispiel.de")
     conn = billing.connect()
@@ -79,7 +81,8 @@ def test_paid_or_sandbox_subscription_stays_and_the_highest_plan_wins(hosted):
     code, rows, _ = _run(["--email", "plus-tester@beispiel.de", "--tage", "3", "--ausfuehren"])
     assert code == 0 and rows[0]["tarif_vorher"] == "plus"
     e = ent(hosted, h)
-    assert e["plan"] == "pro_ai" and e["trial"]["active"] and e["subscriptions"]["app_store"], "Abo bleibt, Probe obenauf"
+    assert e["plan"] == "plus" and e["trial"]["active"] and e["subscriptions"]["app_store"], "Abo bleibt, Probe daneben"
+    assert (e["credits"]["allowance"], e["credits"]["plan"]) == (25, "plus:trial"), "Probe obenauf: ihre Credits"
     conn = billing.connect()
     try:
         later = dt.datetime.now(UTC) + dt.timedelta(days=4)

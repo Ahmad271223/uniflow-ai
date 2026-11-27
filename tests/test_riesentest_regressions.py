@@ -22,6 +22,9 @@ from app.studip_sync import classify
     ("Übung zu Grundlagen der Elektrotechnik I", "Grundlagen der Elektrotechnik I", "uebung"),
     ("Gruppenübung zu Grundlagen der Elektrotechnik I (Tranche B)", "Grundlagen der Elektrotechnik I", "gruppenuebung"),
     ("Tutorium Physik", "Physik", "tutorium"),
+    # echtes Konto Uni Goettingen (27.11.2026): Anfuehrungszeichen gehoeren nicht zum Fach
+    ('Übung zur Vorlesung "Jahresabschluss" B.WIWI-BWL.0111', "Jahresabschluss B.WIWI-BWL.0111", "uebung"),
+    ("Seminar „Recht der Digitalisierung“", "Seminar Recht der Digitalisierung", "vorlesung"),
 ])
 def test_classify_unifies_luh_title_patterns(title, subject, kind):
     assert classify(title) == (subject, kind)

@@ -337,12 +337,20 @@ def test_old_usage_table_gets_the_library_column(hosted):
 # ---------------------------------------------------------------- Recht, Tarif, E-Mail, Einzelplatz
 
 def test_right_plan_and_verified_email(hosted, fake):
+    """26.11.2026 neues Modell: die fertigen Wochenfragen sind StudiNow-KI ab Plus, nur mit Credits: Free 403 mit dem Weg
+    zu Plus, Plus ohne Credits 429 credits_exhausted (frueher 403 Pro AI)."""
+    _, hf = user(hosted, "free-w@beispiel.de")
+    mf = seed(hosted, hf)
     _, hp = user(hosted, "plus-w@beispiel.de", plan="plus")
     mid = seed(hosted, hp)
-    for method, path in (("GET", f"/api/library/week-sets/{mid}"), ("GET", f"/api/library/week-sets/{mid}/3"),
-                         ("POST", f"/api/library/week-sets/{mid}/3/prepare"), ("POST", f"/api/library/week-sets/{mid}/3/sets/1/start")):
-        st, d = _j(asgi_call(hosted, method, path, headers=hp, body="{}"))
-        assert (st, d["code"], d["required_plan"], d["entitlement"]) == (403, "plan_required", "pro_ai", "can_use_prepared_week_sets"), (path, d)
+    for m, h, plus in ((mf, hf, False), (mid, hp, True)):
+        for method, path in (("GET", f"/api/library/week-sets/{m}"), ("GET", f"/api/library/week-sets/{m}/3"),
+                             ("POST", f"/api/library/week-sets/{m}/3/prepare"), ("POST", f"/api/library/week-sets/{m}/3/sets/1/start")):
+            st, d = _j(asgi_call(hosted, method, path, headers=h, body="{}"))
+            if plus:
+                assert (st, d["code"], d["credits"]["available"]) == (429, "credits_exhausted", 0), (path, d)
+            else:
+                assert (st, d["code"], d["required_plan"], d["entitlement"]) == (403, "plan_required", "plus", "can_use_prepared_week_sets"), (path, d)
     _, hu = user(hosted, "unverified-w@beispiel.de", plan="pro_ai", verified=False)
     mu = seed(hosted, hu)
     w = week_of(hosted, hu, mu)

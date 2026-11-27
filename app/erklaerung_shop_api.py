@@ -15,13 +15,18 @@ from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from starlette.concurrency import run_in_threadpool
 
-from . import config, entitlements, erklaerung_shop
+from . import config, entitlements, erklaerung_shop, plans
 
 router = APIRouter()
 
 
-def _user(request: Request) -> str:
-    entitlements.require(request, "can_use_ai_explanations")
+def _user(request: Request, needs_credits: bool = True) -> str:
+    """`needs_credits` False (26.11.2026 neues Modell): Gekauftes ansehen und abholen (mine, pdf) braucht den Tarif, aber
+    keine verfuegbaren Credits - sonst saehe ein Konto mit aufgebrauchten Credits seine Kaeufe nicht mehr."""
+    if needs_credits or not config.is_hosted():
+        entitlements.require(request, "can_use_ai_explanations")
+    elif not plans.has(entitlements.plan_of(entitlements.user_of(request)), "can_use_ai_explanations"):
+        raise entitlements.forbidden("can_use_ai_explanations")
     user = entitlements.require_verified_for_ai(request)
     if user:
         return str(user["id"])
@@ -56,7 +61,7 @@ async def offer(request: Request) -> dict:
 
 @router.get("/api/erklaerungen/mine")
 async def mine(request: Request) -> dict:
-    uid = _user(request)
+    uid = _user(request, needs_credits=False)
     return await run_in_threadpool(erklaerung_shop.mine, uid)
 
 
@@ -72,7 +77,7 @@ async def buy(request: Request) -> dict:
 
 @router.get("/api/erklaerungen/{sha}/pdf")
 async def pdf(request: Request, sha: str):
-    uid = _user(request)
+    uid = _user(request, needs_credits=False)
     try:
         path = await run_in_threadpool(erklaerung_shop.pdf_for, uid, sha)
     except erklaerung_shop.ShopError as e:

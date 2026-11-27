@@ -25,4 +25,8 @@ def test_app_text_names_point_nine_cent_not_one_cent():
     assert "1 Credit ist 1 Cent" not in text
     # seit 11.11.2026 nennt die App keinen Centbetrag mehr (Entscheidung des Inhabers); der Dienst rechnet weiter so
     assert "Cent" not in text
-    assert "Pro AI hat 80 Credits" in text and "Probewoche 25" in text
+    # seit 26.11.2026 (neues Tarifmodell) aus den Werten der App: Pro AI 120, Probewoche 25, KI nur mit Credits
+    assert "Pro AI hat \\(UFPlan.proAI.monthlyCredits)" in text and "Probewoche \\(UFTrialTexts.credits)" in text
+    assert "nur mit Credits" in text and "mit Plus und Pro AI" in text
+    plans_swift = (ROOT / "apps" / "apple" / "UniFlow" / "Purchases" / "Plans.swift").read_text(encoding="utf-8")
+    assert "case .proAI: return 120" in plans_swift

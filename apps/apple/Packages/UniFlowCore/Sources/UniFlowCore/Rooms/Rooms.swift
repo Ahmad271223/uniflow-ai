@@ -371,6 +371,8 @@ public enum Rooms {
         let finder = u?["finder"].map(truthy) ?? false
         return ["university": .string(uni), "name": u?["name"] ?? .null, "finder": .bool(finder),
                 "campuses": .array((u?["campuses"]?.array ?? []).map { campusPlace($0, university: uni) }),
-                "note": finder ? .null : (data["note_campus"] ?? .null), "source": source]
+                "note": finder ? .null : (data["note_campus"] ?? .null),
+                // Quelle nur mit Raumfinder: ohne ihn (HsH, Goettingen) stand dort sonst der Standortfinder der LUH
+                "source": finder ? source : .null]
     }
 }

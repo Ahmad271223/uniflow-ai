@@ -98,14 +98,20 @@ def test_free_cannot_create_but_plus_can(hosted):  # noqa: F811
     assert st == 200 and [s["cards"] for s in stacks if s["id"] == sid] == [2]
 
 
-def test_ai_stack_needs_pro_ai_and_verified_email(hosted, texts):  # noqa: F811
+def test_ai_stack_needs_credits_and_verified_email(hosted, texts):  # noqa: F811
+    """26.11.2026 neues Modell: Free hat das Recht nicht (403, Weg zu Plus); Plus hat es, ohne Credits aber 429
+    credits_exhausted (frueher 403 Pro AI)."""
     from app import ai_backend
     fake = FakeCardsAI()
     ai_backend.set_provider(fake)
+    _, hf = user(hosted, "free2@beispiel.de")
+    mid_f = seed(hosted, hf)
+    st, d = post(hosted, hf, "/api/ai/flashcards", {"module_id": mid_f, "lecture_week": 3, "count": 10})
+    assert (st, d["code"], d["entitlement"], d["required_plan"]) == (403, "plan_required", "can_use_ai_generated_questions", "plus"), d
     _, hp = user(hosted, "plus2@beispiel.de", plan="plus")
     mid = seed(hosted, hp)
     st, d = post(hosted, hp, "/api/ai/flashcards", {"module_id": mid, "lecture_week": 3, "count": 10})
-    assert (st, d["code"], d["entitlement"], d["required_plan"]) == (403, "plan_required", "can_use_ai_generated_questions", "pro_ai"), d
+    assert (st, d["code"], d["credits"]["available"]) == (429, "credits_exhausted", 0), d
     _, hu = user(hosted, "unbestaetigt@beispiel.de", plan="pro_ai", verified=False)
     mid_u = seed(hosted, hu)
     st, d = post(hosted, hu, "/api/ai/flashcards", {"module_id": mid_u, "lecture_week": 3, "count": 10})

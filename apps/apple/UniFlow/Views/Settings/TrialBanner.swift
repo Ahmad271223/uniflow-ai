@@ -9,8 +9,8 @@ enum UFTrialTexts {
     static let credits = 25
     static func running(_ days: Int) -> String { "Probe: noch \(days) \(days == 1 ? "Tag" : "Tage") alles frei" }
     static let runningText = "Danach wählst du einen Tarif oder bleibst bei Free. Deine Notizen bleiben in jedem Fall erhalten."
-    /// Probe des StudiNow-Kontos (Dienst): alles wie Pro AI mit 25 Credits (Entscheidung 04.11.2026)
-    static let runningTextService = "Alles wie StudiNow Pro AI, mit \(credits) Credits für die StudiNow-KI. " + runningText
+    /// Probe des StudiNow-Kontos (Dienst): alles wie Plus mit 25 Credits (26.11.2026; vorher wie Pro AI)
+    static let runningTextService = "Alles wie StudiNow Plus, mit \(credits) Credits für die StudiNow-KI. " + runningText
     static let overTitle = "Deine Probe ist vorbei"
     static let overText = "Sieben Tage lang war alles frei. Wähle jetzt einen Tarif oder bleib bei Free. Deine Notizen bleiben in jedem Fall erhalten und lesbar."
     /// weitere Apple-ID auf einem iPad, auf dem schon eine Probe lief (LocalTrial.swift, Geraete-Marke)
@@ -23,8 +23,8 @@ enum UFTrialTexts {
     static let stayFree = "Bei Free bleiben"
     /// Angebotssatz auf der Tarifseite (ersetzt "1 Woche gratis, danach …" des Einfuehrungsangebots, 04.11.2026)
     static let offer = "7 Tage Probe mit allem, danach Free – ohne Zahlungsdaten"
-    /// dasselbe, sobald der Store Pro AI anbietet (StudiNow-Dienst): "Probe: alles wie Pro AI, 25 Credits"
-    static let offerProAI = "7 Tage Probe: alles wie StudiNow Pro AI, mit \(credits) Credits für die StudiNow-KI, danach Free – ohne Zahlungsdaten"
+    /// dasselbe mit StudiNow-Dienst: "Probe: alles wie Plus, 25 Credits" (26.11.2026; Name historisch)
+    static let offerProAI = "7 Tage Probe: alles wie StudiNow Plus, mit \(credits) Credits für die StudiNow-KI, danach Free – ohne Zahlungsdaten"
 }
 
 /// Probe auf der Uebersicht: laufend mit Resttagen, danach die Aufforderung zur Tarifwahl (Free bleibt nutzbar).

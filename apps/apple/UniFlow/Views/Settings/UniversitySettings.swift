@@ -69,6 +69,9 @@ struct UniversitySettingsCard: View {
                 .ufFont(13.12).foregroundStyle(UF.muted)
                 .fixedSize(horizontal: false, vertical: true)
                 .padding(.top, 4)
+            if UFUniversityScope.newNotice(uni) != nil {
+                UFUniversityNewNotice(university: uni, identifier: "settings.university.newnotice").padding(.top, 9.6)
+            }
             // Wechseln nur, wenn dieser Build eine zweite Hochschule anbietet (1.0: nur die LUH, `UFReleaseUniversities`);
             // sonst der ehrliche Hinweis statt eines Dialogs mit einer einzigen Karte
             if Self.offersSwitch(current: uni) {
@@ -121,6 +124,9 @@ struct UniversitySwitchDialog: View {
                         .ufFont(13.12).foregroundStyle(UF.muted)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("university.switch.more")
+                }
+                if UFUniversityScope.newNotice(target) != nil {
+                    UFUniversityNewNotice(university: target, identifier: "university.switch.newnotice")
                 }
                 if let current, let target, target != current {
                     Text(Self.notice(from: current, to: target))

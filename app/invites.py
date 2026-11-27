@@ -1,4 +1,11 @@
-"""Einladungen ("Freunde einladen") mit Belohnungen als Apple-Angebotscodes (Entscheidung des Inhabers 04.11.2026).
+"""Einladungen ("Freunde einladen", Entscheidung des Inhabers 04.11.2026) - seit 27.11.2026 OHNE Belohnungen.
+
+Inhaber 27.11.2026 (neues Tarifmodell, Plus 1,99 EUR im Monat): "gar keine mehr, entnimm das komplett" - alle Stufen
+(5/10/20) sind weg. Links, QR-Code, Teilen und der Zaehler bleiben. `TIERS` ist leer, GET /api/invites liefert
+`tiers: []` und `tier: null`, POST /api/invites/claim und das Hochladen von Angebotscodes antworten 410
+`invite_rewards_off` (auch aeltere Apps, die noch Stufen zeigen). Die Tabellen bleiben fuer Export und Loeschen.
+
+Fruehere Regeln (bis 26.11.2026):
 
 Regeln:
 - Waehrend der 7-Tage-Probe (oder in den ersten 7 Tagen des Kontos) kann eine Person bis zu 20 Einladungslinks
@@ -49,23 +56,17 @@ OFFER_CODE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{2,63}$")
 MAX_UPLOAD_LINES = 10_000
 
 # Stufen (aufsteigend). `choices`: welche Angebotscodes es fuer die Stufe gibt (Produkt in offer_codes.product).
-TIERS: tuple[dict, ...] = (
-    {"count": 5, "choices": ("plus",), "label": "1 Monat Plus gratis"},
-    {"count": 10, "choices": ("plus",), "label": "3 Monate Plus gratis"},
-    {"count": 20, "choices": ("plus", "proai"), "label": "12 Monate Plus gratis oder Pro AI 12 Monate zum Plus-Preis"},
-)
+# Seit 27.11.2026 leer (Inhaber: keine Belohnungen mehr); frueher 5 -> 1 Monat Plus, 10 -> 3 Monate Plus, 20 -> 12 Monate
+# Plus oder Pro AI zum Plus-Preis.
+TIERS: tuple[dict, ...] = ()
+REWARDS_OFF_MESSAGE = "Für Einladungen gibt es keine Belohnungen mehr."
 # Wahl -> Produkt im Vorrat (offer_codes.product) und Text
 CHOICES: dict[str, dict] = {
     "plus": {"product": "plus", "apple_product_id": plans.PLANS["plus"]["apple_product_id"]},
     "proai": {"product": "pro_ai", "apple_product_id": plans.PLANS["pro_ai"]["apple_product_id"]},
 }
 # Text je Stufe und Wahl (so steht es in der Oberflaeche und im Dokument docs/EINLADUNGEN.md)
-REWARD_LABELS: dict[tuple[int, str], str] = {
-    (5, "plus"): "1 Monat StudiNow Plus gratis",
-    (10, "plus"): "3 Monate StudiNow Plus gratis",
-    (20, "plus"): "12 Monate StudiNow Plus gratis",
-    (20, "proai"): "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)",
-}
+REWARD_LABELS: dict[tuple[int, str], str] = {}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS invites (
@@ -378,6 +379,8 @@ def claim(conn: sqlite3.Connection, user: dict, tier: int, choice: str, now: dat
     """Angebotscode fuer eine erreichte Stufe herausgeben (einmal je Stufe; ein zweiter Aufruf liefert denselben Code).
     Leerer Vorrat: 409 offer_codes_exhausted. Der Tarif wird nie hier freigeschaltet, nur in Apples Dialog."""
     uid, t = str(user["id"]), _now(now)
+    if not TIERS:
+        raise InviteError("invite_rewards_off", REWARDS_OFF_MESSAGE, 410)
     try:
         tier = int(tier)
     except (TypeError, ValueError):
@@ -431,6 +434,8 @@ def upload_codes(conn: sqlite3.Connection, product: str, tier: int, codes: list[
     t = _now(now)
     if len(codes) > MAX_UPLOAD_LINES:
         raise InviteError("offer_codes_too_many", f"Der Stapel ist zu groß (höchstens {MAX_UPLOAD_LINES} Zeilen je Upload).", 413)
+    if not TIERS:
+        raise InviteError("invite_rewards_off", REWARDS_OFF_MESSAGE, 410)
     product = billing.normalize_plan(product) or ""
     try:
         tier = int(tier)

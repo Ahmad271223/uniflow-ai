@@ -1,6 +1,6 @@
 """Uni-Mail "Mit KI verbessern" (13.11.2026, Inhaber: "ab Pro AI, Pro hat 50 KI-Mails"): Aufgabe `mail` der StudiNow-KI
 (app/ai_relay.py), Kontingent ai_mail (plans.QUOTAS, 50 je Monat), ohne Credits; Prompt und System-Text gleich auf dem
-iPad (UniFlowCore/AI/MailRewrite.swift)."""
+iPad (UniFlowCore/AI/MailRewrite.swift). 26.11.2026 neues Modell: ab Plus (50 je Monat), nur mit verfuegbaren Credits."""
 import json
 from pathlib import Path
 
@@ -11,10 +11,12 @@ ROOT = Path(__file__).resolve().parents[1]
 SWIFT = ROOT / "apps/apple/Packages/UniFlowCore/Sources/UniFlowCore/AI/MailRewrite.swift"
 
 
-def test_quota_is_pro_ai_only_fifty_a_month():
+def test_quota_is_fifty_a_month_from_plus():
+    """26.11.2026 neues Modell: Plus hat die Kontingente von Pro AI (50 KI-Mails, frueher 0); die KI-Mail gehoert zur
+    StudiNow-KI und geht nur mit verfuegbaren Credits (kostet selbst keine)."""
     from app import plans
     assert plans.QUOTAS["pro_ai"]["ai_mail"] == 50
-    assert plans.QUOTAS["plus"]["ai_mail"] == 0 and plans.QUOTAS["free"]["ai_mail"] == 0
+    assert plans.QUOTAS["plus"]["ai_mail"] == 50 and plans.QUOTAS["free"]["ai_mail"] == 0
     assert plans.QUOTA_LABELS["ai_mail"] == "E-Mails mit KI verbessern"
     fx = json.loads((ROOT / "packages/shared-contracts/fixtures/plans/plans.json").read_text(encoding="utf-8"))
     assert fx["plans"]["pro_ai"]["quotas"]["ai_mail"] == 50, "Fixture neu erzeugt (tools/gen-plans-fixture.py)"
@@ -58,12 +60,23 @@ def test_relay_task_mail_counts_fifty_and_costs_no_credits(pc, monkeypatch):  # 
 
 
 @pytest.mark.parametrize("plan", ["plus", "free"])
-def test_relay_task_mail_needs_pro_ai(pc, plan):  # noqa: F811
+def test_relay_task_mail_needs_credits(pc, plan):  # noqa: F811
+    """26.11.2026 neues Modell: Free hat die KI-Mail nicht (402/403); Plus hat sie, ohne Credits aber 429
+    credits_exhausted (frueher 403); mit gekauften Credits geht sie und kostet keine."""
     app, _, fake = pc
     from app import ai, ai_relay
-    account(app, f"mail-{plan}@beispiel.de", plan=plan)
+    from test_subscriptions import give_credits
+    u = account(app, f"mail-{plan}@beispiel.de", plan=plan)
     link(app, f"mail-{plan}@beispiel.de")
     with pytest.raises(ai_relay.RelayError) as e:
         ai_relay.complete("mail", ai.mail_prompt("x", "y"))
-    assert e.value.status in (402, 403), (e.value.status, e.value.code)
+    if plan == "free":
+        assert e.value.status in (402, 403), (e.value.status, e.value.code)
+    else:
+        assert (e.value.status, e.value.code) == (429, "credits_exhausted")
     assert fake.calls == 0
+    if plan == "plus":
+        give_credits(u["id"], 50)
+        r = ai_relay.complete("mail", ai.mail_prompt("x", "y"))
+        assert r["answer"] and fake.calls == 1
+        assert (r.get("credits") or {}).get("charged", 0) == 0, "KI-Mails kosten keine Credits"

@@ -74,7 +74,7 @@ struct UniFlowApp: App {
         // Zeitgeber bei offener App (Auftrag des Inhabers 17.11.2026): fragt nur die Regel; vorn der Abgleich wie beim
         // Oeffnen, am Mac im Hintergrund der Hintergrundlauf (mit stiller Neuanmeldung ohne Fenster)
         let registry = SceneRegistry()
-        let ticker = AutoSyncTicker(next: { [weak c] now in c?.nextAutomaticSync(now: now) ?? now.addingTimeInterval(AutoSyncTicker.maxSleep) },
+        let ticker = AutoSyncTicker(next: { [weak c] now in c?.nextAutomaticSync(now: now, foreground: true) ?? now.addingTimeInterval(AutoSyncTicker.maxSleep) },
                                     tick: { [weak c, weak b] now in
                                         guard let c else { return }
                                         if AppActivity.isInBackground() {
@@ -237,6 +237,15 @@ struct UniFlowApp: App {
                             // nur anlegen, wenn sie fehlt (erneutes Anlegen entfernte die PDFs der vorhandenen Demo)
                             let on = (try? await containers.active?.api.value("/api/demo"))?["enabled"]?.bool == true
                             if !on { _ = try? await containers.setDemo(true) }
+                        }
+                        // -UFStubSignedIn YES (nur mit -UFLoginStub): Stud.IP der Nachbildung gilt als angemeldet und gleicht
+                        // einmal ab - Bildvergleiche einer verbundenen Hochschule ohne Antippen der Anmeldeseite
+                        // (Rundgang Uni Goettingen, 26.11.2026). Nie eine echte Sitzung, nie ein Netz (DebugUniStub).
+                        if UserDefaults.standard.bool(forKey: "UFStubSignedIn"), DebugUniStub.isActive {
+                            for _ in 0..<50 where containers.active == nil { try? await Task.sleep(nanoseconds: 100_000_000) }
+                            if containers.active != nil, containers.studip.offersStudIP, !containers.studip.hasStoredSession {
+                                containers.studip.signedIn(cookies: DebugUniStub.studipCookies())
+                            }
                         }
                         #endif
                         await DebugLaunch.apply(session: session, router: router, overlay: overlay, toast: toast, timer: timer)

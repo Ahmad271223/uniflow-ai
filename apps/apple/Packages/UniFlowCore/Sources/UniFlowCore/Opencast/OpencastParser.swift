@@ -92,6 +92,14 @@ public enum OpencastListing: Sendable, Equatable {
 }
 
 public enum OpencastParser {
+    /// Betreibt dieses Stud.IP die Erweiterung der LUH ("opencastpluginluh")? Nur das Stud.IP der LUH selbst; jeder
+    /// unbekannte Rechner (Tests mit eigener Adresse) gilt wie bisher als LUH. Ein anderes Stud.IP aus den
+    /// Hochschul-Profilen (Uni Goettingen) nicht.
+    public static func hasLUHPlugin(_ base: URL) -> Bool {
+        let host = base.host?.lowercased()
+        return !UniversityProfile.all.contains { $0.key != .luh && $0.studipBase?.host?.lowercased() == host }
+    }
+
     /// Pfad der Aufzeichnungsseite eines Kurses
     public static func mediaIndexPath(courseID: String) -> String {
         "plugins.php/opencastpluginluh/media/index?cid=\(courseID)"

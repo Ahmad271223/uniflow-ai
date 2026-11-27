@@ -629,7 +629,7 @@ final class BackgroundSyncController: ObservableObject {
         lastDue = due
         if let c, !due.isEmpty {
             let ledger = containers.autoLedger(c)
-            for p in due { ledger.recordAttempt(p, at: start) }
+            for p in due { ledger.recordAttempt(p, at: start, timeZone: timeZone()) }
         }
         // Stand vor dem Lauf (nur mit einem Schalter fuer Noten, Nachrichten oder Ankuendigungen)
         var before: BackgroundNewsSnapshot?

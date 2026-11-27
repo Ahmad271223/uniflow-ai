@@ -54,6 +54,14 @@ public enum Holidays {
             Semester(name: "WiSe 2029/30", start: "2029-09-20", end: "2030-01-31", breaks: [("2029-12-23", "2030-01-02", "Weihnachten")]),
             Semester(name: "SoSe 2030", start: "2030-03-04", end: "2030-07-10", breaks: [("2030-04-18", "2030-04-23", "Ostern"), ("2030-06-08", "2030-06-11", "Pfingsten")]),
         ],
+        // Uni Goettingen: "Semestertermine (ohne Medizin)" (abgerufen 26.11.2026); SoSe 2026 aus Stud.IP Goettingen
+        "goettingen": [
+            Semester(name: "SoSe 2026", start: "2026-04-13", end: "2026-07-17", breaks: []),
+            Semester(name: "WiSe 2026/27", start: "2026-10-26", end: "2027-02-12", breaks: [("2026-12-28", "2027-01-08", "Weihnachtspause")]),
+            Semester(name: "SoSe 2027", start: "2027-04-12", end: "2027-07-16", breaks: []),
+            Semester(name: "WiSe 2027/28", start: "2027-10-25", end: "2028-02-11", breaks: [("2027-12-27", "2028-01-07", "Weihnachtspause")]),
+            Semester(name: "SoSe 2028", start: "2028-04-18", end: "2028-07-21", breaks: []),
+        ],
     ]
 
     /// `DEADLINE_LABELS`

@@ -70,6 +70,22 @@ enum RoomsData {
          "match": ["domäne", "domaene", "kulturcampus", "domänenstraße"],
          "source": "https://www.uni-hildesheim.de/en/ueber-uns/anfahrt/"}
       ]
+    },
+    "goettingen": {
+      "name": "Georg-August-Universität Göttingen",
+      "finder": null,
+      "fallback": "Georg-August-Universität Göttingen",
+      "campuses": [
+        {"id": "zentralcampus", "name": "Zentralcampus", "address": "Platz der Göttinger Sieben, 37073 Göttingen",
+         "match": ["zhg", "mzg", "blauer turm", "platz der göttinger sieben", "zentralcampus"],
+         "source": "https://www.studierendenwerk-goettingen.de/campusgastronomie/mensen/zentralmensa"},
+        {"id": "nordcampus", "name": "Nordcampus", "address": "Grisebachstraße, 37077 Göttingen",
+         "match": ["nordcampus", "grisebachstraße", "grisebachstr."],
+         "source": "https://www.studierendenwerk-goettingen.de/campusgastronomie/mensen/studierendenwerk-goettingen-cgin"},
+        {"id": "waldweg", "name": "Waldweg 26", "address": "Waldweg 26, Göttingen",
+         "match": ["waldweg"],
+         "source": "https://lageplan.uni-goettingen.de/"}
+      ]
     }
   },
   "luh_buildings": [

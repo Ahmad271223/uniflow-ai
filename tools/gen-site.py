@@ -56,7 +56,7 @@ PAGES = [
 # Seiten ausserhalb der Navigation: (Markdown, Ausgabe in einem Unterordner, Titel-Rueckfall, Beschreibung)
 EXTRA_PAGES = [
     ("EINLADUNG.md", "i/index.html", "Einladung",
-     "Du bist zu StudiNow eingeladen: App laden, Konto anlegen, Einladung annehmen. Die einladende Person bekommt Angebotscodes."),
+     "Du bist zu StudiNow eingeladen: App laden, Konto anlegen, Einladung annehmen."),
 ]
 # Titel, die nicht aus der ersten Ueberschrift kommen (die Startseite beginnt mit HTML)
 TITLES = {"index.html": "StudiNow – dein Studium an einem Ort"}
@@ -229,6 +229,20 @@ main.home h3 { margin: .9rem 0 .35rem; font-size: 1.1rem; }
 .amount { font-family: var(--display); font-size: 2.6rem; font-weight: 850; letter-spacing: -.03em; color: var(--text); line-height: 1; }
 .tagline { color: var(--text-2); font-size: .95rem; min-height: 3em; margin: .6rem 0 0; }
 .plan .checks { border-top: 1px solid var(--line); padding-top: 1rem; font-size: .97rem; }
+.plans-group { margin: 0 0 .7rem; font-size: .8rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--accent-text); }
+.plans-group.in-card { margin-bottom: .5rem; }
+.plans-solo { grid-template-columns: minmax(0, 1fr); }
+.plan-special { margin-top: .9rem; }
+.save { margin: .1rem 0 .3rem; color: var(--ok); font-weight: 700; font-size: .95rem; }
+.plan-special { position: relative; border: 2px solid var(--accent); background:
+  linear-gradient(140deg, var(--accent-soft) 0%, var(--accent-soft) 45%, var(--bg) 100%); box-shadow: 0 30px 60px -24px var(--accent); padding-top: 2.2rem; }
+.plan-special .amount { color: var(--accent-text); font-size: 3.2rem; }
+.special-badge { position: absolute; top: -.85rem; left: 1.7rem; margin: 0; padding: .3rem .9rem; border-radius: 999px;
+  background: var(--accent); color: var(--on-fill); font-size: .8rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.plan-special h3 { font-size: 1.5rem; }
+.special-sub { margin: .2rem 0 0; color: var(--text-2); font-weight: 600; }
+.save-big { font-family: var(--display); font-size: 1.5rem; font-weight: 850; margin-top: .4rem; }
+.save-detail { margin: 0 0 .6rem; color: var(--text-2); font-size: .95rem; }
 
 .faq-grid { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: 3rem; align-items: start; }
 .faq-list details { border-bottom: 1px solid var(--line-strong); }
@@ -271,7 +285,8 @@ main.doc { padding: 3rem 0 4.5rem; }
   .hero-grid { padding: 3.5rem 0 3rem; }
   .feature.alt .feature-text { order: 0; }
   .trust-list, .tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .plans { grid-template-columns: minmax(0, 1fr); max-width: 30rem; }
+  .plans, .plans-solo { grid-template-columns: minmax(0, 1fr); max-width: 30rem; }
+  .save-big { font-size: 1.25rem; white-space: nowrap; }
   .footer-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .footer-about { grid-column: 1 / -1; }
 }

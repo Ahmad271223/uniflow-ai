@@ -195,15 +195,28 @@ def is_passed(r: dict) -> bool:
     return s in ("", "an") and note is not None and 1.0 <= note <= 4.0
 
 
-def _level(r: dict, art_column: bool = False) -> str:
+ACCOUNT_PREFIX = "Gesamtkonto: "
+
+
+def _level(r: dict, art_column: bool = False, terms: bool = False) -> str:
     """Ebene einer Zeile. Mit Spalte "Prf.Art" (LUH, `art_column`: eine Zeile der Tabelle traegt PL/SL) entscheidet
-    allein die Art: PL/SL ist eine Leistung, ohne Art eine Modul- oder Bereichszeile (auch mit Wert in "Versuch")."""
-    if is_bereich_text(r.get("text")):
+    allein die Art: PL/SL ist eine Leistung, ohne Art eine Modul- oder Bereichszeile (auch mit Wert in "Versuch").
+    26.11.2026: PL/SL ist immer eine Leistung, auch wenn der Name wie ein Bereich anfaengt ("Vertiefung
+    Regelungstechnik"); eine Zeile ohne Art, Semester, Datum und Versuch ist in einer Tabelle mit Semestern (`terms`,
+    LUH) eine Bereichs-/Summenzeile, wie immer sie heisst ("Pflichtbereich" zaehlte vorher als Modul, LP doppelt).
+    Wie `GradesModel.level` im Swift-Kern."""
+    text = r.get("text") or ""
+    if text.startswith(ACCOUNT_PREFIX):
+        return "bereich"
+    if r.get("art") in ("PL", "SL"):
+        return "pruefung"
+    if is_bereich_text(text):
         return "bereich"
     if r.get("art"):
         return "pruefung"
     if art_column and r.get("source") != "anmeldung":
-        return "modul"
+        blank = all(not (r.get(k) or "").strip() for k in ("semester", "datum", "versuch"))
+        return "bereich" if blank and terms else "modul"
     return "pruefung" if (r.get("versuch") or "").strip() else "modul"
 
 
@@ -265,8 +278,9 @@ def model(rows: list[dict]) -> list[dict]:
         out.append(g)
     # Spalte "Prf.Art" vorhanden (LUH): PL/SL sind Leistungen, Zeilen ohne Art Modul- oder Bereichszeilen
     art_column = any(g.get("art") in ("PL", "SL") for g in out)
+    terms = any(parse_term(g.get("semester")) is not None for g in out)
     for g in out:
-        g["level"] = _level(g, art_column)
+        g["level"] = _level(g, art_column, terms)
     return count(out)
 
 
@@ -300,8 +314,15 @@ def _when(r: dict, i: int) -> tuple:
     return (r.get("datum_iso") or iso_date(r.get("datum")), t if t is not None else -1, i)
 
 
-def _parent(m: list[dict], i: int) -> int | None:
-    """Modulzeile einer Pruefungszeile (Index) oder None"""
+def _lp(r: dict) -> float:
+    v = _num(r.get("credits"))
+    return v if v is not None and math.isfinite(v) and v > 0 else 0.0
+
+
+def _parent(m: list[dict], i: int, assigned: dict[int, float] | None = None) -> int | None:
+    """Modulzeile einer Pruefungszeile (Index) oder None. Ueber "die Modulzeile davor" kommt eine Pruefung mit LP nur
+    dazu, solange die LP des Moduls nicht schon von zugeordneten bestandenen Pruefungen belegt sind (`assigned`,
+    26.11.2026): sonst ist sie eine eigene Leistung ohne Modulzeile (vorher fehlten ihre LP)."""
     p = m[i]
     mods = [j for j, r in enumerate(m) if r["level"] == "modul" and r.get("source") != "anmeldung"]
     key = _name_key(p)
@@ -320,6 +341,9 @@ def _parent(m: list[dict], i: int) -> int | None:
             return None
         pm, pp = _chrono(m[j].get("semester_norm")), _chrono(p.get("semester_norm"))
         if m[j]["passed"] and pm is not None and pp is not None and pp > pm:
+            return None
+        own = _lp(m[j])
+        if own > 0 and (assigned or {}).get(j, 0.0) >= own and _lp(p) > 0:
             return None
         return j
     return None
@@ -355,10 +379,13 @@ def count(m: list[dict]) -> list[dict]:
 
     kids: dict[int, list[int]] = {}
     alone: list[int] = []
+    assigned: dict[int, float] = {}
     for i, r in enumerate(m):
         if r["level"] != "pruefung":
             continue
-        j = _parent(m, i)
+        j = _parent(m, i, assigned)
+        if j is not None and r["passed"] and not r["superseded"]:
+            assigned[j] = assigned.get(j, 0.0) + _lp(r)
         # Modul der Leistung (QIS: die Modulzeile davor; Nummer und Text, fuer Studienverlauf und Anzeige)
         r["modul_nr"] = (_nr(m[j]) or None) if j is not None else None
         r["modul_text"] = m[j].get("text") if j is not None else None

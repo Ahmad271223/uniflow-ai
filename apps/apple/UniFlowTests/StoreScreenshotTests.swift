@@ -866,7 +866,7 @@ final class StoreScreenshotTests: XCTestCase {
         let env = try host(page)
         expect(env, UFPlan.plus.name)
         expect(env, UFPlan.free.name)
-        expect(env, "19,99", timeout: 10)                                     // Preis aus der StoreKit-Sitzung
+        expect(env, "1,99", timeout: 10)                                      // Preis aus der StoreKit-Sitzung (Plus monatlich)
         expect(env, UFPlanCatalog.proAIMissingNote)
         XCTAssertFalse(shows(env, UFPlanCatalog.proAIServiceNote), "keine Pro-AI-Karte ohne Produkt im Store")
         shoot(env, "13-tarife", reserve: true)

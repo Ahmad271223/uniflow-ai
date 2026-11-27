@@ -1,0 +1,43 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 1
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "file-refs",
+   "id": "09b10159f0480feec2e15d6f0315a747",
+   "attributes": {
+    "name": "Skript_BGB_AT.pdf",
+    "description": "",
+    "mkdate": "2026-10-27T12:00:00+01:00",
+    "chdate": "2026-10-27T12:00:00+01:00",
+    "downloads": 12,
+    "filesize": 1035,
+    "mime-type": "application/pdf",
+    "is-readable": true,
+    "is-downloadable": true,
+    "is-editable": false,
+    "is-writable": false
+   },
+   "relationships": {
+    "terms-of-use": {
+     "data": {
+      "type": "terms-of-use",
+      "id": "SELFMADE_NONPUB"
+     }
+    }
+   },
+   "meta": {
+    "download-url": "https://studip.uni-goettingen.de/sendfile.php?type=0&file_id=09b10159f0480feec2e15d6f0315a747&file_name=Skript_BGB_AT.pdf"
+   }
+  }
+ ]
+}

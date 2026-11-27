@@ -27,7 +27,7 @@ struct StudIPView: View {
         .navigationBarTitleDisplayMode(.inline)
         .quickLookPreview($preview)
         .ufSheet(isPresented: $showLogin) {
-            StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
+            StudIPLoginView(base: studip.base, dataStore: studip.websiteDataStore) { cookies in
                 showLogin = false
                 studip.signedIn(cookies: cookies)
             }
@@ -44,7 +44,7 @@ struct StudIPView: View {
 
     // MARK: Konto und Abgleich
 
-    static let accountText = UFDevice.adapt("Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. StudiNow speichert nur die Sitzungs-Cookies von Stud.IP und der Uni-Anmeldung im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), damit du angemeldet bleibst, solange die Universität die Anmeldung gelten lässt – nie Benutzername oder Passwort; die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich beim Öffnen der App (höchstens alle 30 Minuten) und auf Knopfdruck.")
+    static let accountText = UFDevice.adapt("Du meldest dich auf der Seite der Universität an und tippst selbst auf „Anmelden“. StudiNow speichert nur die Sitzungs-Cookies von Stud.IP und der Uni-Anmeldung im Schlüsselbund dieses iPads (nicht in iCloud, nie auf einem Server), damit du angemeldet bleibst, solange die Universität die Anmeldung gelten lässt – nie Benutzername oder Passwort; die merkt sich auf Wunsch iOS. Dateien werden nur auf diesem Gerät gespeichert und nicht weitergegeben. Abgleich von selbst zweimal am Tag und jederzeit auf Knopfdruck.")
     static let signOutMessage = "Das Sitzungs-Cookie und die Anmeldung in der Webansicht werden gelöscht. Ein Passwort, das iOS gesichert hat, bleibt unter „Passwörter“."
 
     private var accountCard: some View {
@@ -274,8 +274,9 @@ struct StudIPLoginPane<Bottom: View>: View {
     }
 
     var body: some View {
-        // direkt ins WebSSO der LUH: gilt die Uni-Anmeldung noch, ist man ohne Eingabe drin; sonst setzt iOS das Passwort ein
-        StudIPWebView(url: DebugUniStub.loginPage("studip", real: StudIPSync.ssoLoginURL(base: base)), dataStore: dataStore,
+        // LUH: direkt ins WebSSO (gilt die Uni-Anmeldung noch, ist man ohne Eingabe drin; sonst setzt iOS das Passwort
+        // ein). Uni Goettingen: die Anmeldeseite von Stud.IP selbst mit den Feldern "Benutzername" und "Passwort"
+        StudIPWebView(url: DebugUniStub.loginPage("studip", real: StudIPSync.loginEntryURL(base: base)), dataStore: dataStore,
                       load: load) { webView in check(webView) }
             .ufWebLoadFailure(load)
             .safeAreaInset(edge: .bottom, spacing: 0) {
@@ -321,10 +322,10 @@ struct StudIPLoginPane<Bottom: View>: View {
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { cookies in
             let mine = StudIPSync.ownCookies(cookies, host: base.host ?? "")
             Task { @MainActor in
-                var ok = await StudIPSync.sessionIsValid(mine)
+                var ok = await StudIPSync.sessionIsValid(mine, base: base)
                 if !ok {
                     try? await Task.sleep(nanoseconds: 1_500_000_000)
-                    ok = await StudIPSync.sessionIsValid(mine)
+                    ok = await StudIPSync.sessionIsValid(mine, base: base)
                 }
                 checking = false
                 if ok, !done { done = true; onSignedIn(mine) } else if !ok { checkFailed = true }
@@ -338,6 +339,8 @@ struct StudIPLoginPane<Bottom: View>: View {
 @MainActor
 final class UFWebLoadState: ObservableObject {
     @Published var failure: String?
+    /// Hinweis ueber der Seite, z. B. die abgelaufene WebSSO-Anmeldung wurde neu geladen (`SSOStaleRequest`)
+    @Published var notice: String?
     weak var webView: WKWebView?
     /// zuletzt angeforderte Seite (bei einem Fehler vor dem ersten Laden hat die Webansicht noch keine Adresse)
     var lastURL: URL?
@@ -378,7 +381,29 @@ private struct UFWebLoadFailureCard: ViewModifier {
     @ObservedObject var load: UFWebLoadState
 
     func body(content: Content) -> some View {
-        content.overlay {
+        content.overlay(alignment: .top) {
+            // abgelaufene WebSSO-Anmeldung neu geladen (26.11.2026): ein kurzer Hinweis, warum das Formular wieder leer ist
+            if load.failure == nil, let notice = load.notice {
+                HStack(alignment: .top, spacing: 8) {
+                    UFIcon("info", size: 14)
+                    Text(notice).ufFont(13.6, 550).fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    Button { load.notice = nil } label: { UFIcon("x", size: 13) }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Hinweis schließen")
+                }
+                .foregroundStyle(UF.warnText)
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(UF.surface)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(RoundedRectangle(cornerRadius: 10).strokeBorder(UF.line, lineWidth: 1))
+                .padding(12)
+                .frame(maxWidth: 640)
+                .accessibilityElement(children: .combine)
+                .accessibilityIdentifier("web.notice")
+            }
+        }
+        .overlay {
             if let failure = load.failure {
                 VStack {
                     UFCard {
@@ -434,7 +459,8 @@ struct StudIPWebView: UIViewRepresentable {
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
-        Coordinator(onPageLoaded: onPageLoaded, intercept: interceptNavigation, load: load, reroute: rerouteNavigation)
+        Coordinator(onPageLoaded: onPageLoaded, intercept: interceptNavigation, load: load, reroute: rerouteNavigation,
+                    start: url.isFileURL ? nil : url)
     }
 
     /// Konfiguration jeder Anmelde-Webansicht: nur der Datenspeicher des Containers, sonst der Standard von WebKit (kein
@@ -477,12 +503,17 @@ struct StudIPWebView: UIViewRepresentable {
         /// Hauptrahmen: statt dieser Adresse eine andere laden (nil = nichts aendern), z. B. `HildesheimLogin.reroute`
         let reroute: (@MainActor (URL) -> URL?)?
         let load: UFWebLoadState?
+        /// erste Seite der Anmeldung: nach "Veraltete Anfrage" des WebSSO von hier neu beginnen (`SSOStaleRequest`)
+        let start: URL?
+        /// Zeitpunkte der letzten Neuladungen wegen "Veraltete Anfrage" (hoechstens `SSOStaleRequest.maxReloads`)
+        private var staleReloads: [Date] = []
         init(onPageLoaded: @escaping (WKWebView) -> Void, intercept: (@MainActor (URL) -> Bool)? = nil, load: UFWebLoadState? = nil,
-             reroute: (@MainActor (URL) -> URL?)? = nil) {
+             reroute: (@MainActor (URL) -> URL?)? = nil, start: URL? = nil) {
             self.onPageLoaded = onPageLoaded
             self.intercept = intercept
             self.load = load
             self.reroute = reroute
+            self.start = start
         }
 
         func webView(_ webView: WKWebView, decidePolicyFor navigationAction: WKNavigationAction,
@@ -508,7 +539,29 @@ struct StudIPWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { load?.failed(error) }
 
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) { onPageLoaded(webView) }
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            // "Veraltete Anfrage" des WebSSO (26.11.2026, LUH): stand die Anmeldeseite zu lange offen, nimmt der IdP das
+            // Formular nicht mehr an. Vorher eine Sackgasse; jetzt beginnt die Anmeldung von vorn (hoechstens zweimal in
+            // zwei Minuten) und ein Hinweis sagt, warum das Formular wieder leer ist. Gelesen wird nur der Seiteninhalt,
+            // in eigener Inhaltswelt, und nur auf Seiten eines IdP.
+            guard let start, SSOStaleRequest.mayBeStale(webView.url) else {
+                if load?.notice == SSOStaleRequest.notice { load?.notice = nil }     // Anmeldung geschafft, IdP verlassen
+                onPageLoaded(webView)
+                return
+            }
+            let page = webView.url
+            webView.evaluateJavaScript("document.documentElement.outerHTML", in: nil, in: .defaultClient) { [weak self, weak webView] result in
+                guard let self, let webView else { return }
+                if case .success(let value) = result, let html = value as? String, SSOStaleRequest.isStale(url: page, html: html),
+                   SSOStaleRequest.mayReload(past: self.staleReloads) {
+                    self.staleReloads = self.staleReloads.filter { Date().timeIntervalSince($0) < SSOStaleRequest.window } + [Date()]
+                    self.load?.notice = SSOStaleRequest.notice
+                    webView.load(URLRequest(url: start, cachePolicy: .reloadIgnoringLocalCacheData))
+                    return
+                }
+                self.onPageLoaded(webView)
+            }
+        }
     }
 }
 
@@ -519,7 +572,12 @@ struct StudIPWebView: UIViewRepresentable {
 @MainActor
 enum StudIPSilentLogin {
     /// `background`: aus dem Hintergrundlauf (Version 1.3/1.4): ohne Fenster, die Webansicht laeuft ausserhalb jeder Ansicht
-    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20, background: Bool = false) async -> [HTTPCookie]? {
+    /// `base`, `university`: Stud.IP und Hochschule des Abgleichs (Vorgabe: offener Container). Steht die Seite einige
+    /// Sekunden auf dem eigenen Anmeldeformular der Hochschule (Uni Goettingen: derselbe Rechner wie Stud.IP), wartet
+    /// sie auf das Passwort: Abbruch statt Warten bis zum Zeitlimit.
+    static func attempt(url: URL, dataStore: WKWebsiteDataStore, timeout: TimeInterval = 20, background: Bool = false,
+                        base: URL = StudIPSync.base, university: UniversityKey? = nil) async -> [HTTPCookie]? {
+        let university = university ?? ActiveContainer.current?.key.university ?? .luh
         await UniWebSessions.ready(dataStore)                     // Uni-Anmeldung von vor dem Neustart zuerst zurueck
         let window = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first
         guard window != nil || background else { return nil }
@@ -533,7 +591,7 @@ enum StudIPSilentLogin {
             web.removeFromSuperview()
         }
         web.load(URLRequest(url: url))
-        let host = StudIPSync.base.host ?? ""
+        let host = base.host ?? ""
         let deadline = Date().addingTimeInterval(timeout)
         var checked: URL?
         var stable: (url: URL, since: Date)?
@@ -541,11 +599,14 @@ enum StudIPSilentLogin {
             try? await Task.sleep(nanoseconds: 600_000_000)
             guard !web.isLoading, let u = web.url else { continue }
             if stable?.url != u { stable = (u, Date()) }
-            if u.host == host {
+            if u.host == host, UniLoginForms.form(for: u, university: university) != nil {
+                // eigenes Anmeldeformular auf dem Stud.IP-Rechner: bleibt die Seite dort stehen, braucht es das Passwort
+                if let s = stable, Date().timeIntervalSince(s.since) > 4 { return nil }
+            } else if u.host == host {
                 guard !u.path.contains("Shibboleth.sso"), checked != u else { continue }
                 checked = u
                 let mine = StudIPSync.ownCookies(await dataStore.httpCookieStore.allCookies(), host: host)
-                if await StudIPSync.sessionIsValid(mine) { return mine }
+                if await StudIPSync.sessionIsValid(mine, base: base) { return mine }
             } else if let s = stable, Date().timeIntervalSince(s.since) > 4 {
                 return nil                                         // Uni-Login wartet auf das Passwort
             }

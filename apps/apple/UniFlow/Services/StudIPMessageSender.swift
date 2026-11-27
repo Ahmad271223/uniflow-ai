@@ -283,11 +283,11 @@ extension MessageReplyModel.Dependencies {
         Self(connected: { studip.offersStudIP && studip.hasStoredSession },
              ensureSession: { await studip.ensureSession($0) },
              client: {
-                 let host = StudIPSync.base.host ?? ""
+                 let host = studip.base.host ?? ""
                  let writer: StudIPWritingTransport = DebugUniStub.studipWriter()
                      ?? URLSessionStudIPWriter(cookies: StudIPSync.ownCookies(studip.cookies.load(), host: host), host: host)
                  // wenige Anfragen auf Knopfdruck: kurze Pause, kleine Grenze (users/me, 3 Seiten, 20 Namen, Senden)
-                 return StudIPClient(base: StudIPSync.base, transport: writer, pauseMillis: 100, maxRequests: 40)
+                 return StudIPClient(base: studip.base, transport: writer, pauseMillis: 100, maxRequests: 40)
              },
              defaults: defaults)
     }

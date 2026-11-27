@@ -557,7 +557,7 @@ final class StoreScreenshotFinalTests: XCTestCase {
         defer { withExtendedLifetime(session) {} }
         Entitlements.shared.setPlanForTesting(.free)
         let env = try host(ZStack { UF.bg.ignoresSafeArea(); PlanPickerView(context: .settings, entitlements: Entitlements.shared) {} })
-        let plusButton = UFPlan.plus.name + " für 19,99"
+        let plusButton = UFPlan.plus.name + " für 1,99"
         let proAIButton = UFPlan.proAI.name + " für 39,99"
         expect(env, PlanPickerView.title(.settings))
         expect(env, UFPlan.free.name)
@@ -568,11 +568,12 @@ final class StoreScreenshotFinalTests: XCTestCase {
         let prefix = "tarif"
         func checkPage(_ name: String) {
             for word in [UFPlanCatalog.proAIMissingNote, "Preis zurzeit nicht verfügbar", "Tarife konnten nicht geladen werden",
-                         "wird geladen", "werden geladen", "Pro AI holen", "Vorgemerkt", "Monatlich", "monatlich", "günstiger"] {
+                         "wird geladen", "werden geladen", "Pro AI holen", "Vorgemerkt", "Monatlich · Jährlich", "günstiger"] {
                 XCTAssertFalse(shows(env, word), "\(name): „\(word)“ im Bild:\n" + dump(env))
             }
             let must = [plusButton, proAIButton, "Käufe wiederherstellen", UFPlanCatalog.proAIServiceNote,
-                        "/Jahr, verlängert sich jährlich", "im Monat"]
+                        "/Jahr, verlängert sich jährlich", "/Monat, verlängert sich monatlich", "im Monat", "5 Jahre für 39,99",
+                        UFPurchaseNotice.title]
             for word in must + UFPlanCard.included(.proAI).map(\.title) {
                 XCTAssertTrue(shows(env, word), "\(name): „\(word)“ fehlt:\n" + dump(env))
             }

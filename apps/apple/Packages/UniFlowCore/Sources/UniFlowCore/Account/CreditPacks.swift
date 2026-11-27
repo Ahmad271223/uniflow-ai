@@ -10,8 +10,10 @@ import Foundation
 /// Wie viele Credits ein Paket hat, sagt der Dienst (`credit_packs.packs`), den Preis der Store. Wer kaufen darf, sagt
 /// der Dienst (`credits.can_buy`); die App fragt nur dieses Feld.
 ///
-/// Wofuer gekaufte Credits gelten, haengt am Tarif (Entscheidung des Inhabers 15.11.2026, `purchased_scope`): mit Pro AI
-/// und in der Probe fuer alles, mit Plus nur fuer den KI-Chat (die freie Frage an die KI), mit Free ruhen sie.
+/// Wofuer gekaufte Credits gelten, haengt am Tarif (`purchased_scope`): seit 26.11.2026 (neues Tarifmodell) mit Plus,
+/// Pro AI und in der Probe fuer alles - jede StudiNow-KI braucht Credits, Plus hat alle KI-Funktionen; mit Free ruhen
+/// sie. (15.11. bis 26.11.2026 galten sie mit Plus nur fuer den KI-Chat, `Scope.chat` bleibt fuer aeltere Dienste.)
+/// Kaufen duerfen nur bezahltes Plus und Pro AI, nie Free und nie die Probe allein (`canBuy`).
 public enum CreditPacks {
     /// Der Dienst verbucht ein Paket (`POST`, Rumpf `{signed_transaction}`)
     public static let purchasePath = "/api/billing/credits/apple"
@@ -39,6 +41,20 @@ public enum CreditPacks {
     /// Ist dieses Apple-Produkt ein Credit-Paket (und kein Abo)?
     public static func isPack(_ productID: String) -> Bool { productIDs.contains(productID) }
 
+    /// Tarife, die Pakete kaufen duerfen (plans.json `credit_packs.buy_plans`): bezahltes Plus und Pro AI, nie Free
+    public static let buyPlans: Set<String> = ["plus", "pro_ai"]
+    /// Kaufen allein aus der Probe (plans.json `credit_packs.buy_in_trial`): nein
+    public static let buyInTrial = false
+
+    /// Darf ein Konto mit diesem Tarif Pakete kaufen? Wie `plans.can_buy_credits` im Dienst: der Tarif steht in
+    /// `buyPlans`, und er kommt nicht nur aus der Probe (`trialOnly`). Alter Schluessel `pro_connect` gilt wie Pro AI.
+    /// Die App fragt das zusaetzlich zu `credits.can_buy` des Dienstes (beides muss stimmen).
+    public static func canBuy(plan: String?, trialOnly: Bool) -> Bool {
+        let p = plan == "pro_connect" ? "pro_ai" : plan
+        guard let p, buyPlans.contains(p) else { return false }
+        return buyInTrial || !trialOnly
+    }
+
     /// Pakete aus `credit_packs` von `GET /api/entitlements`, in der Reihenfolge des Dienstes; nur Produkte, die diese
     /// App kennt. Fehlt das Feld (aelterer Dienst) oder ist es leer, gelten die Pakete aus dem Vertrag.
     public static func packs(from creditPacks: JSONValue?) -> [Pack] {
@@ -51,9 +67,9 @@ public enum CreditPacks {
 
     /// Wofuer gekaufte Credits mit dem Tarif des Kontos gelten (`purchased_scope`)
     public enum Scope: String, Sendable, Equatable {
-        /// KI-Lernhilfe im Tarif (Pro AI, Probe): fuer alles
+        /// KI im Tarif (seit 26.11.2026 Plus, Pro AI, Probe): fuer alles
         case all
-        /// Plus: nur der KI-Chat (die freie Frage, Aufgabe `tutor:ask`)
+        /// nur der KI-Chat (die freie Frage, Aufgabe `tutor:ask`; Plus vom 15.11. bis 26.11.2026)
         case chat
         /// Free: sie ruhen beim Konto
         case none
@@ -66,7 +82,7 @@ public enum CreditPacks {
     public struct Balance: Equatable, Sendable {
         /// "2026-11"
         public var period: String
-        /// Monats-Credits des Tarifs (Pro AI 100, Probe 25, sonst 0)
+        /// Monats-Credits des Tarifs (Pro AI 120 seit 26.11.2026, Probe 25, sonst 0)
         public var allowance: Int
         public var used: Int
         /// Rest der Monats-Credits

@@ -90,6 +90,10 @@ CREATE TABLE IF NOT EXISTS stripe_subscription_state (
 ACTIVE_STATUSES = ("active", "grace", "billing_retry")
 
 
+# Quellen, die fuer Web und Windows als "ein Kauf bei Apple" bzw. "bei Stripe" gelten (26.11.2026: einmal bezahlte Jahre)
+SOURCE_GROUPS = {"app_store": ("app_store", "app_store_once"), "stripe": ("stripe", "stripe_once")}
+
+
 def _now(now: datetime | None) -> datetime:
     return (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
 
@@ -534,8 +538,10 @@ def _status(conn: sqlite3.Connection, user: dict, t: datetime) -> dict:
         # Abo-Pflicht in Web und Windows (05.11.2026, app/access.py): bezahlter Tarif ohne die Probe und welche
         # Quellen gerade ein aktives Abo tragen (Windows zeigt bei einem Apple-Abo keinen zweiten Kauf)
         "paid_plan": _paid_plan(rows, legacy, t),
-        "subscriptions": {s: any(r["source"] == s and normalize_plan(r["plan"]) and _row_active(r["status"], r["expires_at"], t.isoformat())
-                                 for r in rows) for s in ("app_store", "stripe")},
+        # app_store: Apple-Abo oder einmal bei Apple bezahlte Jahre (app_store_once, 26.11.2026)
+        "subscriptions": {s: any(r["source"] in SOURCE_GROUPS[s] and normalize_plan(r["plan"])
+                                 and _row_active(r["status"], r["expires_at"], t.isoformat()) for r in rows)
+                          for s in ("app_store", "stripe")},
         # geschenkter Tarif (18.11.2026, grant_gift): die Apple-App uebernimmt ihn wie die Probe des Dienstes, auch wenn
         # ein anderer Eintrag den Tarif traegt (z. B. geschenktes Plus neben Stripe-Pro-AI); null ohne geltendes Geschenk
         "gift": _gift_field(conn, user["id"], t),

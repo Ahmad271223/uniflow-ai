@@ -34,8 +34,11 @@ final class InviteRewardsTests: XCTestCase {
         XCTAssertEqual(InviteRewards.linkDays, fx["link_days"]?.int)
         XCTAssertEqual(InviteRewards.createDays, fx["create_days"]?.int)
         XCTAssertEqual(InviteRewards.linkBase, fx["link_base"]?.string)
-        XCTAssertEqual(InviteRewards.next(after: 7)?.count, 10)
-        XCTAssertNil(InviteRewards.next(after: 20))
+        // seit 27.11.2026 keine Belohnungen (Inhaber): keine Stufe, auch keine naechste
+        XCTAssertTrue(InviteRewards.tiers.isEmpty)
+        XCTAssertFalse(InviteRewards.hasRewards)
+        XCTAssertNil(InviteRewards.next(after: 7))
+        XCTAssertNil(InviteRewards.tier(count: 100))
         XCTAssertEqual(InviteRewards.counterText(arrived: 7), "7 von 20 angekommen")
     }
 

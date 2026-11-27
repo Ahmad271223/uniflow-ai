@@ -85,11 +85,25 @@ public actor QISClient {
 
     /// Eine Seite lesen; ein Anmeldeformular oder eine Seite ohne "Abmelden" heisst: Sitzung abgelaufen
     private func page(_ url: URL) async throws -> QISPage {
+        try await pageAndText(url).page
+    }
+
+    private func pageAndText(_ url: URL) async throws -> (page: QISPage, html: String) {
         let resp = try await transport.fetch(UniRequest(url: url), retry: retry)
         guard resp.status == 200 else { throw QISError.http(status: resp.status) }
         let p = QISPage.parse(html: resp.text, url: resp.finalURL ?? url)
         if p.hasLoginForm || !p.isLoggedIn { throw QISError.sessionExpired }
-        return p
+        return (p, resp.text)
+    }
+
+    /// Seite sagt selbst, dass es nichts gibt ("Es liegen keine Leistungen vor", "keine Prüfungen angemeldet"): eine
+    /// Listenseite ohne Tabelle ist dann wirklich leer. Ohne diesen Satz (Hinweis-, Stoerungs- oder Fehlerseite) ist
+    /// unbekannt, was in der Liste stuende.
+    static func saysEmpty(_ html: String) -> Bool {
+        let t = ExamRegistrationPeriods.fold(QISParser.clean(html.replacingOccurrences(of: "&uuml;", with: "ü")
+            .replacingOccurrences(of: "&Uuml;", with: "Ü").replacingOccurrences(of: "&nbsp;", with: " ")))
+        return ["keine leistungen", "keine pruefungen", "keine pruefungsleistungen", "keine eintraege", "keine daten",
+                "keine angemeldeten", "no achievements", "no exams", "no entries"].contains { t.contains($0) }
     }
 
     /// Startseite -> Links Richtung Leistungen (Tiefe zuerst, wie `expand` in qis.py), alle Tabellen einsammeln.
@@ -100,26 +114,31 @@ public actor QISClient {
         collector.absorb(first)
         var pages = 1, tables = 0, stall = 0
         var reached = false
+        // Listenseite eines Studiengangs ohne Leistungstabelle und ohne "keine Leistungen" (Hinweis-/Fehlerseite,
+        // 26.11.2026): der Abruf ist dann unvollstaendig und ersetzt nichts, sonst verschwanden die Leistungen dieses
+        // Studiengangs
+        var unreadList = false
         var pending: [(link: QISLink, from: QISPage)] = collector.nextLinks(on: first, preferring: preferred).map { ($0, first) }
         while !pending.isEmpty, pages < maxPages, stall < Self.stallLimit {
             let next = pending.removeFirst()
             guard !collector.visited.contains(next.link.address), !QISParser.isForbiddenNavigation(next.link),
                   let url = next.from.url(for: next.link) else { continue }
             try Task.checkCancellation()
-            let p = try await page(url)
+            let (p, html) = try await pageAndText(url)
             pages += 1
             collector.absorb(p, via: next.link)
             let found = p.gradeTableCount
             tables += found
             stall = found > 0 ? 0 : stall + 1
             if [QISTarget.notenspiegel, .abschluss, .leistungen].contains(where: { QISParser.match(next.link, $0) != nil }) { reached = true }
+            if found == 0, QISParser.match(next.link, .leistungen) != nil, !Self.saysEmpty(html) { unreadList = true }
             // erst in die Tiefe (Abschluss -> Studiengang -> Leistungen), dann die uebrigen Knoten
             pending = collector.nextLinks(on: p, preferring: preferred).map { ($0, p) } + pending
         }
         guard reached else { throw QISError.notenspiegelNotFound }
         let open = pending.contains { !collector.visited.contains($0.link.address) && !QISParser.isForbiddenNavigation($0.link) }
         return QISFetchResult(grades: collector.grades, documents: collector.documents, pages: pages, gradeTables: tables,
-                              complete: !open)
+                              complete: !open && !unreadList)
     }
 }
 
@@ -226,8 +245,8 @@ public enum QISGradesSync {
 /// Mensch die Seite selbst in der Webansicht (Notenspiegel bzw. "Info über angemeldete Prüfungen") und laesst die
 /// angezeigte Seite mit demselben Leser lesen (`QISPage.parse`, `GradeRows`, `RegistrationRows`). Nur lesend: kein
 /// Link wird aufgerufen, kein Formular gesendet. Stammdaten verwirft schon `QISPage.parse`; asi wird nicht gespeichert.
-/// Leistungen werden nur ergaenzt bzw. aktualisiert (`UniStore.storeGrades`, nie geloescht: eine Seite kann ein Teil des
-/// Notenspiegels sein), angemeldete Pruefungen ersetzt wie beim Abruf (`QISRegistrationsSync.store`).
+/// Leistungen und angemeldete Pruefungen werden nur ergaenzt bzw. aktualisiert (`UniStore.storeGrades`,
+/// `QISRegistrationsSync.store(removeMissing: false)`), nie geloescht: eine Seite kann ein Teil sein (ein Studiengang).
 public enum QISPageImport {
     public enum Result: Sendable, Equatable {
         /// Leistungstabelle gelesen (Zahl der Zeilen)
@@ -289,8 +308,10 @@ public enum QISPageImport {
             let n = rows.filter(\.registered).count
             let text = QISRegistrationsSync.message(count: n)
             do {
+                // nur ergaenzen/aktualisieren (26.11.2026): die angezeigte Seite ist die Liste EINES Studiengangs, die
+                // Anmeldungen der anderen (zweites Fach, Bachelor neben Master) bleiben; abgemeldete raeumt der naechste Abruf ab
                 try await db.transaction { c in
-                    try QISRegistrationsSync.store(c, rows, now: now)
+                    try QISRegistrationsSync.store(c, rows, now: now, removeMissing: false)
                     try QISRegistrationsSync.saveRun(c, at: now, ok: true, count: n, message: text)
                 }
             } catch {

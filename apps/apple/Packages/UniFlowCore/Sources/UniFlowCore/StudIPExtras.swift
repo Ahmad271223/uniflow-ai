@@ -18,6 +18,10 @@ public enum StudIPExtras {
 
     static let retryDays = 30
     static let missingKey = "studip_missing_endpoints"
+    /// Endpunkte, die heute mit einem Serverfehler (5xx) geantwortet haben (nur Geraet, 26.11.2026): Stud.IP Goettingen
+    /// antwortet auf `studip/news` dauerhaft mit 500. Ohne diesen Merker fragte jeder Abgleich neu und wartete jedes Mal
+    /// die Wiederholungen ab (`UniRetry`, rund 4,5 s). So: hoechstens ein Versuch je Tag, ein Erfolg loescht den Merker.
+    static let failingKey = "studip_failing_endpoints"
     static let systemSender = "____%system%____"
     /// globale Rolle (Annahme: Attribut `permission` des Nutzers) -> Anzeige statt des Namens
     static let roleLabels: [String: String] = ["dozent": "Lehrende", "tutor": "Tutor/in", "autor": "Studierende", "user": "Studierende",
@@ -95,6 +99,33 @@ public enum StudIPExtras {
         var out = missing
         if status == 403 || status == 404 { out[name] = .string(today) } else if (200..<300).contains(status) { out[name] = nil }
         return out
+    }
+
+    /// Heute schon mit einem Serverfehler gescheitert? (`failingKey`)
+    public static func failedToday(_ failing: [String: JSONValue], _ name: String, today: String) -> Bool {
+        failing[name]?.string == today
+    }
+
+    /// Nach einer Antwort: 5xx merkt den Tag, jede andere Antwort (auch 404, das steht dann in `missing`) vergisst ihn
+    public static func rememberFailure(_ failing: [String: JSONValue], _ name: String, status: Int, today: String) -> [String: JSONValue] {
+        var out = failing
+        if (500..<600).contains(status) { out[name] = .string(today) } else { out[name] = nil }
+        return out
+    }
+
+    public static func loadFailing(_ c: SQLiteConnection) throws -> [String: JSONValue] {
+        guard let raw = try c.scalar("SELECT value FROM settings WHERE key=?", [.text(failingKey)])?.string,
+              let v = try? JSONValue.parse(Data(raw.utf8)) else { return [:] }
+        return v.object ?? [:]
+    }
+
+    static func saveFailing(_ c: SQLiteConnection, _ failing: [String: JSONValue]) throws {
+        if failing.isEmpty {
+            try c.execute("DELETE FROM settings WHERE key=?", [.text(failingKey)])
+        } else {
+            try c.execute("INSERT OR REPLACE INTO settings(key, value) VALUES (?, ?)",
+                          [.text(failingKey), .text(JSONValue.object(failing).jsonString(sortedKeys: true))])
+        }
     }
 
     public static func loadMissing(_ c: SQLiteConnection) throws -> [String: JSONValue] {
@@ -425,28 +456,34 @@ public enum StudIPExtras {
         public var bookings: [Booking]?
         /// fehlende Endpunkte nach diesem Abruf
         public var missing: [String: JSONValue] = [:]
+        /// Endpunkte mit Serverfehler heute (`failingKey`); nil = vom Aufrufer nicht mitgegeben, nichts speichern
+        public var failing: [String: JSONValue]?
         public var sessionExpired = false
         public init() {}
     }
 
     /// Liest alle Ergaenzungen nacheinander. Wirft nie: abgelaufene Sitzung steht im Ergebnis, Netzfehler beenden den
     /// Abruf (`StudIPScheduleStore.stopsFetch`), sonst bleibt ein Fehler bei seinem Teil. `missing`: gespeicherte Liste.
-    public static func fetch(client: StudIPClient, userID: String, missing: [String: JSONValue], today: Int) async -> Download {
+    public static func fetch(client: StudIPClient, userID: String, missing: [String: JSONValue], today: Int,
+                             failing: [String: JSONValue]? = nil) async -> Download {
         var d = Download()
         d.missing = missing
+        d.failing = failing
         let t = BerlinClock.isoDate(today)
         let base = client.baseString
         var stop = false
 
         func ask(_ name: String, _ paths: [String]) async -> JSONValue? {
-            guard !stop, shouldAsk(d.missing, name, today: t) else { return nil }
+            guard !stop, shouldAsk(d.missing, name, today: t), !failedToday(d.failing ?? [:], name, today: t) else { return nil }
             for p in paths {
                 do {
                     let j = try await client.json("jsonapi.php/v1/" + p)
                     d.missing = remember(d.missing, name, status: 200, today: t)
+                    if let f = d.failing { d.failing = rememberFailure(f, name, status: 200, today: t) }
                     return j["data"]?.array != nil ? j : nil
                 } catch StudIPError.http(let status, _) {
                     d.missing = remember(d.missing, name, status: status, today: t)
+                    if let f = d.failing { d.failing = rememberFailure(f, name, status: status, today: t) }
                     if status == 400 { continue }      // z. B. include unbekannt: naechster Pfad
                     return nil
                 } catch StudIPError.sessionExpired {
@@ -476,8 +513,9 @@ public enum StudIPExtras {
     }
 
     /// `fetch` mit dem heutigen Tag der Uhr des Backends
-    public static func fetch(client: StudIPClient, userID: String, missing: [String: JSONValue], clock: UniFlowClock) async -> Download {
-        await fetch(client: client, userID: userID, missing: missing, today: BerlinClock.parseISODate(clock.today) ?? 0)
+    public static func fetch(client: StudIPClient, userID: String, missing: [String: JSONValue], clock: UniFlowClock,
+                             failing: [String: JSONValue]? = nil) async -> Download {
+        await fetch(client: client, userID: userID, missing: missing, today: BerlinClock.parseISODate(clock.today) ?? 0, failing: failing)
     }
 
     /// Schreibt den Abruf in die Datenbank (in einer Transaktion aufrufen)
@@ -493,5 +531,6 @@ public enum StudIPExtras {
         if let a = d.activity { try storeActivity(c, a, fetchedAt: now, today: today) }
         if let b = d.bookings { try storeConsultations(c, b, fetchedAt: now) }
         try saveMissing(c, d.missing)
+        if let f = d.failing { try saveFailing(c, f) }
     }
 }

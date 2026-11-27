@@ -1,0 +1,19 @@
+{
+ "data": {
+  "type": "users",
+  "id": "9fb9fa78ae8934283587f57b8b84a9e3",
+  "attributes": {
+   "username": "b.dozentin",
+   "formatted-name": "Prof. Dr. Beispiel Dozentin",
+   "family-name": "Dr. Beispiel Dozentin",
+   "given-name": "Prof.",
+   "name-prefix": "",
+   "name-suffix": "",
+   "permission": "dozent",
+   "email": "beispiel.dozentin@example.org"
+  },
+  "links": {
+   "self": "/jsonapi.php/v1/users/9fb9fa78ae8934283587f57b8b84a9e3"
+  }
+ }
+}

@@ -149,7 +149,7 @@ final class LinkTargetPicker: NSObject, UIGestureRecognizerDelegate {
 }
 
 extension ObjectEditing {
-    static let linkLockedHint = "Verweise auf Dokument und Seite gibt es mit Pro AI."
+    static let linkLockedHint = "Verweise auf Dokument und Seite gibt es mit Plus."
     static let linkTargetHint = "Jetzt das Ziel antippen: im Dokument daneben oder auf einer anderen Seite."
     static let linkSameSpotHint = "Tippe auf die Stelle, auf die der Verweis zeigen soll – in einem anderen Dokument oder auf einer anderen Seite."
     static func linkMissingHint(_ t: PageLink.Target) -> String {

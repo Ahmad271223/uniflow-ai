@@ -35,7 +35,8 @@ def test_p78_01_purchase_reported_again_after_a_failed_check_unlocks_plan_credit
     e = ent(hosted, h)
     assert e["plan"] == "free" and e["credits"]["allowance"] == 0
     st, d = _tutor(hosted, h)
-    assert (st, d["required_plan"]) == (403, "pro_ai"), "ohne angekommenen Kauf keine KI"
+    # 26.11.2026 neues Modell: die KI-Rechte beginnen bei Plus (frueher Pro AI)
+    assert (st, d["required_plan"]) == (403, "plus"), "ohne angekommenen Kauf keine KI"
 
     monkeypatch.setenv("LERNAPP_APPLE_ROOT_CERTS", roots)
     st, d = verify(hosted, h, signed)                        # naechster Start: dieselbe JWS

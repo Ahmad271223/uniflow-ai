@@ -241,13 +241,14 @@ def test_trial_then_expired_then_plus_then_pro_ai(svc):
     app = svc.app
     u, _ = _register(app, "probe@example.org")
     d = _login(app, "probe@example.org")
-    assert d["state"] == "trial" and d["trial_days_left"] == 7 and d["plan"] == "pro_ai" and not d["locked"]
+    # 26.11.2026 neues Modell: die Probe ist Plus (frueher Pro AI)
+    assert d["state"] == "trial" and d["trial_days_left"] == 7 and d["plan"] == "plus" and not d["locked"]
     assert d["token_store"] == "memory" and d["user"]["email"] == "probe@example.org"
     hdr = [h for m, p, h in svc.calls if p == "/api/entitlements"][0]
     assert hdr.get("X-StudiNow-Client") == "windows", "der Dienst erfaehrt den Client"
     st, e = _local(app, "GET", "/api/entitlements")
     assert e["access"]["state"] == "trial" and e["entitlements"]["can_annotate_pdf"] and e["entitlements"]["can_use_extended_test_history"]
-    assert _local(app, "PUT", "/api/settings", {"user_name": "Lea"})[0] == 200, "in der Probe alles wie Pro AI"
+    assert _local(app, "PUT", "/api/settings", {"user_name": "Lea"})[0] == 200, "in der Probe alles wie Plus"
 
     # Probe vorbei, kein Abo: nur lesen und exportieren
     _end_trial(u["id"])
@@ -265,13 +266,14 @@ def test_trial_then_expired_then_plus_then_pro_ai(svc):
     assert st == 200 and "LIESMICH.txt" in z.namelist() and "daten/lernapp.db" in z.namelist()
     assert not any(n.endswith((".env", "service-account.json", "university-session.json")) for n in z.namelist())
 
-    # Plus (Betrieb setzt den Tarif): wieder schreiben; Plus hat keine vollstaendige Testliste
+    # Plus (Betrieb setzt den Tarif): wieder schreiben; 26.11.2026 neues Modell: Plus hat auch die vollstaendige
+    # Testliste (frueher erst Pro AI)
     accounts.set_plan(u["id"], "plus")
     st, d = _local(app, "GET", "/api/app-account/status?refresh=1")
     assert d["state"] == "active" and d["plan"] == "plus"
     assert _local(app, "PUT", "/api/settings", {"user_name": "Lea"})[0] == 200
     st, e = _local(app, "GET", "/api/entitlements")
-    assert e["entitlements"]["can_annotate_pdf"] and not e["entitlements"]["can_use_extended_test_history"]
+    assert e["entitlements"]["can_annotate_pdf"] and e["entitlements"]["can_use_extended_test_history"]
     accounts.set_plan(u["id"], "pro_ai")
     st, d = _local(app, "GET", "/api/app-account/status?refresh=1")
     assert d["plan"] == "pro_ai"

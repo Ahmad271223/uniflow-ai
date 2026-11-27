@@ -520,8 +520,9 @@ public actor LSFClient {
             let scan = HTMLScanner.scan(html)
             for table in scan.tables where !QISParser.isStammdaten(table) {
                 // eine Zelle je Spalte (colspan aufgefaechert wie am PC und im QIS der LUH); Konto-Zeilen fassen Spalten
-                // zusammen und werden daran erkannt (`GradeRows.lsfCells`)
-                out += GradeRows.parse(rows: table.rows.map(GradeRows.lsfCells), abschluss: "")
+                // zusammen und werden daran erkannt (`GradeRows.lsfCells`); Modulzeilen "Prüfung vorhanden" bleiben
+                // (das Modul der Teilmodule darunter, 26.11.2026)
+                out += GradeRows.parse(rows: table.rows.map(GradeRows.lsfCells), abschluss: "", modules: true)
             }
             if i == 0 {      // Reiter der Studiengaenge auf der ersten Seite
                 for a in scan.anchors where a.href.contains("notenspiegelStudent") && a.href.contains("nodeID=") {

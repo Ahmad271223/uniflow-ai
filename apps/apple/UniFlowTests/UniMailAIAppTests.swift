@@ -4,7 +4,7 @@ import UniFlowCore
 import XCTest
 @testable import UniFlow
 
-/// Uni-Mail "Mit KI verbessern" (13.11.2026): Knopf mit Schloss "ab Pro AI" ohne Pro AI, Vorschlag mit "Übernehmen"
+/// Uni-Mail "Mit KI verbessern" (13.11.2026): Knopf mit Schloss "ab Plus" in Free (seit 26.11.2026; vorher "ab Pro AI"), Vorschlag mit "Übernehmen"
 /// und X; gesendet wird nie aus dem Vorschlag.
 @MainActor
 final class UniMailAIAppTests: XCTestCase {
@@ -45,8 +45,8 @@ final class UniMailAIAppTests: XCTestCase {
         var taps = 0
         let locked = try hostWithEnvironment(UniMailAIButton(access: .planRequired, busy: false, empty: true) { taps += 1 },
                                              size: CGSize(width: 600, height: 200))
-        XCTAssertTrue(locked.wait { self.labels(locked.view).contains("Mit KI verbessern (ab Pro AI)") }, labels(locked.view).joined(separator: "\n"))
-        XCTAssertTrue(tap("Mit KI verbessern (ab Pro AI)", in: locked.view), "Schloss: Antippen auch ohne Text (oeffnet die Tarifwahl)")
+        XCTAssertTrue(locked.wait { self.labels(locked.view).contains("Mit KI verbessern (ab Plus)") }, labels(locked.view).joined(separator: "\n"))
+        XCTAssertTrue(tap("Mit KI verbessern (ab Plus)", in: locked.view), "Schloss: Antippen auch ohne Text (oeffnet die Tarifwahl)")
         XCTAssertEqual(taps, 1)
 
         let ready = try hostWithEnvironment(UniMailAIButton(access: .ready, busy: false, empty: false) { taps += 1 },

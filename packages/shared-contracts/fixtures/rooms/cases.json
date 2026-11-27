@@ -6168,12 +6168,7 @@
     }
    ],
    "note": "Ort laut Hochschule; genaue Lage ohne Gewähr",
-   "source": {
-    "key": "standortfinder",
-    "name": "Standortfinder der Leibniz Universität Hannover",
-    "url": "https://standortfinder.uni-hannover.de/de/",
-    "attribution": "Lage: Standortfinder der Leibniz Universität Hannover"
-   }
+   "source": null
   },
   "hildesheim": {
    "university": "hildesheim",
@@ -6354,12 +6349,7 @@
     }
    ],
    "note": "Ort laut Hochschule; genaue Lage ohne Gewähr",
-   "source": {
-    "key": "standortfinder",
-    "name": "Standortfinder der Leibniz Universität Hannover",
-    "url": "https://standortfinder.uni-hannover.de/de/",
-    "attribution": "Lage: Standortfinder der Leibniz Universität Hannover"
-   }
+   "source": null
   },
   "unbekannt": {
    "university": "luh",

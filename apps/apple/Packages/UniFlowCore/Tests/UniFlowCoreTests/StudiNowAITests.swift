@@ -208,7 +208,10 @@ final class StudiNowAITests: XCTestCase {
         XCTAssertEqual(e?.status, 403)
         XCTAssertEqual(e?.detail["detail"]?.string, StudiNowAIText.planRequired("pro_ai"))
         XCTAssertEqual(e?.detail["required_plan"], "pro_ai", "Zusatzfelder bleiben")
-        XCTAssertEqual(StudiNowAIText.planRequired("plus"), "Diese KI-Funktion gibt es ab StudiNow Plus.")
+        // seit 26.11.2026 (neues Tarifmodell): jede KI-Funktion ab Plus mit Credits, Pro AI mit 120 Credits im Monat
+        XCTAssertEqual(StudiNowAIText.planRequired("plus"),
+                       "Die StudiNow-KI gibt es mit StudiNow Plus und Credits, mit StudiNow Pro AI (120 Credits im Monat) und in der 7-Tage-Probe.")
+        XCTAssertEqual(StudiNowAIText.planRequired("pro_ai"), StudiNowAIText.planRequired("plus"))
         XCTAssertEqual(StudiNowAIText.action(code: "plan_required"), .plans)
 
         (e, _, _, _) = await failure(403, ["detail": "Bitte bestätigen", "code": "email_unverified"])
@@ -320,27 +323,25 @@ final class StudiNowAITests: XCTestCase {
         XCTAssertEqual(d(true, "free", "pro_ai"), .ready, "Pro AI beim Dienst (Web/Windows gekauft)")
         XCTAssertEqual(d(true, "free", "free", true), .ready, "Probe des Kontos (25 Credits)")
         XCTAssertEqual(d(false, "pro_ai"), .signInRequired, "Pro AI ohne Anmeldung")
-        XCTAssertEqual(d(true, "plus", "plus"), .planRequired, "Plus: Tarif-Hinweis")
-        XCTAssertEqual(d(false, "plus"), .planRequired)
+        // seit 26.11.2026: Plus hat die StudiNow-KI (nur mit Credits, `StudiNowCreditGate` und Dienst)
+        XCTAssertEqual(d(true, "plus", "plus"), .ready, "Plus angemeldet: bereit, die Credits prueft die Sperre")
+        XCTAssertEqual(d(true, "free", "plus"), .ready, "Plus beim Dienst (im Web gekauft)")
+        XCTAssertEqual(d(false, "plus"), .signInRequired, "Plus ohne Anmeldung: erst anmelden")
+        XCTAssertEqual(d(true, "free", "free"), .planRequired, "Free: Tarif-Hinweis")
         XCTAssertEqual(d(false, "free"), .planRequired)
         XCTAssertEqual(d(true, "free", nil), .planRequired, "Stand des Dienstes noch nicht geladen, Free auf dem iPad")
     }
 
-    /// Nur der KI-Chat (15.11.2026): angemeldet mit Plus, ohne Pro AI und ohne Probe; `decide` bleibt dabei planRequired
-    func testChatOnlyIsPlusSignedInWithoutProAIOrTrial() {
-        func c(_ signedIn: Bool, _ local: String, _ service: String? = nil, _ trial: Bool = false, configured: Bool = true) -> Bool {
-            StudiNowAIAccess.chatOnly(serviceConfigured: configured, signedIn: signedIn, localPlan: local, servicePlan: service, serviceTrialActive: trial)
+    /// Nur der KI-Chat gab es vom 15.11. bis 26.11.2026 (Plus nur mit der freien Frage). Seit dem neuen Tarifmodell hat
+    /// Plus alle KI-Funktionen mit Credits: `chatOnly` ist immer false (vorher fuer Plus angemeldet true)
+    func testChatOnlyIsGoneSincePlusHasAllAI() {
+        for (signedIn, local, service, trial) in [(true, "plus", "plus", false), (true, "plus", nil, false), (true, "free", "plus", false),
+                                                  (false, "plus", nil, false), (true, "pro_ai", "plus", false), (true, "plus", "plus", true)] as [(Bool, String, String?, Bool)] {
+            XCTAssertFalse(StudiNowAIAccess.chatOnly(serviceConfigured: true, signedIn: signedIn, localPlan: local, servicePlan: service,
+                                                     serviceTrialActive: trial), "\(local)/\(service ?? "-")")
         }
-        XCTAssertTrue(c(true, "plus", "plus"))
-        XCTAssertTrue(c(true, "plus", nil), "Plus aus dem App Store, Stand des Dienstes noch nicht geladen")
-        XCTAssertTrue(c(true, "free", "plus"), "Plus beim Dienst (im Web gekauft)")
-        XCTAssertFalse(c(false, "plus"), "ohne Anmeldung keine StudiNow-KI")
-        XCTAssertFalse(c(true, "free", "free"), "Free")
-        XCTAssertFalse(c(true, "pro_ai", "plus"), "Pro AI: alles, nicht nur der Chat")
-        XCTAssertFalse(c(true, "plus", "plus", true), "laufende Probe: alles wie Pro AI")
-        XCTAssertFalse(c(true, "plus", "plus", configured: false))
         XCTAssertEqual(StudiNowAIAccess.decide(serviceConfigured: true, signedIn: true, localPlan: "plus", servicePlan: "plus", serviceTrialActive: false),
-                       .planRequired, "die uebrigen KI-Stellen zeigen wie bisher den Tarif-Hinweis")
+                       .ready, "Plus: alle KI-Stellen wie Pro AI")
     }
 
     // MARK: Konto

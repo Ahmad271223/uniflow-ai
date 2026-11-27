@@ -136,7 +136,7 @@ class Run:
         e.update({
             "LERNAPP_MODE": "hosted", "LERNAPP_DATA_DIR": str(self.tmp / "data"), "LERNAPP_LOG_DIR": str(self.tmp / "logs"),
             "LERNAPP_JOBS": "off", "LERNAPP_NO_SCHEDULER": "1", "LERNAPP_MAIL": "log", "LERNAPP_OCR": "off",
-            "LERNAPP_ALLOWED_HOSTS": "127.0.0.1", "LERNAPP_SECRET_KEY": "lasttest-" + uuid.uuid4().hex,
+            "LERNAPP_ALLOWED_HOSTS": "127.0.0.1", "LERNAPP_SECRET_KEY": uuid.uuid4().hex + uuid.uuid4().hex,  # 32 Byte hex (vault.master_key)
             # Schein-Anbieter statt OpenAI; Preise aus app/ai_prices.py (gpt-6-luna)
             "LERNAPP_AI_PROVIDER": "openai", "LERNAPP_OPENAI_API_KEY": "sk-lasttest-attrappe",
             "LERNAPP_OPENAI_BASE_URL": f"http://127.0.0.1:{self.a.provider_port}/v1", "LERNAPP_AI_MODEL": "gpt-6-luna",

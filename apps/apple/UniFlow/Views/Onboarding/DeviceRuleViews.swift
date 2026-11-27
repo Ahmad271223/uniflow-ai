@@ -4,9 +4,9 @@ import UniFlowCore
 
 // Geraete-Regel (Auftrag des Inhabers vom 14.11.2026; `DeviceRule` im Kern, Dienst app/device_limit.py):
 // - Free gilt fuer ein Geraet. Auf einem zweiten Geraet zeigt die App statt der Oberflaeche den Hinweis-Bildschirm
-//   (`DeviceLimitScreen`) mit "Pro AI ansehen", "Dieses Gerät stattdessen nutzen" und "Abmelden".
-// - Plus laeuft auf jedem Geraet; auf dem zweiten Geraet einmal ein wegtippbarer Hinweis (`DevicePlusHint`).
-// - Pro AI und die laufende Probe: nichts.
+//   (`DeviceLimitScreen`) mit "Plus ansehen", "Dieses Gerät stattdessen nutzen" und "Abmelden".
+// - Plus und Pro AI (seit 26.11.2026 beide mit Abgleich) und die laufende Probe: nichts. Den einmaligen Plus-Hinweis
+//   (`DevicePlusHint`) zeigt die App nur noch, wenn ein Dienst von vor dem 26.11.2026 ihn fuer ein Free-Geraet meldet.
 // Gesperrt wird nur nach einer ausdruecklichen Antwort des StudiNow-Dienstes (`StudoraAccountLink.deviceStatus`), nie
 // ohne Netz. Der letzte Stand ist gemerkt, damit der Hinweis beim naechsten Start sofort da ist. Lokale Uni-Daten
 // bleiben unberuehrt. Preise aus StoreKit (`Product.displayPrice`), sonst der Listenpreis des Dienstes.
@@ -37,10 +37,12 @@ enum DeviceRuleScreen: Equatable {
     }
 }
 
-/// Preis von Pro AI fuer die Hinweise: aus StoreKit, sonst der Listenpreis des Dienstes bzw. 39,99 €
+/// Preis von Plus im Monat fuer die Hinweise (seit 26.11.2026 der kleinste Tarif mit Abgleich): aus StoreKit, sonst der
+/// Listenpreis des Dienstes (nur wenn er einen Monatspreis meldet; ein aelterer Dienst nennt Pro AI im Jahr) bzw. 1,99 €
 enum DeviceRulePrice {
     static func text(store: String?, status: DeviceRule.Status?) -> String {
         if let store, !store.isEmpty { return store }
+        guard status?.period == "month" else { return DeviceRuleTexts.fallbackPrice() }
         return DeviceRuleTexts.fallbackPrice(cents: status?.priceCents, currency: status?.currency)
     }
 }
@@ -107,11 +109,11 @@ struct DeviceLimitScreen: View {
 
     var body: some View {
         DeviceLimitLayout(primaryName: link.deviceStatus?.primaryName,
-                          price: DeviceRulePrice.text(store: store.product(for: .proAI)?.displayPrice, status: link.deviceStatus),
+                          price: DeviceRulePrice.text(store: store.product(for: .plus)?.displayPrice, status: link.deviceStatus),
                           busy: busy, problem: problem,
                           onPlans: { showPlans = true }, onUseThis: useThis, onSignOut: signOut)
             .ufCompactLayout()
-            .ufSheet(isPresented: $showPlans) { UFPlanSheet(required: .proAI, close: { showPlans = false }) }
+            .ufSheet(isPresented: $showPlans) { UFPlanSheet(required: .plus, close: { showPlans = false }) }
             // Preis aus dem Store; nie unter XCTest (Tests geben den Preis vor)
             .task { if !StudIPSync.isUnderTest() { await store.loadProducts() } }
     }
@@ -203,7 +205,7 @@ struct DeviceLimitLayout: View {
 
 // MARK: - Einmaliger Hinweis (Plus auf einem zweiten Geraet)
 
-/// Oeffnet den Plus-Hinweis einmal als Blatt, sobald er faellig ist; nach dem Schliessen gilt er als gezeigt. "Pro AI
+/// Oeffnet den Plus-Hinweis einmal als Blatt, sobald er faellig ist; nach dem Schliessen gilt er als gezeigt. "Plus
 /// ansehen" oeffnet danach die vorhandene Tarifseite.
 struct DevicePlusHintHost: ViewModifier {
     @ObservedObject var link: StudoraAccountLink
@@ -220,7 +222,7 @@ struct DevicePlusHintHost: ViewModifier {
                 DevicePlusHintSheet(status: link.deviceStatus, entitlements: entitlements,
                                     onPlans: { plansNext = true; shown = false }, onClose: { shown = false })
             }
-            .ufSheet(isPresented: $showPlans) { UFPlanSheet(required: .proAI, close: { showPlans = false }) }
+            .ufSheet(isPresented: $showPlans) { UFPlanSheet(required: .plus, close: { showPlans = false }) }
     }
 
     private func dismissed() {
@@ -245,7 +247,7 @@ struct DevicePlusHintSheet: View {
     }
 
     var body: some View {
-        DevicePlusHint(price: DeviceRulePrice.text(store: store.product(for: .proAI)?.displayPrice, status: status),
+        DevicePlusHint(price: DeviceRulePrice.text(store: store.product(for: .plus)?.displayPrice, status: status),
                        onPlans: onPlans, onClose: onClose)
             .ufSheetPresentation()
             .task { if !StudIPSync.isUnderTest() { await store.loadProducts() } }

@@ -170,7 +170,12 @@ CACHE_DAYS = 30
 MAX_OUTPUT = {"tutor": 6000, "flashcards": 8000, "doc_index_page": 3000, "week_test": 9000, "test_generation": 8000,
               "weekly_test": 9000, "study_plan": 4000, "default": 2000}
 # Zwecke, die das Konto Credits kosten (app/credits.py); alles mit "tutor:" am Anfang auch
-CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test", "study_plan")
+# 26.11.2026 (neues Modell, "KI nur mit Credits"): auch die automatischen Wochentests (weekly_test) und das Erzeugen fuer
+# den Fragenpool der Bibliothek (test_generation) kosten Credits; vorher zaehlten sie nur gegen das Kontingent des Tarifs
+# 27.11.2026 (Sicherheitspruefung, Regel des Inhabers "KI nur mit Credits"): auch Test-Bewertung und Uni-Mail
+# "Mit KI verbessern" kosten Credits; vorher liefen sie ohne Abzug (mit Plus und 0 Credits nutzbar)
+CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test", "study_plan", "weekly_test", "test_generation",
+                   "test_grading", "mail_rewrite")
 
 
 class AIUnavailable(Exception):
@@ -1179,9 +1184,10 @@ def is_trial_account(conn: sqlite3.Connection, user_id: str, t: datetime) -> boo
 
 
 def _paid_ai(plan: str | None) -> bool:
-    """Bringt ein bezahlter bzw. gesetzter Tarif selbst die StudiNow-KI mit (Pro AI, alte pro/pro_connect)?"""
+    """Bringt ein bezahlter bzw. gesetzter Tarif selbst KI mit, also Monats-Credits (Pro AI, alte pro/pro_connect)?
+    Seit 26.11.2026 hat Plus die KI-Rechte, aber keine Monats-Credits: Probe + Plus bleibt deshalb Probe (25 Credits)."""
     p = billing.normalize_plan(plan)
-    return bool(p) and plans.has(p, "can_use_ai_explanations")
+    return bool(p) and plans.CREDITS.get(p, 0) > 0
 
 
 def _now(now: datetime | None = None) -> datetime:

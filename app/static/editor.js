@@ -27,6 +27,10 @@ import { createAiPanel } from "./ai-panel.js?v=5";
 import { answerHtml } from "./ai-answer.js?v=1";
 import { openCardDialog } from "./editor-card.js?v=1";
 import { attachFreeze } from "./editor-freeze.js?v=1";   // Ansicht fixieren / Zum Abpausen einfrieren
+
+// Stud.IP-Abgabe (26.11.2026, Inhaber: "erstmal ausschalten"): aus, der Menuepunkt erscheint nicht; wie
+// StudIPSubmitEntry.isEnabled in der iPad-App. Wieder an: true.
+const STUDIP_SUBMIT_ON = false;
 export { IDB };
 const Thumbs = { get: k => IDB.get("thumbs", k).catch(() => null), put: v => IDB.put("thumbs", v).catch(() => {}), del: k => IDB.del("thumbs", k).catch(() => {}) };
 
@@ -923,7 +927,7 @@ export class PdfEditor {
     this.showPop(btn, `<div class="ed-menu"><div class="ed-menu-head">Teilen und Exportieren</div><div class="ed-menu-sub">Zusammenarbeit</div><button disabled title="Noch nicht verbunden">${icon("users", 16)} Teilen… <span class="muted tiny">vorbereitet</span></button>
       <div class="ed-menu-sub">Exportieren</div><label class="small" style="display:flex;gap:.4rem;align-items:center;padding:.2rem .6rem"><input type="checkbox" class="ed-exp-noann"> Ohne Notizen exportieren</label>
       <label class="small" style="display:flex;gap:.4rem;align-items:center;padding:.2rem .6rem" title="Seitennotizen und Blätter, die neben einer Folie beschrieben wurden, stehen direkt hinter ihrer Folie"><input type="checkbox" class="ed-exp-notes" ${this._expNotes !== false ? "checked" : ""}> Notizen und Blätter mitschicken</label>
-      <button data-exp="page">${icon("file", 16)} Diese Seite exportieren</button><button data-exp="range">${icon("list", 16)} Ausgewählte Seiten… </button><button data-exp="all">${icon("download", 16)} Alle exportieren</button><button data-exp="print">${icon("file-text", 16)} Drucken</button>${window.__app?.state?.hosted ? "" : `<div class="ed-menu-sub">Abgeben</div>${["hsh", "hildesheim"].includes(window.__app?.state?.university) ? `<button data-exp="moodle">${icon("upload", 16)} In ${window.__app.state.university === "hsh" ? "Moodle" : "Learnweb"} abgeben …</button>` : `<button data-exp="studip">${icon("upload", 16)} In Stud.IP abgeben …</button>`}`}</div>`);
+      <button data-exp="page">${icon("file", 16)} Diese Seite exportieren</button><button data-exp="range">${icon("list", 16)} Ausgewählte Seiten… </button><button data-exp="all">${icon("download", 16)} Alle exportieren</button><button data-exp="print">${icon("file-text", 16)} Drucken</button>${window.__app?.state?.hosted ? "" : ["hsh", "hildesheim"].includes(window.__app?.state?.university) ? `<div class="ed-menu-sub">Abgeben</div><button data-exp="moodle">${icon("upload", 16)} In ${window.__app.state.university === "hsh" ? "Moodle" : "Learnweb"} abgeben …</button>` : STUDIP_SUBMIT_ON ? `<div class="ed-menu-sub">Abgeben</div><button data-exp="studip">${icon("upload", 16)} In Stud.IP abgeben …</button>` : ""}</div>`);
     $$("[data-exp]", this.pop).forEach(b => b.onclick = () => { const noann = $(".ed-exp-noann", this.pop).checked; this._expNotes = $(".ed-exp-notes", this.pop).checked; this.pop.hidden = true; const k = b.dataset.exp; if (k === "studip") return void import("./studip-submit.js?v=4").then(m => m.openSubmit(this)).catch(e => this.onStatus(`Abgeben nicht möglich: ${e.message}`)); if (k === "moodle") return void import("./moodle-submit.js?v=3").then(m => m.openMoodleSubmit(this)).catch(e => this.onStatus(`Abgeben nicht möglich: ${e.message}`)); if (k === "page") this.exportPdf([this.currentPage], noann); else if (k === "range") { const r = safePrompt("Seiten (z. B. 1-3,5):", `${this.currentPage + 1}`); if (r) this.exportPdf(parseRange(r, this.pages.length), noann); } else if (k === "print") this.exportPdf(null, noann, true); else this.exportPdf(null, noann); });
   }
   morePop(btn) {

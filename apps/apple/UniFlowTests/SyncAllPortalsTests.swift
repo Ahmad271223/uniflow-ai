@@ -22,7 +22,7 @@ final class SyncAllPortalsTests: XCTestCase {
     private let qisSession = OSAllocatedUnfairLock(initialState: true)
     private let mailSession = OSAllocatedUnfairLock(initialState: true)
     private var services: [String] = []
-    private var savedConnect: (@MainActor (ContainerManager, Bool) async -> StoredLoginReport)!
+    private var savedConnect: (@MainActor (ContainerManager, Bool, Set<String>?) async -> StoredLoginReport)!
     private var savedAllowed: (() -> Bool)!
 
     override func setUp() async throws {
@@ -204,10 +204,11 @@ final class SyncAllPortalsTests: XCTestCase {
         try await bed.waitUntil("Sync um 22 Uhr", timeout: 30) { late != nil }
         XCTAssertEqual(late?.synced, ["QIS", "Uni-Mail"])
         let readsAfterNight = inboxReads
-        // 10:31: nur QIS faellig (Uni-Mail eben abgeglichen) - der Abgleich von selbst laeuft ...
+        // 14:01: nur QIS faellig (Noten seit 26.11.2026 hoechstens alle 4 Stunden; Uni-Mail eben abgeglichen) - der
+        // Abgleich von selbst laeuft ...
         let ledger = m.autoLedger(c)
-        ledger.recordAttempt(OpenSync.uniMail, at: bed.clock.now.addingTimeInterval(30 * 60))
-        let t = bed.clock.now.addingTimeInterval(31 * 60)
+        let t = bed.clock.now.addingTimeInterval(AutoSync.gradesInterval + 60)
+        ledger.recordAttempt(OpenSync.uniMail, at: t.addingTimeInterval(-60))
         XCTAssertEqual(m.runAutomaticSync(now: t), [OpenSync.qis])
         XCTAssertNotNil(AutoSync.automatic[c.key])
         // ... der Tipp wartet darauf und gleicht danach alle Portale ab (auch die Uni-Mail)
@@ -268,7 +269,7 @@ final class SyncAllPortalsTests: XCTestCase {
         try install()
         saveLogin(m)
         var calls: [(userAction: Bool, requestsBefore: Int)] = []
-        OpenSync.storedLoginConnect = { manager, userAction in
+        OpenSync.storedLoginConnect = { manager, userAction, _ in
             calls.append((userAction, UniStubProtocol.requests.count))
             // nachgebildet: QIS verbunden, Stud.IP und Uni-Mail brauchen noch eine Anmeldung von Hand
             await self.signInQIS(manager, c, q)
@@ -302,7 +303,7 @@ final class SyncAllPortalsTests: XCTestCase {
         let (m, _, q, _) = try await luh(qis: true, mail: false)
         try install()
         saveLogin(m)
-        OpenSync.storedLoginConnect = { _, _ in StoredLoginReport(needsLogin: ["Stud.IP", "Uni-Mail"], rejected: true) }
+        OpenSync.storedLoginConnect = { _, _, _ in StoredLoginReport(needsLogin: ["Stud.IP", "Uni-Mail"], rejected: true) }
         var result: UniversitySyncReport?
         XCTAssertEqual(m.startUniversitySync { result = $0 }, .started("Stud.IP, QIS und Uni-Mail werden abgeglichen …"))
         try await bed.waitUntil("Ergebnis", timeout: 30) { result != nil }
@@ -323,7 +324,7 @@ final class SyncAllPortalsTests: XCTestCase {
         saveLogin(m)
         qisSession.withLock { $0 = false }                      // QIS-Sitzung abgelaufen, die App weiss es noch nicht
         XCTAssertNotEqual(q.state, .needsLogin)
-        OpenSync.storedLoginConnect = { _, _ in StoredLoginReport(connected: ["QIS"], needsLogin: ["Stud.IP", "Uni-Mail"]) }
+        OpenSync.storedLoginConnect = { _, _, _ in StoredLoginReport(connected: ["QIS"], needsLogin: ["Stud.IP", "Uni-Mail"]) }
         UniAutoLogin.appActiveOverride = true
         var logins: [UniAutoLoginRequest] = []
         let session = qisSession
@@ -367,10 +368,48 @@ final class SyncAllPortalsTests: XCTestCase {
         XCTAssertEqual(menuReads(), 2, "die Liste mit QIS gelesen")
         let list = try await c.api.value("/api/certificates")
         XCTAssertEqual(list["status"]?.string, "ok")
-        // 31 Minuten spaeter: QIS wieder faellig, die Liste noch nicht (6 Stunden)
-        XCTAssertTrue(m.runAutomaticSync(now: t1.addingTimeInterval(31 * 60)).contains(OpenSync.qis))
+        // 31 Minuten spaeter: QIS noch nicht wieder faellig (Noten seit 26.11.2026 hoechstens alle 4 Stunden)
+        XCTAssertFalse(m.runAutomaticSync(now: t1.addingTimeInterval(31 * 60)).contains(OpenSync.qis))
+        // 4 Stunden und 1 Minute spaeter: QIS wieder faellig, die Liste noch nicht (6 Stunden)
+        XCTAssertTrue(m.runAutomaticSync(now: t1.addingTimeInterval(AutoSync.gradesInterval + 60)).contains(OpenSync.qis))
         try await bed.waitUntil("zweiter Abgleich von selbst", timeout: 30) { OpenSync.running.isEmpty }
         XCTAssertEqual(menuReads(), 2, "Liste nicht in jedem Abgleich von selbst")
+        assertOnlyReading()
+    }
+
+    /// Auftrag des Inhabers 27.11.2026: von selbst QIS (und Stud.IP) nur zweimal am Tag, die Uni-Mail alle 30 Minuten;
+    /// ein reiner Mail-Abruf meldet mit dem gespeicherten Uni-Zugang nur die Uni-Mail an, nie Stud.IP oder QIS
+    func testAutomaticSyncTwiceADayButMailEveryThirtyMinutesAndMailRunsSignInOnlyTheMail() async throws {
+        let (m, _, _, _) = try await luh()
+        try install()
+        saveLogin(m)
+        OpenSync.allowed = { true }
+        var onlys: [Set<String>?] = []
+        OpenSync.storedLoginConnect = { _, _, only in
+            onlys.append(only)
+            return StoredLoginReport(connected: ["QIS", "Uni-Mail"])
+        }
+        let t0 = bed.clock.now                                   // 10:00 Berliner Zeit
+        let first = m.runAutomaticSync(now: t0)
+        XCTAssertTrue(first.isSuperset(of: [OpenSync.qis, OpenSync.uniMail]), "\(first)")
+        try await bed.waitUntil("erster Abgleich von selbst", timeout: 30) { OpenSync.running.isEmpty }
+        XCTAssertEqual(onlys.last ?? nil, first, "nur die faelligen Portale verbinden")
+        // 10:31 und 12:00: nur die Uni-Mail
+        for (minutes, label) in [(31, "10:31"), (120, "12:00")] {
+            let t = t0.addingTimeInterval(TimeInterval(minutes * 60))
+            XCTAssertEqual(m.runAutomaticSync(now: t), [OpenSync.uniMail], label)
+            try await bed.waitUntil("Mail-Abruf \(label)", timeout: 30) { OpenSync.running.isEmpty }
+            XCTAssertEqual(onlys.last ?? nil, [OpenSync.uniMail], "\(label): der Mail-Abruf meldet nichts anderes an")
+        }
+        // 13:59 nichts Neues ausser der Mail (eben abgerufen: nichts), 14:01 das Nachmittagsfenster
+        XCTAssertFalse(m.autoSyncDue(now: t0.addingTimeInterval(3 * 3600 + 59 * 60)).contains(OpenSync.qis))
+        let afternoon = m.runAutomaticSync(now: t0.addingTimeInterval(4 * 3600 + 60))
+        XCTAssertTrue(afternoon.contains(OpenSync.qis), "\(afternoon)")
+        try await bed.waitUntil("Nachmittag", timeout: 30) { OpenSync.running.isEmpty }
+        // 16:30: QIS nicht noch einmal, die Mail schon
+        XCTAssertEqual(m.autoSyncDue(now: t0.addingTimeInterval(6 * 3600 + 30 * 60)), [OpenSync.uniMail])
+        // 18:00: gar nichts mehr von selbst
+        XCTAssertTrue(m.autoSyncDue(now: t0.addingTimeInterval(8 * 3600)).isEmpty)
         assertOnlyReading()
     }
 
@@ -378,7 +417,7 @@ final class SyncAllPortalsTests: XCTestCase {
         let (m, _, _, _) = try await luh(qis: false, mail: false)
         try install()
         var called = false
-        OpenSync.storedLoginConnect = { _, _ in called = true; return StoredLoginReport() }
+        OpenSync.storedLoginConnect = { _, _, _ in called = true; return StoredLoginReport() }
         XCTAssertFalse(m.hasStoredLogin)
         XCTAssertEqual(m.startUniversitySync(), .notConnected("Zuerst den Uni-Zugang in den Einstellungen speichern"))
         try await Task.sleep(nanoseconds: 200_000_000)

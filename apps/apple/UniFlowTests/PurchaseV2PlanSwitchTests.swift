@@ -17,12 +17,12 @@ final class PurchaseV2PlanSwitchTests: StoreKitSessionTestCase {
     /// Die Testkonfiguration hat alle Abo-Tarife, die App bietet davon nur Plus und Pro AI an
     func testAllPlansConfigurationOffersEveryPaidPlan() async throws {
         let (store, ent) = await makeStore()
-        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"])
+        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.monthly", "de.uniflow.proai.yearly"], "26.11.2026: Plus monatlich, Pro AI jaehrlich")
         XCTAssertEqual(ent.plan, .free)
         for plan in UFPlan.paid {
             let q = try XCTUnwrap(store.product(for: plan), plan.rawValue)
             XCTAssertNil(q.subscription?.introductoryOffer, "kein Einführungsangebot: \(plan.rawValue)")
-            XCTAssertEqual(q.ufPeriod.1, .year, plan.rawValue)
+            XCTAssertEqual(q.ufPeriod.1, plan == .plus ? .month : .year, plan.rawValue)
             XCTAssertEqual(q.subscription?.subscriptionGroupID, store.products.first?.subscription?.subscriptionGroupID)
             XCTAssertEqual(q.displayName, plan.name)
         }

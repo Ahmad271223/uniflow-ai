@@ -64,6 +64,9 @@ def html_to_text(s: str | None) -> str:
     p = _Text()
     p.feed(s or "")
     t = html.unescape("".join(p.parts)).replace("\xa0", " ")
+    # Maskierte Reste aus dem Mailprogramm ("&lt;div&gt;&lt;/div&gt;", echtes Konto Uni Goettingen 27.11.2026)
+    t = re.sub(r"<(div|p|span)(?:\s[^<>]*)?>(?:\s|<br\s*/?>)*</\1>", "", t, flags=re.I)
+    t = re.sub(r"<br\s*/?>", "\n", t, flags=re.I)
     t = re.sub(r"[ \t]+", " ", t)
     return re.sub(r"\s*\n\s*", "\n", t).strip()
 

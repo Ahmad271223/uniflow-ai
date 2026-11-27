@@ -1165,11 +1165,11 @@ struct UniMailComposeSheet: View {
         }
     }
 
-    /// "Mit KI verbessern": ohne Pro AI die Tarifwahl, ohne Anmeldung ein Hinweis, sonst der Vorschlag der KI (ersetzt den
+    /// "Mit KI verbessern": ohne Plus die Tarifwahl, ohne Anmeldung ein Hinweis, sonst der Vorschlag der KI (ersetzt den
     /// Text erst mit "Übernehmen"; gesendet wird nie von hier)
     private func tapAI() {
         switch aiAccess {
-        case .planRequired: lockSheet = .proAI; return
+        case .planRequired: lockSheet = .plus; return
         case .signInRequired: error = "Melde dich einmal in den Einstellungen mit deinem StudiNow-Konto an, dann verbessert die KI deine E-Mail."; return
         case .unavailable: error = "Diese Version hat keinen KI-Dienst."; return
         case .ready: break
@@ -1326,7 +1326,7 @@ struct UniCalendarCard: View {
 
 // MARK: - Mit KI verbessern (13.11.2026)
 
-/// Knopf "Mit KI verbessern" im Fenster "Neue E-Mail": ab Pro AI (sonst Schloss "ab Pro AI", Antippen oeffnet die
+/// Knopf "Mit KI verbessern" im Fenster "Neue E-Mail": ab Plus mit Credits (sonst Schloss "ab Plus", Antippen oeffnet die
 /// Tarifwahl), 50 KI-Mails je Monat; waehrend der Anfrage "KI verbessert …"
 struct UniMailAIButton: View {
     let access: StudiNowAIAccess
@@ -1337,11 +1337,11 @@ struct UniMailAIButton: View {
     var body: some View {
         let locked = access == .planRequired
         HStack(spacing: 6) {
-            UFButton(busy ? "KI verbessert …" : (locked ? UFLock.label("Mit KI verbessern", .proAI) : "Mit KI verbessern"),
+            UFButton(busy ? "KI verbessert …" : (locked ? UFLock.label("Mit KI verbessern", .plus) : "Mit KI verbessern"),
                      icon: locked ? nil : "sparkles", size: .small) { action() }
                 .disabled(busy || (!locked && empty))
                 .accessibilityIdentifier("unimail.ai")
-                .ufLockAccessibility(locked ? .proAI : nil)
+                .ufLockAccessibility(locked ? .plus : nil)
             if locked { Image(systemName: UFLock.symbol).font(.system(size: 12)).foregroundStyle(UF.muted).accessibilityHidden(true) }
         }
     }

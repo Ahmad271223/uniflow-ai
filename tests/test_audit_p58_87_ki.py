@@ -15,7 +15,7 @@ from pathlib import Path
 import pytest
 from conftest import asgi_call
 from test_ai_abuse import trial_account
-from test_subscriptions import _j, hosted, user  # noqa: F401 - Fixture
+from test_subscriptions import _j, give_credits, hosted, user  # noqa: F401 - Fixture
 from test_weekly import env  # noqa: F401 - Fixture
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -81,7 +81,8 @@ def test_p65_f7_relay_picks_the_weekly_system_text_of_the_account(hosted, monkey
             return ai_backend.Completion('{"questions": []}', 100, 20, "fake")
     ai_backend.set_provider(Rec())
     for uni in ("luh", "hsh"):
-        _, h = user(hosted, f"relay-{uni}@beispiel.de", plan="plus", uni=uni)
+        u, h = user(hosted, f"relay-{uni}@beispiel.de", plan="plus", uni=uni)
+        give_credits(u["id"])  # seit 26.11.2026: StudiNow-KI nur mit Credits
         st, d = _j(asgi_call(hosted, "POST", "/api/ai/relay", headers=h,
                              body=json.dumps({"task": "weekly", "prompt": "Erstelle den Wochentest", "request_id": f"wk-{uni}"})))
         assert st == 200, d

@@ -4,12 +4,16 @@ und Tests duerfen, mit den deutschen Meldungen der Sperren (403 plan_required, 4
 
 Die Tests pinnen den Stand des Codes nach dem Auftrag des Inhabers vom 04.11.2026: eigene Karteikarten (anlegen,
 bearbeiten, ueben, Stapel, teilen, uebernehmen) ab Plus (`can_use_flashcards`), Lesen in jedem Tarif und nach der
-Probe; Wochenstapel uebernehmen ab Plus ohne bestaetigte E-Mail, einen neuen erzeugen nur mit StudiNow-KI (Pro AI)."""
+Probe; Wochenstapel uebernehmen ab Plus ohne bestaetigte E-Mail, einen neuen erzeugen nur mit StudiNow-KI (Pro AI).
+
+26.11.2026 neues Modell (docs/TARIFE-CREDITS-2026-11-26.md): alles frueher "ab Pro AI" gibt es ab Plus, Plus hat die
+Kontingente von Pro AI; die StudiNow-KI geht nur mit Credits (Plus ohne Credits: 429 credits_exhausted statt 403); die
+Probe ist 7 Tage Plus mit 25 Credits."""
 import json
 
 import pytest
 from conftest import asgi_call
-from test_subscriptions import FakeAI, _j, add_file, end_trial, ent, hosted, library_test, user  # noqa: F401
+from test_subscriptions import FakeAI, _j, add_file, end_trial, ent, give_credits, hosted, library_test, user  # noqa: F401
 
 PLAN_REQUIRED_PRO_AI = "Diese Funktion gibt es ab StudiNow Pro AI."
 PLAN_REQUIRED_PLUS = "Diese Funktion gibt es ab StudiNow Plus."
@@ -49,7 +53,7 @@ def account(app, kind, email):
 
 
 def effective_plan(kind):
-    return "pro_ai" if kind == "trial" else kind
+    return "plus" if kind == "trial" else kind          # 26.11.2026 neues Modell: Probe = Plus (frueher Pro AI)
 
 
 def post(app, headers, path, body):
@@ -69,27 +73,31 @@ def in_user_db(app, headers, fn):
         config.reset_user_context(t)
 
 
-# ---------------------------------------------------------------- Vertrag: Probe = Pro AI, Kontingente je Tarif
+# ---------------------------------------------------------------- Vertrag: Probe = Plus, Kontingente je Tarif
 
-def test_trial_is_pro_ai_in_contract_fixture_and_credits():
+def test_trial_is_plus_in_contract_fixture_and_credits():
+    """26.11.2026 neues Modell: die Probe ist 7 Tage Plus mit 25 Credits (frueher Pro AI), Plus hat die Kontingente von
+    Pro AI, Pro AI 120 Credits je Monat (frueher 80)."""
     from pathlib import Path
     from app import credits, plans
-    assert plans.TRIAL == {"days": 7, "plan": "pro_ai"}
+    assert plans.TRIAL == {"days": 7, "plan": "plus"}
     fx = json.loads((Path(__file__).resolve().parents[1] / "packages/shared-contracts/fixtures/plans/plans.json").read_text(encoding="utf-8"))
     assert fx["trial"] == {**plans.TRIAL, "credits": 25}, "Fixture fuer die Apps (UFLocalTrial.days/plan) traegt dieselbe Probe mit 25 Credits"
     assert fx["order"] == ["free", "plus", "pro_ai"] and "pro_connect" not in fx["plans"], "drei Tarife (04.11.2026), Pro Connect nur noch als alter Schluessel"
     assert plans.LEGACY_PLANS == {"pro_connect": "pro_ai"} and plans.has("pro_connect", "can_use_ai_explanations")
-    # Kontingente des Tarifs (app/plans.py QUOTAS, Tabelle des Inhabers 04.11.2026): Free nichts, Plus 4 KI-Tests und
-    # 4 Bibliothekstests, Pro AI 20 KI-Tests, Bibliothek unbegrenzt (Fair Use 300), 150 KI-Aufrufe; Karteikarten-Stapel von
-    # StudiNow (05.11.2026): Plus 4, Pro AI unbegrenzt (Fair Use 300)
+    # Kontingente des Tarifs (app/plans.py QUOTAS): Free nichts; 26.11.2026 neues Modell: Plus wie Pro AI (frueher 4
+    # KI-Tests, 4 Bibliothekstests, 4 Stapel): 20 KI-Tests, Bibliothek unbegrenzt (Fair Use 300), 150 KI-Aufrufe,
+    # Karteikarten-Stapel unbegrenzt (Fair Use 300), 50 KI-Mails - die KI-Kontingente nur mit Credits
     assert {k: plans.quota_limit("free", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0, "ai_mail": 0}
-    assert {k: plans.quota_limit("plus", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4, "ai_mail": 0}
-    assert {k: plans.quota_limit("pro_ai", k) for k in plans.QUOTA_LABELS} == {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300, "ai_mail": 50}
-    # Credits (app/credits.py): Pro AI 80 (seit 24.11.2026, vorher 100), Probe 25, Free und Plus 0 - die Probe hat also Pro-AI-Rechte und -Kontingente,
-    # aber einen kleineren Credit-Rahmen (Entscheidung 04.11.2026, docs/ABO-SYSTEM.md 6a)
-    assert credits.allowance("pro_ai", False) == 80 and credits.allowance("pro_ai", True) == 25
+    full = {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300, "ai_mail": 50}
+    assert {k: plans.quota_limit("plus", k) for k in plans.QUOTA_LABELS} == full
+    assert {k: plans.quota_limit("pro_ai", k) for k in plans.QUOTA_LABELS} == full
+    # Credits (app/credits.py): Pro AI 120 (seit 26.11.2026, vorher 80), Probe 25, Free und Plus 0 - die Probe hat also
+    # Plus-Rechte und -Kontingente und 25 Credits fuer die StudiNow-KI
+    assert credits.allowance("pro_ai", False) == 120 and credits.allowance("pro_ai", True) == 25
+    assert credits.allowance("plus", True) == 25
     assert credits.allowance("plus", False) == 0 and credits.allowance("free", False) == 0
-    assert fx["credits"] == {"free": 0, "plus": 0, "pro_ai": 80, "trial": 25} and fx["plans"]["pro_ai"]["credits"] == 80
+    assert fx["credits"] == {"free": 0, "plus": 0, "pro_ai": 120, "trial": 25} and fx["plans"]["pro_ai"]["credits"] == 120
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -102,18 +110,23 @@ def test_entitlements_and_quotas_per_plan(hosted, kind):
     expect = {
         "free": {"can_read_community": False, "can_use_flashcards": False, "can_access_shared_tests": False, "can_generate_studora_ai_tests": False, "can_use_ai_generated_questions": False,
                  "can_use_ai_explanations": False, "can_use_advanced_analytics": False, "can_use_extended_test_history": False},
-        "plus": {"can_read_community": True, "can_use_flashcards": True, "can_access_shared_tests": True, "can_generate_studora_ai_tests": True, "can_use_ai_generated_questions": False,
-                 "can_use_ai_explanations": False, "can_use_advanced_analytics": False, "can_use_extended_test_history": False},
+        # 26.11.2026 neues Modell: Plus hat jedes Recht (die KI-Rechte gelten nur mit Credits, siehe credits unten)
+        "plus": {"can_read_community": True, "can_use_flashcards": True, "can_access_shared_tests": True, "can_generate_studora_ai_tests": True, "can_use_ai_generated_questions": True,
+                 "can_use_ai_explanations": True, "can_use_advanced_analytics": True, "can_use_extended_test_history": True},
         "pro_ai": {"can_read_community": True, "can_use_flashcards": True, "can_access_shared_tests": True, "can_generate_studora_ai_tests": True, "can_use_ai_generated_questions": True,
                    "can_use_ai_explanations": True, "can_use_advanced_analytics": True, "can_use_extended_test_history": True},
     }[effective_plan(kind)]
     assert {k: rights[k] for k in expect} == expect, kind
     limits = {k: v["limit"] for k, v in e["quotas"].items()}
-    # KI-Mails (13.11.2026): Pro AI 50 je Monat, sonst keine
+    # KI-Mails (13.11.2026): Pro AI 50 je Monat; 26.11.2026 neues Modell: Plus wie Pro AI
+    full = {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300, "ai_mail": 50}
     assert limits == {"free": {"ai_tests_new": 0, "library_tests": 0, "ai_assist": 0, "card_stacks_adopted": 0, "ai_mail": 0},
-                      "plus": {"ai_tests_new": 4, "library_tests": 4, "ai_assist": 0, "card_stacks_adopted": 4, "ai_mail": 0},
-                      "pro_ai": {"ai_tests_new": 20, "library_tests": 300, "ai_assist": 150, "card_stacks_adopted": 300, "ai_mail": 50}}[effective_plan(kind)], kind
-    assert e["entitlements"]["can_use_flashcards"] is (kind != "free"), "Karteikarten ab Plus, Probe = Pro AI"
+                      "plus": full, "pro_ai": full}[effective_plan(kind)], kind
+    assert e["entitlements"]["can_use_flashcards"] is (kind != "free"), "Karteikarten ab Plus, Probe = Plus"
+    # Credits fuer die StudiNow-KI: Plus keine eigenen, Probe 25, Pro AI ein Monatsrahmen (Kurs der Tests: 100, conftest)
+    c = e["credits"]
+    assert (c["allowance"], c["plan"]) == {"free": (0, "free"), "plus": (0, "plus"), "pro_ai": (100, "pro_ai"),
+                                           "trial": (25, "plus:trial")}[kind], (kind, c)
 
 
 # ---------------------------------------------------------------- Karteikarten von Hand: ab Plus, Lesen immer
@@ -167,9 +180,10 @@ def test_own_flashcards_need_plus_and_stay_readable(hosted, kind):
         assert [(c["question"], c["answer"], c["box"]) for c in cards] == [("Was ist eine Folge?", "Abbildung N -> R", 1)], "nichts veraendert"
 
 
-def test_week_stack_adopt_is_plus_without_email_generate_is_pro_ai(hosted, monkeypatch):
+def test_week_stack_adopt_is_plus_without_email_generate_needs_credits(hosted, monkeypatch):
     """Geteilter Wochenstapel (04.11.2026): Pro AI erzeugt ihn einmal (StudiNow-KI, Credits); Plus uebernimmt ihn ohne
-    KI, ohne Credits und ohne bestaetigte E-Mail; Plus kann keinen neuen erzeugen (403 Pro AI); Free gar nichts."""
+    KI, ohne Credits und ohne bestaetigte E-Mail; Free gar nichts. 26.11.2026 neues Modell: Plus darf einen neuen
+    erzeugen, aber nur mit Credits - ohne Credits 429 credits_exhausted (frueher 403 Pro AI)."""
     from app import ai_backend, cardshare
     from test_flashcard_share import FakeCardsAI, _seed_user
     fake = FakeCardsAI()
@@ -188,7 +202,7 @@ def test_week_stack_adopt_is_plus_without_email_generate_is_pro_ai(hosted, monke
         # erzeugt (Pro AI) zaehlt nicht
         assert (ent(hosted, h_plus)["quotas"]["card_stacks_adopted"]["used"], ent(hosted, h_pro)["quotas"]["card_stacks_adopted"]["used"]) == (1, 0)
         st, d = post(hosted, h_plus, f"/api/flashcard-stacks/week/{mp}/5/uebung", {})
-        assert (st, d["entitlement"], d["detail"]) == (403, "can_use_ai_generated_questions", PLAN_REQUIRED_PRO_AI), d
+        assert (st, d["code"], d["credits"]["available"]) == (429, "credits_exhausted", 0), d
         _, h_free = user(hosted, "woche-free@beispiel.de")
         st, d = post(hosted, h_free, f"/api/flashcard-stacks/week/{_seed_user(hosted, h_free)}/5/vorlesung", {})
         assert (st, d["entitlement"], d["detail"]) == (403, "can_use_flashcards", FLASHCARDS_PLUS), d
@@ -228,7 +242,8 @@ def test_after_the_trial_cards_and_tests_stay_readable_but_ai_locks(hosted):
     st, r = post(hosted, h, f"/api/tests/{test_id}/submit", {"answers": {"1": "2"}})
     assert st == 200 and r["total"] == 10, "Abgabe und Ergebnis ohne Tarifsperre"
     st, d = post(hosted, h, "/api/ai/tutor", {"mode": "explain", "page_text": "Folgen"})
-    assert (st, d["code"], d["required_plan"], d["detail"]) == (403, "plan_required", "pro_ai", PLAN_REQUIRED_PRO_AI), d
+    # 26.11.2026 neues Modell: die KI-Rechte beginnen bei Plus (frueher Pro AI)
+    assert (st, d["code"], d["required_plan"], d["detail"]) == (403, "plan_required", "plus", PLAN_REQUIRED_PLUS), d
     st, d = post(hosted, h, "/api/billing/plan-choice", {"plan": "free"})
     assert st == 200 and not ent(hosted, h)["needs_plan_choice"]
 
@@ -239,7 +254,9 @@ TUTOR_MODES = ("explain", "summary", "flashcards", "similar", "terms")
 
 
 @pytest.mark.parametrize("kind", ("free", "plus"))
-def test_ai_tutor_and_ai_flashcards_lock_below_pro_ai(hosted, kind):
+def test_ai_tutor_and_ai_flashcards_lock_without_credits(hosted, kind):
+    """26.11.2026 neues Modell: Free hat die KI-Rechte nicht (403, Weg zu Plus); Plus hat sie, aber ohne Credits keine
+    StudiNow-KI (429 credits_exhausted mit dem Stand, frueher 403 Pro AI)."""
     from app import ai_backend
     fake = FakeCards()
     ai_backend.set_provider(fake)
@@ -247,25 +264,36 @@ def test_ai_tutor_and_ai_flashcards_lock_below_pro_ai(hosted, kind):
     add_file(hosted, h)
     for mode in TUTOR_MODES:
         st, d = post(hosted, h, "/api/ai/tutor", {"mode": mode, "file_id": "f1", "page_text": "Folgen"})
-        assert (st, d["code"], d["required_plan"], d["detail"]) == (403, "plan_required", "pro_ai", PLAN_REQUIRED_PRO_AI), (kind, mode, d)
+        if kind == "free":
+            assert (st, d["code"], d["required_plan"], d["detail"]) == (403, "plan_required", "plus", PLAN_REQUIRED_PLUS), (kind, mode, d)
+        else:
+            assert (st, d["code"], d["credits"]["available"], d["credits"]["can_buy"]) == (429, "credits_exhausted", 0, True), (kind, mode, d)
     st, d = post(hosted, h, "/api/ai/flashcards", {"file_id": "f1"})
-    assert (st, d["code"], d["entitlement"], d["detail"]) == (403, "plan_required", "can_use_ai_generated_questions", PLAN_REQUIRED_PRO_AI), d
+    if kind == "free":
+        assert (st, d["code"], d["entitlement"], d["detail"]) == (403, "plan_required", "can_use_ai_generated_questions", PLAN_REQUIRED_PLUS), d
+    else:
+        assert (st, d["code"]) == (429, "credits_exhausted"), d
     assert fake.calls == 0, "ohne Recht kein KI-Aufruf"
     assert ent(hosted, h)["quotas"]["ai_assist"]["used"] == 0
 
 
-@pytest.mark.parametrize("kind", ("pro_ai", "trial"))
+@pytest.mark.parametrize("kind", ("pro_ai", "trial", "plus"))
 def test_ai_tutor_and_ai_flashcards_work_with_pro_ai_and_trial(hosted, kind, monkeypatch):
+    """26.11.2026 neues Modell: dazu Plus mit gekauften Credits (gelten mit Plus fuer alle KI-Funktionen)."""
     from app import ai_backend, scriptsearch
     fake = FakeCards()
     ai_backend.set_provider(fake)
     monkeypatch.setattr(scriptsearch, "page_texts", lambda conn, file_id: ["Seite eins Folgen", "Seite zwei Cauchy"])
-    _, h = account(hosted, kind, f"ki-{kind}@beispiel.de")
+    u, h = account(hosted, kind, f"ki-{kind}@beispiel.de")
+    if kind == "plus":
+        give_credits(u["id"], 200)
     add_file(hosted, h)
     st, d = post(hosted, h, "/api/ai/tutor", {"mode": "explain", "file_id": "f1", "page_text": "Folgen"})
     assert st == 200 and d["answer"].startswith("Erklärung"), (kind, d)
-    # Credits (app/credits.py): Probe 25 mit der Marke "pro_ai:trial", Pro AI 100
-    assert (d["credits"]["plan"], d["credits"]["allowance"]) == (("pro_ai:trial", 25) if kind == "trial" else ("pro_ai", 100)), d["credits"]
+    # Credits (app/credits.py): Probe 25 mit der Marke "plus:trial" (26.11.2026, frueher "pro_ai:trial"), Pro AI 100
+    # (Kurs der Tests, conftest), Plus 0 eigene plus gekaufte
+    assert (d["credits"]["plan"], d["credits"]["allowance"]) == {"trial": ("plus:trial", 25), "pro_ai": ("pro_ai", 100),
+                                                                 "plus": ("plus", 0)}[kind], d["credits"]
     st, d = post(hosted, h, "/api/ai/flashcards", {"file_id": "f1", "count": 2})
     assert st == 200 and [c["question"] for c in d["cards"]] == ["Was ist eine Folge?", "Was ist eine Cauchy-Folge?"], (kind, d)
     assert fake.calls == 2
@@ -300,8 +328,10 @@ def test_ai_assist_quota_exhausted_gives_429_with_german_message(hosted, monkeyp
 
 # ---------------------------------------------------------------- Tests: Bibliothek, Wochentests, Verlauf
 
-def test_library_tests_free_locked_plus_four_per_month_trial_unlimited(hosted):
-    from app import ai_backend
+def test_library_tests_free_locked_plus_and_trial_unlimited(hosted, monkeypatch):
+    """26.11.2026 neues Modell: Plus hat die Bibliothek unbegrenzt wie Pro AI (Fair Use 300, frueher 4 je Monat) und
+    braucht dafuer keine Credits; das Kontingent zaehlt weiter (hier auf 4 gesetzt: der fuenfte scheitert)."""
+    from app import ai_backend, plans
     fake = FakeAI()
     ai_backend.set_provider(fake)
     topics = ("Determinanten", "Basiswechsel", "Orthogonalprojektion", "Eigenwerte", "Spektralsatz")
@@ -316,17 +346,14 @@ def test_library_tests_free_locked_plus_four_per_month_trial_unlimited(hosted):
         st, d = library_test(hosted, h_pro, t)
         assert st == 200 and d["charged"] == "ai_tests_new", (t, d)
     assert ent(hosted, h_pro)["quotas"]["ai_tests_new"]["used"] == 5
-    # Plus uebernimmt vier Tests aus der Bibliothek, der fuenfte scheitert am Kontingent 4
+    # Plus ohne Credits uebernimmt alle fuenf Tests aus der Bibliothek, ohne KI
     _, h_plus = user(hosted, "bib-plus@beispiel.de", plan="plus")
-    for t in topics[:4]:
+    for t in topics:
         st, d = library_test(hosted, h_plus, t)
         assert st == 200 and d["charged"] == "library_tests" and d["generated"] == 0, (t, d)
-    st, d = library_test(hosted, h_plus, topics[4])
-    assert (st, d["code"], d["feature"], d["used"], d["limit"]) == (429, "quota_exhausted", "library_tests", 4, 4), d
-    assert d["detail"] == "Tests aus der Bibliothek: Kontingent für diesen Monat aufgebraucht (4 von 4)."
     q = ent(hosted, h_plus)["quotas"]
-    assert (q["library_tests"]["used"], q["library_tests"]["limit"], q["ai_tests_new"]["used"]) == (4, 4, 0)
-    # Probe: wie Pro AI, Bibliothek unbegrenzt (Fair Use 300)
+    assert (q["library_tests"]["used"], q["library_tests"]["limit"], q["library_tests"]["unlimited"], q["ai_tests_new"]["used"]) == (5, 300, True, 0)
+    # Probe (Plus): Bibliothek unbegrenzt (Fair Use 300)
     _, h_trial = account(hosted, "trial", "bib-probe@beispiel.de")
     for t in topics:
         st, d = library_test(hosted, h_trial, t)
@@ -334,6 +361,14 @@ def test_library_tests_free_locked_plus_four_per_month_trial_unlimited(hosted):
     q = ent(hosted, h_trial)["quotas"]["library_tests"]
     assert (q["used"], q["limit"], q["unlimited"]) == (5, 300, True)
     assert fake.calls == 5, "nur die fuenf Generierungen von Pro AI"
+    # das Kontingent zaehlt: auf 4 gesetzt scheitert ein weiteres Konto am fuenften
+    monkeypatch.setitem(plans.QUOTAS["plus"], "library_tests", 4)
+    _, h_plus4 = user(hosted, "bib-plus4@beispiel.de", plan="plus")
+    for t in topics[:4]:
+        assert library_test(hosted, h_plus4, t)[0] == 200, t
+    st, d = library_test(hosted, h_plus4, topics[4])
+    assert (st, d["code"], d["feature"], d["used"], d["limit"]) == (429, "quota_exhausted", "library_tests", 4, 4), d
+    assert d["detail"] == "Tests aus der Bibliothek: Kontingent für diesen Monat aufgebraucht (4 von 4)."
 
 
 @pytest.mark.parametrize("kind", KINDS)
@@ -345,6 +380,12 @@ def test_weekly_tests_quota_follows_the_plan(hosted, kind):
     why = jobs.HostedQuota(accounts.get_user(u["id"])).check()
     if kind == "free":
         assert why == "Wochentests mit KI gibt es ab StudiNow Plus (dein Tarif: StudiNow Free)."
+    elif kind == "plus":
+        # 26.11.2026 neues Modell: Wochentests mit KI kosten Credits; Plus ohne gekaufte Credits bekommt den Hinweis
+        assert why == "Für Wochentests mit KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad.", why
+        from test_subscriptions import give_credits
+        give_credits(u["id"], 50)
+        assert jobs.HostedQuota(accounts.get_user(u["id"])).check() is None
     else:
         assert why is None, (kind, why)
     st, d = _j(asgi_call(hosted, "POST", "/api/weekly/tick", headers=h, body="{}"))
@@ -362,34 +403,36 @@ def test_manual_test_generation_is_not_available_in_the_service(hosted, kind):
 
 
 def test_test_history_shows_ten_without_extended_history(hosted):
-    """GET /api/tests: ohne can_use_extended_test_history (ab Pro AI) die letzten 10; Plus sieht aeltere Tests nach der
-    Probe nicht mehr in der Liste, gespeichert bleiben sie (docs/PREISLISTE.md, Nutzungsbedingungen 5a)."""
+    """GET /api/tests: ohne can_use_extended_test_history die letzten 10; aeltere Tests sind dann nicht mehr in der Liste,
+    gespeichert bleiben sie (docs/PREISLISTE.md, Nutzungsbedingungen 5a). 26.11.2026 neues Modell: das Recht gibt es ab
+    Plus (frueher Pro AI), die 10 sieht nur noch Free."""
     def twelve(conn):
         for i in range(12):
             conn.execute("INSERT INTO tests(subject, title, questions, created_at) VALUES ('Mathe I', ?, '[]', ?)",
                          (f"Test {i}", f"2026-10-{i + 1:02d}T10:00:00"))
-    for kind, n in (("plus", 10), ("pro_ai", 12), ("trial", 12)):
+    for kind, n in (("free", 10), ("plus", 12), ("pro_ai", 12), ("trial", 12)):
         _, h = account(hosted, kind, f"verlauf-{kind}@beispiel.de")
         in_user_db(hosted, h, twelve)
         st, rows = _j(asgi_call(hosted, "GET", "/api/tests", headers=h))
         assert st == 200 and len(rows) == n, (kind, len(rows))
 
 
-def test_learning_stats_are_pro_ai_and_legacy_pro_connect_rows_count_as_pro_ai(hosted):
-    """Lernstatistik, Wiederholung und Empfehlungen (can_use_advanced_analytics u. a.) gibt es ab Pro AI (04.11.2026,
-    frueher Pro Connect): Pro AI und Probe haben sie, Plus bekommt die Meldung mit "Pro AI"; eine alte Zeile mit
-    pro_connect gilt wie Pro AI (plans.LEGACY_PLANS, billing.normalize_plan) und erscheint nirgends als eigener Tarif."""
-    _, h_plus = user(hosted, "stat-plus@beispiel.de", plan="plus")
+def test_learning_stats_are_plus_and_legacy_pro_connect_rows_count_as_pro_ai(hosted):
+    """Lernstatistik, Wiederholung und Empfehlungen (can_use_advanced_analytics u. a.): 26.11.2026 neues Modell ab Plus
+    (frueher ab Pro AI, davor Pro Connect): Plus, Pro AI und Probe haben sie, Free bekommt die Meldung mit "Plus"; eine
+    alte Zeile mit pro_connect gilt wie Pro AI (plans.LEGACY_PLANS, billing.normalize_plan) und erscheint nirgends als
+    eigener Tarif."""
+    _, h_lo = user(hosted, "stat-ohne@beispiel.de")
     for path in ("/api/learning/stats", "/api/learning/review", "/api/learning/recommendations"):
-        st, d = _j(asgi_call(hosted, "GET", path, headers=h_plus))
-        assert (st, d["required_plan"], d["detail"]) == (403, "pro_ai", PLAN_REQUIRED_PRO_AI), (path, d)
+        st, d = _j(asgi_call(hosted, "GET", path, headers=h_lo))
+        assert (st, d["required_plan"], d["detail"]) == (403, "plus", PLAN_REQUIRED_PLUS), (path, d)
     _, h_old = user(hosted, "stat-alt@beispiel.de", plan="pro_connect")
     e = ent(hosted, h_old)
     assert (e["plan"], e["plan_name"]) == ("pro_ai", "StudiNow Pro AI") and e["entitlements"]["can_use_advanced_analytics"]
     st, d = _j(asgi_call(hosted, "GET", "/api/billing/plans", headers=h_old))
     assert st == 200 and d["order"] == ["free", "plus", "pro_ai"] and "pro_connect" not in d["plans"]
     assert d["purchase"]["web"]["plans"] == [] or "pro_connect" not in d["purchase"]["web"]["plans"]
-    for kind in ("pro_ai", "trial"):
+    for kind in ("plus", "pro_ai", "trial"):
         _, h = account(hosted, kind, f"stat-{kind}@beispiel.de")
         for path in ("/api/learning/stats", "/api/learning/review", "/api/learning/recommendations"):
             assert asgi_call(hosted, "GET", path, headers=h)[0] == 200, (kind, path)

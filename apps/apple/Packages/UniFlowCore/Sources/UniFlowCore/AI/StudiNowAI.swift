@@ -1,6 +1,7 @@
 import Foundation
 
-// StudiNow-KI auf dem iPad (05.11.2026, Entscheidung des Inhabers: KI in 1.0 ueber Pro AI). Das iPad hat Dateien,
+// StudiNow-KI auf dem iPad (05.11.2026, Entscheidung des Inhabers: KI in 1.0 ueber Pro AI; seit 26.11.2026 mit Plus oder
+// Pro AI, aber nur mit Credits: Monats-Credits von Pro AI, Probe-Credits oder gekaufte). Das iPad hat Dateien,
 // Seitentexte und Notizen selbst, der Dienst nicht; darum baut das lokale Backend den Prompt wie fuer das eigene ChatGPT
 // und gibt ihn mit dem Sitzungs-Token des StudiNow-Kontos an den Dienst (`POST /api/ai/relay`, app/ai_relay.py), genau
 // wie die Windows-App. Was Geld kostet, entscheidet allein der Dienst: Aufgabe aus einer festen Liste, System-Text,
@@ -202,7 +203,10 @@ public enum StudiNowAIText {
     public static let accountRequired = "Melde dich mit deinem StudiNow-Konto an, dann antwortet die StudiNow-KI (Einstellungen → Konto & Tarif)."
     public static let sessionExpired = "Deine Anmeldung beim StudiNow-Konto ist abgelaufen. Bitte melde dich neu an."
     public static let unreachable = "Der StudiNow-Dienst ist gerade nicht erreichbar. Prüfe deine Internetverbindung und versuche es gleich noch einmal."
-    public static let subscriptionRequired = "Für die StudiNow-KI brauchst du StudiNow Pro AI. Deine Probe ist vorbei oder dein Abo ist abgelaufen."
+    public static let subscriptionRequired = "Für die StudiNow-KI brauchst du StudiNow Plus oder Pro AI und Credits. Deine Probe ist vorbei oder dein Abo ist abgelaufen."
+    /// Tarif passt, aber keine Credits (26.11.2026, Inhaber: "Zusammenfassungen ohne Credits sollen nie klappen"): nichts
+    /// geht an den Dienst, die App zeigt die Credit-Pakete
+    public static let creditsRequired = "Für die StudiNow-KI brauchst du Credits. Mit einem Credit-Paket geht es sofort weiter."
     public static let quotaExhausted = "Dein Monatskontingent für diese KI-Funktion ist aufgebraucht. Am 1. des nächsten Monats gibt es neues."
     public static let rateLimited = "Gerade kommen zu viele Anfragen auf einmal. Bitte warte einen Moment und versuche es dann erneut."
     public static let unavailable = "Die StudiNow-KI ist gerade nicht verfügbar. Bitte versuche es später erneut."
@@ -211,10 +215,12 @@ public enum StudiNowAIText {
     public static let unsupported = "Diese KI-Funktion gibt es mit der StudiNow-KI auf dem iPad noch nicht."
     public static let badAnswer = "Unerwartete Antwort der StudiNow-KI. Bitte versuche es erneut."
 
-    /// "Die StudiNow-KI gibt es ab StudiNow Pro AI …" je nach verlangtem Tarif (`required_plan`)
+    /// Monats-Credits von Pro AI (plans.json `credits.pro_ai`, 26.11.2026: 120)
+    public static let proAIMonthlyCredits = 120
+
+    /// "Die StudiNow-KI gibt es ab StudiNow Plus …" (seit 26.11.2026 gehoert jede KI-Funktion zu Plus, mit Credits)
     public static func planRequired(_ required: String?) -> String {
-        if required == "plus" { return "Diese KI-Funktion gibt es ab StudiNow Plus." }
-        return "Die StudiNow-KI gehört zu StudiNow Pro AI (80 Credits im Monat) und zur 7-Tage-Probe."
+        "Die StudiNow-KI gibt es mit StudiNow Plus und Credits, mit StudiNow Pro AI (\(proAIMonthlyCredits) Credits im Monat) und in der 7-Tage-Probe."
     }
 
     /// Text fuer Status und Code des Dienstes; `serverMessage` bleibt bei unbekannten Codes und bei `credits_exhausted`
@@ -254,14 +260,16 @@ public enum StudiNowAIText {
 }
 
 /// Ob die KI-Stellen des iPads die StudiNow-KI nutzen (rein, testbar). Reihenfolge der Pruefung wie in
-/// docs/ABO-SYSTEM.md Abschnitt 6b: ohne Dienst-Adresse nie; angemeldet mit Pro AI oder laufender Probe (beim Dienst
-/// oder auf dem iPad) bereit; Pro AI ohne Anmeldung -> "Mit StudiNow-Konto anmelden"; sonst der Tarif-Hinweis.
+/// docs/ABO-SYSTEM.md Abschnitt 6b: ohne Dienst-Adresse nie; angemeldet mit Plus, Pro AI oder laufender Probe (beim
+/// Dienst oder auf dem iPad) bereit; einer dieser Tarife ohne Anmeldung -> "Mit StudiNow-Konto anmelden"; sonst der
+/// Tarif-Hinweis. Seit 26.11.2026 (Inhaber) hat Plus alle KI-Funktionen, sie laufen aber nur mit Credits: das prueft
+/// `StudiNowAI` vor jeder Anfrage (`StudiNowCreditGate`) und der Dienst noch einmal (429 `credits_exhausted`).
 public enum StudiNowAIAccess: String, Sendable, Equatable {
     /// StudiNow-KI antwortet (Credits beim Dienst)
     case ready
-    /// Pro AI bzw. Probe auf dem iPad, aber nicht beim StudiNow-Konto angemeldet
+    /// Plus, Pro AI bzw. Probe auf dem iPad, aber nicht beim StudiNow-Konto angemeldet
     case signInRequired
-    /// Free oder Plus: Tarif-Hinweis, nichts wird gesendet
+    /// Free: Tarif-Hinweis, nichts wird gesendet
     case planRequired
     /// Build ohne Dienst-Adresse
     case unavailable
@@ -270,32 +278,77 @@ public enum StudiNowAIAccess: String, Sendable, Equatable {
     ///   - localPlan: wirksamer Tarif auf dem iPad (App Store, Probe auf dem iPad), Schluessel wie `plans.ORDER`
     ///   - servicePlan: Tarif beim Dienst (`GET /api/entitlements` `plan`), nil solange nicht geladen
     ///   - serviceTrialActive: laufende Probe des Kontos (25 Credits)
+    /// Tarife mit der StudiNow-KI (mit Credits): Plus, Pro AI und der alte Schluessel Pro Connect (plans.json: jedes Recht
+    /// mit `needs_credits` ab Plus)
+    public static let aiPlans: Set<String> = ["plus", "pro_ai", "pro_connect"]
+
     public static func decide(serviceConfigured: Bool, signedIn: Bool, localPlan: String, servicePlan: String?,
                               serviceTrialActive: Bool) -> StudiNowAIAccess {
         guard serviceConfigured else { return .unavailable }
-        let proLocally = localPlan == "pro_ai"
+        let locally = aiPlans.contains(localPlan)
         if signedIn {
-            return proLocally || servicePlan == "pro_ai" || serviceTrialActive ? .ready : .planRequired
+            return locally || servicePlan.map(aiPlans.contains) == true || serviceTrialActive ? .ready : .planRequired
         }
-        return proLocally ? .signInRequired : .planRequired
+        return locally ? .signInRequired : .planRequired
     }
 
-    /// Nur der KI-Chat (Entscheidung des Inhabers 15.11.2026): angemeldet mit Plus (auf dem Geraet oder beim Dienst),
-    /// ohne Pro AI und ohne Probe. Dann antwortet die StudiNow-KI auf die freie Frage, bezahlt allein aus gekauften
-    /// Credits; alles andere (Erklaeren, Karteikarten, Tests) bleibt Pro AI. `decide` liefert dafuer weiter
-    /// `.planRequired`, damit alle uebrigen KI-Stellen wie bisher den Tarif-Hinweis zeigen.
+    /// Nur der KI-Chat (15.11. bis 26.11.2026: Plus mit gekauften Credits nur fuer die freie Frage). Seit 26.11.2026 hat
+    /// Plus alle KI-Funktionen (mit Credits); einen Nur-Chat gibt es nicht mehr, darum immer false. Die Parameter bleiben,
+    /// damit Aufrufer und Tests gleich bleiben.
     public static func chatOnly(serviceConfigured: Bool, signedIn: Bool, localPlan: String, servicePlan: String?,
                                 serviceTrialActive: Bool) -> Bool {
-        guard serviceConfigured, signedIn,
-              decide(serviceConfigured: serviceConfigured, signedIn: signedIn, localPlan: localPlan, servicePlan: servicePlan,
-                     serviceTrialActive: serviceTrialActive) == .planRequired else { return false }
-        return localPlan == "plus" || servicePlan == "plus"
+        false
+    }
+}
+
+/// Sperre der StudiNow-KI ohne Credits (26.11.2026, Inhaber: "erst wenn wer KI-Credits kauft, kann er alle KI-Sachen
+/// nutzen, Zusammenfassungen ohne Credits sollen nie klappen"). Kennt die App einen Stand mit 0 nutzbaren Credits (Rest
+/// des Monats plus nutzbare gekaufte), geht keine KI-Anfrage an den Dienst: `StudiNowAI` wirft gleich den 429
+/// `credits_exhausted`, den sonst der Dienst schickt, und die KI-Stelle zeigt die Credit-Pakete bzw. den Tarif. Ohne
+/// bekannten Stand entscheidet der Dienst. Ab `resetsAt` (Beginn des naechsten Monats) gilt der Stand als veraltet, dann
+/// fragt die App wieder (Pro AI hat dann neue Monats-Credits). Eigener OpenAI-Schluessel und WhisperKit laufen nicht
+/// ueber die StudiNow-KI und sind davon nicht betroffen.
+public struct StudiNowCreditGate: Sendable, Equatable {
+    /// nutzbare Credits laut letztem Stand; nil = unbekannt
+    public var available: Int?
+    /// ab hier ist der Stand veraltet (neuer Monat); nil = kein Datum
+    public var resetsAt: Date?
+
+    public init(available: Int? = nil, resetsAt: Date? = nil) {
+        self.available = available
+        self.resetsAt = resetsAt
+    }
+
+    /// Stand aus `credits` (`available` und `resets_at` aus CreditPacks.Balance)
+    public init(_ b: CreditPacks.Balance?) {
+        self.init(available: b?.available, resetsAt: b?.resetsAt.flatMap(Self.parseDate))
+    }
+
+    /// Sperrt der Stand eine KI-Anfrage? Nur mit bekanntem Stand ohne nutzbare Credits, vor dem naechsten Monat.
+    public func blocks(now: Date = Date()) -> Bool {
+        guard let available, available <= 0 else { return false }
+        if let resetsAt, now >= resetsAt { return false }
+        return true
+    }
+
+    /// Pfade beim Dienst, die Credits kosten (KI-Antwort und "Ganzes Dokument"); Rueckmeldungen und Kaeufe nicht
+    public static func isMetered(path: String) -> Bool {
+        path == "/api/ai/relay" || path.hasPrefix("/api/ai/document/")
+    }
+
+    static func parseDate(_ s: String) -> Date? {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let d = f.date(from: s) { return d }
+        f.formatOptions = [.withInternetDateTime]
+        return f.date(from: s)
     }
 }
 
 /// Die StudiNow-KI fuer Plus: nur der KI-Chat (`CreditPacks.chatTasks`, die freie Frage). Jede andere Aufgabe wird hier
 /// abgewiesen, ohne dass etwas an den Dienst geht - der Dienst prueft dasselbe noch einmal (Recht der Route und
-/// Reservierung der Credits).
+/// Reservierung der Credits). Seit 26.11.2026 nicht mehr eingehaengt (Plus hat alle KI-Funktionen mit Credits,
+/// `StudiNowAIAccess.chatOnly` ist immer false); bleibt fuer einen Dienst, der wieder nur den Chat erlaubt.
 public final class StudiNowChatAI: AIProvider, @unchecked Sendable {
     public let inner: StudiNowAI
 
@@ -353,6 +406,17 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
 
     private let flagLock = NSLock()
     private var _wissensbank = false
+    private var _creditGate = StudiNowCreditGate()
+
+    /// Letzter bekannter Stand der Credits (App: bei jedem neuen Stand, `StudoraAccountLink.credits`). Ohne nutzbare
+    /// Credits geht keine KI-Anfrage an den Dienst (`StudiNowCreditGate`).
+    public var creditGate: StudiNowCreditGate {
+        get { flagLock.withLock { _creditGate } }
+        set { flagLock.withLock { _creditGate = newValue } }
+    }
+
+    /// Uhr fuer die Sperre (Tests setzen sie fest)
+    public var now: @Sendable () -> Date = { Date() }
     /// Der Dienst meldet die Wissensbank fuer dieses Konto (`wissensbank: true` in GET /api/entitlements). Nur dann gehen
     /// die Angaben zur Stelle (`AIRelayTask.wissensbank`) mit; sonst bleibt die Anfrage wie bisher.
     public var wissensbankEnabled: Bool {
@@ -450,6 +514,10 @@ public final class StudiNowAI: AIProvider, @unchecked Sendable {
     public func json(_ method: String, _ path: String, body: JSONValue? = nil) async throws -> JSONValue {
         guard let token = tokens.load(), !token.isEmpty else {
             throw Self.error(401, "account_required", StudiNowAIText.accountRequired)
+        }
+        // ohne Credits keine KI (26.11.2026): derselbe 429 wie vom Dienst, damit die Stelle die Credit-Pakete zeigt
+        if StudiNowCreditGate.isMetered(path: path), creditGate.blocks(now: now()) {
+            throw Self.error(429, "credits_exhausted", StudiNowAIText.creditsRequired, extra: ["credits_required": true])
         }
         guard await consent.ensureConsent() else {
             throw Self.error(403, AIConsentText.code, AIConsentText.declined)

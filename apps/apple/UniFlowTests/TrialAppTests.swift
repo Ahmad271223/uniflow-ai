@@ -36,7 +36,7 @@ final class LocalTrialTests: XCTestCase {
 
     func testStateCountsDownAndExpiresAfterSevenDays() {
         XCTAssertEqual(UFLocalTrial.days, 7)
-        XCTAssertEqual(UFLocalTrial.plan, .proAI)
+        XCTAssertEqual(UFLocalTrial.plan, .plus, "Probe wie Plus (26.11.2026)")
         let start = UFLocalTrial.state(startedAt: t0, now: t0)
         XCTAssertEqual(start, UFLocalTrial.State(startedAt: t0, endsAt: day(7), daysLeft: 7))
         XCTAssertTrue(start.isActive)
@@ -149,7 +149,7 @@ final class LocalTrialTests: XCTestCase {
         let records = UFMemoryTrialRecords()
         let e = Entitlements(observe: false)
         e.beginLocalTrial(userID: "001234.erste.\(UUID().uuidString.prefix(8))", records: records, now: t0)
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus)
         e.useLocalTrial(startedAt: nil)
         e.beginLocalTrial(userID: "001234.zweite.\(UUID().uuidString.prefix(8))", records: records, now: day(1))
         XCTAssertEqual(e.plan, .free)
@@ -207,7 +207,7 @@ final class LocalTrialTests: XCTestCase {
         let running = UFLocalTrial.state(startedAt: t0, now: day(2))
         let over = UFLocalTrial.state(startedAt: t0, now: day(9))
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: nil), .free)
-        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: running), .proAI, "Probe: alles wie Pro AI")
+        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: running), .plus, "Probe: alles wie Plus (26.11.2026)")
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: over), .free, "danach Free")
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .plus, localTrial: running), .plus, "Plus gekauft gibt Plus")
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .plus, localTrial: over), .plus)
@@ -224,7 +224,7 @@ final class LocalTrialTests: XCTestCase {
         let id = "001234.entitlements.\(UUID().uuidString.prefix(8))"
         e.beginLocalTrial(userID: id, records: records, now: t0)
         XCTAssertEqual(e.localTrial?.daysLeft, 7)
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus)
         XCTAssertEqual(e.purchasedPlan, .free)
         XCTAssertTrue(e.allows(.pencilWriting) && e.allows(.flashcards) && e.allows(.shareSolutions))
         XCTAssertEqual(e.statusLabel, "Probe: noch 7 Tage alles frei")
@@ -232,7 +232,7 @@ final class LocalTrialTests: XCTestCase {
         // Tageswechsel
         e.refreshLocalTrial(now: day(6.2))
         XCTAssertEqual(e.localTrial?.daysLeft, 1)
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus)
         // Ende: Free, Sperren zeigen "Jetzt freischalten" (UFLockedCard), Notizen bleiben lesbar
         e.refreshLocalTrial(now: day(7))
         XCTAssertEqual(e.localTrial?.daysLeft, 0)

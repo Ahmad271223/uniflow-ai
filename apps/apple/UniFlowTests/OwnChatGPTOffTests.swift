@@ -24,7 +24,7 @@ final class OwnChatGPTOffTests: XCTestCase {
             XCTAssertFalse(text.contains("ChatGPT"), text)
             XCTAssertFalse(text.contains("OpenAI"), text)
         }
-        XCTAssertEqual(ChatGPTLink.planHint, "Die KI-Hilfe kommt mit der StudiNow-KI in StudiNow Pro AI.")
+        XCTAssertEqual(ChatGPTLink.planHint, "Die KI-Hilfe kommt mit der StudiNow-KI ab StudiNow Plus (mit Credits).")
     }
 
     func testStoredKeyIsNotUsed() async {

@@ -1,8 +1,8 @@
 # Datenschutzerklärung StudiNow
 
-**Stand 24.11.2026.**
+**Stand 26.11.2026.**
 
-Diese Erklärung gilt für die StudiNow-Apps (iPad und Mac, Android, Windows), die Web-Oberfläche und den
+Diese Erklärung gilt für die StudiNow-Apps (iPhone, iPad und Mac, Android, Windows), die Web-Oberfläche und den
 gehosteten StudiNow-Dienst unter `https://studinow.app`. Sie ist so aufgebaut, wie StudiNow arbeitet: Vieles bleibt auf deinem
 Gerät; auf unseren Servern verarbeiten wir Daten nur zu deinem StudiNow-Konto, und auch dann nur das, was dafür
 nötig ist oder was du eingeschaltet hast.
@@ -16,9 +16,9 @@ nötig ist oder was du eingeschaltet hast.
 - **Zum Konto** speichern wir deine Apple-Kennung bzw. E-Mail-Adresse (bei Apple ggf. eine Weiterleitungsadresse),
   ein Passwort nur als Hash (falls du eines setzt), deine Hochschule, Sitzungen, Tarif und Probe (Abschnitt 5). Mit der
   Anmeldung gleicht die App Module, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten ab,
-  Notizen nur mit Pro AI (Abschnitt 7). Deine Notizen ohne Pro AI und alles in Abschnitt 3 bleiben auf dem Gerät.
-  Neue Kursdateien (Vorlesungen, Übungen, Skripte, Altklausuren) schickt die App einmal ohne deinen Namen an
-  StudiNow; ausschalten kannst du das jederzeit (Abschnitt 7a). Die Community schaltest du selbst ein (Abschnitte 8, 8b).
+  Notizen nur mit Plus oder Pro AI (Abschnitt 7). Deine Notizen in Free und alles in Abschnitt 3 bleiben auf dem Gerät.
+  Kursdateien nimmt StudiNow seit dem 26.11.2026 nicht mehr an (Abschnitt 7a). Die Community schaltest du selbst ein
+  (Abschnitte 8, 8b).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
   liegen sie nur auf deinem Gerät (iPad, PC). **Auf unseren Servern speichern wir Hochschul-Passwörter nie** – auch
   nicht für die Web-Version (seit 06.11.2026; Abschnitt 6). Den Abgleich mit deiner Hochschule erledigt die iPad-App
@@ -28,8 +28,10 @@ nötig ist oder was du eingeschaltet hast.
   KI-Funktionen, die du nutzt. Es gibt zwei Wege:
   - Du verbindest **dein eigenes ChatGPT** (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.
     Diese Verbindung ist in den Apps noch ausgeschaltet („bald verfügbar“).
-  - Du nutzt im Tarif **Pro AI** die **StudiNow-KI** (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
+  - Du nutzt mit Credits (Plus mit gekauften Credits oder Pro AI) die **StudiNow-KI** (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
     von zwei Auftragsverarbeitern weiter: OpenAI oder Amazon Web Services (Frankfurt).
+- **Absturzberichte:** Stürzt die App ab, schickt sie ab Version 1.0.8 einen kurzen technischen Bericht an StudiNow –
+  ohne deinen Namen und ohne dein Konto. Das kannst du ausschalten (Abschnitt 10a).
 
 ## 2. Verantwortlicher
 
@@ -50,6 +52,12 @@ Die Apps arbeiten zuerst lokal. Auf dem Gerät gespeichert werden:
   das iPad nicht; „Löschen“ entfernt beides. Nur wenn du es ausdrücklich antippst, geht der **Text** eines Teils der
   Mitschrift an dein ChatGPT (Abschnitt 8a) – nie die Audioaufnahme. Ob du eine Vorlesung aufnehmen darfst, klärst du
   mit den Lehrenden;
+- **Bessere Mitschrift (freiwillig, ab Version 1.0.8):** Auf Wunsch lädt die App einmalig ein Sprachmodell (Whisper)
+  vom Modell-Verzeichnis Hugging Face (Hugging Face, Inc., USA); vorher weist die App darauf hin. Dabei wird wie bei
+  jedem Abruf deine IP-Adresse an Hugging Face übertragen; Inhalte von dir werden nicht gesendet. Mit dem Modell
+  wandelt die App eigene Aufnahmen, Audio-Dateien und geladene Aufzeichnungen deiner Hochschule ausschließlich auf dem
+  Gerät in Text um; Ton und Text verlassen das Gerät dabei nicht. Das Modell löschst du in den Einstellungen unter
+  „Bessere Mitschrift“. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO;
 - Hochschul-Zugangsdaten merkt sich – wenn du das beim Anmelden erlaubst – der Passwort-Manager deines Geräts
   (Android: Google Password Manager oder Samsung Pass im Anmeldefenster; iPad: Passwort-Autofill von iOS mit dem
   Schlüsselbund bzw. iCloud-Schlüsselbund, verantwortlich ist Apple; am PC das von der App geöffnete Browserfenster); die App
@@ -139,7 +147,9 @@ Ort bzw. den Koordinaten; ab dann gelten die Datenschutzhinweise von Google bzw.
 
 Für diese Systeme ist deine Hochschule verantwortlich; es gelten ihre Datenschutzhinweise und Nutzungsregeln. Sie
 sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). StudiNow ist kein
-Angebot der Hochschulen und nicht mit ihnen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die
+Angebot der Hochschulen und nicht mit ihnen verbunden: Wir arbeiten nicht mit der Leibniz Universität Hannover
+(LUH) oder einer anderen Hochschule zusammen und bekommen von keiner Hochschule Daten über dich – nur das, was deine
+App mit deinen eigenen Zugangsdaten selbst abruft. Verbindlich für Termine, Fristen und Noten sind immer die
 Hochschulsysteme selbst.
 
 ## 4a. Video, YouTube und Lernseiten neben einem Dokument (Plus)
@@ -171,7 +181,8 @@ lit. b DSGVO); über Cookies von YouTube entscheidest du in der Einwilligungsabf
 ## 4b. Mensa
 
 Den Speiseplan und, in Hannover, die Fotos der Gerichte lädt die App direkt beim jeweiligen Studentenwerk
-(Studentenwerk Hannover über Studi|Futter, Studentenwerk OstNiedersachsen, ersatzweise OpenMensa). Dabei erhält der
+(Studentenwerk Hannover über Studi|Futter, Studentenwerk OstNiedersachsen, Studierendenwerk Göttingen, ersatzweise
+OpenMensa). Dabei erhält der
 Anbieter die bei jedem Abruf üblichen Angaben (IP-Adresse, Zeitpunkt, Gerätetyp). An StudiNow geht dabei nichts;
 deine Auswahl (Mensa, Preisgruppe, Allergene) bleibt auf dem Gerät. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
@@ -234,10 +245,10 @@ Bitte prüfe, ob die Nutzungsregeln deiner Hochschule den Abruf durch eine App m
 ## 7. Deine Inhalte im Dienst und Abgleich zwischen Geräten
 
 Mit Konto speichert der Dienst in einem eigenen, von anderen Konten getrennten Datenbereich: die abgerufenen Kurse,
-die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – die Dateien selbst nur über den Datei-Eingang, siehe Abschnitt 7a),
+die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – die Dateien selbst nicht, siehe Abschnitt 7a),
 Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
 Geräteabgleich außerdem Module, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und Einstellungen,
-ab Pro AI auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
+ab Plus auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
 Die iPad-App gleicht mit deinem Konto ab, sobald du angemeldet bist (beim Öffnen der App, höchstens alle drei Minuten,
 und mit „Jetzt abgleichen“), und nur mit dem Datenbereich der Hochschule, die zu deinem Konto gehört. Damit sich die
 Daten zweier Stud.IP-Benutzer nicht mischen, schickt sie dabei einen Hash (SHA-256) deiner Stud.IP-Benutzerkennung
@@ -256,20 +267,16 @@ der Name der Prüferin oder des Prüfers; das bleibt nur auf dem Gerät, das die
 dessen Löschung; eine Prüfung, von der du dich abmeldest, verschwindet beim nächsten Abruf auch im Dienst.
 Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 
-## 7a. Kursdateien an StudiNow (Datei-Eingang)
+## 7a. Kursdateien an StudiNow (Datei-Eingang) – seit 26.11.2026 abgeschaltet
 
-Die App schickt neue PDF-Dateien aus deinen Kursen (Vorlesungen, Übungen, Lösungen, Skripte, Altklausuren) einmal an
-den StudiNow-Dienst. Dazu gehen nur Angaben zum Kurs mit: Hochschule, Studiengang (falls gewählt), Semester, Modul,
-Kursname und -nummer, Dateiname, Art der Datei, Woche und Seitenzahl. Nicht gesendet werden dein Name, deine Notizen
-und Markierungen, eigene Dokumente und Organisatorisches. Listen mit Namen, Matrikelnummern oder Noten erkennt die App
-am Dateinamen und an den ersten Seiten und schickt sie nicht; bei eingescannten Listen gelingt das nicht immer.
-Dein StudiNow-Konto wird nur beim Annehmen geprüft (höchstens 300 Dateien am Tag); gespeichert werden die Dateien
-ohne Angabe, wer sie geschickt hat, geordnet nach Hochschule, Studiengang, Semester und Modul, auf einem eigenen
-Server bei Hetzner in Deutschland. Jede Datei wird nur einmal angenommen. Das geschieht nur im WLAN und nur mit
-StudiNow-Konto. **Widerspruch:** Du kannst es jederzeit in den Einstellungen unter „Uni-Zugang & Abgleich“ →
-„Neue Kursdateien an StudiNow schicken“ ausschalten; danach schickt die App nichts mehr.
-Zweck: Lernhilfen zu den Kursen anbieten. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an
-geordneten Kursunterlagen für Lernhilfen); dein Widerspruch nach Art. 21 DSGVO ist über den Schalter jederzeit möglich.
+Der Datei-Eingang ist seit dem 26.11.2026 abgeschaltet: StudiNow nimmt keine Kursdateien mehr an.
+
+Bis zum 26.11.2026 haben die App-Versionen 1.0.6 und 1.0.7 neue PDF-Dateien aus deinen Kursen einmal an den
+StudiNow-Dienst geschickt, ohne deinen Namen, ohne Notizen und ohne eigene Dokumente. Diese Versionen fragen weiter
+beim Dienst an, ob eine Datei gebraucht wird (Angaben zum Kurs, Dateiname und Fingerabdruck der Datei). Der Dienst
+lehnt jede dieser Anfragen ab und speichert nichts davon; eine Datei wird dabei nicht übertragen. Ab Version 1.0.8
+fragt die App nicht mehr an. In den Versionen 1.0.6 und 1.0.7 kannst du die Anfrage ausschalten: Einstellungen →
+„Uni-Zugang & Abgleich“ → „Neue Kursdateien an StudiNow schicken“.
 
 ## 8. Community (Plus)
 
@@ -279,8 +286,8 @@ In der Community trittst du der Gruppe eines Kurses oder einer Lerngruppe bei un
 - **Was andere sehen:** ein Pseudonym (`Studi-…`, aus deiner Konto-ID abgeleitet, nicht umkehrbar), den von dir
   gewählten Anzeigenamen und Titel, Seitenzahl, Zeitpunkt, Anzahl der Downloads. Nie deine E-Mail oder Konto-ID.
 - **Was der Dienst speichert:** das Paket mit deinen Notizen **verschlüsselt** (Schlüssel aus der Kurs-Kennung bzw.
-  dem Beitrittscode; wer Kurs-Kennung oder Code kennt, kann es öffnen. Lässt du deine Hochschule durch den Dienst
-  abgleichen, liegt die Kurs-Kennung beim Dienst, er könnte Pakete dieses Kurses dann technisch lesen; er tut es nicht),
+  dem Beitrittscode; wer Kurs-Kennung oder Code kennt, kann es öffnen. Liegt die Kurs-Kennung beim Dienst, zum
+  Beispiel durch den Geräteabgleich (Abschnitt 7), könnte er Pakete dieses Kurses technisch lesen; er tut es nicht),
   deine Mitgliedschaften und die Schlüssel deiner Kurse, den Fingerabdruck der PDF
   (SHA-256), Kopfdaten des Pakets, Status, Downloadzähler; Meldungen (Grund, Hinweis, meldendes Konto – intern),
   deine Sperrliste; bei Verstößen Sperren von Konten. Dazu deine **Likes** (welches Konto welche Lösung mag, nach
@@ -416,9 +423,9 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bzw. nutzt die 
 Sperren Art. 6 Abs. 1 lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer). Alle drei Funktionen sind freiwillig;
 ohne sie funktioniert StudiNow genauso.
 
-## 8c. StudiNow-KI im Dienst (Tarif Pro AI)
+## 8c. StudiNow-KI im Dienst (mit Credits: Plus oder Pro AI)
 
-- **Wann:** nur wenn du mit deinem StudiNow-Konto (Pro AI oder Probe, bestätigte E-Mail-Adresse) eine KI-Funktion im
+- **Wann:** nur wenn du mit deinem StudiNow-Konto (mit Credits aus Pro AI, der Probe oder einem Kauf, bestätigte E-Mail-Adresse) eine KI-Funktion im
   Dienst nutzt, z. B. eine Frage im Editor, eine Erklärung des ganzen Dokuments, Karteikarten oder einen Wochentest.
   Vor der ersten Anfrage zeigen App, Web und Windows einmal den Hinweis „KI-Hilfe: Was wird gesendet?“ (was, an wen)
   und senden erst nach „Okay, los“; widerrufen kannst du das jederzeit in den Einstellungen
@@ -439,8 +446,7 @@ ohne sie funktioniert StudiNow genauso.
 - **Wohin:** Der Dienst gibt jede Anfrage an **einen** von zwei Auftragsverarbeitern weiter. Welcher es ist, hängt von
   der Aufgabe ab (die meisten Aufgaben an ChatGPT, schwere wie Rechnen, Herleiten oder das Prüfen einer Lösung an
   Claude), bei einer Störung auch vom Ersatz:
-  - **OpenAI**: ChatGPT-Modelle. Die Verarbeitung findet in den USA statt (siehe Abschnitt 12), bis unser Projekt mit
-    Datenresidenz in der EU freigeschaltet ist; dann ändern wir diesen Satz.
+  - **OpenAI**: ChatGPT-Modelle. Die Verarbeitung findet in den USA statt (siehe Abschnitt 12).
   - **Amazon Web Services EMEA SARL** (Luxemburg) über Amazon Bedrock, Region Frankfurt, mit Verarbeitung in der EU:
     Modell „Claude Sonnet“ von Anthropic.
 - **Was StudiNow speichert:**
@@ -496,12 +502,12 @@ Lösungen.
 
 ## 9. Käufe und Abos
 
-Die Abos StudiNow Plus und StudiNow Pro AI kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und
+StudiNow Plus (Monatsabo oder einmalig für 5 Jahre), StudiNow Pro AI und Credit-Pakete kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und
 Zahlungsabwicklung, Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach deren
 Datenschutzbestimmungen. Wir erhalten keine Zahlungsdaten. Die iPad-App prüft den Kauf auf dem Gerät; mit deinem
 StudiNow-Konto (Abschnitt 3) schickt sie uns außerdem die von Apple signierte Kaufbestätigung (Transaktions- und
 Produktkennung, Laufzeit, die zufällige Kontokennung `appAccountToken`), damit wir den Tarif deinem Konto zuordnen
-(z. B. die Credits der StudiNow-KI in Pro AI). Ein Abo gehört so genau einem StudiNow-Konto: Es gilt auf allen
+(z. B. die Laufzeit von Plus oder die Credits der StudiNow-KI). Ein Abo gehört so genau einem StudiNow-Konto: Es gilt auf allen
 Geräten mit derselben Apple-ID, ein anderes Konto kann es nicht übernehmen. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
 Art. 6 Abs. 1 lit. b DSGVO.
 
@@ -546,6 +552,35 @@ Abo-Kennung). Hast du schon ein Abo über Apple, bietet die App keinen zweiten K
 - **Schriftart und andere Dateien der Oberfläche** liefert unser Server selbst aus; die Web-Oberfläche lädt nichts
   von Dritten (auch keine Schriften von Google), es werden keine Daten an Dritte übertragen.
 
+## 10a. Absturzberichte der Apps (iPhone, iPad, Mac)
+
+Stürzt StudiNow ab oder reagiert die App längere Zeit nicht, schickt sie ab Version 1.0.8 beim nächsten Start einen
+kurzen Bericht an den StudiNow-Dienst. So sehen wir, in welcher Version und auf welchen Geräten Fehler auftreten, und
+können sie beheben.
+
+- **Was im Bericht steht:** die Version der App, die Art des Geräts (iPhone, iPad oder Mac) und sein Modell (zum
+  Beispiel „iPad14,3“), die Version des Betriebssystems, ob die App aus dem App Store kommt oder eine Testfassung ist,
+  der Zeitpunkt, die Art des Fehlers (Absturz, Hänger oder von iOS beendet, zum Beispiel weil der Speicher voll war)
+  und die Stelle im Programm (Name des Programmteils und eine Zahl).
+- **Was nicht im Bericht steht:** dein Name, deine E-Mail-Adresse, dein StudiNow-Konto, deine Zugangsdaten der
+  Hochschule, Inhalte oder Namen deiner Dokumente, Notizen, Noten oder Nachrichten.
+- **Ohne Konto:** Der Bericht geht ohne Anmeldung an den Dienst und wird ohne Bezug zu einem Konto gespeichert. Deine
+  IP-Adresse speichern wir nicht beim Bericht. Wie bei jedem Aufruf steht sie im Zugriffsprotokoll des Servers
+  (Abschnitt 10) und wird höchstens zwei Tage gezählt, damit niemand den Dienst mit Berichten überflutet.
+- **Geräte zählen:** Um zu zählen, wie viele Geräte an einem Tag betroffen sind, bildet der Dienst aus einer
+  zufälligen Kennung der App und dem Tag einen Prüfwert, der jeden Tag ein anderer ist. Die Kennung selbst speichern
+  wir nicht; sie ist nicht die Gerätekennung deines Kontos.
+- **Speicherdauer:** 90 Tage, danach löschen wir die Berichte (aus den Sicherungskopien spätestens 30 Tage später,
+  Abschnitt 10). Sie liegen bei unserem Hoster (Abschnitt 11) und gehen an niemanden sonst.
+- **Ausschalten (Widerspruch):** Einstellungen → „Hilfe & Rechtliches“ → „Absturzberichte an StudiNow senden“. Danach
+  schickt die App nichts mehr und löscht noch nicht gesendete Berichte vom Gerät.
+
+Zweck: Fehler finden und beheben. Rechtsgrundlage: Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer
+stabilen App); dein Widerspruch nach Art. 21 DSGVO ist über den Schalter jederzeit möglich.
+
+Unabhängig davon erhebt Apple eigene Absturzdaten, wenn du auf deinem Gerät „Mit App-Entwicklern teilen“ eingeschaltet
+hast; das steuerst du in den Einstellungen deines Geräts.
+
 ## 11. Hosting, E-Mail-Versand und Auftragsverarbeiter
 
 Der Dienst läuft bei Hetzner Online GmbH, Industriestr. 25, 91710 Gunzenhausen (Deutschland), Serverstandort Nürnberg, Deutschland (EU), auf Grundlage eines Vertrags zur
@@ -573,6 +608,8 @@ nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
   eigener Verantwortlicher (Abschnitt 4a).
 - **Google bzw. Apple** (Karten) erhalten einen Ort erst, wenn du im Raumfinder auf einen Karten-Link tippst; dann als
   eigene Verantwortliche (Abschnitt 4).
+- **Hugging Face** (Hugging Face, Inc., USA) erhält deine IP-Adresse nur, wenn du das Sprachmodell für die bessere
+  Mitschrift lädst (Abschnitt 3); eigener Verantwortlicher. Inhalte von dir gehen dabei nicht an Hugging Face.
 - **OpenAI** (USA) erhält nur dann Daten, wenn du dein ChatGPT verbindest und eine KI-Funktion nutzt (Abschnitt 8a);
   eigener Verantwortlicher, Übermittlung nach dem EU-US Data Privacy Framework bzw. den Standardvertragsklauseln von
   OpenAI.
@@ -587,7 +624,8 @@ nach Art. 28 DSGVO. Weitere Auftragsverarbeiter gibt es nicht.
 
 Kein Tracking über Apps oder Websites hinweg, keine Werbung von uns (auf der Seite von YouTube zeigt YouTube eigene
 Werbung, Abschnitt 4a), keine Profilbildung, keine automatisierten
-Entscheidungen mit rechtlicher Wirkung (Art. 22 DSGVO), keine Analyse- oder Absturz-SDKs von Dritten, keine
+Entscheidungen mit rechtlicher Wirkung (Art. 22 DSGVO), keine Analyse- oder Absturz-SDKs von Dritten
+(Absturzberichte gehen nur an uns, Abschnitt 10a), keine
 Verwendung deiner Notizen und Dateien für Werbung, Profile oder das Training von KI-Modellen. KI verarbeitet deine
 Inhalte nur für die KI-Funktionen, die du nutzt: über dein eigenes ChatGPT (Abschnitt 8a) oder die StudiNow-KI im
 Tarif Pro AI (Abschnitt 8c).

@@ -73,8 +73,8 @@ final class CreditPacksTests: XCTestCase {
             XCTAssertEqual(b?.available, c["purchased_usable"]?.bool == true ? 5 : 0, "\(c)")
         }
         XCTAssertFalse(CreditPacks.offersShop(nil))
-        // Entscheidung des Inhabers 15.11.2026: Plus und Pro AI kaufen (bezahlt), Free nicht, in der Probe allein nicht;
-        // gekaufte Credits gelten mit Pro AI fuer alles, mit Plus nur fuer den KI-Chat, mit Free ruhen sie
+        // Plus und Pro AI kaufen (bezahlt), Free nicht, in der Probe allein nicht (15.11.2026); gekaufte Credits gelten seit
+        // 26.11.2026 mit Plus und Pro AI fuer alles (vorher mit Plus nur fuer den KI-Chat), mit Free ruhen sie
         let rule = try XCTUnwrap(try creditContract()["buy_rule"])
         XCTAssertEqual(rule["buy_plans"]?.array?.compactMap(\.string), ["plus", "pro_ai"])
         XCTAssertEqual(rule["buy_in_trial"]?.bool, false)
@@ -82,7 +82,11 @@ final class CreditPacksTests: XCTestCase {
         let scopes = Dictionary(cases.filter { $0["trial_only"]?.bool == false }.compactMap { c in
             c["plan"]?.string.flatMap { p in c["purchased_scope"]?.string.map { (p, $0) } }
         }, uniquingKeysWith: { a, _ in a })
-        XCTAssertEqual(scopes, ["free": "none", "plus": "chat", "pro_ai": "all", "pro_connect": "all"])
+        XCTAssertEqual(scopes, ["free": "none", "plus": "all", "pro_ai": "all", "pro_connect": "all"])
+        // dieselbe Kaufregel auf dem Geraet (`CreditPacks.canBuy`) fuer jeden Fall des Vertrags
+        for c in cases {
+            XCTAssertEqual(CreditPacks.canBuy(plan: c["plan"]?.string, trialOnly: c["trial_only"]?.bool ?? false), c["can_buy"]?.bool, "\(c)")
+        }
         for s in ["all", "chat", "none"] { XCTAssertNotNil(CreditPacks.Scope(rawValue: s)) }
         // ein Stand ohne das Feld (oder mit einem unbekannten Wert) richtet sich nach purchased_usable
         XCTAssertEqual(CreditPacks.Balance.parse(["allowance": 100, "remaining": 1, "purchased_usable": true])?.purchasedScope, .all)
@@ -146,8 +150,8 @@ final class CreditPacksTests: XCTestCase {
         XCTAssertEqual(first.creditsAdded, 80)
         XCTAssertEqual(first.productID, "de.uniflow.credits.klein")
         XCTAssertEqual(first.balance?.purchased, 80)
-        XCTAssertEqual(first.balance?.remaining, 80)
-        XCTAssertEqual(first.balance?.available, 160)
+        XCTAssertEqual(first.balance?.remaining, 120, "Pro AI: 120 Monats-Credits (26.11.2026)")
+        XCTAssertEqual(first.balance?.available, 200)
         XCTAssertFalse(first.otherAccount)
         let sent = await fake.last(CreditPacks.purchasePath)
         XCTAssertEqual(sent?.method, "POST")
@@ -168,8 +172,8 @@ final class CreditPacksTests: XCTestCase {
         let (acc, fake, _) = make()
         await answer(fake, try flow("Verbrauch: erst die 80 Monats-Credits, dann 30 gekaufte"))
         var s = try await acc.creditState()
-        XCTAssertEqual(s.balance?.remaining, 0)
-        XCTAssertEqual(s.balance?.purchased, 210)
+        XCTAssertEqual(s.balance?.remaining, 10, "120 Monats-Credits, 110 verbraucht")
+        XCTAssertEqual(s.balance?.purchased, 240)
         XCTAssertEqual(s.packs, CreditPacks.defaultPacks)
         await answer(fake, try flow("Stand nach der Erstattung"))
         s = try await acc.creditState()
@@ -188,7 +192,7 @@ final class CreditPacksTests: XCTestCase {
         XCTAssertNotNil(CreditText.dormantNote(resting))
         await answer(fake, try flow("Pro AI laeuft wieder: die gekauften Credits sind wieder nutzbar"))
         s = try await acc.creditState()
-        XCTAssertEqual(s.balance?.available, 154)
+        XCTAssertEqual(s.balance?.available, 164)
         XCTAssertEqual(s.balance?.canBuy, true)
         await answer(fake, try flow("Probe: 25 Credits, kaufen geht erst mit Pro AI"))
         s = try await acc.creditState()
@@ -200,38 +204,43 @@ final class CreditPacksTests: XCTestCase {
         XCTAssertEqual(other.balance?.purchased, 0)
     }
 
-    // MARK: Plus: kaufen ja, aber nur der KI-Chat
+    // MARK: Plus: kaufen ja, KI nur mit Credits
 
-    /// Wechsel zu Plus: die gekauften Credits bleiben und gelten nur noch fuer den Chat; der Chat laeuft ganz aus ihnen,
-    /// Erklaeren bleibt Pro AI; ohne Credits kommt der Stand fuer das Blatt mit den Paketen
-    func testPlusKeepsPurchasedCreditsForTheChatOnly() async throws {
+    /// Wechsel zu Plus: die gekauften Credits bleiben und gelten seit 26.11.2026 fuer alle KI (vorher nur der Chat); die
+    /// KI laeuft ganz aus ihnen; reichen sie nicht (Erklaeren reserviert mehr) oder fehlen sie, kommt 429 mit dem Stand
+    /// fuer das Blatt mit den Paketen
+    func testPlusUsesPurchasedCreditsForAllAI() async throws {
         let (acc, fake, _) = make()
         await answer(fake, try flow("Wechsel zu Plus: die gekauften Credits bleiben, gelten aber nur noch fuer den KI-Chat"))
         let s = try await acc.creditState()
         let plus = try XCTUnwrap(s.balance)
         XCTAssertEqual([plus.allowance, plus.remaining, plus.purchased, plus.available], [0, 0, 160, 160])
-        XCTAssertEqual(plus.purchasedScope, .chat)
+        XCTAssertEqual(plus.purchasedScope, .all)
         XCTAssertTrue(plus.purchasedUsable && plus.canBuy)
-        XCTAssertEqual(CreditText.balanceLine(plus), "Gekauft: 160", "bei Plus kein 'Diesen Monat: x von 100'")
-        XCTAssertEqual(CreditText.scopeNote(plus), CreditText.chatOnly)
+        XCTAssertEqual(CreditText.balanceLine(plus), "Gekauft: 160", "bei Plus kein 'Diesen Monat: x von 120'")
+        XCTAssertNil(CreditText.scopeNote(plus), "kein Satz 'nur Fragen an die KI' mehr")
         XCTAssertEqual(CreditText.keepNote(plus), CreditText.keep, "ohne Monats-Credits kein Satz zum Monat")
         let chat = try flow("Plus: der KI-Chat (freie Frage) laeuft aus gekauften Credits")
         XCTAssertEqual(chat["status"]?.double, 200)
         XCTAssertEqual(chat["request"]?["mode"]?.string, "ask")
         let after = try XCTUnwrap(CreditPacks.Balance.parse(chat["response"]?["credits"]))
-        XCTAssertEqual([after.used, after.purchased], [80, 154], "nichts aus einem Monatstopf, alles aus den gekauften")
+        XCTAssertEqual([after.used, after.purchased], [110, 154], "nichts aus einem Monatstopf, alles aus den gekauften")
+        // Erklaeren ist mit Plus keine Tarif-Sperre mehr: es reicht nur der Stand nicht (429 mit `needed`, nie 403)
         let locked = try flow("Plus: Erklaeren ist KI-Lernhilfe und bleibt Pro AI (403, nichts abgebucht)")
-        XCTAssertEqual(locked["status"]?.double, 403)
-        XCTAssertEqual(locked["response"]?["code"]?.string, "plan_required")
-        XCTAssertEqual(locked["response"]?["required_plan"]?.string, "pro_ai")
+        XCTAssertEqual(locked["status"]?.double, 429)
+        XCTAssertEqual(locked["response"]?["code"]?.string, "credits_exhausted")
+        XCTAssertNil(locked["response"]?["required_plan"]?.string)
         let empty = try flow("Plus ohne Credits: der KI-Chat antwortet 429 mit dem Stand (Pakete kaufen), Erklaeren 403")
         XCTAssertEqual(empty["status"]?.double, 429)
         XCTAssertEqual(empty["response"]?["code"]?.string, "credits_exhausted")
         let none = try XCTUnwrap(CreditPacks.Balance.parse(empty["response"]?["credits"]))
         XCTAssertTrue(CreditPacks.offersShop(none))
-        XCTAssertEqual(none.purchasedScope, .chat)
+        XCTAssertEqual(none.purchasedScope, .all)
         XCTAssertEqual(CreditText.balanceLine(none), "Gekauft: 0")
-        XCTAssertEqual(empty["response"]?["detail"]?.string, "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.")
+        XCTAssertEqual(empty["response"]?["detail"]?.string, "Für die StudiNow-KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad.")
+        // dieselbe Sperre auf dem Geraet: mit diesem Stand geht keine KI-Anfrage an den Dienst
+        XCTAssertTrue(StudiNowCreditGate(none).blocks(now: Date(timeIntervalSince1970: 0)))
+        XCTAssertFalse(StudiNowCreditGate(after).blocks(now: Date(timeIntervalSince1970: 0)))
     }
 
     /// Auf dem Geraet: mit Plus antwortet die StudiNow-KI nur auf die freie Frage; jede andere Aufgabe wird abgewiesen,
@@ -296,7 +305,7 @@ final class CreditPacksTests: XCTestCase {
         XCTAssertEqual(f["response"]?["code"]?.string, try creditContract()["purchase"]?["exhausted_code"]?.string)
         XCTAssertEqual(f["response"]?["detail"]?.string, "Credits für diesen Monat aufgebraucht – am 1. gibt es neue.", "Text fuer aeltere Apps unveraendert")
         let b = try XCTUnwrap(CreditPacks.Balance.parse(f["response"]?["credits"]))
-        XCTAssertEqual(b.available, 0)
+        XCTAssertEqual(b.available, 40, "es fehlt nur der Rest fuer diese Anfrage (`needed`)")
         XCTAssertTrue(CreditPacks.offersShop(b))
     }
 }

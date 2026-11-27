@@ -81,7 +81,7 @@ final class PlanMatrixAppTests: XCTestCase {
         let running = UFLocalTrial.state(startedAt: t0, now: t0)
         let over = UFLocalTrial.state(startedAt: t0, now: day(7))
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: nil), .free)
-        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: running), .proAI, "Probe = alles wie Pro AI")
+        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: running), .plus, "Probe = alles wie Plus (26.11.2026)")
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: over), .free, "danach Free")
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .plus, localTrial: over), .plus)
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .plus, localTrial: running), .plus, "wer Plus kauft, hat Plus (auf dem iPad derselbe Umfang)")
@@ -97,7 +97,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertEqual(e.plan, .free)
         XCTAssertEqual(e.access(.flashcards), .locked(.plus))
         e.useLocalTrial(startedAt: t0, now: t0)
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus, "Probe wie Plus")
         XCTAssertTrue(e.allows(.flashcards))
         XCTAssertEqual(e.statusLabel, "Probe: noch 7 Tage alles frei")
         e.refreshLocalTrial(now: day(6.5))
@@ -115,7 +115,7 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertEqual(e.plan, .free)
         // Abmeldung: Probe weg, Free
         e.useLocalTrial(startedAt: t0, now: t0)
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus)
         e.useLocalTrial(startedAt: nil)
         XCTAssertEqual(e.plan, .free)
         XCTAssertNil(e.localTrial)
@@ -144,16 +144,16 @@ final class PlanMatrixAppTests: XCTestCase {
     // MARK: - Funktionsmatrix
 
     /// Auf dem iPad haengen bei Karteikarten und Tests zwei Dinge am Tarif: eigene Karteikarten (Plus, Entscheidung
-    /// 04.11.2026) und Wochentest erstellen (Pro AI seit 07.11.2026: braucht die StudiNow-KI, das eigene ChatGPT ist aus).
-    /// Testlauf und Lernstand haben keine Funktion in der Matrix (kein Schloss); die KI-Hilfe und die KI-Karteikarten
-    /// gibt `StudiNowAIAccess` frei und stehen mit den Wochentests und dem Notizen-Abgleich auf der Pro-AI-Karte.
+    /// 04.11.2026) und Wochentest erstellen (seit 26.11.2026 ab Plus mit Credits; 07.-26.11.2026 Pro AI). Testlauf und
+    /// Lernstand haben keine Funktion in der Matrix (kein Schloss); die KI-Hilfe und die KI-Karteikarten gibt
+    /// `StudiNowAIAccess` frei (mit Credits) und stehen mit den Wochentests und dem Notizen-Abgleich auf der Plus-Karte.
     func testOwnFlashcardsArePlusAndWeeklyTestsProAIOnTheDevice() {
         XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: .free), .locked(.plus))
         for p: UFPlan in [.plus, .proAI] {
             XCTAssertEqual(UFFeatureMatrix.access(.flashcards, plan: p), .allowed, p.rawValue)
         }
-        XCTAssertEqual(UFFeatureMatrix.access(.weeklyTests, plan: .free), .locked(.proAI))
-        XCTAssertEqual(UFFeatureMatrix.access(.weeklyTests, plan: .plus), .locked(.proAI))
+        XCTAssertEqual(UFFeatureMatrix.access(.weeklyTests, plan: .free), .locked(.plus))
+        XCTAssertEqual(UFFeatureMatrix.access(.weeklyTests, plan: .plus), .allowed, "Plus: Wochentests mit Credits")
         XCTAssertEqual(UFFeatureMatrix.access(.weeklyTests, plan: .proAI), .allowed)
         for f: UFFeature in [.flashcards, .weeklyTests] {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: UFLocalTrial.plan), .allowed, "Probe: \(f.rawValue) frei")
@@ -180,17 +180,19 @@ final class PlanMatrixAppTests: XCTestCase {
         for e: UFEntitlement in [.canUseAIExplanations, .canUseAIGeneratedQuestions, .canUseAISummaries, .canSyncAnnotations] {
             XCTAssertTrue(e.availableOnDevice, e.rawValue)
         }
-        // Tarifkarten: Plus mit eigenen Karteikarten, ohne Wochentests; Pro AI mit KI und Abgleich, nichts "in Vorbereitung"
+        // Tarifkarten (26.11.2026): Plus mit allem (Karteikarten, KI mit Credits, Wochentests, Abgleich, Erinnerungen);
+        // Pro AI nur die Monats-Credits dazu, nichts "in Vorbereitung"
         XCTAssertTrue(UFPlanCard.included(.plus).contains { $0.title == "Eigene Karteikarten mit Wiederholung" })
-        XCTAssertFalse(UFPlanCard.included(.plus).contains { $0.title == "Wochentests erstellen" })
-        XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title),
-                       ["KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
-                        "Notizen auf allen deinen Geräten", "Erinnerungen an Abgaben und Klausuren"])   // ab Pro AI seit 18.11.2026
-        XCTAssertEqual(UFFeature.weeklyTests.detail, "Aus deinen Unterlagen, mit der StudiNow-KI")
-        XCTAssertTrue(UFLockedCard.message(.weeklyTests, access: .locked(.proAI)).contains("Enthalten ab StudiNow Pro AI."))
+        for t in ["KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
+                  "Notizen auf allen deinen Geräten", "Erinnerungen an Abgaben und Klausuren"] {
+            XCTAssertTrue(UFPlanCard.included(.plus).contains { $0.title == t }, t)
+        }
+        XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title), ["120 Credits für die StudiNow-KI – jeden Monat"])
+        XCTAssertEqual(UFFeature.weeklyTests.detail, "Aus deinen Unterlagen, mit der StudiNow-KI und Credits")
+        XCTAssertTrue(UFLockedCard.message(.weeklyTests, access: .locked(.plus)).contains("Enthalten ab StudiNow Plus."))
         // Tarifwahl: Pro AI nur mit Produkt aus dem Store, sonst der Satz ohne Preis
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: []), [.free, .plus])
-        XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"]), [.free, .plus, .proAI])
+        XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: ["de.uniflow.plus.monthly", "de.uniflow.proai.yearly"]), [.free, .plus, .proAI])
     }
 
     /// Kostenzeile der KI-Aktionen: ueber das eigene ChatGPT fuer jeden Tarif gleich, Credits nur mit Pro AI, sonst der
@@ -203,10 +205,10 @@ final class PlanMatrixAppTests: XCTestCase {
         }
         XCTAssertEqual(AICost.line(chatgpt: false, plan: .proAI, credits: 10), "≈ 10 Credits")
         for p: UFPlan in [.free, .plus] {
-            XCTAssertEqual(AICost.line(chatgpt: false, plan: p, credits: 10), "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)", p.rawValue)
+            XCTAssertEqual(AICost.line(chatgpt: false, plan: p, credits: 10), "Kommt mit StudiNow Plus und Credits, Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)", p.rawValue)
         }
-        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2), "2 Anfragen diesen Monat · StudiNow-KI (Pro AI)")
-        XCTAssertTrue(AICost.status(chatgpt: false, model: nil, plan: .free, requestsThisMonth: 0).hasPrefix("KI kommt mit StudiNow Pro AI"))
+        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2), "2 Anfragen diesen Monat · StudiNow-KI mit Credits")
+        XCTAssertTrue(AICost.status(chatgpt: false, model: nil, plan: .free, requestsThisMonth: 0).hasPrefix("KI kommt mit StudiNow Plus und Credits"))
     }
 
     // MARK: - Seiten
@@ -253,7 +255,7 @@ final class PlanMatrixAppTests: XCTestCase {
     func testCommunityIsPlusOnTheDevice() async throws {
         XCTAssertEqual(UFFeatureMatrix.access(.communityRead, plan: .free), .locked(.plus))
         XCTAssertFalse(trial(active: false).allows(.communityRead), "nach der Probe: Free ohne Community")
-        XCTAssertTrue(trial(active: true).allows(.communityRead), "Probe wie Pro AI")
+        XCTAssertTrue(trial(active: true).allows(.communityRead), "Probe wie Plus")
         XCTAssertTrue(plan(.plus).allows(.communityRead))
         XCTAssertEqual(UFEntitlement.chatgptConnectionPremium.from, .free)
         XCTAssertTrue(UFLockedCard.message(.communityRead, access: .locked(.plus)).hasPrefix("Community ab StudiNow Plus:"))
@@ -280,13 +282,13 @@ final class PlanMatrixAppTests: XCTestCase {
         return t
     }
 
-    /// Seite "Tests" ohne Dienst: "Fehlende Wochentests" (Woche erzeugen) ab Pro AI mit Schloss, ohne Tests die Sperrkarte
+    /// Seite "Tests" ohne Dienst: "Fehlende Wochentests" (Woche erzeugen) ab Plus (26.11.2026; vorher Pro AI) mit Schloss, ohne Tests die Sperrkarte
     /// fuer Wochentests; vorhandene Tests bleiben in Free sichtbar und lassen sich oeffnen. Automatische Wochentests
     /// haengen am selben Recht (UFWeeklyAutoGate, WeeklyAppTests).
     func testExamsPageLocksWeekGenerationForFree() throws {
-        for (name, ent) in [("free", plan(.free)), ("nach der Probe", trial(active: false)), ("plus", plan(.plus))] {
+        for (name, ent) in [("free", plan(.free)), ("nach der Probe", trial(active: false))] {
             let empty = try hostWithEnvironment(ExamsPage(generation: TestGenerationState(), entitlements: ent), api: local(transport()))
-            XCTAssertTrue(empty.wait { self.shows(empty, "Mit StudiNow Pro AI freischalten") }, "\(name): \(empty.labels().joined(separator: " | "))")
+            XCTAssertTrue(empty.wait { self.shows(empty, "Mit StudiNow Plus freischalten") }, "\(name): \(empty.labels().joined(separator: " | "))")
             XCTAssertTrue(shows(empty, "Wochentests erstellen"), name)
             XCTAssertFalse(shows(empty, "Sie entstehen automatisch"), name)
         }
@@ -297,12 +299,14 @@ final class PlanMatrixAppTests: XCTestCase {
         let free = try hostWithEnvironment(ExamsPage(generation: TestGenerationState(), entitlements: plan(.free)), api: local(t))
         XCTAssertTrue(free.wait { self.shows(free, "Folgen") }, "vorhandener Test bleibt: \(free.labels().joined(separator: " | "))")
         XCTAssertTrue(shows(free, "Fehlende Wochentests"), "Knopf bleibt sichtbar (mit Schloss, ufRequires)")
-        XCTAssertFalse(shows(free, "Mit StudiNow Pro AI freischalten"), "mit Tests keine grosse Sperrkarte")
+        XCTAssertFalse(shows(free, "Mit StudiNow Plus freischalten"), "mit Tests keine grosse Sperrkarte")
         XCTAssertEqual(t.count("POST", "/api/tests/generate-week"), 0)
 
-        let pro = try hostWithEnvironment(ExamsPage(generation: TestGenerationState(), entitlements: plan(.proAI)), api: local(transport()))
-        XCTAssertTrue(pro.wait { self.shows(pro, "Sie entstehen automatisch") }, pro.labels().joined(separator: " | "))
-        XCTAssertFalse(shows(pro, "freischalten"))
+        for ent in [plan(.plus), plan(.proAI)] {
+            let pro = try hostWithEnvironment(ExamsPage(generation: TestGenerationState(), entitlements: ent), api: local(transport()))
+            XCTAssertTrue(pro.wait { self.shows(pro, "Sie entstehen automatisch") }, "\(ent.plan.rawValue): " + pro.labels().joined(separator: " | "))
+            XCTAssertFalse(shows(pro, "freischalten"), ent.plan.rawValue)
+        }
     }
 
     /// "Karteikarten aus Dokument" (KI ueber das eigene ChatGPT) haengt lokal an Plus, nicht an Pro AI: Free sieht die
@@ -330,21 +334,21 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertFalse(shows(noAI, "freischalten"))
     }
 
-    /// Dialog "Wochentest erstellen" (07.11.2026, vorher Plus): ohne PC braucht er die StudiNow-KI und gehoert zu Pro AI.
-    /// Free (auch nach der Probe) und Plus sehen die Sperrkarte mit dem Weg zu Pro AI, keinen Knopf und laden nichts;
-    /// Pro AI und die laufende Probe sehen den Dialog; mit Dienst entscheidet der Dienst.
-    func testWeeklyTestDialogIsProAILocally() throws {
-        for (name, ent) in [("free", plan(.free)), ("nach der Probe", trial(active: false)), ("plus", plan(.plus))] {
+    /// Dialog "Wochentest erstellen": ohne PC braucht er die StudiNow-KI; seit 26.11.2026 ab Plus mit Credits (07.-26.11.2026
+    /// Pro AI). Free (auch nach der Probe) sieht die Sperrkarte mit dem Weg zu Plus, keinen Knopf und laedt nichts;
+    /// Plus, Pro AI und die laufende Probe sehen den Dialog; mit Dienst entscheidet der Dienst.
+    func testWeeklyTestDialogIsPlusLocally() throws {
+        for (name, ent) in [("free", plan(.free)), ("nach der Probe", trial(active: false))] {
             let t = transport()
             let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: ent, generation: TestGenerationState()).environment(\.ufAIEnabled, true),
                                               api: local(t))
-            XCTAssertTrue(env.wait { self.shows(env, "Mit StudiNow Pro AI freischalten") }, "\(name): \(env.labels().joined(separator: " | "))")
+            XCTAssertTrue(env.wait { self.shows(env, "Mit StudiNow Plus freischalten") }, "\(name): \(env.labels().joined(separator: " | "))")
             XCTAssertTrue(shows(env, "Wochentests erstellen"), name)
-            XCTAssertTrue(shows(env, "Enthalten ab StudiNow Pro AI"), name)
+            XCTAssertTrue(shows(env, "Enthalten ab StudiNow Plus"), name)
             XCTAssertFalse(env.labels().contains("Test erstellen"), "kein Start-Knopf: \(name)")
             XCTAssertEqual(t.count("GET", "/api/modules"), 0, "gesperrt laedt nichts: \(name)")
         }
-        for (name, ent) in [("probe", trial(active: true)), ("pro_ai", plan(.proAI))] {
+        for (name, ent) in [("plus", plan(.plus)), ("probe", trial(active: true)), ("pro_ai", plan(.proAI))] {
             let env = try hostWithEnvironment(QuizComposer(moduleID: 1, entitlements: ent, generation: TestGenerationState()).environment(\.ufAIEnabled, true),
                                               api: local(transport()))
             XCTAssertTrue(env.wait { self.shows(env, "Test erstellen") }, "\(name): \(env.labels().joined(separator: " | "))")
@@ -381,6 +385,6 @@ final class PlanMatrixAppTests: XCTestCase {
         XCTAssertTrue(status.title.hasPrefix("Probe aktiv: alle Funktionen bis "), status.title)
         XCTAssertTrue(status.title.hasSuffix("(noch 7 Tage)"), status.title)
         XCTAssertFalse(PlanPickerView.subtitle(proAI: false).contains("Pro AI"), "ohne Produkt aus dem Store kein Pro AI im Text")
-        XCTAssertTrue(PlanPickerView.subtitle(proAI: true).contains("StudiNow Pro AI die KI von StudiNow über den StudiNow-Dienst"))
+        XCTAssertTrue(PlanPickerView.subtitle(proAI: true).contains("StudiNow Pro AI bringt jeden Monat 120 Credits mit."))
     }
 }

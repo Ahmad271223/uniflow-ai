@@ -35,8 +35,9 @@ def test_all_release_files_exist_and_are_marked_as_drafts():
             # 14.11.2026: vom Inhaber fertig gegeben, ohne Entwurfsvermerk (tests/test_rechtstexte.py); Nutzungsbedingungen
             # 18.11.2026 (Erinnerungen ab Pro AI), Datenschutz 18.11.2026 (YouTube neben dem Dokument, 1.0.6)
             # Konto loeschen 24.11.2026 (Probe nur einmal, app/trial_claims.py)
-            new = ("NUTZUNGSBEDINGUNGEN.md", "DATENSCHUTZ.md", "KONTO-LOESCHEN.md")
-            assert ("Stand 24.11.2026" if f in new else "Stand 14.11.2026") in text and "Entwurf, Stand" not in text, f
+            # 26.11.2026 (1.0.8): Datenschutz, Nutzungsbedingungen und Impressum bereinigt (tests/test_rechtstexte.py STAND)
+            stand = {"KONTO-LOESCHEN.md": "24.11.2026"}.get(f, "26.11.2026")
+            assert f"Stand {stand}" in text and "Entwurf, Stand" not in text, f
             continue
         assert re.search(r"Entw(urf|ürfe)", text) and "26.10.2026" in text, f
 
@@ -239,8 +240,11 @@ def test_app_store_texts_match_current_build():
     yml = (ROOT / "apps" / "apple" / "project.yml").read_text(encoding="utf-8")
     # 14.11.2026 (Inhaber): 1.0.4 mit Universitaet Hildesheim, Hochschule Hannover bleibt ausgeblendet
     assert "1.0.4 mit Universität Hildesheim" in text
-    assert re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim"\n', yml), "Release-Build LUH und Hildesheim"
-    assert re.search(r'Debug:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh"\n', yml), "Debug und Tests alle drei"
+    # 26.11.2026 (Inhaber): Release mit LUH, Hildesheim und Goettingen; die HsH bleibt aus
+    assert re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim goettingen"\n', yml), "Release-Build LUH, Hildesheim, Göttingen"
+    # seit 26.11.2026 auch die Uni Goettingen (nur Debug und Tests; Release erst nach Freigabe des Inhabers)
+    assert re.search(r'Debug:\n\s+UF_SHIPPED_UNIVERSITIES: "luh hildesheim hsh goettingen"\n', yml), "Debug und Tests alle vier"
+    assert "hsh" not in re.search(r'Release:\n\s+UF_SHIPPED_UNIVERSITIES: "([^"]*)"', yml).group(1), "HsH nicht im Store"
     assert "UFShippedUniversities: $(UF_SHIPPED_UNIVERSITIES)" in yml
     if (APPLE / "Info.plist").is_file():                 # von xcodegen erzeugt (gitignore), nur wo es liegt
         assert "<key>UFShippedUniversities</key>" in (APPLE / "Info.plist").read_text(encoding="utf-8")

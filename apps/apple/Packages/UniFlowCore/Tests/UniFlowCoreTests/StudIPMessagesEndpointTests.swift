@@ -130,4 +130,16 @@ final class StudIPMessagesEndpointTests: XCTestCase {
         XCTAssertEqual(after.map { $0["id"]?.string }, ["sp-msg-n1"])
         XCTAssertEqual(after.first?["read"], .bool(false))
     }
+
+    /// Echtes Konto Uni Goettingen (27.11.2026): Nachrichten endeten mit maskiertem "&lt;div&gt;&lt;/div&gt;", die App
+    /// zeigte "<div></div>" als Text. Leere Reste fallen weg, maskiertes "<br>" wird ein Umbruch, echter Text bleibt.
+    func testEscapedEmptyMarkupIsDropped() {
+        XCTAssertEqual(Announcements.htmlToText("<p>Liebe Studierende,<br>bis bald.</p>&lt;div&gt;&lt;/div&gt;"),
+                       "Liebe Studierende,\nbis bald.")
+        XCTAssertEqual(Announcements.htmlToText("Gruss&lt;div&gt;&lt;br&gt;&lt;/div&gt;"), "Gruss")
+        XCTAssertEqual(Announcements.htmlToText("Zeile eins&lt;br /&gt;Zeile zwei"), "Zeile eins\nZeile zwei")
+        XCTAssertEqual(Announcements.htmlToText("&lt;DIV class=\"x\"&gt; &lt;/DIV&gt;Text"), "Text")
+        XCTAssertEqual(Announcements.htmlToText("Formel: a &lt; b und &lt;div&gt;Inhalt&lt;/div&gt;"), "Formel: a < b und <div>Inhalt</div>",
+                       "nur leere Elemente fallen weg")
+    }
 }

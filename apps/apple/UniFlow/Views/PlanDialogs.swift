@@ -28,8 +28,8 @@ struct GeneratePlanDialog: View {
     /// Hinweis unter dem Dialog ohne KI: wie es den KI-Vorschlag gibt
     static var aiHint: String {
         OpenAIKeyLink.isOffered
-            ? "KI-Vorschlag: mit deinem eigenen ChatGPT (OpenAI-Schlüssel unter Einstellungen → Erweitert, in jedem Tarif) oder mit der StudiNow-KI ab StudiNow Pro AI."
-            : "KI-Vorschlag: mit der StudiNow-KI ab StudiNow Pro AI."
+            ? "KI-Vorschlag: mit deinem eigenen ChatGPT (OpenAI-Schlüssel unter Einstellungen → Erweitert, in jedem Tarif) oder mit der StudiNow-KI ab StudiNow Plus (mit Credits)."
+            : "KI-Vorschlag: mit der StudiNow-KI ab StudiNow Plus (mit Credits)."
     }
 
     var body: some View {

@@ -458,11 +458,11 @@
       "passed": true,
       "graded": false,
       "level": "pruefung",
-      "counted": false,
-      "lp_counted": 0.0,
+      "counted": true,
+      "lp_counted": 2.0,
       "superseded": false,
-      "modul_nr": "120",
-      "modul_text": "Testphysik"
+      "modul_nr": null,
+      "modul_text": null
      },
      {
       "id": 6,
@@ -548,8 +548,8 @@
     "average_exact": 2.4,
     "graded_count": 3,
     "graded_credits": 20.5,
-    "credits": 30.5,
-    "passed": 5,
+    "credits": 32.5,
+    "passed": 6,
     "basis": "module",
     "bereiche": [
      {

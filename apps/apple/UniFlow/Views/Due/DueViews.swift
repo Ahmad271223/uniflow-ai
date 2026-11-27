@@ -13,10 +13,16 @@ enum DueTexts {
     static let emptyHint = "StudiNow sucht in Folien, Übungsblättern und Ankündigungen nach Abgaben, Tests und Klausuren."
     static let hiddenToast = "Ausgeblendet. Unter „ausgeblendete anzeigen“ holst du ihn zurück."
     static let reminderTitle = "Erinnerungen an Abgaben und Prüfungen"
-    /// "Fristen aus dem Learnweb-Kalender" nur, wenn der Build Hildesheim anbietet (Abnahme 1.0 nur LUH, 07.11.2026)
-    static var reminderText: String {
-        "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher, vor Klausuren und Prüfungen auch 7 Tage vorher. Wird ein Klausurtermin neu erkannt, meldet StudiNow das einmal sofort. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine"
-            + (UFReleaseUniversities.isShipped(.hildesheim) ? ", Fristen aus dem Learnweb-Kalender" : "")
+    /// Text fuer die gewaehlte Hochschule (offener Container)
+    static var reminderText: String { reminderText(for: UFUniversityScope.current) }
+
+    /// "Fristen aus dem Learnweb-Kalender" nur an der Universitaet Hildesheim (Inhaber 27.11.2026 „Ja, korrigieren“: an der
+    /// Uni Goettingen und der LUH stand der Satz, sobald der Build Hildesheim anbot). Ohne Container (eigener Server):
+    /// wie bisher, sobald der Build Hildesheim anbietet (Abnahme 1.0 nur LUH, 07.11.2026)
+    static func reminderText(for u: UniversityKey?) -> String {
+        let learnweb = u.map { $0 == .hildesheim } ?? UFReleaseUniversities.isShipped(.hildesheim)
+        return "3 Tage vorher, 1 Tag vorher und am Morgen um 8:00 Uhr, bei Terminen mit Uhrzeit zusätzlich 2 Stunden vorher, vor Klausuren und Prüfungen auch 7 Tage vorher. Wird ein Klausurtermin neu erkannt, meldet StudiNow das einmal sofort. Dabei sind die in Folien, Übungsblättern und Ankündigungen erkannten Termine"
+            + (learnweb ? ", Fristen aus dem Learnweb-Kalender" : "")
             + UFDevice.adapt(" und eingetragene Klausurtermine – ausgeblendete nicht. Alles bleibt auf diesem iPad.")
     }
     static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den iPad-Einstellungen unter „Mitteilungen“ und schalte die Erinnerungen danach hier erneut ein."
@@ -235,8 +241,8 @@ struct DueReminderCard: View {
     @State private var hint: String?
 
     var body: some View {
-        // ab Pro AI (Entscheidung des Inhabers 18.11.2026 "Alles ab Pro AI"; 11.-17.11.2026 ab Plus): ohne Pro AI die
-        // Sperrkarte mit "Mit StudiNow Pro AI freischalten" statt des Schalters
+        // ab Plus (26.11.2026; 18.-26.11.2026 ab Pro AI, 11.-17.11.2026 ab Plus): ohne Plus die Sperrkarte mit
+        // "Mit StudiNow Plus freischalten" statt des Schalters
         if !entitlements.allows(.dueReminders) {
             UFLockedCard(.dueReminders, entitlements: entitlements)
                 .accessibilityIdentifier("due.reminders.locked")

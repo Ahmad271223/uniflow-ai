@@ -88,7 +88,9 @@ final class InviteAppTests: XCTestCase {
         let o = try XCTUnwrap(m.overview)
         XCTAssertEqual(o.links.map(\.code), ["AB2CD3EFGH"])
         XCTAssertEqual(InviteTexts.counter(o), "7 von 20 angekommen")
-        XCTAssertEqual(InviteTexts.nextTier(o), "Noch 3 Personen bis 10: 3 Monate StudiNow Plus gratis")
+        // seit 27.11.2026 keine Belohnungen (Inhaber): kein "Noch n Personen bis ...", keine Stufen in der App
+        XCTAssertFalse(InviteRewards.hasRewards)
+        XCTAssertEqual(InviteTexts.nextTier(o), "")
         XCTAssertEqual(InviteTexts.redemptions(7), "7 angekommen")
         XCTAssertTrue(o.canCreate)
         // neuer Link: der Dienst liefert den neuen Stand

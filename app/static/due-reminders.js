@@ -115,7 +115,7 @@ async function refresh() {
 // ---------------------------------------------------------------- Knopf in "Nächste Termine"
 function toggleHtml() {
   const { icon } = ctx; const on = enabled();
-  if (!allowed()) return `<a class="btn ghost sm due-toggle" href="#/abo" data-due-locked title="Erinnerungen an Abgaben und Klausuren gibt es ab StudiNow Pro AI">${icon("bell", 14)} Erinnern ab Pro AI</a>`;
+  if (!allowed()) return `<a class="btn ghost sm due-toggle" href="#/abo" data-due-locked title="Erinnerungen an Abgaben und Klausuren gibt es ab StudiNow Plus">${icon("bell", 14)} Erinnern ab Pro AI</a>`;
   return `<button class="btn ghost sm due-toggle" data-due-toggle aria-pressed="${on}" aria-label="Erinnerungen an Fristen ${on ? "an" : "aus"}" title="${on ? "Erinnerungen an Abgaben, Tests und Prüfungen ausschalten" : "3 Tage, 1 Tag und am Morgen vor erkannten Fristen erinnern"}">${icon("bell", 14)} ${on ? "Erinnert" : "Erinnern"}</button>`;
 }
 async function toggle(btn) {

@@ -57,6 +57,11 @@ final class ReleaseUniversitiesTests: XCTestCase {
             XCTAssertTrue(UFReleaseUniversities.moreToCome)
         }
         UFReleaseUniversities.withShipped([.hsh, .luh, .hildesheim]) {
+            // seit 26.11.2026 gibt es die Uni Goettingen im Code; ohne Freigabe steht sie nicht zur Wahl
+            XCTAssertEqual(UFReleaseUniversities.choices(), [.luh, .hildesheim, .hsh], "feste Reihenfolge wie allCases")
+            XCTAssertTrue(UFReleaseUniversities.moreToCome)
+        }
+        UFReleaseUniversities.withShipped([.goettingen, .hsh, .luh, .hildesheim]) {
             XCTAssertEqual(UFReleaseUniversities.choices(), UniversityKey.allCases, "feste Reihenfolge wie allCases")
             XCTAssertFalse(UFReleaseUniversities.moreToCome)
         }
@@ -75,7 +80,10 @@ final class ReleaseUniversitiesTests: XCTestCase {
         XCTAssertEqual(luhOnly, ["luh"], "Store-Build 1.0")
         UFReleaseUniversities.shipped = Set(UniversityKey.allCases)
         let all = await universities(backend)
-        XCTAssertEqual(all, ["luh", "hildesheim", "hsh"], "Debug und 1.0.1")
+        XCTAssertEqual(all, ["luh", "hildesheim", "hsh", "goettingen"], "Debug")
+        UFReleaseUniversities.shipped = [.luh, .hildesheim]
+        let store = await universities(backend)
+        XCTAssertEqual(store, ["luh", "hildesheim"], "Store-Stand am 26.11.2026: ohne Göttingen")
         // Datenbank einer nicht ausgelieferten Hochschule (Entwickler-iPad; die Hochschule steht beim Oeffnen fest):
         // sie bleibt in der Liste
         let hsh = try await LocalBackend.open(path: SQLiteDatabase.inMemory, clock: clock, university: "hsh")

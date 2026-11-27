@@ -540,6 +540,8 @@ public enum StudyPlanEngine {
         var partsOpen: [String] = []
         /// bestanden laut selbst eingetragener Leistung (`GradesManual`, 20.11.2026), QIS meldet das Modul nicht
         var manual = false
+        /// angefangenes Modul (LSF "Prüfung vorhanden", 26.11.2026): erreichte LP der bestandenen Teilmodule
+        var lpPart: Double?
 
         /// Endgueltig, QIS meldet den letzten Versuch, oder bei bekannter Hoechstzahl: der naechste bzw. angemeldete
         /// Versuch ist der letzte (`last_attempt`, 11.11.2026: ohne Hoechstzahl nie aus der Zahl der Versuche)
@@ -598,7 +600,35 @@ public enum StudyPlanEngine {
     /// Teile je Modul (Reihenfolge des Katalogs); ein Teil nur, wenn kein Modul so heisst
     typealias PartIndex = [(id: String, parts: [(text: String, key: String)])]
 
-    /// (Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id, Teile -> Modul-id), jeweils das erste Modul (`_index`)
+    // Modulbezeichner (26.11.2026, echtes Konto Uni Hildesheim, wie app/study_plan.py): das Modulhandbuch nennt
+    // "Basismodul 1: Aufbau der Zahlbereiche", der Notenspiegel des LSF "BM 1: Aufbau der Zahlbereiche" (dazu "AM 1: …",
+    // "VM 1: …", "M 3: …"). Vorher passte nur der ganze Titel: die Module blieben "offen", ihre Teilmodule standen als
+    // "nicht zugeordnet" da. Jetzt gilt der Name ohne Bezeichner, sonst der Bezeichner selbst (Art und Nummer).
+    static let moduleWordRE = PyRegex(#"^\s*([A-Za-zÄÖÜäöüß]*?)[Mm]odul\s*([0-9]{1,2})\s*:\s*(.*)$"#)
+    static let moduleAbbrRE = PyRegex(#"^\s*([A-ZÄÖÜ]{0,3})M\s*([0-9]{1,2})\s*:\s*(.*)$"#)
+    static let pendingStatus = "prüfung vorhanden"
+    static let partlyReason = "Angefangen – Rest nachholen"
+    static let lateReason = "Noch nicht abgelegt – nachholen"
+
+    /// `module_tag`: ("#b1", Name ohne Bezeichner) fuer "Basismodul 1: …" und "BM 1: …"; ("#1", …) fuer "Modul 1: …" /
+    /// "M 1: …"; nil ohne Bezeichner mit Nummer und Doppelpunkt
+    static func moduleTag(_ text: JSONValue?) -> (tag: String, name: String)? {
+        let t = textOf(text)
+        guard let m = moduleWordRE.match(t) ?? moduleAbbrRE.match(t), let n = Int(m.group(2) ?? "") else { return nil }
+        return ("#" + String(fold(m.group(1) ?? "").prefix(1)) + String(n), PyText.strip(m.group(3) ?? ""))
+    }
+
+    /// `_tagged_module`: Katalogmodul einer Zeile mit Modulbezeichner: erst der Name ohne Bezeichner, dann der Bezeichner
+    static func taggedModule(_ text: JSONValue?, _ byKey: [String: String]) -> String? {
+        guard let tag = moduleTag(text) else { return nil }
+        let k = nameKey(tag.name)
+        if !k.isEmpty, let mid = byKey[k] { return mid }
+        return byKey[tag.tag]
+    }
+
+    /// (Pruefungsnummer -> Modul-id, Namensschluessel -> Modul-id, Teile -> Modul-id), jeweils das erste Modul (`_index`).
+    /// Titel mit Modulbezeichner stehen zusaetzlich unter dem Namen ohne Bezeichner und unter dem Bezeichner ("#b1"; nur
+    /// wenn ihn genau ein Modul traegt), ganze Titel gehen vor.
     static func index(_ mods: [[String: JSONValue]]) -> ([String: String], [String: String], PartIndex) {
         var byCode: [String: String] = [:], byKey: [String: String] = [:]
         for m in mods {
@@ -608,6 +638,15 @@ public enum StudyPlanEngine {
             let k = nameKey(m["title"])
             if !k.isEmpty, byKey[k] == nil { byKey[k] = id }
         }
+        var tagOrder: [String] = [], tags: [String: [String]] = [:]
+        for m in mods {
+            guard let tag = moduleTag(m["title"]) else { continue }
+            if tags[tag.tag] == nil { tagOrder.append(tag.tag) }
+            tags[tag.tag, default: []].append(m["id"]?.string ?? "")
+            let k = nameKey(tag.name)
+            if !k.isEmpty, byKey[k] == nil { byKey[k] = m["id"]?.string ?? "" }
+        }
+        for t in tagOrder where tags[t]!.count == 1 { byKey[t] = tags[t]![0] }
         var byPart: PartIndex = []
         for m in mods {
             let id = m["id"]?.string ?? "", parts = titleParts(m["title"]).parts
@@ -636,10 +675,11 @@ public enum StudyPlanEngine {
                           _ byPart: PartIndex = []) -> String? {
         let nr = PyText.strip(textOf(r["pruefungsnr"]))
         if let mid = (nr.isEmpty ? nil : byCode[nr]) ?? byKey[nameKey(r["text"])] { return mid }
+        if let mid = taggedModule(r["text"], byKey) { return mid }       // "BM 1: Aufbau der Zahlbereiche" (LSF Hildesheim)
         let mnr = PyText.strip(textOf(r["modul_nr"]))
         if !mnr.isEmpty, let mid = byCode[mnr] { return mid }
         let hasModulText = !PyText.strip(textOf(r["modul_text"])).isEmpty
-        if hasModulText, let mid = byKey[nameKey(r["modul_text"])] { return mid }
+        if hasModulText, let mid = byKey[nameKey(r["modul_text"])] ?? taggedModule(r["modul_text"], byKey) { return mid }
         guard !byPart.isEmpty else { return nil }
         return partModule(r["text"], byPart) ?? (hasModulText ? partModule(r["modul_text"], byPart) : nil)
     }
@@ -667,6 +707,33 @@ public enum StudyPlanEngine {
             if !t.isEmpty, !names.contains(where: { $0.unicodeScalars.elementsEqual(t.unicodeScalars) }) { names.append(t) }
         }
         return (names, parts.enumerated().filter { !done.contains($0.offset) }.map(\.element.text))
+    }
+
+    /// `_exam_key`: dieselbe Leistung ueber mehrere Versuche: Pruefungsnummer, sonst Namensschluessel
+    static func examKey(_ r: [String: JSONValue]) -> String {
+        let nr = PyText.strip(textOf(r["pruefungsnr"]))
+        return nr.isEmpty ? nameKey(r["text"]) : nr
+    }
+
+    /// `_begun`: angefangenes Modul (26.11.2026, LSF Hildesheim): die Modulzeile steht auf "Prüfung vorhanden" (keine
+    /// Modulzeile bestanden), darunter sind Teilmodule bestanden. Vorher galt das Modul damit als bestanden. Ergebnis:
+    /// (Namen der bestandenen Teile mit LP, ihre LP wie in Uni & Noten, Zeilen ohne die bestandenen Teile und ihre
+    /// frueheren Fehlversuche); nil, wenn das Modul nicht so gefuehrt wird.
+    static func begun(_ rows: [[String: JSONValue]]) -> (names: [String], lp: Double?, rows: [[String: JSONValue]])? {
+        let own = rows.filter { $0["level"]?.string == "modul" }
+        guard own.contains(where: { PyText.strip(textOf($0["status"])).lowercased() == pendingStatus }),
+              !own.contains(where: { rowResult($0) == "passed" }) else { return nil }
+        let got = rows.filter { $0["level"]?.string == "pruefung" && rowResult($0) == "passed" }
+        let keys = Set(got.map(examKey))
+        let lp = GradesModel.round1(got.reduce(0.0) { $0 + (num($1["lp_counted"]) ?? 0) })
+        var names: [String] = []
+        for r in got {
+            let t = PyText.strip(PyText.split(partSplitRE.sub(PyText.strip(textOf(r["text"])), "\u{1}"), "\u{1}")[0])
+            if !t.isEmpty, !names.contains(where: { $0.unicodeScalars.elementsEqual(t.unicodeScalars) }), (num(r["lp_counted"]) ?? 0) > 0 {
+                names.append(t)
+            }
+        }
+        return (names, lp > 0 ? lp : nil, rows.filter { !keys.contains(examKey($0)) })
     }
 
     /// Quelle selbst eingetragener Leistungen (`GradesManual`)
@@ -972,19 +1039,29 @@ public enum StudyPlanEngine {
             var passed = rows.filter { rowResult($0) == "passed" }
             // Modul aus Teilen, die alle noetig sind ("Thermodynamik I / Chemie"): bestanden erst mit allen Teilen oder einer
             // bestandenen Zeile fuer das ganze Modul; bis dahin zaehlen die bestandenen Teile nicht als Fehlversuche
-            let (doneParts, openParts) = partsState(m, passed)
+            var (doneParts, openParts) = partsState(m, passed)
+            var lpPart: Double?
             if !openParts.isEmpty {
                 let parts = titleParts(m["title"]).parts
                 let done = Set(passed.compactMap { partIndex($0["text"], parts) })
                 rows = rows.filter { partIndex($0["text"], parts).map { !done.contains($0) } ?? true }
                 passed = []
+            } else {
+                doneParts = []
+                // das LSF fuehrt das Modul als angefangen ("Prüfung vorhanden"): bestandene Teilmodule sind Teile, kein
+                // bestandenes Modul; ihre frueheren Fehlversuche zaehlen nicht mehr
+                if let b = begun(rows) {
+                    doneParts = b.names; lpPart = b.lp; rows = b.rows
+                    passed = []
+                }
             }
             let (failedN, lastFail, final, known, qisLast) = attempts(rows, max: maxN)
             let registered = rows.filter { rowResult($0) == "registered" }
             var st = ModuleState(status: "", term: nil, attempt: nil, grade: nil, movedFrom: nil, reason: nil, failed: failedN, final: final,
                                  known: known, maxAttempts: maxN, qisLast: qisLast)
-            st.partsDone = openParts.isEmpty ? [] : doneParts
+            st.partsDone = doneParts
             st.partsOpen = openParts
+            st.lpPart = lpPart
             let rec = (semOf(m) ?? slotSem[mid]).map { start + $0 - 1 }
             let own = placed[mid]
             if !passed.isEmpty {
@@ -1007,7 +1084,7 @@ public enum StudyPlanEngine {
                 st.status = "plan"; st.term = own; st.placed = true
                 if own < lower {
                     st.term = nextFit(lower, turnus); st.placed = false; st.movedFrom = termName(own)
-                    st.reason = "Noch nicht abgelegt – nachholen"
+                    st.reason = lpPart != nil ? partlyReason : lateReason
                 }
             } else if let rec {
                 let t = nextFit(max(rec, start), turnus)
@@ -1017,7 +1094,7 @@ public enum StudyPlanEngine {
                     st.reason = "Wird nur im \(turnus == "WS" ? "Wintersemester" : "Sommersemester") angeboten"
                 }
                 if t < lower {
-                    st.term = nextFit(lower, turnus); st.movedFrom = termName(rec); st.reason = "Noch nicht abgelegt – nachholen"
+                    st.term = nextFit(lower, turnus); st.movedFrom = termName(rec); st.reason = lpPart != nil ? partlyReason : lateReason
                 }
             } else {
                 st.status = "plan"                                          // ohne Fachsemester: unten auffuellen
@@ -1025,8 +1102,14 @@ public enum StudyPlanEngine {
             state[mid] = st
         }
 
+        /// LP, die ein Modul im Semester noch kostet: bei einem angefangenen Modul ohne die schon erreichten (`rest_lp`)
+        func restLP(_ i: String) -> Double {
+            let st = state[i]!, lp = lpOf(byID[i]!)
+            if let part = st.lpPart, st.status != "bestanden" { return max(lp - part, 0) }
+            return lp
+        }
         func load(_ t: Int) -> Double {
-            included.reduce(0) { $0 + (state[$1]!.term == t ? lpOf(byID[$1]!) : 0) }
+            included.reduce(0) { $0 + (state[$1]!.term == t ? restLP($1) : 0) }
         }
 
         for mid in included where state[mid]!.term == nil {
@@ -1202,15 +1285,19 @@ public enum StudyPlanEngine {
         }
         var used: [String: Double] = [:], done: [String: Double] = [:], counted: [String: [String]] = [:], nDone: [String: Int] = [:]
         for a in areaList { used[aidOf(a)] = 0; done[aidOf(a)] = 0; counted[aidOf(a)] = []; nDone[aidOf(a)] = 0 }
-        func count(_ cands: [String], _ ident: String, _ lp: Double, _ passed: Bool) {
+        func count(_ cands: [String], _ ident: String, _ lp: Double, _ passed: Bool, _ part: Double? = nil) {
             let pick = cands.first { x in target[x]!.map { used[x]! < $0 } ?? true } ?? cands[0]
             used[pick]! += lp
             counted[pick]!.append(ident)
-            if passed { done[pick]! += lp; nDone[pick]! += 1 }
+            if passed {
+                done[pick]! += lp; nDone[pick]! += 1
+            } else if let part, part != 0 {
+                done[pick]! += lp != 0 ? min(part, lp) : part       // angefangenes Modul: seine erreichten LP (26.11.2026)
+            }
         }
         for mid in included {
             let cands = memOf[mid]!.filter { active.contains($0) }
-            if !cands.isEmpty { count(cands, mid, lpOf(byID[mid]!), state[mid]!.status == "bestanden") }
+            if !cands.isEmpty { count(cands, mid, lpOf(byID[mid]!), state[mid]!.status == "bestanden", state[mid]!.lpPart) }
         }
         for (_, e) in custom {
             if let a = e["area"]?.string { count([a], e["id"]!.string!, e["lp"]!.double!, e["status"]?.string == "bestanden") }
@@ -1355,7 +1442,7 @@ public enum StudyPlanEngine {
                     .sorted { (semOf(byID[$0]!) ?? 99, order[$0]!) < (semOf(byID[$1]!) ?? 99, order[$1]!) }
                 let mine = custom.filter { $0.0 == t }.map(\.1)
                 let here = places.filter { $0.0 == t }.map(\.1)
-                let lp = ids.reduce(0.0) { $0 + lpOf(byID[$1]!) } + mine.reduce(0.0) { $0 + $1["lp"]!.double! }
+                let lp = ids.reduce(0.0) { $0 + restLP($1) } + mine.reduce(0.0) { $0 + $1["lp"]!.double! }
                 semesterLP.append((t, termName(t), lp))
                 semesters.append(["term": .string(termName(t)), "fachsemester": .number(Double(t - start + 1)),
                                   "current": .bool(t == current), "lp": .number(lp),
@@ -1489,6 +1576,7 @@ public enum StudyPlanEngine {
          "attempt_known": .bool(st.known), "max_attempts": opt(st.maxAttempts), "final": .bool(st.final && st.status != "bestanden"),
          "placed": .bool(st.placed), "hints": .array(hints.map(JSONValue.string))]
             .merging(st.manual ? ["manual": true] : [:]) { a, _ in a }
+            .merging(st.lpPart != nil && st.status != "bestanden" ? ["lp_part": .number(st.lpPart!)] : [:]) { a, _ in a }
     }
 
     /// Hinweis endgueltig nicht bestanden bzw. letzter Versuch mit Grund (QIS oder Hoechstzahl) (`attempt_notes`)
@@ -1508,6 +1596,9 @@ public enum StudyPlanEngine {
         var out: [String] = []
         if !st.partsOpen.isEmpty {
             out.append("Teil bestanden: \(st.partsDone.joined(separator: ", ")) – es fehlt noch: \(st.partsOpen.joined(separator: ", "))")
+        } else if !st.partsDone.isEmpty {
+            let lp = st.lpPart.flatMap { p in lpOf(m) != 0 ? " (\(fmtLP(p)) von \(fmtLP(lpOf(m))) LP)" : nil } ?? ""
+            out.append("Teilweise bestanden\(lp): \(st.partsDone.joined(separator: ", "))")
         }
         let turnus = turnusOf(m["turnus"])
         if !fits(t, turnus) {

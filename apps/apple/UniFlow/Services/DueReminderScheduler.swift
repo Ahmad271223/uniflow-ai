@@ -306,7 +306,7 @@ final class DueReminderScheduler: ObservableObject {
             await withdrawAll()
             return true
         }
-        guard allowed() else { return false }                                  // ab Pro AI: die Karte zeigt die Sperre
+        guard allowed() else { return false }                                  // ab Plus: die Karte zeigt die Sperre
         let ok: Bool
         switch await notifier.status() {
         case .allowed: ok = true

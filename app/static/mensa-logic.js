@@ -17,7 +17,8 @@ export function matches(meal, f = {}) {
   const labels = new Set(meal.labels || []);
   if (f.vegan && !labels.has("vegan")) return false;
   if (f.vegetarisch && !labels.has("vegetarisch")) return false;
-  if (f.ohne_schwein && labels.has("schwein")) return false;
+  // auch Gerichte, deren Fleischart die Quelle nicht nennt (Goettingen, pork_unknown), wie matches in app/mensa.py
+  if (f.ohne_schwein && (labels.has("schwein") || meal.pork_unknown)) return false;
   const avoid = new Set(f.allergens || []);
   return !(avoid.size && (meal.allergens || []).some(a => avoid.has(a.key)));
 }

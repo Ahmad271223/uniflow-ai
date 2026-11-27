@@ -250,8 +250,8 @@ struct QuizComposer: View {
         switch access {
         case .ready: return chatgpt ? "Die KI ist gerade ausgeschaltet oder nicht verbunden." : "Die StudiNow-KI ist bereit, aber noch nicht angeschlossen – bitte die App neu öffnen."
         case .signInRequired: return "Melde dich einmal mit deinem StudiNow-Konto an, dann erstellt die StudiNow-KI den Test."
-        case .planRequired: return OpenAIKeyLink.isOffered ? "Für Tests braucht es StudiNow Pro AI (oder die Probe) – oder dein eigenes ChatGPT."
-                                                           : "Für Tests braucht es StudiNow Pro AI (oder die Probe)."
+        case .planRequired: return OpenAIKeyLink.isOffered ? "Für Tests braucht es StudiNow Plus mit Credits, Pro AI (\(UFPlanCatalog.proAIFrom)) oder die Probe – oder dein eigenes ChatGPT."
+                                                           : "Für Tests braucht es StudiNow Plus mit Credits, Pro AI (\(UFPlanCatalog.proAIFrom)) oder die Probe."
         case .unavailable: return OpenAIKeyLink.isOffered ? "Diese Version hat keinen KI-Dienst. Verbinde dein eigenes ChatGPT."
                                                           : "Diese Version hat keinen KI-Dienst."
         }

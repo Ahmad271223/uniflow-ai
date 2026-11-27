@@ -130,7 +130,7 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     assert "Im App Store laden" in html and "<strong>Jetzt im App Store</strong> für iPad und iPhone." in flat
     assert "Bald verfügbar" not in html and "iPhone-Version kommt bald" not in flat and "iPhone-Version folgt" not in flat
     iphone = flat.split("Gibt es StudiNow fürs iPhone?")[1].split("</details>")[0]
-    for s in ("Ja.", "Apple Pencil weiter am iPad", "StudiNow Free gilt für ein Gerät", "mit Pro AI nutzt du iPhone und iPad zusammen"):
+    for s in ("Ja.", "Apple Pencil weiter am iPad", "StudiNow Free gilt für ein Gerät", "mit Plus oder Pro AI nutzt du iPhone und iPad zusammen"):  # 26.11.2026
         assert s in iphone, s
     for anchor in ("laden", "uni", "funktionen", "so-gehts", "preise", "fragen"):
         assert f'id="{anchor}"' in html, anchor
@@ -144,9 +144,16 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     # Entscheidung 07.11.2026: 1.0 nur die LUH, Hochschule Hannover und Uni Hildesheim "in Kürze" (1.0.1).
     # 16.11.2026: mit 1.0.4 ist die Universitaet Hildesheim angebunden; die Hochschule Hannover bleibt "in Kürze"
     assert '<p class="eyebrow">Lernmanagementsystem für Hochschulen in ganz Deutschland</p>' in html
+    # 26.11.2026 (Inhaber): Universitaet Goettingen neu, mit Hinweis, was schon geht und was noch fehlt (kein Datum)
     assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong> und <strong>Universität Hildesheim</strong>\. "
+                     r"Neu: <strong>Universität Göttingen</strong> mit Stud\.IP und Mensa\. "
                      r"In Kürze: Hochschule Hannover\. Weitere Hochschulen folgen\.", flat)
-    assert "Heute für die Leibniz Universität Hannover und die Universität Hildesheim." in flat
+    assert "Heute für die Leibniz Universität Hannover und die Universität Hildesheim, neu auch für die Universität Göttingen." in flat
+    goe = flat.split('id="goettingen">')[1].split("</p>")[0]
+    for s in ("neu in StudiNow", "Schon dabei: Stud.IP", "Lehrenden", "Schwarze Brett", "noch ohne Preise", "Noch nicht dabei",
+              "FlexNow", "eCampus", "Uni-Mail", "Vorlesungsaufzeichnungen", "sobald das möglich ist"):
+        assert s in goe, s
+    assert not re.search(r"\b20\d\d\b|Sommersemester|Wintersemester|in wenigen Wochen", goe), "kein Datum versprechen"
     assert "In Kürze Hochschule Hannover, weitere Hochschulen" in flat and "In Kürze Hochschule Hannover und Uni Hildesheim" not in flat
     assert "Deine fehlt?" in flat and 'href="mailto:support@studinow.app">Schreib uns</a>' in flat
     assert not re.search(r"alle(n)? (deutschen )?Hochschulen|jede(r)? Hochschule|alle(n)? Unis", flat), "nicht alle Hochschulen angebunden"
@@ -166,12 +173,24 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
         assert s in mensa, s
     # Tarife wie app/plans.py, Probe wie docs/PREISLISTE.md
     from app import plans
-    for key, price in (("free", "0 €"), ("plus", "19,99 €"), ("pro_ai", "39,99 €")):
+    # Neues Modell (Entscheidung des Inhabers vom 26.11.2026, Zweig tarif/credits-neu): Plus 1,99 € im Monat oder
+    # 39,99 € einmalig fuer 5 Jahre, Pro AI 39,99 € im Jahr mit 120 Credits je Monat, KI nur mit Credits
+    for key, price in (("free", "0 €"), ("plus", "1,99 €"), ("pro_ai", "39,99 €")):
         assert plans.PLANS[key]["name"] in html and f'<span class="amount">{price}</span>' in html, key
-    # nur Jahresabos (Entscheidung des Inhabers vom 09.11.2026)
-    assert plans.PLANS["plus"]["price_cents"] == 1999 and plans.PLANS["pro_ai"]["price_cents"] == 3999
-    assert "pro Monat</span>" not in html and "um ein Jahr" in flat
-    assert "7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten" in flat and "deine Daten bleiben" in flat
+    # 27.11.2026 (Inhaber): monatlich Free -> Plus 1,99 -> Pro AI 3,99, jaehrlich Pro AI 39,99, stark hervorgehoben das
+    # Bachelor+Master-Paket mit der Ersparnis gegenueber normalem Plus (Werte aus plans.savings)
+    preise = flat.split('id="preise"')[1].split("</section>")[0]
+    # 27.11.2026 (Inhaber "Ja, nach oben"): Special zuerst, dann Monatlich, dann Jaehrlich
+    m = preise.index("Monatlich")
+    assert preise.index("Bachelor+Master-Paket") < m < preise.index('id="p-plus"', m) < preise.index('id="p-pro"', m) \
+        < preise.index("Jährlich", m) < preise.index("pro Jahr", m), "Reihenfolge wie bestellt"
+    assert '<article class="plan plan-special"' in html and "Unser Special" in preise
+    assert "Du sparst 79,41 € (67 %)" in preise and "60 × 1,99 € = 119,40 €" in preise and "0,67 € im Monat" in preise
+    assert "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €" in preise
+    assert "kein Abo, verlängert sich nicht, endet von selbst" in preise
+    assert "120 Credits jeden Monat neu" in flat and "funktioniert nur mit Credits" in flat and "in Free nicht" in flat
+    assert "um einen Monat" in flat and "um ein Jahr" in flat
+    assert "7 Tage alles wie StudiNow Plus, dazu 25 Credits" in flat and "deine Daten bleiben" in flat
     assert "24 Stunden" in flat and 'href="nutzungsbedingungen.html"' in html
     assert html.count("<details>") >= 5 and "<summary>" in html
     # ehrlich: keine Formulare/Suchfelder, keine Nutzerzahlen oder Stimmen, kein Anbieter-Name der KI
@@ -199,18 +218,18 @@ def test_start_page_images_are_small_demo_screenshots_for_light_and_dark():
 
 
 def test_invite_page_explains_the_invitation_and_links_the_store_without_ai_promises():
-    """https://studinow.app/i/<CODE> (docs/EINLADUNGEN.md): erklaert die Einladung, fuehrt zum App Store, Stufen wie
-    in app/invites.py, Pfade relativ zur Wurzel (../), nicht in der Navigation, kein Skript."""
+    """https://studinow.app/i/<CODE> (docs/EINLADUNGEN.md): erklaert die Einladung, fuehrt zum App Store, seit
+    27.11.2026 ohne Belohnungen, Pfade relativ zur Wurzel (../), nicht in der Navigation, kein Skript."""
     html = page("i/index.html")
     assert html.startswith("<!doctype html>\n<html lang=\"de\">") and "<script" not in html
     assert '<link rel="stylesheet" href="../style.css">' in html and 'href="../favicon.png"' in html and 'href="../index.html"' in html
     assert '<main id="inhalt" class="doc invite">' in html and "<h1>Du bist zu StudiNow eingeladen</h1>" in html
     assert 'class="btn btn-store" href="https://apps.apple.com/de/app/id6830632088"' in html and "Im App Store laden" in html
     assert "<strong>Jetzt im App Store</strong> für iPad und iPhone." in html and "Bald verfügbar" not in html
-    for s in ("1 Monat StudiNow Plus gratis", "3 Monate StudiNow Plus gratis", "12 Monate StudiNow Plus gratis",
-              "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 € für das Jahr)", "30 Tage", "Pro Person zählt eine Einladung",
-              "Angebotscodes", "nie automatisch", "nichts kaufen und nichts teilen"):
+    for s in ("30 Tage", "Pro Person zählt eine Einladung", "nichts kaufen und nichts teilen"):
         assert s in html, s
+    # seit 27.11.2026 keine Belohnungen (Inhaber)
+    assert not re.search(r"Belohnung|gratis|Angebotscode|Plus-Preis", html)
     assert 'href="../support.html"' in html and 'href="../datenschutz.html"' in html and "aria-current" not in html
     assert 'src="../logo.png"' in html and 'href="../index.html#preise"' in html
     assert not re.search(r"\bKI\b|ChatGPT|OpenAI", html), "keine KI-Versprechen auf oeffentlichen Seiten (docs/release/README.md)"

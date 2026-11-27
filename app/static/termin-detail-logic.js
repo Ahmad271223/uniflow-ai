@@ -94,7 +94,7 @@ export function lecturersQuery(e) {
   return null;
 }
 
-export const showsLecturers = u => u === "luh";
+export const showsLecturers = u => u === "luh" || u === "goettingen";   // Göttingen: Lehrende aus Stud.IP (c8624807), wie in der App
 
 /** Bereich "Raum": an der LUH (finder) je Raum ein Knopf "Route" und "Im Raumfinder anzeigen" (.room-link, app.js) */
 export function roomSectionHtml(text, finder, icon = () => "") {

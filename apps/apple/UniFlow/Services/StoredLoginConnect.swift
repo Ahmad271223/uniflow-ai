@@ -41,13 +41,16 @@ extension ContainerManager {
     /// Alle Dienste der Hochschule mit dem gespeicherten Zugang verbinden bzw. abgelaufene Anmeldungen erneuern.
     /// `userAction`: der Mensch hat es eben verlangt ("Speichern", "Sync"): ohne Ruecknahme nach Fehlschlaegen.
     /// Laeuft schon ein Lauf, wartet ein zweiter darauf (mit `userAction` beginnt er danach einen eigenen).
+    /// `only`: nur diese Dienste ("Stud.IP", "QIS", "Uni-Mail", "Learnweb", "LSF", "Moodle" …); nil: alle. Der Abgleich
+    /// von selbst gibt seit 27.11.2026 die faelligen Portale mit - sonst meldete ein reiner Mail-Abruf (alle 30 Minuten)
+    /// nebenbei Stud.IP, QIS oder Learnweb neu an, obwohl diese nur zweimal am Tag dran sind.
     @discardableResult
-    func connectWithStoredLogin(userAction: Bool = false) async -> StoredLoginReport {
+    func connectWithStoredLogin(userAction: Bool = false, only: Set<String>? = nil) async -> StoredLoginReport {
         if let running = storedLoginRun {
             let r = await running.value
             guard userAction else { return r }
         }
-        let task = Task { @MainActor in await self.performStoredLogin(userAction: userAction) }
+        let task = Task { @MainActor in await self.performStoredLogin(userAction: userAction, only: only) }
         storedLoginRun = task
         let r = await task.value
         if storedLoginRun == task { storedLoginRun = nil }
@@ -99,11 +102,12 @@ extension ContainerManager {
         return !UniAutoLogin.sameEverywhere && UniAutoLogin.isRejected(portal: p, store: store)
     }
 
-    private func performStoredLogin(userAction: Bool) async -> StoredLoginReport {
+    private func performStoredLogin(userAction: Bool, only: Set<String>? = nil) async -> StoredLoginReport {
         guard let c = active else { return StoredLoginReport(noCredential: true) }
         let store = studip.websiteDataStore
         var r = StoredLoginReport()
-        let present = UniAutoLogin.Portal.allCases.filter { stand($0) != nil }
+        func wanted(_ name: String) -> Bool { only?.contains(name) ?? true }
+        let present = UniAutoLogin.Portal.allCases.filter { stand($0) != nil && wanted($0.reportName) }
         guard hasStoredLogin, let e = UniAutoLogin.entry(store) else {
             r.noCredential = true
             r.rejectedPortals = present.filter { rejectionApplies($0, store: store) }.map(\.reportName)
@@ -135,14 +139,14 @@ extension ContainerManager {
         }
         // Uni Hildesheim (12.11.2026): Learnweb und LSF wie die Portale der LUH auch zum ersten Mal verbinden
         // (CAS mit dem gemeinsamen Zugang), abgelaufene still erneuern
-        if active === c, let hildesheim {
+        if active === c, let hildesheim, HildesheimConnection.Source.allCases.contains(where: { wanted($0.rawValue) }) {
             let h = await hildesheim.connectWithStoredLogin(userAction: userAction)
             r.connected += h.connected.map(\.rawValue)
             r.needsLogin += h.needsLogin.map(\.rawValue)
         }
         // HsH: abgelaufene Anmeldungen still erneuern
         if active === c, let hsh {
-            for s in HsHConnection.Source.allCases where hsh.isConnected(s) && hsh.state(s) == .needsLogin {
+            for s in HsHConnection.Source.allCases where hsh.isConnected(s) && hsh.state(s) == .needsLogin && wanted(s.rawValue) {
                 if await hsh.autoLogin(s) { r.connected.append(s.rawValue) } else { r.needsLogin.append(s.rawValue) }
             }
         }

@@ -176,8 +176,9 @@ final class AuditApp20261103Tests: XCTestCase {
         XCTAssertTrue(UFNavItem.active(UFNavItem.cards, in: items, route: .exams))
         let withAI = UFNavItem.visible(local: true, gradesOnDevice: true, community: true, flashcards: true, ai: true)
         XCTAssertFalse(UFNavItem.active(UFNavItem.cards, in: withAI, route: .exams), "mit KI: \"Tests & Wiederholung\" markiert")
-        // ChatGPT verbinden ist vorerst aus (0ad0319, "bald verfuegbar"): dann nennt der Text die StudiNow-KI in Pro AI
-        XCTAssertTrue(UFNoServerContent.examsText.contains(ChatGPTLink.isEnabled ? "nur mit verbundenem ChatGPT" : "StudiNow-KI in StudiNow Pro AI"),
+        // ChatGPT verbinden ist vorerst aus (0ad0319, "bald verfuegbar"): dann nennt der Text die StudiNow-KI (seit
+        // 26.11.2026 ab Plus mit Credits)
+        XCTAssertTrue(UFNoServerContent.examsText.contains(ChatGPTLink.isEnabled ? "nur mit verbundenem ChatGPT" : "StudiNow-KI ab StudiNow Plus mit Credits"),
                       UFNoServerContent.examsText)
         XCTAssertTrue(UFNoServerContent.examsText.contains("eigenen Karteikarten"))
         // beide im Menue, Karteikarten angetippt: nur die Karteikarten leuchten (Rueckmeldung 04.11.2026)

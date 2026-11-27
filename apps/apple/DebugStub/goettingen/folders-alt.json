@@ -1,0 +1,45 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 1
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "folders",
+   "id": "7558f5edc1ef85c85ae70ff577546018",
+   "attributes": {
+    "folder-type": "RootFolder",
+    "name": "",
+    "description": "",
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "is-visible": true,
+    "is-readable": true,
+    "is-writable": false,
+    "is-editable": false,
+    "is-empty": false,
+    "is-subfolder-allowed": false,
+    "data-content": []
+   },
+   "relationships": {
+    "file-refs": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/7558f5edc1ef85c85ae70ff577546018/file-refs"
+     }
+    },
+    "folders": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/7558f5edc1ef85c85ae70ff577546018/folders"
+     }
+    }
+   }
+  }
+ ]
+}

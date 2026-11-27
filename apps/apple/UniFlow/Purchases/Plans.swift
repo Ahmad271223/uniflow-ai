@@ -1,16 +1,19 @@
 import Foundation
 
-// StudiNow-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, docs/PREISLISTE.md, Entscheidung des
-// Inhabers vom 04.11.2026): drei Tarife Free, Plus, Pro AI; seit 09.11.2026 nur noch als Jahresabo (Plus 19,99 EUR,
-// Pro AI 39,99 EUR im Jahr, docs/release/ABO-NUR-JAHR-2026-11-09.md). Pro Connect gibt es nicht mehr; sein
-// Schluessel `pro_connect` und sein Produkt gelten wie Pro AI (`UFPlan(rawValue:)`, `UFPlan(productID:)`, wie
-// plans.LEGACY_PLANS im Dienst). Quelle aller Werte ist app/plans.py; tools/gen-plans-fixture.py
-// schreibt daraus packages/shared-contracts/fixtures/plans/plans.json, und PlanContractTests prueft diese Tabelle
-// Zeile fuer Zeile dagegen (Namen, Preise, Produkte, Rechte je Tarif, Stand). Aendert sich plans.py, hier nachziehen.
+// StudiNow-Tarife und Rechte aus dem gemeinsamen Vertrag (docs/ABO-SYSTEM.md, docs/PREISLISTE.md). Seit 26.11.2026
+// (Entscheidung des Inhabers, neues Tarifmodell, docs/TARIFE-CREDITS-2026-11-26.md): StudiNow Free (0 EUR); StudiNow
+// Plus mit allen Funktionen, 1,99 EUR im Monat (Auto-Abo) oder 39,99 EUR einmalig fuer 5 Jahre (nicht verlaengerndes
+// Abo, "Bachelor+Master-Paket", `UFOffer`); StudiNow Pro AI = Plus und 120 Credits je Monat, 3,99 EUR im Monat (seit
+// 27.11.2026 wieder verkauft) oder 39,99 EUR im Jahr. Die StudiNow-KI geht in jedem
+// Tarif nur mit Credits (Rechte mit `needsCredits`). Pro Connect gibt es nicht mehr; sein Schluessel `pro_connect` und
+// sein Produkt gelten wie Pro AI (`UFPlan(rawValue:)`, `UFPlan(productID:)`, wie plans.LEGACY_PLANS im Dienst). Quelle
+// aller Werte ist app/plans.py; tools/gen-plans-fixture.py schreibt daraus
+// packages/shared-contracts/fixtures/plans/plans.json, und PlanContractTests prueft diese Tabelle Zeile fuer Zeile
+// dagegen (Namen, Preise, Produkte, Angebote, Rechte je Tarif, Stand). Aendert sich plans.py, hier nachziehen.
 //
 // Was davon auf dem iPad wirklich geht, steht nicht hier, sondern in `UFEntitlement.onDevice` (unten) und in
-// `UFFeature` (Entitlements.swift): auf dem Geraet, mit StudiNow-Konto ueber den Dienst (StudiNow-KI, Notizen-Abgleich;
-// Pro AI, Stand 07.11.2026) oder gar nicht. Was gar nicht geht, zeigt keine Tarifkarte (auch nicht "in Vorbereitung").
+// `UFFeature` (Entitlements.swift): auf dem Geraet, mit StudiNow-Konto ueber den Dienst (StudiNow-KI mit Credits,
+// Notizen-Abgleich) oder gar nicht. Was gar nicht geht, zeigt keine Tarifkarte (auch nicht "in Vorbereitung").
 
 // MARK: - Tarif
 
@@ -60,65 +63,77 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
         }
     }
 
-    /// Listenpreis in Cent (EUR, je Jahr) aus plans.json. Nur fuer den Vertragsvergleich: angezeigt wird immer
-    /// `Product.displayPrice` aus StoreKit (Richtlinie 3.1.2, Preis je Storefront).
+    /// Listenpreis in Cent (EUR) des Hauptprodukts aus plans.json (`price_cents` je `period`: Plus 1,99 im Monat, Pro AI
+    /// 39,99 im Jahr). Nur fuer den Vertragsvergleich: angezeigt wird immer `Product.displayPrice` aus StoreKit
+    /// (Richtlinie 3.1.2, Preis je Storefront).
     var priceCents: Int {
         switch self {
         case .free: return 0
-        case .plus: return 1999
+        case .plus: return 199
         case .proAI: return 3999
         }
     }
 
-    /// Credits fuer die StudiNow-KI je Kalendermonat aus plans.json (`plans.<tarif>.credits`; 1 Credit = 1 Cent)
+    /// Zeitraum zu `priceCents` wie in plans.json (`period`): Free keiner
+    var period: String? {
+        switch self {
+        case .free: return nil
+        case .plus: return "month"
+        case .proAI: return "year"
+        }
+    }
+
+    /// Credits fuer die StudiNow-KI je Kalendermonat aus plans.json (`plans.<tarif>.credits`; 1 Credit = 1 Cent). Pro AI
+    /// 120 seit 26.11.2026 (Inhaber), am 1. neu aufgeladen, der Rest verfaellt; Plus und Free keine (Plus kauft dazu).
     var monthlyCredits: Int {
         switch self {
         case .free, .plus: return 0
-        case .proAI: return 80           // 24.11.2026 (Inhaber): 80 statt 100, 1 Credit = 1 Cent
+        case .proAI: return 120
         }
     }
 
-    /// das angebotene Apple-Produkt: das Jahresabo (Entscheidung des Inhabers vom 09.11.2026, eine Abo-Gruppe, Apple
-    /// regelt Upgrade und Downgrade); Free hat keins
-    var productID: String? { productID(.yearly) }
-
-    /// Apple-Produkt je Zahlweise. Angeboten wird nur `.yearly` (`UFBilling.offered`); die Monatsprodukte (bis
-    /// 09.11.2026) stehen nur hier, damit ein frueherer Kauf weiter als Kauf des Tarifs gilt (`init(productID:)`)
-    func productID(_ billing: UFBilling) -> String? {
-        switch (self, billing) {
-        case (.free, _): return nil
-        case (.plus, .monthly): return "de.uniflow.plus.monthly"
-        case (.plus, .yearly): return "de.uniflow.plus.yearly"
-        case (.proAI, .monthly): return "de.uniflow.proai.monthly"
-        case (.proAI, .yearly): return "de.uniflow.proai.yearly"
+    /// das Hauptprodukt des Tarifs (plans.json `apple_product_id`): Plus das Monatsabo, Pro AI das Jahresabo; Free keins.
+    /// Alle angebotenen Produkte stehen in `UFOffer` (Plus zusaetzlich 5 Jahre einmalig).
+    var productID: String? {
+        switch self {
+        case .free: return nil
+        case .plus: return UFOffer.plusMonthly.productID
+        case .proAI: return UFOffer.proAIYearly.productID
         }
     }
 
-    /// alle Apple-Produkte, die als Kauf des Tarifs gelten (das Jahresabo und das fruehere Monatsabo); angeboten wird
-    /// nur `productID`
-    var productIDs: [String] { UFBilling.allCases.compactMap(productID) }
+    /// angebotene Produkte des Tarifs in der Reihenfolge der Knoepfe
+    var offers: [UFOffer] { UFOffer.allCases.filter { $0.plan == self } }
+
+    /// alle Apple-Produkte, die als Kauf des Tarifs gelten: die Angebote und fruehere Produkte (`legacyProductIDs`)
+    var productIDs: [String] {
+        offers.map(\.productID) + UFPlan.legacyProductIDs.filter { $0.value == self }.map(\.key).sorted()
+    }
 
     /// Kurzbeschreibung aus plans.json (`tagline`). Die Tarifkarte zeigt sie nur, wenn der Tarif auf dem iPad schon
     /// etwas Eigenes bietet (`UFFeatureMatrix.hasAvailableExtras`); sonst wuerde sie etwas versprechen.
     var tagline: String {
         switch self {
         case .free: return "Studium organisieren und Unterlagen lesen"
-        case .plus: return UFEditorAvailability.available ? "Mit Stift auf deinen Unterlagen schreiben, eigene Karteikarten und Community"
-            : "Eigene Karteikarten, Community und in der iPad-App mit Stift schreiben"
-        case .proAI: return "KI von StudiNow inklusive – kein eigenes ChatGPT-Konto nötig"
+        case .plus: return "Alle Funktionen ohne KI – KI mit Credits dazu"
+        case .proAI: return "Alles aus Plus und 120 Credits für die StudiNow-KI – jeden Monat neu"
         }
     }
 
     /// naechstkleinerer Tarif (Free: keiner)
     var lower: UFPlan? { UFPlan.allCases.last { $0 < self } }
 
-    /// Produkte frueherer Tarife, die wie ein heutiger gelten (Pro Connect -> Pro AI, wie im Dienst)
-    static let legacyProductIDs: [String: UFPlan] = ["de.uniflow.proconnect.monthly": .proAI]
+    /// Produkte frueherer Angebote, die wie ein heutiger Tarif gelten (plans.LEGACY_PRODUCTS im Dienst): das Plus-
+    /// Jahresabo 19,99 EUR (bis 26.11.2026) und Pro Connect (bis 04.11.2026). Sie werden nicht mehr angeboten, ein Kauf
+    /// damit gilt weiter. Das Pro-AI-Monatsabo (bis 09.11.2026 Altprodukt) ist seit 27.11.2026 wieder ein Angebot
+    /// (`UFOffer.proAIMonthly`, 3,99 EUR).
+    static let legacyProductIDs: [String: UFPlan] = ["de.uniflow.plus.yearly": .plus,
+                                                     "de.uniflow.proconnect.monthly": .proAI]
 
-    /// Produkt -> Tarif; fremde und nicht mehr angebotene Produkte (z. B. das fruehere de.uniflow.pro.monthly)
-    /// geben keinen Tarif, das fruehere Pro-Connect-Produkt gilt wie Pro AI
+    /// Produkt -> Tarif; fremde und nicht mehr gueltige Produkte (z. B. das fruehere de.uniflow.pro.monthly) geben
+    /// keinen Tarif
     init?(productID: String) {
-        guard let p = UFPlan.allCases.first(where: { $0.productIDs.contains(productID) }) ?? UFPlan.legacyProductIDs[productID] else { return nil }
+        guard let p = UFOffer(productID: productID)?.plan ?? UFPlan.legacyProductIDs[productID] else { return nil }
         self = p
     }
 
@@ -126,62 +141,248 @@ enum UFPlan: String, CaseIterable, Comparable, Identifiable {
     static var paid: [UFPlan] { allCases.filter { $0.productID != nil } }
 }
 
-/// Zahlweise eines Abos. Seit 09.11.2026 (Entscheidung des Inhabers) gibt es nur noch das Jahresabo (`offered`);
-/// `monthly` bleibt nur, damit ein frueherer Kauf eines Monatsabos erkannt wird (nie angeboten, kein Umschalter).
-enum UFBilling: String, CaseIterable, Identifiable {
+/// Bereich der Tarifseite (plans.json `offer_groups`, 27.11.2026): Monatlich, Jaehrlich, Unser Special
+enum UFOfferGroup: String, CaseIterable, Identifiable {
+    // Reihenfolge auf der Seite (Inhaber 27.11.2026 "Ja, nach oben"): Unser Special zuerst, dann Monatlich, Jaehrlich
+    case special
     case monthly
     case yearly
 
     var id: String { rawValue }
 
-    /// die einzige angebotene Zahlweise
-    static let offered: UFBilling = .yearly
+    /// Ueberschrift des Bereichs (`title`)
+    var title: String {
+        switch self {
+        case .monthly: return "Monatlich"
+        case .yearly: return "Jährlich"
+        case .special: return "Unser Special"
+        }
+    }
 
-    /// Zahlweise eines Apple-Produkts (unbekannt: nil)
-    init?(productID: String) {
-        guard let b = UFBilling.allCases.first(where: { b in UFPlan.allCases.contains { $0.productID(b) == productID } })
-        else { return nil }
-        self = b
+    /// Angebote des Bereichs in der Reihenfolge der Karten
+    var offers: [UFOffer] { UFOffer.allCases.filter { $0.group == self } }
+}
+
+/// Ersparnis eines Angebots gegenueber dem Monatsabo (plans.json `offers[].savings`, Werte aus app/plans.py). Die Texte
+/// nennen Euro-Betraege des Vertrags; die Seite zeigt sie nur, wenn der Store genau diese Preise in Euro liefert
+/// (`UFOfferText.savingsApply`), sonst stimmte der Vergleich in einem anderen Land nicht.
+struct UFOfferSavings: Equatable {
+    let months: Int
+    let regularCents: Int
+    let savedCents: Int
+    let savedPercent: Int
+    let perMonthCents: Int
+    let text: String
+    let perMonthText: String
+}
+
+/// Ein angebotenes Apple-Produkt (plans.json `offers`, 27.11.2026). Reihenfolge wie im Vertrag: Plus monatlich, Pro AI
+/// monatlich, Pro AI jaehrlich, Plus 5 Jahre (Bachelor+Master-Paket).
+enum UFOffer: String, CaseIterable, Identifiable {
+    /// StudiNow Plus, 1,99 EUR im Monat (Auto-Abo in der Gruppe "StudiNow")
+    case plusMonthly = "de.uniflow.plus.monthly"
+    /// StudiNow Pro AI, 3,99 EUR im Monat (Auto-Abo in der Gruppe "StudiNow", Stufe wie Pro AI jaehrlich; seit 27.11.2026)
+    case proAIMonthly = "de.uniflow.proai.monthly"
+    /// StudiNow Pro AI, 39,99 EUR im Jahr (Auto-Abo in der Gruppe "StudiNow")
+    case proAIYearly = "de.uniflow.proai.yearly"
+    /// StudiNow Plus, 39,99 EUR einmalig fuer 5 Jahre (nicht verlaengerndes Abo, StoreKit `.nonRenewable`):
+    /// "Bachelor+Master-Paket", auf der Tarifseite als "Unser Special" hervorgehoben
+    case plusFiveYears = "de.uniflow.plus.fuenfjahre"
+
+    /// `kind` in plans.json
+    enum Kind: String {
+        case autoRenewable = "auto_renewable"
+        case nonRenewing = "non_renewing"
+    }
+
+    var id: String { rawValue }
+    var productID: String { rawValue }
+
+    init?(productID: String) { self.init(rawValue: productID) }
+
+    var plan: UFPlan {
+        switch self {
+        case .plusMonthly, .plusFiveYears: return .plus
+        case .proAIMonthly, .proAIYearly: return .proAI
+        }
+    }
+
+    /// Bereich der Tarifseite (`group`)
+    var group: UFOfferGroup {
+        switch self {
+        case .plusMonthly, .proAIMonthly: return .monthly
+        case .proAIYearly: return .yearly
+        case .plusFiveYears: return .special
+        }
+    }
+
+    /// eigener Name des Angebots (`name`): nur das Paket
+    var name: String? { self == .plusFiveYears ? "Bachelor+Master-Paket" : nil }
+
+    /// Abzeichen (`badge`) und starke Hervorhebung (`highlight`): nur das Paket
+    var badge: String? { self == .plusFiveYears ? "Unser Special" : nil }
+    var highlight: Bool { self == .plusFiveYears }
+
+    /// Vergleichsangebot der Ersparnis (`compare`): Pro AI jaehrlich gegen Pro AI monatlich, das Paket gegen Plus monatlich
+    var compare: UFOffer? {
+        switch self {
+        case .proAIYearly: return .proAIMonthly
+        case .plusFiveYears: return .plusMonthly
+        case .plusMonthly, .proAIMonthly: return nil
+        }
+    }
+
+    /// Ersparnis gegenueber `compare` (`savings`, Werte aus plans.json; PlanContractTests prueft sie)
+    var savings: UFOfferSavings? {
+        switch self {
+        case .proAIYearly:
+            return UFOfferSavings(months: 12, regularCents: 4788, savedCents: 789, savedPercent: 16, perMonthCents: 333,
+                                  text: "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €", perMonthText: "nur 3,33 € im Monat")
+        case .plusFiveYears:
+            return UFOfferSavings(months: 60, regularCents: 11940, savedCents: 7941, savedPercent: 67, perMonthCents: 67,
+                                  text: "Du sparst 79,41 € (67 %) gegenüber 60 × 1,99 € = 119,40 €", perMonthText: "nur 0,67 € im Monat")
+        case .plusMonthly, .proAIMonthly:
+            return nil
+        }
+    }
+
+    var kind: Kind { self == .plusFiveYears ? .nonRenewing : .autoRenewable }
+
+    /// Listenpreis in Cent (nur Vertrag und Tests; angezeigt wird der Preis aus StoreKit)
+    var priceCents: Int {
+        switch self {
+        case .plusMonthly: return 199
+        case .proAIMonthly: return 399
+        case .plusFiveYears, .proAIYearly: return 3999
+        }
+    }
+
+    /// Zeitraum eines Abos (`period`): month, year; nil beim einmaligen Kauf
+    var period: String? {
+        switch self {
+        case .plusMonthly, .proAIMonthly: return "month"
+        case .proAIYearly: return "year"
+        case .plusFiveYears: return nil
+        }
+    }
+
+    /// Laufzeit eines einmaligen Kaufs in Jahren (`years`); nil bei einem Abo
+    var years: Int? { self == .plusFiveYears ? 5 : nil }
+
+    /// Text aus plans.json (`label`)
+    var label: String {
+        switch self {
+        case .plusMonthly: return "1,99 € im Monat"
+        case .proAIMonthly: return "3,99 € im Monat"
+        case .plusFiveYears: return "39,99 € einmalig für 5 Jahre"
+        case .proAIYearly: return "39,99 € im Jahr"
+        }
+    }
+
+    /// Ende eines einmaligen Kaufs: Kaufzeit plus `years` Jahre, wie `plans.offer_end` im Dienst (29.02. -> 28.02.,
+    /// Kalender in UTC). nil bei einem Abo (dessen Ende meldet Apple).
+    func end(purchasedAt: Date) -> Date? {
+        guard kind == .nonRenewing, let years else { return nil }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        let c = cal.dateComponents([.year, .month, .day, .hour, .minute, .second, .nanosecond], from: purchasedAt)
+        var e = c
+        e.year = (c.year ?? 0) + years
+        // 29. Februar in einem Nicht-Schaltjahr: 28. Februar (wie der Dienst, nicht der 1. Maerz)
+        if c.month == 2, c.day == 29, let y = e.year, !(y % 4 == 0 && (y % 100 != 0 || y % 400 == 0)) { e.day = 28 }
+        return cal.date(from: e)
     }
 }
 
 // MARK: - Was das iPad anbietet
 
-/// Welche Tarife die App anbietet. Entscheidung des Inhabers vom 04.11.2026 (ersetzt "nur Free und Plus" vom
-/// 28.10.2026): drei Tarife StudiNow Free, Plus und Pro AI, seit 09.11.2026 nur als Jahresabo (19,99 € bzw. 39,99 €),
-/// kein Apple-Einfuehrungsangebot, dafuer 7 Tage Probe mit allem auf dem iPad (LocalTrial.swift). Die Pro-AI-Karte
-/// erscheint nur, wenn StoreKit das Produkt `de.uniflow.proai.yearly` liefert, sonst zeigt die Seite nur Free und
-/// Plus. Pro Connect gibt es nicht mehr (Entscheidung 04.11.2026).
+/// Welche Tarife die App anbietet (Entscheidung des Inhabers vom 26./27.11.2026): StudiNow Free, Plus (Monatsabo oder 5
+/// Jahre einmalig als Bachelor+Master-Paket) und Pro AI (Monats- oder Jahresabo), kein Apple-Einfuehrungsangebot, dafuer
+/// 7 Tage Probe wie Plus mit 25 Credits (LocalTrial.swift). Pro AI erscheint nur, wenn StoreKit eines seiner Produkte
+/// liefert, sonst zeigt die Seite nur Free und Plus. Pro Connect gibt es nicht mehr (Entscheidung 04.11.2026).
 enum UFPlanCatalog {
     /// auf dem iPad waehlbar
     static let sellable: [UFPlan] = [.free, .plus, .proAI]
 
-    /// Apple-Produkte, die die App laedt und anbietet: nur die Jahresabos (09.11.2026)
-    static var sellableProductIDs: [String] { sellable.compactMap(\.productID) }
+    /// Apple-Produkte, die die App laedt und anbietet (plans.json `offers`): Plus monatlich, Pro AI monatlich, Pro AI
+    /// jaehrlich, Plus 5 Jahre
+    static var sellableProductIDs: [String] { UFOffer.allCases.map(\.productID) }
+
+    /// kurzer Preis-Hinweis fuer Stellen ausserhalb der Tarifseite (Inhaber 27.11.2026): "ab 3,99 € im Monat"
+    static let proAIFrom = "ab 3,99 € im Monat"
+
+    /// "StudiNow Pro AI (ab 3,99 € im Monat)"
+    static var proAIWithPrice: String { "\(UFPlan.proAI.name) (\(proAIFrom))" }
 
     /// Tarife, deren Karte nur mit geliefertem Produkt erscheint (Pro AI: erst mit dem Dienst im Store)
     static let needsProduct: Set<UFPlan> = [.proAI]
 
-    /// Zeile auf der Pro-AI-Karte: die StudiNow-KI und der Abgleich laufen ueber das StudiNow-Konto (Anmeldung mit Apple
-    /// in den Einstellungen, StudoraAccountLink), dazu die Credits aus dem Vertrag
-    static let proAIServiceNote = "Braucht ein StudiNow-Konto (Anmelden mit Apple). \(UFPlan.proAI.monthlyCredits) Credits im Monat, weitere Credits zum Nachkaufen."
+    /// Zeile auf der Pro-AI-Karte: die Credits laufen ueber das StudiNow-Konto (Anmeldung mit Apple in den Einstellungen,
+    /// StudoraAccountLink), dazu die Zahl aus dem Vertrag
+    static let proAIServiceNote = "Braucht ein StudiNow-Konto (Anmelden mit Apple). \(UFPlan.proAI.monthlyCredits) Credits im Monat, am 1. neu aufgeladen, weitere Credits zum Nachkaufen."
+
+    /// Zeile auf der Plus-Karte: die StudiNow-KI nur mit gekauften Credits (26.11.2026)
+    static let plusServiceNote = "Die StudiNow-KI nutzt du mit Credits, die du in der App dazukaufst (StudiNow-Konto mit Apple)."
 
     /// dezenter, nicht anklickbarer Hinweis unter den Karten, wenn der Store das Pro-AI-Produkt gerade nicht liefert
     /// (Pro AI wird mit 1.0 verkauft, Entscheidung 07.11.2026: kein "folgt"/"kommt später", nur der ehrliche Grund)
     static let proAIMissingNote = "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden. Öffne die Seite später noch einmal."
 
-    /// Karten der Tarifwahl: Free und Plus immer, Pro AI nur mit Produkt aus dem Store (`loaded`), dazu ein laufender
-    /// Tarif, der gerade nicht angeboten wird – wer ihn hat, sieht ihn mit "Abo verwalten" (nie eine Karte, die fehlt)
+    /// Karten der Tarifwahl: Free und Plus immer, Pro AI nur mit einem seiner Produkte aus dem Store (`loaded`: monatlich
+    /// oder jaehrlich), dazu ein laufender Tarif, der gerade nicht angeboten wird – wer ihn hat, sieht ihn mit "Abo
+    /// verwalten" (nie eine Karte, die fehlt)
     static func cards(current: UFPlan, loaded: Set<String>) -> [UFPlan] {
         UFPlan.allCases.filter { p in
             guard p != current else { return true }
             guard sellable.contains(p) else { return false }
-            return !needsProduct.contains(p) || p.productID.map(loaded.contains) == true
+            return !needsProduct.contains(p) || p.offers.contains { loaded.contains($0.productID) }
         }
     }
 
-    /// Zusatz zur Karte eines Tarifs (nur Pro AI)
-    static func serviceNote(_ plan: UFPlan) -> String? { plan == .proAI ? proAIServiceNote : nil }
+    /// Karten der Tarifseite je Bereich (27.11.2026): Monatlich Free, Plus, Pro AI; Jaehrlich Pro AI; Unser Special das
+    /// Bachelor+Master-Paket. Free und Plus monatlich stehen immer da (ohne Produkt "Preis zurzeit nicht verfügbar"), die
+    /// anderen Angebote nur mit Produkt aus dem Store. Ein laufender Kauf behaelt seine Karte (`owned`; ohne Angebot, etwa
+    /// ein frueheres Produkt, das erste Angebot seines Tarifs), auch wenn der Store sie gerade nicht liefert.
+    static func sections(current: UFPlan, owned: UFOffer? = nil, loaded: Set<String>) -> [UFPlanSection] {
+        let fallback: UFOffer? = owned == nil && current != .free && !current.offers.contains { loaded.contains($0.productID) }
+            ? current.offers.first : nil
+        return UFOfferGroup.allCases.compactMap { g in
+            var c: [UFPlanOfferCard] = g == .monthly ? [.free] : []
+            for o in g.offers where loaded.contains(o.productID) || o == .plusMonthly || o == owned || o == fallback {
+                c.append(.offer(o))
+            }
+            return c.isEmpty ? nil : UFPlanSection(group: g, cards: c)
+        }
+    }
+
+    /// Zusatz zur Karte eines Tarifs (Plus: KI mit Credits, Pro AI: Konto und Monats-Credits)
+    static func serviceNote(_ plan: UFPlan) -> String? {
+        switch plan {
+        case .free: return nil
+        case .plus: return plusServiceNote
+        case .proAI: return proAIServiceNote
+        }
+    }
+}
+
+/// Eine Karte der Tarifseite: Free oder ein Angebot (27.11.2026)
+enum UFPlanOfferCard: Hashable, Identifiable {
+    case free
+    case offer(UFOffer)
+
+    var id: String { offer?.productID ?? "free" }
+    var plan: UFPlan { offer?.plan ?? .free }
+    var offer: UFOffer? {
+        if case .offer(let o) = self { return o }
+        return nil
+    }
+}
+
+/// Ein Bereich der Tarifseite mit seinen Karten
+struct UFPlanSection: Equatable, Identifiable {
+    let group: UFOfferGroup
+    let cards: [UFPlanOfferCard]
+    var id: String { group.rawValue }
 }
 
 // MARK: - Rechte aus dem Vertrag
@@ -213,48 +414,54 @@ enum UFEntitlement: String, CaseIterable, Identifiable {
     case canWriteCommunityComments = "can_write_community_comments"
     case canShareSolutions = "can_share_solutions"
     case canAccessSharedTests = "can_access_shared_tests"
+    /// neue KI-Tests von StudiNow (`needs_credits`)
     case canGenerateStudoraAITests = "can_generate_studora_ai_tests"
     /// eigene Karteikarten anlegen, bearbeiten, ueben, teilen, uebernehmen (04.11.2026); Lesen bleibt in jedem Tarif
     case canUseFlashcards = "can_use_flashcards"
-    /// Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen, auch "Neuer Klausurtermin erkannt") ab Pro AI
-    /// (Entscheidung des Inhabers 18.11.2026 "Alles ab Pro AI"; 11.-17.11.2026 ab Plus). Steht hier wegen der
-    /// Reihenfolge im Vertrag (app/plans.py)
+    /// Erinnerungen an Abgaben, Tests und Klausuren (Mitteilungen, auch "Neuer Klausurtermin erkannt") ab Plus
+    /// (26.11.2026; 18.-26.11.2026 ab Pro AI, 11.-17.11.2026 ab Plus). Steht hier wegen der Reihenfolge im Vertrag
     case canUseDueReminders = "can_use_due_reminders"
-    /// KI-Chat (Entscheidung des Inhabers 15.11.2026): die freie Frage an die KI ab Plus, bezahlt allein aus gekauften
-    /// Credits; die KI-Lernhilfe (Erklaeren, Karteikarten, Tests) bleibt Pro AI
+    /// KI-Chat: die freie Frage an die KI ab Plus, nur mit Credits (`needs_credits`)
     case canUseAIChat = "can_use_ai_chat"
-    // Pro AI: Lernstatistik und Planung des Dienstes (frueher Pro Connect)
+    // seit 26.11.2026 ab Plus: Lernstatistik und Planung des Dienstes (frueher Pro Connect, dann Pro AI)
     case canUseAdvancedAnalytics = "can_use_advanced_analytics"
     case canUseAdvancedPlanner = "can_use_advanced_planner"
     case canReviewWrongAnswers = "can_review_wrong_answers"
     case canUseExtendedTestHistory = "can_use_extended_test_history"
     case canGetRecommendations = "can_get_recommendations"
-    // Pro AI (StudiNow-KI ueber den Dienst)
+    // StudiNow-KI ueber den Dienst: seit 26.11.2026 ab Plus, nur mit Credits (`needs_credits`)
     case canUseAIExplanations = "can_use_ai_explanations"
     case canUseAIGeneratedQuestions = "can_use_ai_generated_questions"
     case canUseAISummaries = "can_use_ai_summaries"
     case canUseAIRecommendations = "can_use_ai_recommendations"
-    /// Notizen-Abgleich zwischen iPad, PC und Web (Entscheidung 04.11.2026: Plus gilt je Geraet, Abgleich ab Pro AI)
+    /// Notizen-Abgleich zwischen iPad, PC und Web (seit 26.11.2026 ab Plus; vorher ab Pro AI)
     case canSyncAnnotations = "can_sync_annotations"
     /// fertige KI-Fragen je Vorlesungswoche aus der Bibliothek des Dienstes (04.11.2026)
     case canUsePreparedWeekSets = "can_use_prepared_week_sets"
 
     var id: String { rawValue }
 
-    /// niedrigster Tarif mit diesem Recht (`from`)
+    /// niedrigster Tarif mit diesem Recht (`from`). Seit 26.11.2026 hat Plus alle Rechte (Pro AI bringt nur die
+    /// Monats-Credits dazu); die KI-Rechte gelten nur mit Credits (`needsCredits`).
     var from: UFPlan {
         switch self {
         case .canViewPDF, .canManageCourses, .canImportDocuments, .canViewTimetable, .canUseBasicPlanner,
              .chatgptConnectionPremium:
             return .free
-        case .canReadCommunity, .canAnnotatePDF, .canUsePencilKit, .canWriteCommunityComments, .canShareSolutions,
-             .canAccessSharedTests, .canGenerateStudoraAITests, .canUseFlashcards, .canUseAIChat:
+        default:
             return .plus
-        case .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,
-             .canGetRecommendations, .canUseAIExplanations, .canUseAIGeneratedQuestions,
-             .canUseAISummaries, .canUseAIRecommendations, .canSyncAnnotations, .canUsePreparedWeekSets,
-             .canUseDueReminders:
-            return .proAI
+        }
+    }
+
+    /// Recht der StudiNow-KI, das nur mit Credits gilt (plans.json `needs_credits`, 26.11.2026): der Tarif allein reicht
+    /// nicht, das Konto braucht Credits (Monats-Credits von Pro AI, Probe-Credits oder gekaufte)
+    var needsCredits: Bool {
+        switch self {
+        case .canGenerateStudoraAITests, .canUseAIChat, .canUseAIExplanations, .canUseAIGeneratedQuestions,
+             .canUseAISummaries, .canUseAIRecommendations, .canUsePreparedWeekSets:
+            return true
+        default:
+            return false
         }
     }
 
@@ -314,7 +521,7 @@ enum UFDeviceSupport: Equatable {
     /// geht auf dem Geraet, ueber diese Funktionen der App (Sperren, Tarifkarten: `UFFeature`)
     case onDevice([UFFeature])
     /// geht auf dem iPad ueber den StudiNow-Dienst mit StudiNow-Konto (Anmeldung mit Apple), ueber diese Funktionen der
-    /// App: StudiNow-KI (`StudiNowAIAccess`: Pro AI bzw. Probe und angemeldet, Credits beim Dienst) und Notizen-Abgleich
+    /// App: StudiNow-KI (`StudiNowAIAccess`: Plus, Pro AI bzw. Probe und angemeldet, nur mit Credits) und Notizen-Abgleich
     /// (DeviceSync, der Dienst prueft can_sync_annotations). Auf der Tarifkarte enthalten, mit dem Konto-Hinweis.
     case withAccount([UFFeature])
     /// auf dem iPad nicht gebaut (Testbibliothek, Lernstatistik, Empfehlungen, Kommentare ueber den Dienst, ChatGPT):
@@ -340,14 +547,14 @@ extension UFEntitlement {
         // eigene Karteikarten: CardsPage, "Als Karteikarte", FlashcardComposer; ohne Plus nur lesen (UFFlashcardAccess)
         case .canUseFlashcards: return .onDevice([.flashcards])
         // Mitteilungen 7 Tage (Klausuren), 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren und "Neuer
-        // Klausurtermin erkannt" (DueReminderScheduler), ab Pro AI (18.11.2026), auf dem Geraet ohne StudiNow-Konto
+        // Klausurtermin erkannt" (DueReminderScheduler), ab Plus (26.11.2026), auf dem Geraet ohne StudiNow-Konto
         case .canUseDueReminders: return .onDevice([.dueReminders])
-        // KI-Chat ab Plus (15.11.2026): die freie Frage an die StudiNow-KI, mit StudiNow-Konto und gekauften Credits
+        // KI-Chat ab Plus: die freie Frage an die StudiNow-KI, mit StudiNow-Konto und Credits
         case .canUseAIChat: return .withAccount([.aiChat])
-        // StudiNow-KI (Pro AI): KI-Hilfe mit Erklaeren und Zusammenfassen, KI-Karteikarten und Wochentests
+        // StudiNow-KI (ab Plus mit Credits): KI-Hilfe mit Erklaeren und Zusammenfassen, KI-Karteikarten und Wochentests
         case .canUseAIExplanations, .canUseAISummaries: return .withAccount([.aiHelp])
         case .canUseAIGeneratedQuestions: return .withAccount([.aiFlashcards, .weeklyTests])
-        // Notizen-Abgleich G2 (Pro AI; Plus gilt je Geraet)
+        // Notizen-Abgleich G2 (ab Plus seit 26.11.2026)
         case .canSyncAnnotations: return .withAccount([.deviceSync])
         case .canWriteCommunityComments, .canAccessSharedTests, .canGenerateStudoraAITests,
              .canUseAdvancedAnalytics, .canUseAdvancedPlanner, .canReviewWrongAnswers, .canUseExtendedTestHistory,

@@ -2,8 +2,10 @@
 
 Die Apple-Apps speichern die Hochschul-Passwoerter nur auf dem Geraet; der Dienst kann die Hochschule nicht abfragen
 (app/vault.py, Entscheidung 06.11.2026). Damit eine geschlossene App trotzdem zeitnah abgleicht, schickt der Dienst
-zwischen 08:00 und 18:00 Uhr ORTSZEIT DES GERAETS alle 30 Minuten eine stille Push-Nachricht ("Weck-Signal") an jedes
-gemeldete Geraet. Die App wacht kurz auf und gleicht selbst ab. Der Dienst sieht dabei keine Hochschul-Daten.
+zwischen 08:00 und 18:00 Uhr ORTSZEIT DES GERAETS alle 30 Minuten eine stille Push-Nachricht ("Weck-Signal") an ein
+gemeldetes Geraet je Konto: seit 26.11.2026 ("Abruf schonen") nur das zuletzt benutzte (`wake_devices`, nach
+`last_seen_at`), vorher an jedes. Die App wacht kurz auf und gleicht selbst ab; die anderen Geraete des Kontos gleichen
+ab, wenn man sie oeffnet. Der Dienst sieht dabei keine Hochschul-Daten.
 
 Gespeichert wird je Konto und Geraet genau ein Eintrag in `push_tokens` (accounts.db), und nur: Konto, Geraete-Kennung
 der Sitzung (wie die Geraete-Regel, app/device_limit.py), APNs-Token, Plattform, App-Version, Zeitzone, Umgebung und
@@ -313,12 +315,29 @@ def devices(user_id: str) -> list[dict]:
             f"last_error FROM {TABLE} WHERE user_id=? ORDER BY created_at, token", (user_id,))]
 
 
+def wake_devices(rows: list[dict]) -> list[dict]:
+    """Je Konto genau EIN Geraet, das geweckt wird (26.11.2026, "Abruf schonen", Freigabe des Inhabers): das zuletzt
+    benutzte (`last_seen_at`, die App meldet sich beim Oeffnen; bei Gleichstand das kleinere Token). Sonst gliche ein
+    Konto mit iPad, iPhone und Mac dreimal alle 30 Minuten bei der Hochschule ab; die anderen Geraete gleichen ab, wenn
+    man sie oeffnet. Zeilen ohne `user_id` bleiben unberuehrt."""
+    rest = [r for r in rows if not r.get("user_id")]
+    # erst nach Token aufsteigend, dann (stabil) nach last_seen_at absteigend: je Konto steht das gewaehlte vorn
+    ordered = sorted((r for r in rows if r.get("user_id")), key=lambda r: r["token"])
+    ordered.sort(key=lambda r: r.get("last_seen_at") or "", reverse=True)
+    best: dict[str, dict] = {}
+    for r in ordered:
+        best.setdefault(r["user_id"], r)
+    return rest + list(best.values())
+
+
 def due(now: datetime) -> list[tuple[dict, datetime]]:
-    """Eintraege, fuer die jetzt ein Signal ansteht, mit dem Beginn ihres Abschnitts (aeltester Abschnitt zuerst)."""
+    """Eintraege, fuer die jetzt ein Signal ansteht, mit dem Beginn ihres Abschnitts (aeltester Abschnitt zuerst). Je
+    Konto nur das Geraet aus `wake_devices`."""
     with cursor() as conn:
-        rows = [dict(r) for r in conn.execute(f"SELECT token, timezone, environment, last_sent_at, last_error FROM {TABLE}")]
+        rows = [dict(r) for r in conn.execute(
+            f"SELECT token, user_id, timezone, environment, last_seen_at, last_sent_at, last_error FROM {TABLE}")]
     out = []
-    for r in rows:
+    for r in wake_devices(rows):
         try:
             slot = slot_start(now, r["timezone"], r["token"])
         except ValueError:                                  # Zeitzone nicht (mehr) bekannt: nie senden statt abbrechen

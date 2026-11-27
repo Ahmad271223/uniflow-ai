@@ -401,11 +401,22 @@ struct StudyPlanPage: View {
     @ViewBuilder private func gapCard(_ p: StudyPlan) -> some View {
         switch p.gap ?? .other("") {
         case .noQIS:
+            if let u = UFUniversityScope.current, !UFUniversityScope.offersStudyPlan(u) {
+                // Hochschule ohne angebundenen Notenspiegel (Uni Goettingen): nicht "Verbinde QIS", sondern ehrlich,
+                // dass es den Studienverlauf dort noch nicht gibt (der Menuepunkt fehlt dort ohnehin)
+                StudyPlanNoticeCard(icon: "graduation", pair: CommunityPalette.sky, title: UFUniversityScope.studyPlanTitle(u),
+                                    text: UFUniversityScope.studyPlanText(u)) {
+                    UFButton("Zu Uni & Noten", icon: "arrow-right") { router.go(.services) }
+                        .accessibilityIdentifier("studyplan.services")
+                }
+                .accessibilityIdentifier("studyplan.gap.notoffered")
+            } else {
             StudyPlanNoticeCard(icon: "graduation", pair: CommunityPalette.sky, title: StudyPlanText.noQIS(hildesheim: hildesheim != nil, hsh: hsh != nil), text: StudyPlanText.noQISSub) {
                 UFButton("Zu Uni & Noten", icon: "arrow-right", kind: .primary) { router.go(.services) }
                     .accessibilityIdentifier("studyplan.qis")
             }
             .accessibilityIdentifier("studyplan.gap.qis")
+            }
         case .catalogLoading:
             if catalog?.notFound == true {
                 noCatalogCard(p)
@@ -983,7 +994,8 @@ struct StudyPlanModuleCard: View {
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                    Text(StudyPlanText.lp(m.lp)).ufFont(12.48, 650).monospacedDigit().foregroundStyle(UF.text2).fixedSize()
+                    Text(m.lpPart.map { "\(StudyPlanText.number($0)) von \(StudyPlanText.lp(m.lp))" } ?? StudyPlanText.lp(m.lp))
+                        .ufFont(12.48, 650).monospacedDigit().foregroundStyle(UF.text2).fixedSize()
                 }
                 UFFlexWrap(gap: 5, rowGap: 5) {
                     StudyPlanTag(text: StudyPlanText.kind(m.kind), pair: StudyPlanText.kindPair(m.kind))

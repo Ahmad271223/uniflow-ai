@@ -238,7 +238,7 @@ final class DocumentTabsHeaderAppTests: XCTestCase {
         XCTAssertEqual(header.height, EditorHeaderLayout.height, accuracy: 0.5, "Kopfzeile eine Zeile, 44 pt")
         let pdf = try XCTUnwrap(pdfFrame(env))
         XCTAssertEqual(pdf.minY, header.maxY, accuracy: 1, "unter der Zeile nur das Dokument")
-        for id in ["doc.tab.\(a)", "doc.tab.\(c)", "toolbar.tool.pen", "toolbar.redo", "toolbar.askAI.locked", "doc.more", "doc.pages",
+        for id in ["doc.tab.\(a)", "doc.tab.\(c)", "toolbar.tool.pen", "toolbar.redo", "doc.more", "doc.pages",
                    "editor.header.hide"] {
             let f = try XCTUnwrap(frame(id, env), id)
             XCTAssertEqual(f.midY, header.midY, accuracy: 1, "\(id) in derselben Zeile")
@@ -332,7 +332,7 @@ final class DocumentTabsHeaderAppTests: XCTestCase {
             }
             print("REITER Schreibflaeche \(what): PDF beginnt bei \(pdf.minY) pt (vorher \(Self.pdfTopBefore))")
         }
-        try checkOneRow("hoch", ids: ["doc.tabs", "toolbar.tool.pen", "toolbar.redo", "toolbar.askAI.locked", "doc.more"])
+        try checkOneRow("hoch", ids: ["doc.tabs", "toolbar.tool.pen", "toolbar.redo", "doc.more"])   // Plus: "KI fragen" ohne Schloss (26.11.2026)
         XCTAssertNil(frame("doc.pages", env), "hoch: Seiten im Menue Mehr")
         try shoot(env, "reiter-hoch-3")
 

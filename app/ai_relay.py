@@ -73,7 +73,8 @@ def _tasks() -> dict[str, Task]:
     out = {f"tutor:{m}": Task(f"tutor:{m}", "tutor", 60_000, TUTOR_RIGHT.get(m, "can_use_ai_explanations"), "ai_assist",
                               cache_ok=m != "flashcards") for m in ai.TUTOR_MODES}
     out["flashcards"] = Task("flashcards", "json", 60_000, "can_use_ai_generated_questions", "ai_assist", schema="flashcards")
-    out["week_test"] = Task("weekly_test", "json", 120_000, quota="ai_tests_new")
+    # 26.11.2026: nur mit Credits (Recht mit needs_credits; die Anfrage kostet Credits, ai_backend.CREDIT_PURPOSES)
+    out["week_test"] = Task("weekly_test", "json", 120_000, right="can_generate_studora_ai_tests", quota="ai_tests_new")
     out["weekly"] = Task("weekly_test", "weekly", 120_000, needs_tests=True)
     out["grade"] = Task("test_grading", "json", 60_000, needs_tests=True)
     out["study_plan"] = Task("study_plan", "json", 40_000, "can_use_ai_explanations", "ai_assist")
@@ -190,8 +191,11 @@ def _vorab_prepare(request: Request, body: dict) -> dict:
         if task.right:
             entitlements.require(request, task.right)
         entitlements.require_verified_for_ai(request)
-    except HTTPException:
-        return {"name": name, "leer": "nicht_berechtigt"}
+    except HTTPException as e:
+        # 26.11.2026 neues Modell: der Tarif hat das Recht, es fehlen nur Credits (entitlements.require: 429) -> "credits",
+        # wenn die Wissensbank fuer das Konto ueberhaupt gilt (sonst bleibt es "nicht_berechtigt")
+        no_credits = e.status_code == 429 and wissensbank.enabled() and wissensbank.allowed_for(user)
+        return {"name": name, "leer": "credits" if no_credits else "nicht_berechtigt"}
     rid = str(body.get("request_id") or uuid.uuid4().hex)[:80]
     try:
         c = ai_backend.replay(user["id"], rid)

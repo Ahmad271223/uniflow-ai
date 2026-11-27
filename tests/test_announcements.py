@@ -260,3 +260,13 @@ def test_lsf_current_lectures_link_is_the_working_variant():
     from app.universities import HILDESHEIM_SERVICES
     (s,) = [x for x in HILDESHEIM_SERVICES if x["key"] == "lsf-ausfall"]
     assert "type=0" in s["url"] and "type=1" not in s["url"] and "subitem=currentLectures" in s["url"]
+
+
+def test_escaped_empty_markup_is_dropped():
+    """Echtes Konto Uni Goettingen (27.11.2026): "&lt;div&gt;&lt;/div&gt;" am Ende stand als Text da (wie in der App)"""
+    from app.announcements import html_to_text
+    assert html_to_text("<p>Liebe Studierende,<br>bis bald.</p>&lt;div&gt;&lt;/div&gt;") == "Liebe Studierende,\nbis bald."
+    assert html_to_text("Gruss&lt;div&gt;&lt;br&gt;&lt;/div&gt;") == "Gruss"
+    assert html_to_text("Zeile eins&lt;br /&gt;Zeile zwei") == "Zeile eins\nZeile zwei"
+    assert html_to_text('&lt;DIV class="x"&gt; &lt;/DIV&gt;Text') == "Text"
+    assert html_to_text("Formel: a &lt; b und &lt;div&gt;Inhalt&lt;/div&gt;") == "Formel: a < b und <div>Inhalt</div>"

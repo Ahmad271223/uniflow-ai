@@ -1152,15 +1152,16 @@ final class TextBlockAppTests: XCTestCase {
 
     // MARK: Tarif
 
-    /// Tarif-Regel (Inhaber 25.11.2026: "das alles ab Pro AI"): Free und Plus nicht, Pro AI ja
+    /// Tarif-Regel: seit 26.11.2026 (neues Tarifmodell, Plus hat alle Funktionen von Pro AI) ab Plus; 25.-26.11.2026
+    /// "das alles ab Pro AI". Free nicht, Plus und Pro AI ja, die Probewoche zaehlt wie Plus.
     func testTarifRegel() {
-        XCTAssertEqual(UFRichNotes.minimumPlan, .proAI)
+        XCTAssertEqual(UFRichNotes.minimumPlan, .plus)
         XCTAssertFalse(UFRichNotes.allowed(plan: .free))
-        XCTAssertFalse(UFRichNotes.allowed(plan: .plus))
+        XCTAssertTrue(UFRichNotes.allowed(plan: .plus))
         XCTAssertTrue(UFRichNotes.allowed(plan: .proAI))
-        XCTAssertEqual(UFRichNotes.lockedPlan(plan: .plus), .proAI)
-        XCTAssertNil(UFRichNotes.lockedPlan(plan: .proAI))
-        XCTAssertEqual(UFLocalTrial.plan, .proAI, "die Probewoche zaehlt wie Pro AI")
+        XCTAssertEqual(UFRichNotes.lockedPlan(plan: .free), .plus)
+        XCTAssertNil(UFRichNotes.lockedPlan(plan: .plus))
+        XCTAssertEqual(UFLocalTrial.plan, .plus, "die Probewoche zaehlt wie Plus")
     }
 
     /// Plus (ohne Pro AI) behaelt, was es in 1.0.7 hat: Das Werkzeug "Text" legt das einfache Textfeld an (kein Block,
@@ -1429,6 +1430,7 @@ final class TextBlockAppTests: XCTestCase {
         try await BildProbe.wait("Karte gewaehlt") { s.editor.objects.hasSelection }
         let list = await s.store.objects(forPageKey: s.blank)
         XCTAssertEqual(list.filter(FlipCover.isCover).count, 1, "keine zweite Karte darueber")
+        XCTAssertEqual(s.editor.objects.tool, .cover, "das Werkzeug bleibt fuer die naechste Karte")
 
         // "Auswählen" trifft die Karte, die man sieht - nicht den Text darunter
         s.editor.objects.clearSelection()
@@ -1456,6 +1458,16 @@ final class TextBlockAppTests: XCTestCase {
 
         // der Stift hat eben geschrieben: Die ruhende Hand greift keinen Block
         XCTAssertGreaterThan(page.touchTracker.sincePencil, ObjectEditing.holdSeconds, "ohne Stift: sofort bereit")
+
+        // ausschneiden ohne Pro AI: gesperrte Objekte bleiben liegen (sie liessen sich nicht wieder einfuegen)
+        await plus.store.editObjects(pageKey: plus.blank) { $0 + [text, card] }
+        try await BildProbe.wait("gezeigt") { page.objectsView.shownObjects.count == 2 }
+        plus.editor.choose(.select)
+        await plus.editor.objects.selectForTesting(key: plus.blank, ids: ["t", "k"])
+        await plus.editor.objects.cutSelection(to: UIPasteboard.withUniqueName())
+        try await BildProbe.wait("ausgeschnitten") { await plus.store.objects(forPageKey: plus.blank).count == 1 }
+        let left = await plus.store.objects(forPageKey: plus.blank)
+        XCTAssertEqual(left.first?["id"], "k", "die Klappkarte bleibt, der Text ist ausgeschnitten")
 
         let pro = try await open(proAI: true)
         let copies = pro.editor.objects.copyable([text, card])

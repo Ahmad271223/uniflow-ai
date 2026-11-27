@@ -227,6 +227,18 @@ extension ObjectEditing {
     }
 
     func cutSelection(to pasteboard: UIPasteboard = .general) async {
+        // ohne Pro AI liessen sich Klappkarten und Verweise nicht wieder einfuegen: Sie bleiben liegen, statt beim
+        // Ausschneiden verloren zu gehen (zweite Durchsicht 26.11.2026)
+        if !richAllowed, let sel = selection, let key = selectedKey {
+            let picked = await objects(key).filter { ($0["id"]?.string).map(sel.ids.contains) == true }
+            let locked = Set(picked.filter { FlipCover.isCover($0) || PageLink.isLink($0) }.compactMap { $0["id"]?.string })
+            if !locked.isEmpty {
+                controller?.onHint?(Self.copyLockedHint)
+                let rest = sel.ids.subtracting(locked)
+                guard !rest.isEmpty || inkSelection != nil else { return }
+                select(key: key, ids: rest, in: await objects(key), ink: inkSelection?.indices ?? [])
+            }
+        }
         guard await copySelection(to: pasteboard) else { return }
         deleteSelection()
     }
@@ -247,7 +259,7 @@ extension ObjectEditing {
         await place(objects: copies, ink: inkCopies, inkOffset: CGPoint(x: Self.pasteOffset, y: Self.pasteOffset), on: key)
     }
 
-    static let copyLockedHint = "Klappkarten und Verweise vervielfältigen geht mit Pro AI."
+    static let copyLockedHint = "Klappkarten und Verweise vervielfältigen geht mit Plus."
 
     /// Was sich vervielfaeltigen laesst: Ohne Pro AI keine Klappkarten und Verweise (anlegen geht dann auch nicht -
     /// Duplizieren und Einfuegen waeren sonst der Weg daran vorbei).

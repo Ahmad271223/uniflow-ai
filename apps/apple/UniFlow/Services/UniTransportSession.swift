@@ -30,11 +30,22 @@ final class URLSessionUniTransport: UniTransport, @unchecked Sendable {
 
     /// Rechner des Stud.IP der LUH: Stud.IP selbst und die Anmeldeseiten aus dem Profil (WebSSO /idp/, Stud.IP-Login),
     /// auf die eine abgelaufene Sitzung weiterleitet (`StudIPClient.looksLikeLogin`)
-    static var studipDomains: [String] {
-        let p = UniversityProfile.luh
+    static var studipDomains: [String] { studipDomains(of: .luh) }
+
+    /// Rechner des Stud.IP einer Hochschule (LUH, Uni Goettingen): Stud.IP selbst und seine Anmeldeseiten aus dem Profil
+    static func studipDomains(of p: UniversityProfile) -> [String] {
         let hosts = [p.studipBase?.host?.lowercased()].compactMap { $0 }
             + (p.loginServices.first { $0.key == "studip" }?.targets.map { $0.host.lowercased() } ?? [])
         return Array(Set(hosts)).sorted()
+    }
+
+    /// Erlaubte Rechner fuer Anfragen an das Stud.IP mit diesem Rechner: er selbst und die Anmeldeseiten SEINER
+    /// Hochschule (nie die einer anderen: eine Goettinger Sitzung folgt keiner Weiterleitung nach Hannover). Ein
+    /// unbekannter Rechner (Tests) bekommt wie bisher die der LUH dazu.
+    static func studipDomains(host: String) -> [String] {
+        let h = host.lowercased()
+        let own = UniversityProfile.all.first { $0.studipBase?.host?.lowercased() == h }
+        return Array(Set([h] + studipDomains(of: own ?? .luh))).sorted()
     }
 
     private let session: URLSession

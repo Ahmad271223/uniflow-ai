@@ -13,13 +13,17 @@ public struct HTTPReply: Sendable {
     public let body: Data
     /// Kopfzeile `Location` (Abgeben: Stud.IP antwortet auf ein Hochladen mit 201 und der Adresse der neuen Datei)
     public let location: String?
+    /// Kopfzeile `Retry-After` bei 429/503 (wie lange Stud.IP Ruhe moechte; `UniRetry.retryAfter`)
+    public let retryAfter: String?
 
-    public init(status: Int, contentType: String = "", finalURL: URL? = nil, body: Data = Data(), location: String? = nil) {
+    public init(status: Int, contentType: String = "", finalURL: URL? = nil, body: Data = Data(), location: String? = nil,
+                retryAfter: String? = nil) {
         self.status = status
         self.contentType = contentType
         self.finalURL = finalURL
         self.body = body
         self.location = location
+        self.retryAfter = retryAfter
     }
 
     /// Erfolg mit JSON-Inhalt (Inhaltstyp `application/json` bzw. `application/vnd.api+json`; ohne Inhaltstyp zaehlt
@@ -220,6 +224,11 @@ public actor StudIPClient {
     private let maxConcurrent: Int
     private var inFlight = 0
     private var waiting: [CheckedContinuation<Void, Never>] = []
+    /// Stud.IP verlangte mit "Retry-After" mehr Ruhe, als ein Lauf abwartet (`UniRetry.maxRetryAfter`): bis dahin
+    /// stellt dieser Client keine Anfrage mehr, auch nicht die schon wartenden der anderen Kurse (26.11.2026)
+    public private(set) var restUntil: Date?
+    /// Uhr fuer `restUntil` (Tests)
+    var now: @Sendable () -> Date = { Date() }
 
     static let jsonAPI = "application/vnd.api+json"
 
@@ -290,15 +299,22 @@ public actor StudIPClient {
         while true {
             await acquireSlot()
             let failure: Error
+            var asked: TimeInterval?
             do {
                 defer { releaseSlot() }
                 guard requestCount < maxRequests else { throw StudIPError.requestLimit }
+                // Stud.IP wollte laengere Ruhe: nichts mehr fragen; als 429, damit der Abgleich von selbst 2 Stunden ruht
+                if let rest = restUntil, rest > now() { throw StudIPError.http(status: 429, path: Self.scrub(pathOrLink)) }
                 if requestCount > 0, pauseNanos > 0 { try await Task.sleep(nanoseconds: pauseNanos) }
                 requestCount += 1
                 do {
                     let reply = try await call(try url(pathOrLink))
                     if reply.status == 401 || Self.looksLikeLogin(reply) { throw StudIPError.sessionExpired }
                     if anyStatus || (200..<300).contains(reply.status) { return reply }
+                    if reply.status == 429 || reply.status == 503, let s = UniRetry.retryAfter(reply.retryAfter, now: now()) {
+                        asked = s
+                        if s > UniRetry.maxRetryAfter { restUntil = now().addingTimeInterval(s) }
+                    }
                     guard mode == .status else { throw StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink)) }
                     failure = StudIPError.http(status: reply.status, path: Self.scrub(pathOrLink))
                 } catch let e as URLError where mode == .transport {
@@ -306,8 +322,9 @@ public actor StudIPClient {
                 }
             }
             attempt += 1
-            guard attempt < max(1, retry.attempts), UniRetry.isTransient(failure), !Task.isCancelled else { throw failure }
-            try? await Task.sleep(nanoseconds: retry.delayNanos(attempt))
+            guard attempt < max(1, retry.attempts), UniRetry.isTransient(failure), !Task.isCancelled,
+                  let wait = retry.wait(attempt: attempt, retryAfter: asked) else { throw failure }
+            try? await Task.sleep(nanoseconds: wait)
             try Task.checkCancellation()
         }
     }

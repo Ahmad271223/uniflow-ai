@@ -78,9 +78,16 @@ def test_only_matching_module_university_and_plan(hosted, katalog):
     assert jcall(hosted, "POST", "/api/formelblatt/offer", h, {"modules": ["Grundlagen digitaler Systeme"]})[1] == {"items": []}
     assert call(hosted, "POST", "/api/formelblatt/luh-gds-kurzklausur/buy", h)[0] == 404
 
-    u, h = user(hosted, "fb-plus@beispiel.de", plan="plus")
+    # 26.11.2026 neues Modell: Free hat das Recht nicht (403); Plus hat es, ohne Credits aber 429 (frueher 403);
+    # ein gekauftes Blatt abholen braucht keine verfuegbaren Credits (ohne Kauf: 404)
+    u, h = user(hosted, "fb-free@beispiel.de")
     assert call(hosted, "POST", "/api/formelblatt/offer", h, {"modules": ["Grundlagen digitaler Systeme"]})[0] == 403
     assert call(hosted, "POST", "/api/formelblatt/luh-gds-kurzklausur/buy", h)[0] == 403
+    assert call(hosted, "GET", "/api/formelblatt/luh-gds-kurzklausur/pdf", h)[0] == 403
+    u, h = user(hosted, "fb-plus@beispiel.de", plan="plus")
+    assert call(hosted, "POST", "/api/formelblatt/offer", h, {"modules": ["Grundlagen digitaler Systeme"]})[0] == 429
+    assert call(hosted, "POST", "/api/formelblatt/luh-gds-kurzklausur/buy", h)[0] == 429
+    assert call(hosted, "GET", "/api/formelblatt/luh-gds-kurzklausur/pdf", h)[0] == 404
 
     u, h = user(hosted, "fb-pfad@beispiel.de", plan="pro_ai")
     assert call(hosted, "GET", "/api/formelblatt/..%2F..%2Fetc/pdf", h)[0] == 404
@@ -101,6 +108,25 @@ def test_without_credits_nothing_is_bought(hosted, katalog):
     assert st == 429 and d["code"] == "credits_exhausted", d
     assert used(hosted, h) == before and ent(hosted, h)["credits"]["reserved"] == 0
     assert call(hosted, "GET", "/api/formelblatt/luh-gds-kurzklausur/pdf", h)[0] == 404
+
+
+def test_bought_sheet_stays_available_when_the_credits_are_used_up(hosted, katalog):
+    """26.11.2026 neues Modell: ohne verfuegbare Credits sperrt die StudiNow-KI (429), ein schon gekauftes Blatt bleibt
+    aber abholbar - Kaufen und Anbieten brauchen Credits, das PDF nicht."""
+    from app import credits
+    u, h = user(hosted, "fb-alle@beispiel.de", plan="pro_ai")
+    assert jcall(hosted, "POST", "/api/formelblatt/luh-gds-kurzklausur/buy", h)[0] == 200
+    conn = credits.connect()
+    try:                                       # den Rest des Monats ganz aufbrauchen
+        r = credits.reserve(conn, u["id"], "rest", "tutor:ask", ent(hosted, h)["credits"]["remaining"])
+        credits.settle(conn, u["id"], r.request_id, 0, fixed_credits=ent(hosted, h)["credits"]["reserved"])
+    finally:
+        conn.close()
+    assert ent(hosted, h)["credits"]["available"] == 0
+    st, d = jcall(hosted, "POST", "/api/formelblatt/offer", h, {"modules": ["Grundlagen digitaler Systeme"]})
+    assert (st, d["code"]) == (429, "credits_exhausted"), d
+    st, b = call(hosted, "GET", "/api/formelblatt/luh-gds-kurzklausur/pdf", h)
+    assert st == 200 and b == PDF
 
 
 def test_account_export_and_delete_cover_purchases(hosted, katalog):

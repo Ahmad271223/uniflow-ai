@@ -28,10 +28,11 @@ test("Leiste: ohne Abo nur lesen mit Abo waehlen und Export, Probe mit Resttagen
   assert.match(win, /Abo konnte nicht geprüft werden/);
   assert.match(win, /id="gateRecheck">Erneut prüfen</);
   assert.match(win, /href="\/api\/app-account\/export"/, "Windows: Daten dieses PCs");
-  assert.match(gateBarHtml(acc("trial"), null, { icon }), /Probe: noch 3 Tage alles wie StudiNow Pro AI/);
+  // 26.11.2026 neues Modell: die Probe ist Plus (frueher Pro AI)
+  assert.match(gateBarHtml(acc("trial"), null, { icon }), /Probe: noch 3 Tage alles wie StudiNow Plus/);
   assert.equal(gateBarHtml(acc("active"), null, { icon }), "");
   assert.equal(gateBarHtml(null, null, { icon }), "");
-  assert.equal(trialBarTitle(1), "Probe: noch 1 Tag alles wie StudiNow Pro AI");
+  assert.equal(trialBarTitle(1), "Probe: noch 1 Tag alles wie StudiNow Plus");
   assert.equal(exportHref({ mode: "hosted" }), "/api/account/export");
 });
 

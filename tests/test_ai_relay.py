@@ -196,7 +196,7 @@ def test_whole_page_is_shared_and_costs_nothing_the_second_time(pc, monkeypatch)
 
 
 @pytest.mark.parametrize("case,status,code", [
-    ("plus", 403, "plan_required"),
+    ("plus", 429, "credits_exhausted"),             # 26.11.2026 neues Modell: Plus ohne Credits 429 statt 403
     ("plus_chat", 429, "credits_exhausted"),
     ("unverified", 403, "email_unverified"),
     ("no_credits", 429, "credits_exhausted"),
@@ -206,19 +206,23 @@ def test_service_errors_reach_the_pc_unchanged(pc, monkeypatch, case, status, co
     app, _, fake = pc
     cheap_calls(monkeypatch)
     if case == "no_credits":
-        monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "0")
+        # Monatsrahmen kleiner als die Schaetzung (10): die Reservierung scheitert (26.11.2026: mit 0 Credits sperrt
+        # schon das Recht, siehe Fall "plus")
+        monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "5")
     plan = {"plus": "plus", "plus_chat": "plus", "trial_over": "free"}.get(case, "pro_ai")
     account(app, f"{case}@beispiel.de", plan=plan, verified=case != "unverified")
     link(app, f"{case}@beispiel.de")
-    # Plus (15.11.2026): die freie Frage ist der KI-Chat (ohne gekaufte Credits 429), Erklaeren bleibt Pro AI (403)
+    # Plus (15.11.2026): die freie Frage ist der KI-Chat (ohne gekaufte Credits 429); 26.11.2026 neues Modell: auch
+    # Erklaeren hat Plus, ohne Credits ebenso 429 (frueher 403 Pro AI)
     st, d = (tutor(app, mode="explain", page_text="Seite") if case == "plus"
              else tutor(app, mode="ask", page_text="Seite", question="Was steht hier?"))
     assert (st, d["code"]) == (status, code), d
     assert isinstance(d["detail"], str) and d["detail"]
     if case == "plus":
-        assert d["required_plan"] == "pro_ai"
+        assert d["detail"] == "Für die StudiNow-KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad."
+        assert (d["credits"]["available"], d["credits"]["can_buy"]) == (0, True), d
     if case == "no_credits":
-        assert d["detail"] == "Credits für diesen Monat aufgebraucht – am 1. gibt es neue." and d["credits"]["remaining"] == 0
+        assert d["detail"] == "Credits für diesen Monat aufgebraucht – am 1. gibt es neue." and d["credits"]["remaining"] == 5
     assert fake.calls == 0, "ohne Recht, Credits oder Abo kein Aufruf der KI"
 
 
@@ -279,7 +283,10 @@ def test_week_test_is_checked_by_the_service_and_counts_on_new_tests(pc, monkeyp
     from test_ai_pdf import valid_test
     bad = valid_test(); bad["questions"].pop()
     fake.week_test = [bad, valid_test("Wochentest Analysis")]
-    account(app, "test@beispiel.de", plan="plus")
+    u = account(app, "test@beispiel.de", plan="plus")
+    # 26.11.2026 neues Modell: der Wochentest der StudiNow-KI kostet Credits, Plus braucht gekaufte
+    from test_subscriptions import give_credits
+    give_credits(u["id"], 500)
     link(app, "test@beispiel.de")
     from app import ai
     res = ai.generate_test("Analysis", 45, [{"title": "Folien", "name": "vl.pdf", "text": "Grenzwerte", "local_path": None}])
@@ -626,9 +633,10 @@ def test_relay_accepts_images_only_for_the_tutor(pc, monkeypatch):
 
 # ---------------------------------------------------------------- KI-Lernplan (07.11.2026, iPad AIStudyPlan.swift)
 
-def test_study_plan_task_is_known_costs_credits_and_needs_pro_ai(pc, monkeypatch):
+def test_study_plan_task_is_known_costs_credits_and_needs_credits(pc, monkeypatch):
     """`study_plan`: dieselbe Prompt-Logik wie mit dem eigenen ChatGPT, im Dienst mit Recht can_use_ai_explanations,
-    Kontingent ai_assist und Credits; Free und Plus bekommen plan_required, nichts geht an die KI."""
+    Kontingent ai_assist und Credits; Free bekommt plan_required bzw. die Abo-Sperre, nichts geht an die KI.
+    26.11.2026 neues Modell: Plus hat das Recht, ohne Credits aber 429 credits_exhausted (frueher plan_required)."""
     app, calls, fake = pc
     from app import ai_backend, ai_relay
     from app.ai_relay import RelayError
@@ -642,10 +650,10 @@ def test_study_plan_task_is_known_costs_credits_and_needs_pro_ai(pc, monkeypatch
     assert fake.calls == 1 and d["credits"]["charged"] == 9 and d["task"] == "study_plan"
     assert fake.prompts[0] == prompt, "der Prompt kommt unveraendert vom Geraet (nur Titel, Wochen, Dateinamen, Zeiten)"
     assert ("POST", "/api/ai/relay") in calls
-    for email, plan in (("plus-plan@beispiel.de", "plus"), ("frei-plan@beispiel.de", "free")):
+    for email, plan, want in (("plus-plan@beispiel.de", "plus", (429,)), ("frei-plan@beispiel.de", "free", (402, 403))):
         account(app, email, plan=plan)
         link(app, email)
         with pytest.raises(RelayError) as e:
             ai_relay.complete("study_plan", prompt)
-        assert e.value.status in (402, 403), plan
+        assert e.value.status in want, plan
     assert fake.calls == 1

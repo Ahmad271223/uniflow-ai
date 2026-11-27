@@ -536,4 +536,6 @@ def campuses(university: str | None) -> dict:
     u = data["universities"][uni]
     return {"university": uni, "name": u["name"], "finder": bool(u.get("finder")),
             "campuses": [campus_place(c, uni, data) for c in u["campuses"]],
-            "note": None if u.get("finder") else data["note_campus"], "source": source(data)}
+            "note": None if u.get("finder") else data["note_campus"],
+            # Quelle nur mit Raumfinder: ohne ihn (HsH, Goettingen) stand dort sonst der Standortfinder der LUH
+            "source": source(data) if u.get("finder") else None}

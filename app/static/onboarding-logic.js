@@ -40,7 +40,7 @@ export function loginStep(uni, hosted) {
 /** Text zum Tarif aus dem Abo-Stand (account-gate.js gateState) */
 export function planInfo(gate, ent) {
   const days = Math.max(1, Number(ent?.access?.trial_days_left) || 1);
-  if (gate === "trial") return { title: `Probe: noch ${days} ${days === 1 ? "Tag" : "Tage"}`, text: "In der Probe kannst du alles nutzen wie mit StudiNow Pro AI. Danach brauchst du StudiNow Plus oder Pro AI; deine Daten bleiben in jedem Fall erhalten." };
+  if (gate === "trial") return { title: `Probe: noch ${days} ${days === 1 ? "Tag" : "Tage"}`, text: "In der Probe kannst du alles nutzen wie mit StudiNow Plus, dazu 25 Credits für die KI. Danach brauchst du StudiNow Plus oder Pro AI; deine Daten bleiben in jedem Fall erhalten." };
   if (gate === "active") return { title: `Dein Tarif: ${ent?.plan_name || "StudiNow"}`, text: "Alles ist eingerichtet. Deinen Tarif siehst und änderst du jederzeit auf der Abo-Seite." };
   return { title: "Alles frei auf diesem PC", text: "Ohne Konto-Pflicht ist auf diesem PC alles nutzbar. Tarife siehst du auf der Abo-Seite." };
 }
