@@ -40,7 +40,7 @@ iPad und iPhone. Du schreibst mit dem Apple Pencil, lässt dir ganze Vorlesungen
 <p class="unis">:i-tablet: <span><strong>StudiNow ist eine iPad-App</strong> und läuft auch auf dem iPhone.
 Mac, Android und Windows kommen demnächst dazu.</span></p>
 <p class="unis">:i-cap: <span>Heute angebunden: <strong>Leibniz Universität Hannover</strong> und
-<strong>Universität Hildesheim</strong>. Weitere Hochschulen folgen. Deine fehlt?
+<strong>Universität Hildesheim</strong>. Neu: <strong>Universität Göttingen</strong> mit Stud.IP und Mensa. Weitere Hochschulen folgen. Deine fehlt?
 <a href="mailto:support@studinow.app">Schreib uns</a>.</span></p>
 <div class="cta" id="laden">
 <a class="btn btn-store" href="https://apps.apple.com/de/app/id6830632088" aria-describedby="store-note">:i-download: Im App Store laden</a>
@@ -75,7 +75,7 @@ testen, ohne Zahlungsdaten.</p>
 <li>:i-lock: <span><strong>Kein Uni-Passwort auf unseren Servern.</strong> Du meldest dich bei deiner Hochschule an, nicht bei uns. Wenn du willst, merkt sich nur dein iPad das Passwort.</span></li>
 <li>:i-tablet: <span><strong>Deine Daten auf deinem iPad.</strong> Unterlagen, Notizen und Termine liegen lokal.</span></li>
 <li>:i-eye-off: <span><strong>Kein Tracking, keine Werbung.</strong> Keine Analyse-Werkzeuge Dritter.</span></li>
-<li>:i-cap: <span><strong>Heute für die Leibniz Universität Hannover und die Universität Hildesheim.</strong> Weitere Hochschulen in Deutschland folgen.</span></li>
+<li>:i-cap: <span><strong>Heute für die Leibniz Universität Hannover und die Universität Hildesheim, neu auch für die Universität Göttingen.</strong> Weitere Hochschulen in Deutschland folgen.</span></li>
 </ul>
 </section>
 
@@ -93,6 +93,12 @@ Semester zuerst.</p>
 <li>:i-upload: <h3>Abgeben in Stud.IP</h3><p>Deine bearbeitete Übung als PDF dort abgeben, wo der Kurs sie erwartet. Abgeschickt wird erst, wenn du es bestätigst (Moodle in Kürze).</p></li>
 <li>:i-clock: <h3>Stundenplan</h3><p>Vorlesungen und Übungen im Wochenraster, am iPhone als Tage oder ganze Woche, mit Hinweisen zu Ausfällen, Fristen und Klausuren.</p></li>
 </ul>
+<p class="fine" id="goettingen"><strong>Universität Göttingen – neu in StudiNow.</strong> Schon dabei: Stud.IP mit Kursen,
+Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu das Schwarze Brett und der Speiseplan der
+Mensen (noch ohne Preise). Alle Lernfunktionen von StudiNow gehen wie an jeder anderen Hochschule. Noch nicht dabei: Noten
+und Prüfungsanmeldung (FlexNow), Bescheinigungen und Vorlesungsverzeichnis (eCampus), Uni-Mail und
+Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch anbinden können, und ergänzen sie, sobald das möglich
+ist.</p>
 </div>
 </section>
 
@@ -196,8 +202,8 @@ Auf der Übersicht zeigt dir die Karte „Heute in der Mensa“ die Hauptgericht
 <li>Nährwerte, Allergene und Kennzeichen zu jedem Gericht</li>
 <li>Filter für vegan, vegetarisch und ohne bestimmte Allergene</li>
 </ul>
-<p class="fine">Speisepläne vom Studentenwerk Hannover und vom Studierendenwerk OstNiedersachsen, für die Mensen in Hannover und
-Hildesheim. Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem Tarif frei.</p>
+<p class="fine">Speisepläne vom Studentenwerk Hannover, vom Studierendenwerk OstNiedersachsen und vom Studierendenwerk Göttingen,
+für die Mensen in Hannover, Hildesheim und Göttingen (Göttingen noch ohne Preise). Angaben ohne Gewähr, verbindlich ist der Aushang vor Ort. In jedem Tarif frei.</p>
 </div>
 <figure class="shot">
 <div class="device">
@@ -218,25 +224,29 @@ gerade arbeiten.</p>
 <div class="updates">
 <article class="update" aria-labelledby="u-jetzt">
 <p class="update-tag update-live">Jetzt im App Store</p>
-<h3 id="u-jetzt">Version 1.0.7</h3>
-<p class="when">Erschienen am 25. November 2026</p>
+<h3 id="u-jetzt">Version 1.0.8</h3>
+<p class="when">Erschienen am [[DATUM]]</p>
 <h4>Neu dabei</h4>
 <ul class="checks">
-<li><strong>Widgets</strong> „Nächster Termin“ und „Mensa heute“ für Home- und Sperrbildschirm</li>
-<li><strong>Stundenplan am iPhone:</strong> zwischen deinen Tagen und der ganzen Woche umschalten</li>
-<li><strong>Noten selbst eintragen,</strong> wenn eine bestandene Prüfung in QIS fehlt</li>
-<li><strong>Mensa mit Fotos</strong> zu den meisten Gerichten in Hannover</li>
-<li><strong>Konto löschen</strong> nur noch mit Face ID, Touch ID oder deinem Code</li>
-<li><strong>Prüfungsanmeldungen</strong> auf allen deinen Geräten</li>
+<li><strong>Neue Tarife:</strong> StudiNow Plus für 1,99 € im Monat, Pro AI für 3,99 € im Monat oder 39,99 € im Jahr
+mit 120 KI-Credits jeden Monat – und als Special das <strong>Bachelor+Master-Paket</strong>: Plus für 5 Jahre, einmal
+39,99 €, ohne Abo</li>
+<li><strong>Universität Göttingen</strong> ist angebunden: Stud.IP mit Kursen, Dateien und Stundenplan, dazu das
+Schwarze Brett und die Mensa. Weitere Funktionen folgen, sobald sie technisch möglich sind.</li>
+<li><strong>Mitschrift für Vorlesungsvideos:</strong> Aufzeichnungen deiner Uni und eigene Aufnahmen werden direkt auf
+dem Gerät zu Text. Du suchst darin und springst an die passende Stelle im Video.</li>
+<li><strong>Tippen wie in Word:</strong> Textblöcke mit Schriftarten und Formatleiste, auf linierten Seiten immer genau
+auf der Zeile</li>
+<li><strong>Notizzettel, Klappkarten und Verweise</strong> direkt auf der Seite</li>
+<li><strong>Abgleich zweimal am Tag</strong> von selbst, die Uni-Mail alle 30 Minuten – das schont dein Uni-Konto</li>
 </ul>
 <h4>Behoben und verbessert</h4>
 <ul class="checks">
-<li>Die Schrift bleibt beim Zoomen scharf</li>
-<li>Der Textmarker blitzt beim Geradeziehen nicht mehr weg</li>
-<li>Das Lasso geht ohne Tastatur</li>
-<li>QIS, Stud.IP und LSF melden sich im Hintergrund selbst neu an</li>
-<li>Fragst du die KI gleich nach dem Öffnen, hängt das Dokument immer an</li>
-<li>Lösungen in der Community gelten für alle Fassungen derselben PDF</li>
+<li>Schreiben bei starkem Zoom: Die Schrift zittert nicht mehr</li>
+<li>Die aufgelegte Hand verschiebt die Seite beim Schreiben nicht mehr</li>
+<li>Studienverlauf: Leistungspunkte werden richtig gezählt</li>
+<li>Universität Hildesheim: klarer Hinweis, wenn dein LSF-Konto als Gastkonto keinen Stundenplan und keine Noten hat</li>
+<li>Auf manchen Geräten ließ sich nach dem Start kein Fenster mehr öffnen – behoben</li>
 </ul>
 <p class="fine">Du hast StudiNow schon? Dann hol dir das Update im
 <a href="https://apps.apple.com/de/app/id6830632088">App Store</a>.</p>
@@ -247,21 +257,8 @@ gerade arbeiten.</p>
 <p class="when">Daran arbeiten wir gerade</p>
 <h4>Neue Funktionen</h4>
 <ul class="checks planned">
-<li><strong>Mitschrift für Vorlesungsvideos:</strong> Aufzeichnungen deiner Uni und eigene Aufnahmen werden direkt auf
-dem Gerät zu Text. Du suchst darin und springst an die passende Stelle im Video.</li>
-<li><strong>Tippen wie in Word:</strong> Textblöcke mit Schriftarten und Formatleiste, auf linierten Seiten immer genau
-auf der Zeile</li>
-<li><strong>Notizzettel</strong> wie echte Klebezettel, in mehreren Farben und Größen</li>
-<li><strong>Klappkarten</strong> zum Abfragen direkt auf der Seite: Antippen klappt die Antwort auf</li>
-<li><strong>Verweise</strong> auf ein Dokument und eine Seite: Antippen öffnet die Stelle daneben</li>
-<li><strong>Universität Göttingen</strong> ist angebunden und kommt mit dem nächsten Update: Stud.IP mit Kursen, Dateien
-und Stundenplan, dazu das Schwarze Brett und die Mensa. Weitere Funktionen folgen, sobald sie technisch möglich sind.</li>
-</ul>
-<h4>Wird behoben</h4>
-<ul class="checks planned">
-<li>Schreiben bei starkem Zoom: Die Schrift zittert nicht mehr</li>
-<li>Die aufgelegte Hand verschiebt die Seite beim Schreiben nicht mehr</li>
-<li>Universität Hildesheim: klarer Hinweis, wenn dein LSF-Konto als Gastkonto keinen Stundenplan und keine Noten hat</li>
+<li><strong>Tabellen</strong> direkt im Dokument, mit Pro AI</li>
+<li><strong>Universität Göttingen:</strong> Uni-Mail und deine Prüfungsanmeldungen aus FlexNow</li>
 </ul>
 <p class="fine">Das ist eine Vorschau. Bis zur Veröffentlichung kann sich noch etwas ändern, auch in welchem Tarif eine
 Funktion enthalten ist. Fehlt dir etwas? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
@@ -297,54 +294,91 @@ Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</
 <div class="wrap">
 <div class="section-head">
 <h2 id="preise-title">Preise</h2>
-<p>Zum Start testest du 7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten (einmal je Person). Danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI – deine Daten bleiben.</p>
+<p>Zum Start testest du 7 Tage alles wie StudiNow Plus, dazu 25 Credits für die KI, ohne Zahlungsdaten (einmal je iPad). Danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI – deine Daten bleiben.</p>
 </div>
+<div class="plans plans-solo">
+<article class="plan plan-special" aria-labelledby="p-paket">
+<p class="special-badge">Unser Special</p>
+<h3 id="p-paket">Bachelor+Master-Paket</h3>
+<p class="special-sub">StudiNow Plus für 5 Jahre</p>
+<p class="price"><span class="amount">39,99 €</span> <span class="per">einmalig</span></p>
+<p class="save save-big">Du sparst 79,41 € (67 %)</p>
+<p class="save-detail">gegenüber 60 × 1,99 € = 119,40 € mit dem normalen Plus – das sind nur 0,67 € im Monat</p>
+<ul class="checks">
+<li>Alle Funktionen von Plus, 5 Jahre lang</li>
+<li>Einmal zahlen – kein Abo, verlängert sich nicht, endet von selbst</li>
+<li>Reicht für Bachelor und Master</li>
+<li>KI von StudiNow mit Credits, die du dazukaufst</li>
+</ul>
+</article>
+</div>
+<p class="plans-group">Monatlich</p>
 <div class="plans">
 <article class="plan" aria-labelledby="p-free">
 <h3 id="p-free">StudiNow Free</h3>
 <p class="price"><span class="amount">0 €</span></p>
 <p class="tagline">Studium organisieren und Unterlagen lesen</p>
 <ul class="checks">
-<li>Abgleich mit deiner Hochschule</li>
-<li>Speiseplan deiner Mensa</li>
-<li>PDFs lesen und durchsuchen</li>
-<li>Stundenplan mit Hinweisen zu Terminen, Fristen und Klausuren</li>
-<li>Uni-Mail, Noten und Raumfinder</li>
+<li>Abgleich mit deiner Hochschule: Kurse, Ordner, neue Dateien</li>
+<li>PDFs öffnen, lesen und durchsuchen</li>
+<li>Module und Stundenplan mit Hinweisen zu Terminen, Fristen und Klausuren</li>
+<li>Uni-Mail, Noten, Mensa und Raumfinder (je nach Hochschule)</li>
+<li>Lernblöcke selbst planen, Zeitmesser</li>
+<li>Notizen ansehen und als PDF exportieren</li>
 <li>Widgets für den nächsten Termin und die Mensa</li>
 </ul>
 </article>
 <article class="plan" aria-labelledby="p-plus">
 <h3 id="p-plus">StudiNow Plus</h3>
-<p class="price"><span class="amount">19,99 €</span> <span class="per">pro Jahr</span></p>
-<p class="tagline">Alles aus Free, dazu:</p>
+<p class="price"><span class="amount">1,99 €</span> <span class="per">im Monat</span></p>
+<p class="tagline">Alles aus Free, dazu alle Funktionen ohne KI:</p>
 <ul class="checks">
 <li>Schreiben mit dem Apple Pencil</li>
+<li>Text wie in Word, Notizzettel, Klappkarten, Tabellen</li>
 <li>Übung und Skript nebeneinander</li>
 <li>Lesezeichen setzen, Seiten einfügen und ordnen</li>
 <li>Eigene Karteikarten mit Stapeln und Lernstand je Modul</li>
 <li>Community deines Kurses: lesen, fragen, Lösungen teilen</li>
-<li>Geteilte Karteikarten-Stapel aus der Community übernehmen (4 im Monat)</li>
-<li>Fragen an die KI mit gekauften Credits</li>
+<li>Geteilte Tests und Karteikarten-Stapel ohne Monatsgrenze</li>
+<li>Notizen auf deinen Hochschul-PDFs auf allen deinen Geräten</li>
+<li>Erinnerungen an Abgaben und Klausuren</li>
+<li>KI von StudiNow mit Credits, die du dazukaufst</li>
 </ul>
 </article>
 <article class="plan plan-top" aria-labelledby="p-pro">
 <h3 id="p-pro">StudiNow Pro AI</h3>
-<p class="price"><span class="amount">39,99 €</span> <span class="per">pro Jahr</span></p>
-<p class="tagline">Alles aus Plus, dazu die KI von StudiNow, ohne eigenes ChatGPT-Konto:</p>
+<p class="price"><span class="amount">3,99 €</span> <span class="per">im Monat</span></p>
+<p class="tagline">Alles aus Plus, dazu jeden Monat Credits für die KI:</p>
 <ul class="checks">
-<li>80 Credits im Monat für die KI, weitere zum Nachkaufen</li>
+<li>120 Credits jeden Monat neu, weitere zum Nachkaufen</li>
 <li>KI-Erklärungen, auch für das ganze Dokument</li>
-<li>Wochentests aus deinen Unterlagen: 20 neue KI-Tests im Monat</li>
+<li>Zusammenfassungen und Lernfragen zu deinen Unterlagen</li>
+<li>Wochentests aus deinen Unterlagen: bis zu 20 neue KI-Tests im Monat</li>
 <li>Karteikarten aus deinen Unterlagen erstellen lassen</li>
-<li>Geteilte Tests und Karteikarten-Stapel ohne Monatsgrenze</li>
-<li>Notizen auf deinen Hochschul-PDFs auf allen deinen Geräten</li>
-<li>Erinnerungen an Abgaben und Klausuren</li>
+<li>Uni-Mails mit KI verbessern</li>
 </ul>
 </article>
 </div>
-<p class="fine">Preise inkl. USt. Plus und Pro AI gibt es als Jahresabo. Ein Abo verlängert sich automatisch um ein Jahr, wenn du es nicht mindestens 24 Stunden
-vor Ablauf in den Einstellungen deines Apple-Kontos kündigst. Nach dem Ende eines Abos bleiben alle
-Notizen lesbar und exportierbar. „Ohne Monatsgrenze“ heißt faire Nutzung, höchstens 300 im Monat. Einzelheiten in den <a href="https://studinow.app/nutzungsbedingungen">Nutzungsbedingungen</a>.</p>
+<div class="plans plans-solo">
+<article class="plan" aria-labelledby="p-pro-jahr">
+<p class="plans-group in-card">Jährlich</p>
+<h3 id="p-pro-jahr">StudiNow Pro AI</h3>
+<p class="price"><span class="amount">39,99 €</span> <span class="per">pro Jahr</span></p>
+<p class="save">Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €</p>
+<p class="tagline">Alles aus Pro AI monatlich – nur rund 3,33 € im Monat:</p>
+<ul class="checks">
+<li>Alle Funktionen von Plus</li>
+<li>120 Credits jeden Monat neu, auch im Jahresabo</li>
+<li>Alle KI-Funktionen von StudiNow</li>
+</ul>
+</article>
+</div>
+<p class="fine">Preise inkl. USt. Die KI von StudiNow funktioniert nur mit Credits: Pro AI bringt jeden Monat 120 mit, mit Plus kaufst du
+sie in der App dazu (in Free nicht). Plus und Pro AI im Monat verlängern sich um einen Monat, Pro AI im Jahr um ein Jahr, wenn du
+das Abo nicht mindestens 24 Stunden vor Ablauf in den Einstellungen deines Apple-Kontos kündigst. Das Bachelor+Master-Paket zahlst du
+einmal; es endet 5 Jahre nach dem Kauf von selbst. Nach dem Ende bleiben alle Notizen lesbar und exportierbar. „Ohne Monatsgrenze“
+heißt faire Nutzung, höchstens 300 im Monat. StudiNow arbeitet nicht mit der LUH oder einer anderen Hochschule zusammen; die
+Anbindung an Hochschulsysteme ist nicht zugesichert. Einzelheiten in den <a href="https://studinow.app/nutzungsbedingungen">Nutzungsbedingungen</a>.</p>
 </div>
 </section>
 
@@ -378,14 +412,15 @@ du angelegt hast, bleibt da.</p>
 (Stud.IP, QIS) und die Universität Hildesheim (Learnweb, LSF), mit den Modulkatalogen der Studiengänge und dem Speiseplan
 der Mensen. Weitere Hochschulen folgen. Deine
 fehlt? Schreib uns an <a href="mailto:support@studinow.app">support@studinow.app</a>.</p>
-<p>StudiNow ist ein unabhängiges Angebot und nicht mit den Hochschulen verbunden. Verbindlich für Termine, Fristen und
-Noten sind immer die Systeme deiner Hochschule.</p>
+<p>StudiNow ist ein unabhängiges Angebot und arbeitet nicht mit der Leibniz Universität Hannover (LUH) oder einer anderen
+Hochschule zusammen. Ändert oder sperrt eine Hochschule ihre Systeme, kann die Anbindung wegfallen; die Funktionen der
+App bleiben. Verbindlich für Termine, Fristen und Noten sind immer die Systeme deiner Hochschule.</p>
 </details>
 <details>
 <summary>Gibt es StudiNow fürs iPhone?</summary>
 <p>Ja. Am iPhone liest du Unterlagen und siehst Stundenplan, Nachrichten, Uni-Mail,
-Noten und Mensa. Geschrieben wird mit dem Apple Pencil weiter am iPad. StudiNow Free gilt für ein Gerät; mit Pro AI
-nutzt du iPhone und iPad zusammen.</p>
+Noten und Mensa. Geschrieben wird mit dem Apple Pencil weiter am iPad. StudiNow Free gilt für ein Gerät; mit Plus oder
+Pro AI nutzt du iPhone und iPad zusammen.</p>
 </details>
 <details>
 <summary>Gibt es StudiNow für Mac, Android oder Windows?</summary>

@@ -160,21 +160,27 @@ def test_sources_are_filled_except_hosting_phone_switches_and_notes():
                  "`youtube-nocookie.com`", "zeigt eigene Werbung", "„YouTube-Daten löschen“", "an unseren Dienst geht dabei nichts",
                  "- **Google (YouTube)** erhält Daten nur, wenn du neben einem Dokument YouTube öffnest"):
         assert must in ds, must
-    # 18.11.2026: Erinnerungen an Abgaben, Tests und Klausuren nur noch in Pro AI (Tabelle Abschnitt 2)
+    # 18.11.2026: Erinnerungen an Abgaben, Tests und Klausuren nur noch in Pro AI (Tabelle Abschnitt 2);
+    # 26.11.2026 neues Modell: ab Plus
     assert "Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung, auch bei neu erkannten Klausurterminen" in nb
-    assert "neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | – | ✓ |" in nb
+    assert "neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | ✓ | ✓ |" in nb
     assert "beenden wir mit der Löschung sofort" in nb and "beenden wir mit der Löschung sofort" in ds
     assert "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in ds and "nur im Schlüsselbund dieses iPads" in ds
     assert "direkt von deinem Gerät an die OpenAI-Schnittstelle" in ds and "KI-Lernplan" in ds
     # 24.11.2026: eigenes ChatGPT, Lernkalender und Zeitmesser sind in der App aus und stehen nicht mehr im Leistungsumfang
-    assert "KI-Lernplan" not in nb and "Lernkalender" not in nb and "Zeitmesser" not in nb and "| – | – | 80 |" in nb
+    # 26.11.2026 neues Modell: Pro AI 120 Credits je Monat, Plus nur gekaufte (frueher "| – | – | 80 |")
+    assert "KI-Lernplan" not in nb and "Lernkalender" not in nb and "Zeitmesser" not in nb
+    assert "| Credits für die KI von StudiNow | – | nur gekaufte | 120 je Monat, dazu gekaufte |" in nb
     assert "Jede Nutzung hat ein StudiNow-Konto" in ds and "iPad-App ohne StudiNow-Konto" not in ds
     assert "zugleich bei Apple" in ds and "Stud.IP-Benutzerkennung" in ds and "dieselbe apple-id" in ds.lower()
     site = (ROOT / "site" / "datenschutz.html").read_text(encoding="utf-8")
     assert "Stand 26.11.2026." in site and "Eigenes ChatGPT mit deinem OpenAI-Schlüssel" in site and "Google Ireland Limited" in site
-    assert "Mit KI verbessern" in ds and "50 E-Mails je Kalendermonat" in nb
-    assert "19,99 € pro Jahr" in nb and "39,99 € pro Jahr" in nb and "verlängert sich automatisch um ein Jahr" in nb
-    assert "pro Monat" not in nb.split("## 5a.")[0].split("## 5.")[-1], "kein Monatsabo in Abschnitt 5"
+    # 26.11.2026: der Satz steht jetzt bei den KI-Credits und ist umbrochen
+    assert "Mit KI verbessern" in ds and "50 E-Mails je Kalendermonat" in " ".join(nb.split())
+    # 26.11.2026 neues Modell: Plus 1,99 € im Monat oder 39,99 € einmalig fuer 5 Jahre (kein Abo), Pro AI 39,99 € im Jahr
+    five = nb.split("## 5a.")[0].split("## 5.")[-1]
+    assert "Monatsabo für 1,99 € im Monat" in five and "einmalig für 39,99 € für 5 Jahre" in five and "39,99 € pro Jahr" in five
+    assert "verlängert sich automatisch um denselben Zeitraum" in five and "19,99 €" not in five
     pl = (REL / "PLAY-STORE.md").read_text(encoding="utf-8")
     assert "[[Telefon]]" in pl and "E-Mail support@studinow.app" in pl
 
@@ -226,7 +232,9 @@ def test_hosting_and_phone_values_are_inserted_and_owner_data_stays(filled):
     nb = (out / "NUTZUNGSBEDINGUNGEN.md").read_text(encoding="utf-8")
     assert "Anbieter ist IT solutions by Ahmad Fakih (Einzelunternehmen, Inhaber: Ahmad Fakih),\nVahrenwalder Straße 30, 30165 Hannover, E-Mail support@studinow.app" in nb
     assert "`https://studinow.app/datenschutz`" in ds and "`https://studinow.app/impressum`" in nb
-    assert "Anwaltlich prüfen" not in nb and "digitaler Inhalte.\n" in nb and "soweit gesetzlich zulässig.\n" in nb
+    # 26.11.2026: nach "digitaler Inhalte." folgt der Hinweis vor dem Kauf (Abschnitt 4) in derselben Zeile
+    assert "Anwaltlich prüfen" not in nb and "sofortige Bereitstellung digitaler Inhalte. Vor dem Kauf" in nb
+    assert "soweit gesetzlich zulässig.\n" in nb
     kl = (out / "KONTO-LOESCHEN.md").read_text(encoding="utf-8")
     assert "innerhalb von 7 Tagen" in kl and "an support@studinow.app" in kl
     pl = (out / "PLAY-STORE.md").read_text(encoding="utf-8")
