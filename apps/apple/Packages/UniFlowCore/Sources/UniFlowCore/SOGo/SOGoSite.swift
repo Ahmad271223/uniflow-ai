@@ -16,6 +16,19 @@ public struct SOGoSite: Sendable, Hashable {
     public let short: String
     /// Orte der Termine als Link zum Raumfinder (nur LUH; dort gibt es den Standortfinder)
     public let roomLinks: Bool
+    /// Uni-Mail ueber IMAP/SMTP statt SOGo (Uni Goettingen, IMAPMail/IMAPMailSite.swift); nil bei SOGo
+    public let imap: IMAPMailSite?
+
+    public init(university: UniversityKey, host: String, name: String, universityName: String, short: String, roomLinks: Bool,
+                imap: IMAPMailSite? = nil) {
+        self.university = university
+        self.host = host
+        self.name = name
+        self.universityName = universityName
+        self.short = short
+        self.roomLinks = roomLinks
+        self.imap = imap
+    }
 
     public var base: String { "https://\(host)/SOGo" }
     /// Anmeldeseite (Webansicht)
@@ -27,9 +40,9 @@ public struct SOGoSite: Sendable, Hashable {
                                             universityName: "Universität Hildesheim", short: "Uni Hildesheim", roomLinks: false)
     public static let all: [SOGoSite] = [.luh, .hildesheim]
 
-    /// SOGo der Hochschule; nil, wo es keins gibt (HsH)
-    public static func `for`(_ university: UniversityKey) -> SOGoSite? { all.first { $0.university == university } }
+    /// Uni-Mail der Hochschule (SOGo an LUH und Uni Hildesheim, IMAP an der Uni Goettingen); nil, wo es keine gibt (HsH)
+    public static func `for`(_ university: UniversityKey) -> SOGoSite? { mailSites.first { $0.university == university } }
 
-    /// Aus einem gespeicherten Schluessel ("luh", "hildesheim"); unbekannt oder ohne SOGo -> nil
+    /// Aus einem gespeicherten Schluessel ("luh", "hildesheim", "goettingen"); unbekannt oder ohne Uni-Mail -> nil
     public static func `for`(university raw: String?) -> SOGoSite? { raw.flatMap(UniversityKey.init(rawValue:)).flatMap { Self.for($0) } }
 }

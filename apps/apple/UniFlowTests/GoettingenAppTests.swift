@@ -67,7 +67,7 @@ final class GoettingenAppTests: XCTestCase {
         XCTAssertTrue(FirstLoginStep.studip.intro(for: .goettingen).contains("„Benutzername“"))
         XCTAssertFalse(FirstLoginStep.studip.intro(for: .goettingen).contains("Aufzeichnungen"))
         XCTAssertEqual(FirstLoginStep.studip.intro(for: .luh), FirstLoginStep.studip.intro, "LUH unverändert")
-        XCTAssertEqual(UniAutoLoginCard.services(.goettingen), "Stud.IP")
+        XCTAssertEqual(UniAutoLoginCard.services(.goettingen), "Stud.IP und Uni-Mail")
         XCTAssertEqual(UniAutoLoginCard.slots(sameEverywhere: false, university: .goettingen).count, 1, "ein Zugang, keine Portale")
         XCTAssertEqual(UniversitySyncStart.connectHint(.goettingen), UniversitySyncStart.connectHint(.luh))
     }
@@ -126,16 +126,17 @@ final class GoettingenAppTests: XCTestCase {
         XCTAssertEqual(a.stage, .universityLogin)
         let c = try bed.open(m, a)
         XCTAssertEqual(c.key.university, .goettingen)
-        // nur Stud.IP: kein QIS, keine Uni-Mail, keine Verbindung einer anderen Hochschule
+        // Stud.IP und (seit 27.11.2026) Uni-Mail ueber IMAP: kein QIS, keine Verbindung einer anderen Hochschule
         XCTAssertTrue(m.studip.offersStudIP)
         XCTAssertEqual(m.studip.base, base)
         XCTAssertEqual(m.studip.loginEntry.absoluteString, "https://studip.uni-goettingen.de/dispatch.php/login")
         XCTAssertNil(m.qis)
-        XCTAssertNil(m.uniMail)
+        XCTAssertEqual(m.uniMail?.site, .goettingen, "Uni-Mail über IMAP (Exchange der GWDG)")
+        XCTAssertEqual(m.uniMail?.isConnected, false)
         XCTAssertNil(m.hildesheim)
         XCTAssertNil(m.hsh)
         XCTAssertTrue(m.syncsAllPortals)
-        XCTAssertEqual(m.portalNames, [OpenSync.studIP], "der Sync-Knopf gleicht dort genau Stud.IP ab")
+        XCTAssertEqual(m.portalNames, [OpenSync.studIP, OpenSync.uniMail], "der Sync-Knopf gleicht dort Stud.IP und die Uni-Mail ab")
         XCTAssertFalse(FirstLoginFlow.anyConnected(studip: m.studip, qis: nil, hildesheim: nil))
 
         // angemeldet (die Anmeldeansicht uebergibt die Cookies; Name wie am echten Rechner)
@@ -257,12 +258,13 @@ final class GoettingenAppTests: XCTestCase {
         let n = try XCTUnwrap(UFUniversityScope.newNotice(.goettingen))
         XCTAssertEqual(n.title, "Universität Göttingen – neu in StudiNow")
         for part in ["Stud.IP", "Dateien", "Stundenplan", "Terminen", "Nachrichten", "Ankündigungen", "Lehrenden", "Schwarze Brett",
-                     "Mensen (noch ohne Preise)"] {
+                     "Mensen (noch ohne Preise)", "Uni-Mail"] {
             XCTAssertTrue(n.have.contains(part), part)
         }
-        for part in ["FlexNow", "eCampus", "Uni-Mail", "Vorlesungsaufzeichnungen", "sobald das möglich ist"] {
+        for part in ["FlexNow", "eCampus", "Vorlesungsaufzeichnungen", "sobald das möglich ist"] {
             XCTAssertTrue(n.missing.contains(part), part)
         }
+        XCTAssertFalse(n.missing.contains("Uni-Mail"), "Uni-Mail ist seit 27.11.2026 dabei")
         let all = n.title + n.have + n.missing
         XCTAssertNil(all.range(of: #"\d{4}|Januar|Februar|März|Sommer|Winter|Woche|Monat"#, options: .regularExpression), "kein Datum versprechen")
         XCTAssertFalse(all.contains("iPad") || all.contains("iPhone"), "auf allen Geräten gleich")

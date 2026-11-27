@@ -289,6 +289,9 @@ targets:
       - path: DebugStub/erststart
         type: folder
         buildPhase: resources
+      # Nachbildung des Mail-Rechners der GWDG (IMAP/SMTP im Arbeitsspeicher), gemeinsam mit den Kern-Tests, fuer
+      # GoettingenMailAppTests
+      - path: Packages/UniFlowCore/Tests/UniFlowCoreTests/IMAPFakeServer.swift
       # Nachbildung des Stud.IP der Uni Goettingen (tools/build-goettingen-stub.py), fuer GoettingenAppTests
       - path: DebugStub/goettingen
         type: folder

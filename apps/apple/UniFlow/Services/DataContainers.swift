@@ -220,6 +220,8 @@ final class ContainerManager: ObservableObject {
     private let qisTransport: QISConnection.TransportFactory?
     private let hshTransport: HsHConnection.TransportFactory?
     private let uniMailTransport: UniMailConnection.TransportFactory?
+    /// IMAP/SMTP der Uni-Mail (Uni Goettingen; Tests: Nachbildung)
+    private let uniMailOpener: UniMailConnection.MailOpenerFactory?
     private var stores: [UUID: WKWebsiteDataStore] = [:]
     /// Abgleiche je Container, auch die eines abgeloesten (Wechsel der Hochschule waehrend eines Abgleichs). Schwach
     /// gehalten: ein laufender Abgleich haelt sich selbst, ein beendeter faellt weg.
@@ -238,7 +240,8 @@ final class ContainerManager: ObservableObject {
          keychain: UniversitySecretStoring = UniversityKeychain(), cookieService: String = StudIPCookieStore.service,
          defaults: UserDefaults = .standard, clock: UniFlowClock = .system, publishesCurrent: Bool = true,
          hildesheimTransport: HildesheimConnection.TransportFactory? = nil, qisTransport: QISConnection.TransportFactory? = nil,
-         hshTransport: HsHConnection.TransportFactory? = nil, uniMailTransport: UniMailConnection.TransportFactory? = nil) {
+         hshTransport: HsHConnection.TransportFactory? = nil, uniMailTransport: UniMailConnection.TransportFactory? = nil,
+         uniMailOpener: UniMailConnection.MailOpenerFactory? = nil) {
         self.base = base
         self.legacy = legacy
         self.keychain = keychain
@@ -252,6 +255,7 @@ final class ContainerManager: ObservableObject {
         self.qisTransport = qisTransport
         self.hshTransport = hshTransport
         self.uniMailTransport = uniMailTransport
+        self.uniMailOpener = uniMailOpener
         // Neuinstallation: Stud.IP-Sitzungen der geloeschten App nicht als Anmeldung uebernehmen (vor jedem Lesen)
         StudIPCookieStore.removeLeftoversOfEarlierInstallation(service: cookieService, defaults: defaults)
         // Bestandsnutzer: frueher von der App gemerkte Hochschul-Passwoerter einmal loeschen (alle Container)
@@ -392,8 +396,9 @@ final class ContainerManager: ObservableObject {
         hsh = key.university == .hsh
             ? HsHConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: hshTransport)
             : nil
-        uniMail = SOGoSite.for(key.university).map {             // LUH, Uni Hildesheim; HsH ohne SOGo
-            UniMailConnection(container: c, site: $0, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: uniMailTransport)
+        uniMail = SOGoSite.for(key.university).map {             // LUH, Uni Hildesheim (SOGo), Uni Goettingen (IMAP); HsH ohne
+            UniMailConnection(container: c, site: $0, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: uniMailTransport,
+                              mailOpener: uniMailOpener)
         }
         // Uni Hildesheim (15.11.2026): nach der Anmeldung bei Learnweb oder LSF die Uni-Mail gleich mitverbinden, ohne
         // auf den Datei-Abgleich zu warten (`connectMailAfterSignIn`)

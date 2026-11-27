@@ -63,8 +63,8 @@ enum UFUniversityScope {
     static func newNotice(_ u: UniversityKey?) -> (title: String, have: String, missing: String)? {
         guard u == .goettingen else { return nil }
         return ("Universität Göttingen – neu in StudiNow",
-                "Schon dabei: Stud.IP mit Kursen, Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu das Schwarze Brett und der Speiseplan der Mensen (noch ohne Preise). Alle Lernfunktionen von StudiNow – Editor, Notizen, Karteikarten und je nach Tarif die KI – gehen wie an jeder anderen Hochschule.",
-                "Noch nicht dabei: Noten und Prüfungsanmeldung (FlexNow), Bescheinigungen und Vorlesungsverzeichnis (eCampus), Uni-Mail und Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch anbinden können, und ergänzen sie, sobald das möglich ist.")
+                "Schon dabei: Stud.IP mit Kursen, Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu die Uni-Mail (lesen, antworten, schreiben), das Schwarze Brett und der Speiseplan der Mensen (noch ohne Preise). Alle Lernfunktionen von StudiNow – Editor, Notizen, Karteikarten und je nach Tarif die KI – gehen wie an jeder anderen Hochschule.",
+                "Noch nicht dabei: Noten und Prüfungsanmeldung (FlexNow), Bescheinigungen und Vorlesungsverzeichnis (eCampus) und Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch anbinden können, und ergänzen sie, sobald das möglich ist.")
     }
 
     static func studyPlanText(_ u: UniversityKey) -> String {

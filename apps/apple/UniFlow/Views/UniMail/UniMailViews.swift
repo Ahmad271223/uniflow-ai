@@ -123,13 +123,121 @@ struct UniMailLoginPane<Bottom: View>: View {
     }
 }
 
+/// Anmeldung bei der Uni-Mail ueber IMAP (Uni Goettingen): Kennung und Passwort tippt der Mensch hier selbst; ein
+/// Versuch je Tipp auf "Anmelden". Mit "merken" liegt das Passwort danach nur im Schluesselbund dieses Geraets
+/// (derselbe Uni-Zugang wie fuer Stud.IP), sonst nur bis zum Beenden der App im Arbeitsspeicher.
+struct UniMailIMAPLoginForm: View {
+    @ObservedObject var connection: UniMailConnection
+    let onSignedIn: () -> Void
+    @State private var username = ""
+    @State private var password = ""
+    @State private var remember = true
+    @State private var busy = false
+    @State private var error: String?
+    @Environment(\.ufCompact) private var compact
+
+    static let intro = "Melde dich mit deiner Uni-Kennung (Academic ID, meist vorname.nachname) und deinem Uni-Passwort an. StudiNow verbindet sich verschlüsselt direkt mit dem Mail-Rechner der Uni (email.gwdg.de). Das Passwort geht nie an StudiNow-Server."
+    static let factorNote = "Gut zu wissen: Für eCampus verlangt die Uni einen zweiten Faktor. Ob der Mail-Rechner allein mit dem Passwort verbindet, siehst du beim ersten Anmelden."
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(Self.intro).ufFont(13.5).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
+                if connection.hasUsableStoredLogin, let u = connection.storedUsername {
+                    UFWideButton(busy ? "Verbindet …" : "Mit gespeichertem Uni-Zugang (\(u)) verbinden", icon: "arrow-right", kind: .primary) {
+                        Task { await useStored() }
+                    }
+                    .disabled(busy)
+                    .accessibilityIdentifier("unimail.imap.stored")
+                    Text("Oder gib Kennung und Passwort neu ein:").ufFont(12.8).foregroundStyle(UF.muted)
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Uni-Kennung").ufFont(13, 600).foregroundStyle(UF.text2)
+                    UFTextField("vorname.nachname", text: $username)
+                        .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
+                        .accessibilityIdentifier("unimail.imap.user")
+                    if let imap = connection.site.imap, !username.trimmingCharacters(in: .whitespaces).isEmpty {
+                        Text("Adresse: \(imap.address(username))").ufFont(12.5).foregroundStyle(UF.muted)
+                            .accessibilityIdentifier("unimail.imap.address")
+                    }
+                }
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Passwort").ufFont(13, 600).foregroundStyle(UF.text2)
+                    UFTextField("Passwort", text: $password, secure: true)
+                        .textContentType(.password)
+                        .accessibilityIdentifier("unimail.imap.password")
+                }
+                Toggle(isOn: $remember) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(UniRememberPasswordToggle.phoneTitle).ufFont(13.12, 600).foregroundStyle(UF.text)
+                        Text(UniRememberPasswordToggle.note).ufFont(12.16).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .accessibilityIdentifier("unimail.imap.remember")
+                if let error {
+                    Text(error).ufFont(13).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("unimail.imap.error")
+                }
+                Group {
+                    if compact {
+                        UFWideButton(busy ? "Prüft …" : "Anmelden", icon: "arrow-right", kind: .primary) { Task { await signIn() } }
+                    } else {
+                        UFButton(busy ? "Prüft …" : "Anmelden", icon: "arrow-right", kind: .primary) { Task { await signIn() } }
+                    }
+                }
+                .disabled(busy || username.trimmingCharacters(in: .whitespaces).isEmpty || password.isEmpty)
+                .accessibilityIdentifier("unimail.imap.signin")
+                Text(Self.factorNote).ufFont(12.5).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(16)
+            .frame(maxWidth: 560, alignment: .leading)
+            .frame(maxWidth: .infinity)
+        }
+        .onAppear {
+            if username.isEmpty, let u = connection.storedUsername { username = u }
+            remember = UniAutoLogin.isEnabled(connection.websiteDataStore) || UniAutoLogin.entry(connection.websiteDataStore) == nil
+        }
+        .accessibilityIdentifier("unimail.imap.login")
+    }
+
+    private func signIn() async {
+        busy = true
+        defer { busy = false }
+        let p = password
+        password = ""                                            // nie laenger als noetig in der Ansicht
+        if let e = await connection.signInIMAP(username: username, password: p, remember: remember) {
+            error = e
+        } else {
+            error = nil
+            onSignedIn()
+        }
+    }
+
+    private func useStored() async {
+        busy = true
+        defer { busy = false }
+        if await connection.connectWithStoredLogin(userAction: true) {
+            error = nil
+            onSignedIn()
+        } else {
+            error = "Mit dem gespeicherten Uni-Zugang ging es nicht. Bitte gib Kennung und Passwort neu ein."
+        }
+    }
+}
+
 struct UniMailLoginView: View {
     @ObservedObject var connection: UniMailConnection
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         NavigationStack {
-            UniMailLoginPane(connection: connection, onSignedIn: { dismiss() }) { EmptyView() }
+            Group {
+                if connection.site.isIMAP {
+                    UniMailIMAPLoginForm(connection: connection) { dismiss() }
+                } else {
+                    UniMailLoginPane(connection: connection, onSignedIn: { dismiss() }) { EmptyView() }
+                }
+            }
                 .navigationTitle("Uni-Mail-Anmeldung")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } } }
@@ -156,7 +264,7 @@ struct UniMailSourcesCard: View {
 
         var body: some View {
             UFCard {
-                UFCardHead("\(connection.site.name) & Uni-Kalender", icon: "mail") {
+                UFCardHead(connection.site.isIMAP ? connection.site.name : "\(connection.site.name) & Uni-Kalender", icon: "mail") {
                     UFBadge(UniMailConnection.statusText(connection.state), tone: Self.tone(connection.state)).fixedSize()
                 }
                 Text(connection.hint).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -214,7 +322,7 @@ struct UniMailSourcesCard: View {
             .ufSheet(isPresented: $login) { UniMailLoginView(connection: connection) }
             .confirmationDialog("Von Uni-Mail abmelden?", isPresented: $confirmSignOut, titleVisibility: .visible) {
                 Button("Abmelden", role: .destructive) { Task { await connection.signOut() } }
-            } message: { Text(UniMailConnection.signOutMessage) }
+            } message: { Text(connection.signOutText) }
         }
 
         static func tone(_ s: UniMailConnection.State) -> UFTone {
@@ -305,8 +413,7 @@ struct UniMailMain: View {
                 folderList
                     .ufLocalBack(id: "unimail.folderList", active: true) { UFMotion.toggle { showFolders = false } }
             } else {
-            UFPageHead(connection.site.name, sub: compact ? "\(connection.site.universityName) (SOGo)"
-                                                          : "E-Mails und Kalender der \(connection.site.universityName) (SOGo)") {
+            UFPageHead(connection.site.name, sub: Self.pageSub(connection.site, compact: compact)) {
                 if connection.isConnected { checkButton }
                 // Lehrende der eigenen Kurse mit E-Mail aus Stud.IP (06.11.2026, Views/Lecturers); Stud.IP nur an der LUH.
                 // iPhone: als Zeile in voller Breite unter dem Kopf (`lecturersRow`)
@@ -339,7 +446,7 @@ struct UniMailMain: View {
                 } else {
                     list
                 }
-                UniCalendarCard(connection: connection).padding(.top, 18)
+                if !connection.site.isIMAP { UniCalendarCard(connection: connection).padding(.top, 18) }
             }
             }
         }
@@ -557,6 +664,12 @@ struct UniMailMain: View {
     }
 
     static func checkTitle(checking: Bool) -> String { checking ? "Prüfe …" : "Neue Mails prüfen" }
+
+    /// Unterzeile der Seite: SOGo mit Kalender (LUH, Uni Hildesheim) bzw. Exchange ohne Kalender (Uni Goettingen)
+    static func pageSub(_ site: SOGoSite, compact: Bool) -> String {
+        if site.isIMAP { return compact ? "\(site.universityName) (Exchange)" : "E-Mails der \(site.universityName) (Exchange der GWDG)" }
+        return compact ? "\(site.universityName) (SOGo)" : "E-Mails und Kalender der \(site.universityName) (SOGo)"
+    }
 
     private func checkNewMail() async {
         guard !checking else { return }

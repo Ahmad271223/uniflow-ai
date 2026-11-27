@@ -12,6 +12,12 @@ import WebKit
 // E-Mails bleiben auf dem iPad: nur die Kopfzeilen der ersten Seite des Posteingangs liegen fuer die Anzeige ohne Netz
 // in der Datenbank des Containers, Inhalte nur im Arbeitsspeicher, Anhaenge in einem Temp-Ordner zum Oeffnen/Teilen.
 // Nichts geht an StudiNow-Server. Senden nur ueber `send` (Knopf "Senden" mit Rueckfrage), genau einmal.
+//
+// Uni Goettingen (27.11.2026, docs/GOETTINGEN-MAIL-2026-11-27.md): Exchange der GWDG ueber IMAP/SMTP statt SOGo
+// (`site.isIMAP`, Kern `IMAPMailClient`). Anmeldung im eigenen Formular (Kennung und Passwort tippt der Mensch), ein
+// Versuch je Eingabe; das Passwort liegt nur im Schluesselbund dieses Geraets (derselbe Uni-Zugang wie fuer Stud.IP,
+// `UniAutoLogin`) oder - ohne "merken" - nur im Arbeitsspeicher bis zum Beenden. Lehnt der Mail-Rechner es ab, wird
+// genau dieses Passwort nie wieder an ihn gesendet (Merker `Keys.imapRejected`). Kein Uni-Kalender (Exchange).
 
 /// Verbindung zu Uni-Mail/Uni-Kalender fuer einen Container der LUH oder der Uni Hildesheim
 @MainActor
@@ -41,6 +47,8 @@ final class UniMailConnection: ObservableObject {
     private(set) var sendCount = 0
 
     typealias TransportFactory = @MainActor (WKWebsiteDataStore) async -> UniTransport
+    /// IMAP/SMTP-Verbindungen (Tests: Nachbildung; sonst nur zu den Rechnern der Hochschule)
+    typealias MailOpenerFactory = @MainActor (IMAPMailSite) -> MailStreamOpener
 
     let key: DataContainerKey
     /// SOGo der Hochschule des Containers (Rechner, Anzeigename, Raum-Links)
@@ -51,6 +59,11 @@ final class UniMailConnection: ObservableObject {
     private let clock: UniFlowClock
     private let makeTransport: TransportFactory
     private let retry: UniRetry
+    private let makeOpener: MailOpenerFactory
+    /// offene IMAP-Verbindung (Uni Goettingen)
+    private var imapClient: IMAPMailClient?
+    /// Passwort nur fuer diesen Lauf der App ("Passwort merken" aus); nie gespeichert
+    private var sessionLogin: (username: String, password: String)?
     var refreshesAfterSignIn = true
     private(set) var stopped = false
     private var signOuts = 0
@@ -58,8 +71,13 @@ final class UniMailConnection: ObservableObject {
     /// Rechner, an die Anfragen gehen und deren Cookies "Abmelden" loescht: nur SOGo dieser Hochschule
     var domains: [String] { [site.host] }
     static let signOutMessage = "Die Anmeldung bei Uni-Mail wird in der Webansicht gelöscht, ebenso die zwischengespeicherte Liste des Posteingangs und die übernommenen Termine des Uni-Kalenders. Deine E-Mails bleiben in deinem Uni-Postfach. Ein in StudiNow gemerktes Passwort der Hochschule wird gelöscht; eines, das iOS gesichert hat, bleibt unter „Passwörter“."
+    static let imapSignOutMessage = "Die Verbindung zu Uni-Mail wird getrennt und die zwischengespeicherte Liste des Posteingangs gelöscht. Deine E-Mails bleiben in deinem Uni-Postfach. Ein in StudiNow gemerktes Passwort der Hochschule wird gelöscht (auch für Stud.IP); eines, das iOS gesichert hat, bleibt unter „Passwörter“."
+    var signOutText: String { site.isIMAP ? Self.imapSignOutMessage : Self.signOutMessage }
     static func hint(_ site: SOGoSite) -> String {
-        UFDevice.adapt("Uni-Mail und Uni-Kalender (SOGo) der \(site.universityName): E-Mails lesen, beantworten, weiterleiten und schreiben, Termine im \(LearnCalendar.text("Lernkalender", off: "Stundenplan")). Du meldest dich auf der echten SOGo-Seite an; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad. E-Mails bleiben auf diesem iPad und in deinem Uni-Postfach, nichts geht an StudiNow-Server.")
+        if site.isIMAP {
+            return UFDevice.adapt("Uni-Mail der \(site.universityName) (Exchange der GWDG): E-Mails lesen, beantworten, weiterleiten und schreiben. Du meldest dich mit deiner Uni-Kennung an; StudiNow verbindet sich verschlüsselt direkt mit dem Mail-Rechner der Uni. Dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad. E-Mails bleiben auf diesem iPad und in deinem Uni-Postfach, nichts geht an StudiNow-Server.")
+        }
+        return UFDevice.adapt("Uni-Mail und Uni-Kalender (SOGo) der \(site.universityName): E-Mails lesen, beantworten, weiterleiten und schreiben, Termine im \(LearnCalendar.text("Lernkalender", off: "Stundenplan")). Du meldest dich auf der echten SOGo-Seite an; dein Passwort merkt StudiNow nur, wenn du es zulässt, und nur auf diesem iPad. E-Mails bleiben auf diesem iPad und in deinem Uni-Postfach, nichts geht an StudiNow-Server.")
     }
     var hint: String { Self.hint(site) }
 
@@ -73,11 +91,13 @@ final class UniMailConnection: ObservableObject {
         static let notify = "uniflow.sogo.notify"
         static let calendarRun = "uniflow.sogo.calendar.lastRun"
         static let calendarDays = "uniflow.sogo.calendar.days"
-        static let all = [connected, user, login, unseen, lastUID, lastCheck, notify, calendarRun, calendarDays]
+        /// IMAP: abgelehnter Zugang ("<benutzer>|<gespeichert um>"), nie wieder senden
+        static let imapRejected = "uniflow.imap.rejected"
+        static let all = [connected, user, login, unseen, lastUID, lastCheck, notify, calendarRun, calendarDays, imapRejected]
     }
 
     init(container c: ActiveContainer, site: SOGoSite, websiteDataStore: WKWebsiteDataStore, clock: UniFlowClock = .system,
-         transport: TransportFactory? = nil, retry: UniRetry = UniRetry()) {
+         transport: TransportFactory? = nil, retry: UniRetry = UniRetry(), mailOpener: MailOpenerFactory? = nil) {
         key = c.key
         self.site = site
         host = c.host
@@ -87,6 +107,7 @@ final class UniMailConnection: ObservableObject {
         self.retry = retry
         let domains = [site.host]
         makeTransport = transport ?? { store in await URLSessionUniTransport.make(dataStore: store, allowedDomains: domains) }
+        makeOpener = mailOpener ?? { SystemMailStreamOpener(site: $0) }
         user = defaults.string(forKey: Keys.user)
         unseen = defaults.integer(forKey: Keys.unseen)
         state = storedState()
@@ -139,8 +160,10 @@ final class UniMailConnection: ObservableObject {
         let store = websiteDataStore
         UniAutoLogin.clearSignedOut(.sogo, store: store)       // angemeldet: die Abmelden-Sperre faellt
         BackgroundReloginLedger.foregroundSuccess(OpenSync.uniMail, defaults: defaults)
-        UniAutoLogin.signedIn(store, portal: .sogo)            // mitgelesenes Passwort jetzt merken (falls zugelassen)
-        Task { await UniWebSessions.save(store) }
+        if !site.isIMAP {
+            UniAutoLogin.signedIn(store, portal: .sogo)        // mitgelesenes Passwort jetzt merken (falls zugelassen)
+            Task { await UniWebSessions.save(store) }
+        }
         guard refreshesAfterSignIn else { return }
         Task { await refreshInbox() }
     }
@@ -155,6 +178,10 @@ final class UniMailConnection: ObservableObject {
         setUnseen(0)
         calendarMessage = nil
         set(.notConnected)
+        let imap = imapClient
+        imapClient = nil
+        sessionLogin = nil
+        if let imap { await imap.close() }
         if let db = try? await host.backend().context.database {
             _ = try? await db.transaction { c in
                 try SOGoCalendar.forget(c)
@@ -177,6 +204,10 @@ final class UniMailConnection: ObservableObject {
     func stop() async {
         stopped = true
         signOuts += 1
+        let imap = imapClient
+        imapClient = nil
+        sessionLogin = nil
+        if let imap { await imap.close() }
     }
 
     // MARK: Abruf
@@ -187,8 +218,9 @@ final class UniMailConnection: ObservableObject {
     static var readsDemoForScreenshots = false
     #endif
 
-    /// Client mit den Cookies der Webansicht; nil ohne Verbindung, nach dem Anhalten oder mit Demo-Inhalten
-    func client() async -> SOGoClient? {
+    /// Client mit den Cookies der Webansicht (SOGo) bzw. die IMAP-Verbindung; nil ohne Verbindung, nach dem Anhalten
+    /// oder mit Demo-Inhalten
+    func client() async -> UniMailBackend? {
         guard isConnected, !stopped, let user else { return nil }
         if await host.demoActive() {
             #if DEBUG
@@ -197,17 +229,36 @@ final class UniMailConnection: ObservableObject {
             return nil
             #endif
         }
+        if let imap = site.imap {
+            if let c = imapClient { return c }
+            let c = makeIMAPClient(imap, address: user)
+            imapClient = c
+            return c
+        }
         await UniWebSessions.ready(websiteDataStore)
         let cookies = await websiteDataStore.httpCookieStore.allCookies()
         let transport = await makeTransport(websiteDataStore)
         return SOGoClient(user: user, site: site, transport: transport, xsrf: SOGoClient.xsrf(from: cookies, site: site), retry: retry)
     }
 
-    /// Eine Aktion mit SOGo; abgelaufene Anmeldung setzt "Anmeldung nötig", Erfolg "ok"
-    func perform<T>(_ op: (SOGoClient) async throws -> T) async throws -> T {
+    /// Eine Aktion mit dem Postfach; abgelaufene Anmeldung setzt "Anmeldung nötig", Erfolg "ok"
+    func perform<T>(_ op: (UniMailBackend) async throws -> T) async throws -> T {
         // vor dem Client: wer waehrend seines Aufbaus abmeldet oder anhaelt, bekommt keinen Stand geschrieben
         let before = signOuts
         guard let c = await client() else { throw SOGoError.needsLogin }
+        if site.isIMAP {
+            do {
+                let r = try await op(c)
+                if signOuts == before { set(.ok(clock.now)) }
+                return r
+            } catch IMAPMailError.rejected {
+                if signOuts == before { imapRejected(); set(.needsLogin) }
+                throw SOGoError.needsLogin
+            } catch SOGoError.needsLogin {
+                if signOuts == before { set(.needsLogin) }
+                throw SOGoError.needsLogin
+            }
+        }
         do {
             let r = try await op(c)
             if signOuts == before { set(.ok(clock.now)) }
@@ -233,7 +284,7 @@ final class UniMailConnection: ObservableObject {
     @discardableResult
     /// `background`: aus dem Hintergrundlauf (Version 1.3/1.4, `UniAutoLogin.handleExpiry`)
     func autoLogin(userAction: Bool = false, background: Bool = false) async -> Bool {
-        guard isConnected, !stopped, let account = user else { return false }
+        guard isConnected, !stopped, let account = user, !site.isIMAP else { return false }
         let before = signOuts
         let site = self.site
         let d = await UniAutoLogin.handleExpiry(portal: "sogo", store: websiteDataStore, entry: site.loginURL,
@@ -249,6 +300,7 @@ final class UniMailConnection: ObservableObject {
     @discardableResult
     func connectWithStoredLogin(userAction: Bool = false) async -> Bool {
         guard !isConnected, !stopped, !UniAutoLogin.signedOut(.sogo, store: websiteDataStore) else { return false }
+        if let imap = site.imap { return await connectIMAPWithStoredLogin(imap) }
         let before = signOuts
         let site = self.site
         let found = SignedInAccount()
@@ -274,6 +326,7 @@ final class UniMailConnection: ObservableObject {
     @discardableResult
     func adoptExistingSession(userAction: Bool = false) async -> Bool {
         guard !isConnected, !stopped else { return isConnected }
+        guard !site.isIMAP else { return false }                  // IMAP: keine Sitzung einer Webseite
         guard !DebugUniStub.isActive else { return false }       // Nachbildung der Anmeldeseite: nie ein echtes Netz
         guard userAction || !UniAutoLogin.signedOut(.sogo, store: websiteDataStore) else { return false }
         if await host.demoActive() { return false }
@@ -305,7 +358,7 @@ final class UniMailConnection: ObservableObject {
         defer { isRunning = false; finishedRuns += 1 }
         do {
             let before = signOuts
-            let listing = try await perform { try await $0.folder("INBOX") }
+            let listing = try await perform { try await $0.folder("INBOX", query: "") }
             // inzwischen abgemeldet: nichts mehr zwischenspeichern oder zaehlen
             guard signOuts == before, isConnected else { return InboxReport() }
             await storeCache(listing)
@@ -431,7 +484,11 @@ final class UniMailConnection: ObservableObject {
         let today = SOGo.berlinDay(clock)
         let before = signOuts
         do {
-            let events = try await perform { try await $0.events(day: today, days: d) }
+            guard !site.isIMAP else { return "" }                    // Exchange: kein Uni-Kalender in StudiNow
+        let events = try await perform { c -> [JSONValue] in
+            guard let sogo = c as? SOGoClient else { return [] }
+            return try await sogo.events(day: today, days: d)
+        }
             // inzwischen abgemeldet oder angehalten (Container geloescht): nichts mehr uebernehmen
             guard signOuts == before else { return "" }
             let db = try await host.backend().context.database
@@ -462,7 +519,7 @@ final class UniMailConnection: ObservableObject {
 
     /// Termine schon einmal uebernommen und seit 20 Stunden nicht mehr: im langen Hintergrundlauf erneuern
     var calendarDue: Bool {
-        guard let last = defaults.object(forKey: Keys.calendarRun) as? Date else { return false }
+        guard !site.isIMAP, let last = defaults.object(forKey: Keys.calendarRun) as? Date else { return false }
         return clock.now.timeIntervalSince(last) >= 20 * 3600
     }
 
@@ -484,11 +541,131 @@ final class UniMailConnection: ObservableObject {
     /// Fehlertext fuer die Oberflaeche
     static func message(_ error: Error) -> String {
         if let e = error as? SOGoError { return e.description }
+        if let e = error as? IMAPMailError { return e.description }
         return LocalBackendHost.message(for: error)
     }
 }
 
 extension UniMailConnection: ContainerSync {}
+
+// MARK: - IMAP/SMTP (Uni Goettingen)
+
+extension UniMailConnection {
+    /// Zugang, mit dem die IMAP-Verbindung sich anmeldet: Passwort dieses Laufs oder der Uni-Zugang im Schluesselbund;
+    /// nie einer, den der Mail-Rechner schon abgelehnt hat
+    func imapLogin() -> (username: String, password: String, marker: String)? {
+        if let s = sessionLogin { return (s.username, s.password, "") }
+        guard let e = UniAutoLogin.entry(websiteDataStore), let r = UniAutoLogin.resolvedCredential(.sogo, entry: e) else { return nil }
+        let marker = Self.rejectionMarker(r.credential)
+        if defaults.string(forKey: Keys.imapRejected) == marker { return nil }
+        return (r.credential.username, r.credential.password, marker)
+    }
+
+    static func rejectionMarker(_ c: UniCredential) -> String { "\(c.username)|\(c.savedAt.timeIntervalSince1970)" }
+
+    /// Hat der Mail-Rechner den gespeicherten Uni-Zugang abgelehnt? (Karte: "Passwort abgelehnt")
+    var imapLoginRejected: Bool { defaults.string(forKey: Keys.imapRejected) != nil && imapLogin() == nil }
+
+    /// Benutzername des gespeicherten Uni-Zugangs (Vorgabe im Formular)
+    var storedUsername: String? {
+        guard let e = UniAutoLogin.entry(websiteDataStore) else { return nil }
+        return UniAutoLogin.resolvedCredential(.sogo, entry: e)?.credential.username
+    }
+
+    /// Liegt ein gespeicherter, nicht abgelehnter Uni-Zugang bereit?
+    var hasUsableStoredLogin: Bool { sessionLogin == nil && imapLogin() != nil }
+
+    /// Der Mail-Rechner hat den Zugang abgelehnt: Passwort dieses Laufs vergessen, gespeichertes markieren (der Eintrag
+    /// bleibt fuer Stud.IP, das ihn vielleicht annimmt; an den Mail-Rechner geht er nie wieder)
+    func imapRejected() {
+        if sessionLogin != nil {
+            sessionLogin = nil                                      // abgelehnt war das Getippte, nicht der gespeicherte Zugang
+        } else if let e = UniAutoLogin.entry(websiteDataStore), let r = UniAutoLogin.resolvedCredential(.sogo, entry: e) {
+            defaults.set(Self.rejectionMarker(r.credential), forKey: Keys.imapRejected)
+        }
+        let c = imapClient
+        imapClient = nil
+        if let c { Task { await c.close() } }
+    }
+
+    func makeIMAPClient(_ imap: IMAPMailSite, address: String, login: (username: String, password: String)? = nil) -> IMAPMailClient {
+        let opener = makeOpener(imap)
+        let clock = self.clock
+        let box = IMAPLoginBox()
+        box.fixed = login
+        return IMAPMailClient(site: imap, address: address, opener: opener, now: { clock.now }) { [weak self] in
+            if let f = box.fixed { return f }
+            return await self?.currentIMAPLogin()
+        }
+    }
+
+    private func currentIMAPLogin() -> (username: String, password: String)? {
+        imapLogin().map { ($0.username, $0.password) }
+    }
+
+    /// Anmelden im Formular (Knopf "Anmelden"): genau ein Versuch mit dem, was der Mensch getippt hat. Erst wenn der
+    /// Mail-Rechner annimmt, kommt das Passwort in den Schluesselbund (mit "merken") bzw. nur in den Arbeitsspeicher.
+    /// Rueckgabe: Fehlertext oder nil
+    func signInIMAP(username typed: String, password: String, remember: Bool) async -> String? {
+        guard let imap = site.imap, !stopped else { return "Uni-Mail ist hier nicht über IMAP verbunden." }
+        let account = imap.account(typed)
+        guard UniLoginForms.isAcceptableUsername(account), !account.isEmpty else { return "Bitte deine Uni-Kennung eingeben (z. B. vorname.nachname)." }
+        guard UniLoginForms.isAcceptablePassword(password), !password.isEmpty else { return "Bitte dein Passwort eingeben." }
+        if await host.demoActive() { return "Mit Demo-Inhalten verbindet StudiNow keine Uni-Mail." }
+        let before = signOuts
+        let c = makeIMAPClient(imap, address: imap.address(account), login: (account, password))
+        do {
+            try await c.verify()
+        } catch IMAPMailError.rejected {
+            await c.close()
+            return "Kennung oder Passwort wurden abgelehnt. Bitte prüfe beides. (Es wird nichts automatisch wiederholt.)"
+        } catch {
+            await c.close()
+            return Self.message(error)
+        }
+        guard signOuts == before, !stopped else { await c.close(); return nil }
+        var saved = false
+        if remember {
+            // ein Zugang je Hochschule (Uni Goettingen: derselbe wie fuer Stud.IP, Einstellungen "Uni-Zugang")
+            saved = UniAutoLogin.saveTyped(username: account, password: password, store: websiteDataStore) == .saved
+        }
+        sessionLogin = saved ? nil : (account, password)
+        defaults.removeObject(forKey: Keys.imapRejected)
+        let old = imapClient
+        imapClient = makeIMAPClient(imap, address: imap.address(account))
+        if let old { await old.close() }
+        await c.close()
+        signedIn(user: imap.address(account))
+        return nil
+    }
+
+    /// Erstes Verbinden mit dem gespeicherten Uni-Zugang (`connectWithStoredLogin`): genau ein Versuch
+    func connectIMAPWithStoredLogin(_ imap: IMAPMailSite) async -> Bool {
+        guard let login = imapLogin(), !login.marker.isEmpty else { return false }
+        if await host.demoActive() { return false }
+        let before = signOuts
+        let account = imap.account(login.username)
+        let c = makeIMAPClient(imap, address: imap.address(account), login: (login.username, login.password))
+        do {
+            try await c.verify()
+        } catch IMAPMailError.rejected {
+            await c.close()
+            if signOuts == before { defaults.set(login.marker, forKey: Keys.imapRejected); autoConnectFailed = true }
+            return false
+        } catch {
+            await c.close()
+            if signOuts == before, !isConnected { autoConnectFailed = true }
+            return false
+        }
+        await c.close()
+        guard signOuts == before, !isConnected, !stopped else { return false }
+        signedIn(user: imap.address(account))
+        return true
+    }
+}
+
+/// Fester Zugang fuer die Pruefung im Formular (sonst der aktuelle aus `imapLogin`)
+private final class IMAPLoginBox: @unchecked Sendable { var fixed: (username: String, password: String)? }
 
 
 // MARK: - Mit KI verbessern (13.11.2026)

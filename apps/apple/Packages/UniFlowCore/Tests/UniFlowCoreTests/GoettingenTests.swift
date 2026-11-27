@@ -112,7 +112,7 @@ final class GoettingenTests: XCTestCase {
         XCTAssertEqual(g.services.map(\.key), ["studip", "flexnow", "ecampus", "mail", "sub", "mensa", "lageplan", "studit", "uni"])
         XCTAssertEqual(g.services.filter(\.connected).map(\.key), ["studip"])
         XCTAssertTrue(g.services.allSatisfy { !$0.connector && $0.url.hasPrefix("https://") })
-        XCTAssertNil(SOGoSite.for(.goettingen), "E-Mail liegt bei Exchange, kein SOGo")
+        XCTAssertEqual(SOGoSite.for(.goettingen)?.isIMAP, true, "E-Mail liegt bei Exchange: Uni-Mail über IMAP/SMTP, kein SOGo (27.11.2026)")
         XCTAssertNil(ExamRegistrationPeriods.for(university: "goettingen"), "keine Meldezeiträume (FlexNow)")
         XCTAssertFalse(CertificatePortal.isOffered(.goettingen))
         XCTAssertTrue(CertificatePortal.isOffered(.luh) && CertificatePortal.isOffered(.hildesheim) && CertificatePortal.isOffered(.hsh))
