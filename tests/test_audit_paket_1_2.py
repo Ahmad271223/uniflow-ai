@@ -1246,3 +1246,30 @@ def test_60_login_with_provider_mapping_rules_and_double_tap(hosted):
     assert sum(1 for o in out if o[2]) == 1 and len({o[0]["id"] for o in out}) == 1
     assert _count("SELECT COUNT(*) FROM users WHERE email='doppelt@beispiel.de'") == 1 and _count("SELECT COUNT(*) FROM identities WHERE subject='sub-doppelt'") == 1
     assert all(accounts.authenticate(o[1]) for o in out)
+
+
+def test_trial_credits_only_once_across_the_month_change(hosted, monkeypatch):
+    """Sicherheitspruefung 27.11.2026: eine Probe, die ueber den Monatswechsel laeuft, bekam zweimal 25 Credits. Jetzt
+    gibt es die 25 einmal: im neuen Monat nur, was vorher nicht verbraucht wurde."""
+    from app import credits
+    uid = _user("probe-monat@beispiel.de", trial=True)
+    # die Probe laeuft in beiden Monaten (unabhaengig vom Tag, an dem der Test laeuft)
+    monkeypatch.setattr(credits, "plan_and_trial", lambda conn, user_id, now=None: ("plus", True))
+    conn = credits.connect()
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        row = credits._month(conn, uid, T0)
+        conn.execute("UPDATE credit_months SET used=20 WHERE user_id=?", (uid,))
+        conn.execute("COMMIT")
+        assert row[0] == 25 and row[3].endswith(":trial"), tuple(row)
+        conn.execute("BEGIN IMMEDIATE")
+        row = credits._month(conn, uid, T0 + timedelta(days=31))
+        conn.execute("COMMIT")
+        assert tuple(row)[:2] == (5, 0), "im neuen Monat nur der Rest der Probe"
+        conn.execute("BEGIN IMMEDIATE")
+        conn.execute("UPDATE credit_months SET used=5 WHERE user_id=? AND allowance=5", (uid,))
+        row = credits._month(conn, uid, T0 + timedelta(days=62))
+        conn.execute("COMMIT")
+        assert row[0] == 0, "aufgebraucht bleibt aufgebraucht"
+    finally:
+        conn.close()

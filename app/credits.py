@@ -224,6 +224,12 @@ def _month(conn: sqlite3.Connection, user_id: str, now: datetime, state: dict | 
         state["plan"], state["trial"] = plan, trial
     allow = allowance(plan, trial)
     label = plan + (":trial" if trial else "")
+    if trial:
+        # Die Probe hat ihre Credits EINMAL, nicht je Kalendermonat (Sicherheitspruefung 27.11.2026: eine Probe ueber den
+        # Monatswechsel bekam 25 + 25): in diesem Monat nur, was in frueheren Probe-Monaten nicht verbraucht wurde
+        prior = conn.execute("SELECT COALESCE(SUM(used), 0) FROM credit_months WHERE user_id=? AND period<>? AND plan LIKE '%:trial'",
+                             (user_id, period)).fetchone()[0]
+        allow = max(0, allow - int(prior or 0))
     conn.execute("INSERT OR IGNORE INTO credit_months(user_id, period, allowance, used, reserved, plan, created_at, updated_at) "
                  "VALUES (?,?,?,0,0,?,?,?)", (user_id, period, allow, label, t, t))
     conn.execute("UPDATE credit_months SET allowance=?, plan=?, updated_at=? WHERE user_id=? AND period=? AND (allowance<>? OR plan<>?)",
