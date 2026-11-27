@@ -93,14 +93,17 @@ final class AutoSyncAppTests: XCTestCase {
         XCTAssertEqual(AutoSyncSchedule.standard.interval, 30 * 60)
     }
 
-    /// 26.11.2026 ("Abruf schonen"): Noten von selbst hoechstens alle 4 Stunden (QIS der LUH als eigenes Portal, Noten
-    /// der Uni Hildesheim und der HsH im Abgleich mit); alle anderen Portale weiter alle 30 Minuten. Unter XCTest ohne
-    /// Versatz, in der App mit dem festen Versatz des Geraets.
-    func testGradesAtMostEveryFourHoursAndNoOffsetUnderTest() {
+    /// 27.11.2026 (Auftrag des Inhabers): alle Portale ausser der Uni-Mail von selbst zweimal am Tag (ab 8 und ab 14 Uhr),
+    /// die Uni-Mail weiter alle 30 Minuten. Noten der Uni Hildesheim und der HsH innerhalb des Datei-Abgleichs hoechstens
+    /// alle 4 Stunden. Unter XCTest ohne Versatz, in der App mit dem festen Versatz des Geraets.
+    func testPortalsTwiceADayMailEveryThirtyMinutesAndNoOffsetUnderTest() {
+        XCTAssertEqual(AutoSync.schedule, .twiceDaily)
+        XCTAssertEqual(AutoSync.schedule.slotHours, [8, 14])
+        XCTAssertEqual(AutoSync.schedule.runsPerDay, 2)
+        XCTAssertEqual(AutoSync.mailSchedule, .standard)
+        XCTAssertEqual(AutoSync.mailSchedule.interval, 30 * 60)
         XCTAssertEqual(AutoSync.gradesInterval, 4 * 3600)
-        XCTAssertEqual(AutoSync.portalIntervals, [OpenSync.qis: 4 * 3600])
-        XCTAssertNil(AutoSync.portalIntervals[OpenSync.studIP])
-        XCTAssertNil(AutoSync.portalIntervals[OpenSync.uniMail])
-        XCTAssertEqual(AutoSync.schedule.offset, 0, "Tests rechnen mit 8:00, 8:30 …")
+        XCTAssertEqual(AutoSync.schedule.offset, 0, "Tests rechnen mit 8:00 und 14:00")
+        XCTAssertEqual(AutoSync.mailSchedule.offset, 0, "Tests rechnen mit 8:00, 8:30 …")
     }
 }

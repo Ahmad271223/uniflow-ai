@@ -3,7 +3,7 @@ import UniFlowCore
 
 // Karte "Im Hintergrund abgleichen" in den Einstellungen (S8, UniFlow/Services/BackgroundSync.swift): an/aus (Vorgabe
 // an), "Benachrichtigen bei neuen Dateien" (erst dieser Schalter fragt iOS nach der Erlaubnis, nie der Start der App),
-// der Satz zur Regel (8 bis 18 Uhr, alle 30 Minuten, 17.11.2026) mit ehrlichem Hinweis zu iOS und der letzte
+// der Satz zur Regel (seit 27.11.2026 zweimal am Tag, die Uni-Mail alle 30 Minuten) mit ehrlichem Hinweis zu iOS und der letzte
 // Hintergrundlauf des offenen Containers.
 
 private struct BackgroundSyncKey: EnvironmentKey {
@@ -25,12 +25,12 @@ struct BackgroundSyncCard: View {
         if let background { Panel(background: background) }
     }
 
-    /// Regel des Inhabers (17.11.2026, `AutoSyncSchedule.standard`) und ehrlicher Hinweis, dass iOS die Hintergrund-Laeufe
+    /// Regel des Inhabers (27.11.2026, `AutoSyncSchedule.twiceDaily`, Uni-Mail `standard`) und ehrlicher Hinweis, dass iOS die Hintergrund-Laeufe
     /// steuert. Der erste Satz steht immer da, der Rest hinter "Mehr dazu".
-    static let timingText = "\(timingShort) Solange StudiNow geöffnet ist, gilt das genau so. Ist die App geschlossen, versucht StudiNow es im Hintergrund – wann und wie oft das wirklich geschieht, entscheidet iOS (Akku, Nutzung der App, Netz, Stromsparmodus, Hintergrundaktualisierung); oft seltener als alle 30 Minuten, manchmal gar nicht. Wer die App im App-Umschalter wegwischt, bekommt bis zum nächsten Öffnen keinen Hintergrund-Abgleich. „Sync“ fragt immer sofort ab, zu jeder Uhrzeit. Der längere Lauf erzeugt dabei auch fällige Wochentests, wenn die KI verbunden ist – auch bei ausgeschaltetem Abgleich."
+    static let timingText = "\(timingShort) Verpasst StudiNow einen Termin, holt es ihn beim nächsten Öffnen nach (bis 18 Uhr). Solange StudiNow geöffnet ist, gilt das genau so. Ist die App geschlossen, versucht StudiNow es im Hintergrund – wann das wirklich geschieht, entscheidet iOS (Akku, Nutzung der App, Netz, Stromsparmodus, Hintergrundaktualisierung); manchmal später, manchmal gar nicht. Wer die App im App-Umschalter wegwischt, bekommt bis zum nächsten Öffnen keinen Hintergrund-Abgleich. „Sync“ fragt immer sofort ab, zu jeder Uhrzeit und so oft du willst. Der längere Lauf erzeugt dabei auch fällige Wochentests, wenn die KI verbunden ist – auch bei ausgeschaltetem Abgleich."
 
     /// Erste Saetze der Erklaerungen: bleiben sichtbar, der ganze Text steht hinter "Mehr dazu" (17.11.2026)
-    static let timingShort = "Zwischen 8 und 18 Uhr gleicht StudiNow alle 30 Minuten ab. Außerhalb nur, wenn du auf Sync tippst."
+    static let timingShort = "StudiNow gleicht von selbst zweimal am Tag ab: ab 8 Uhr und ab 14 Uhr. Die Uni-Mail kommt öfter, zwischen 8 und 18 Uhr alle 30 Minuten. Sonst nur, wenn du auf Sync tippst."
     static func notifyShort(_ university: UniversityKey?) -> String {
         let text = notifyText(university)
         return text.range(of: "). ").map { String(text[..<$0.lowerBound]) + ")." } ?? text
@@ -60,10 +60,10 @@ struct BackgroundSyncCard: View {
     }
 
     /// Erklaerung unter "Im Hintergrund neu anmelden"
-    static let reloginText = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast. Er liegt nur im Schlüsselbund dieses Geräts und geht nie an einen Server von StudiNow. Gilt für Stud.IP, QIS, Uni-Mail, Learnweb, LSF, Moodle und das Campusmanagement – nur zwischen 8 und 18 Uhr und höchstens ein Versuch je Dienst in 30 Minuten; nach einem Fehlschlag erst nach einem Tag wieder. Ein abgelehntes Passwort wird gelöscht und nie erneut gesendet."
+    static let reloginText = "Nur mit dem Uni-Zugang, den du unter „Uni-Zugang“ gespeichert hast. Er liegt nur im Schlüsselbund dieses Geräts und geht nie an einen Server von StudiNow. Gilt für Stud.IP, QIS, Uni-Mail, Learnweb, LSF, Moodle und das Campusmanagement – nur zwischen 8 und 18 Uhr und nur, wenn der Dienst gerade dran ist (zweimal am Tag, die Uni-Mail alle 30 Minuten); nach einem Fehlschlag erst nach einem Tag wieder. Ein abgelehntes Passwort wird gelöscht und nie erneut gesendet."
 
     /// Am Mac ("Designed for iPad"): eigener Takt, solange die App laeuft
-    static let macText = "Am Mac gleicht StudiNow zwischen 8 und 18 Uhr alle 30 Minuten ab, solange die App geöffnet ist – auch wenn sie nicht vorn ist."
+    static let macText = "Am Mac gilt dasselbe, solange die App geöffnet ist – auch wenn sie nicht vorn ist: zweimal am Tag, die Uni-Mail zwischen 8 und 18 Uhr alle 30 Minuten."
 
     static let deniedText = "Mitteilungen für StudiNow sind ausgeschaltet. Erlaube sie in den \(UFDevice.textName)-Einstellungen unter „Mitteilungen“ und schalte „Benachrichtigen“ danach hier erneut ein."
 

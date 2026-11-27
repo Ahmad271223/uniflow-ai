@@ -21,24 +21,32 @@ import UniFlowCore
 // liest ein Abgleich von selbst hoechstens alle 4 Stunden (`gradesInterval`, also 3-mal im Fenster statt 20-mal), und
 // jedes Geraet beginnt das Fenster mit einem festen Versatz von 0 bis 29 Minuten (`AutoSyncStagger`). Der Knopf "Sync"
 // fragt weiter alles sofort ab.
+// Seit 27.11.2026 (Auftrag des Inhabers, docs/ABRUF-ZWEIMAL-TAEGLICH-2026-11-27.md): "die App soll 2-mal am Tag pro
+// Nutzer sich selber einloggen, ausser ein Nutzer drueckt selber auf Sync … aber Mail immer, nicht nur 2-mal". Alle
+// Portale ausser der Uni-Mail gleicht die App von selbst nur noch in zwei festen Fenstern am Tag ab (`schedule` =
+// `AutoSyncSchedule.twiceDaily`: ab 8 und ab 14 Uhr, je Geraet um 0 bis 59 Minuten versetzt, verpasst bis 18 Uhr
+// nachgeholt); die Uni-Mail behaelt alle 30 Minuten (`mailSchedule`) und den Abruf beim Oeffnen. Das gilt bei offener
+// App, im Hintergrund von iOS, nach dem Weck-Signal und am Mac - alle fragen dieselbe Regel (`autoSyncDue`). "Sync"
+// fragt weiter alles sofort ab, so oft man will.
 
 @MainActor
 enum AutoSync {
-    /// Fenster und Abstand (Tests setzen eigene). In der App mit dem festen Versatz dieses Geraets; unter XCTest ohne,
-    /// damit die Tests mit festen Uhrzeiten (8:00, 8:30 …) rechnen koennen.
+    /// Plan aller Portale ausser der Uni-Mail: zweimal am Tag (Tests setzen eigene). In der App mit dem festen Versatz
+    /// dieses Geraets; unter XCTest ohne, damit die Tests mit festen Uhrzeiten (8:00, 14:00) rechnen koennen.
     static var schedule: AutoSyncSchedule = StudIPSync.isUnderTest()
+        ? .twiceDaily : .twiceDaily.staggered(by: AutoSyncStagger.slotOffset(defaults: .standard))
+    /// Plan der Uni-Mail: zwischen 8 und 18 Uhr alle 30 Minuten (unter XCTest ohne Versatz)
+    static var mailSchedule: AutoSyncSchedule = StudIPSync.isUnderTest()
         ? .standard : .standard.staggered(by: AutoSyncStagger.offset(defaults: .standard))
     /// Ortszeit des Geraets (auf Reisen die dortige)
     static var timeZone: () -> TimeZone = { TimeZone.current }
     /// Liste der Bescheinigungen von selbst hoechstens so oft (der Knopf "Sync" liest sie immer)
     static let certificatesInterval: TimeInterval = 6 * 3600
     static let certificates = "Bescheinigungen"
-    /// Noten von selbst hoechstens so oft (QIS ist das langsamste System; Noten aendern sich selten). Der Knopf "Sync"
-    /// liest sie immer.
+    /// Noten von selbst hoechstens so oft (Uni Hildesheim, HsH: im Abgleich der Dateien, der selbst nur noch zweimal am
+    /// Tag laeuft; QIS der LUH folgt seit 27.11.2026 wie jedes Portal den zwei Fenstern). Der Knopf "Sync" liest sie immer.
     static let gradesInterval: TimeInterval = 4 * 3600
     static let grades = "Noten"
-    /// Portale mit eigenem, laengerem Abstand als dem des Plans (LUH: QIS liefert nur Noten und Pruefungsanmeldungen)
-    static let portalIntervals: [String: TimeInterval] = [OpenSync.qis: gradesInterval]
     /// Vor einem Abgleich von selbst (Mitteilungen: Stand der Datenbank vorher; Tests)
     static var willRun: (@MainActor (ActiveContainer, Set<String>) async -> Void)?
     /// Nach einem Abgleich von selbst mit den abgeglichenen Portalen (Mitteilungen ueber Neues; Tests)
@@ -59,7 +67,9 @@ struct AutoSyncPortalState: Equatable {
 }
 
 extension ContainerManager {
-    func autoLedger(_ c: ActiveContainer) -> AutoSyncLedger { AutoSyncLedger(defaults: c.defaults, schedule: AutoSync.schedule) }
+    func autoLedger(_ c: ActiveContainer) -> AutoSyncLedger {
+        AutoSyncLedger(defaults: c.defaults, schedule: AutoSync.schedule, overrides: [OpenSync.uniMail: AutoSync.mailSchedule])
+    }
 
     /// Portale des offenen Containers, die von selbst abgeglichen werden: verbunden oder - mit gespeichertem Uni-Zugang -
     /// noch zu verbinden (nie eines, bei dem sich der Mensch bewusst abgemeldet hat). Ohne Portal: nichts.
@@ -100,7 +110,7 @@ extension ContainerManager {
         let ledger = autoLedger(c), tz = timeZone ?? AutoSync.timeZone()
         return Set(autoSyncPortals.filter {
             ledger.isDue($0.name, lastSuccess: $0.lastSuccess, pending: $0.pending, now: now, timeZone: tz,
-                         interval: AutoSync.portalIntervals[$0.name], retryGap: continueAtOnce ? 0 : AutoSyncLedger.retryGap)
+                         retryGap: continueAtOnce ? 0 : AutoSyncLedger.retryGap)
         }.map(\.name))
     }
 
@@ -113,7 +123,7 @@ extension ContainerManager {
         let times = autoSyncPortals.map { p -> Date in
             // wartende Arbeit (unterbrochen, Dateien noch nicht geladen) darf frueher weitergehen
             if p.pending, ledger.isDue(p.name, lastSuccess: p.lastSuccess, pending: true, now: now, timeZone: tz) { return now }
-            return ledger.nextRun(p.name, lastSuccess: p.lastSuccess, now: now, timeZone: tz, interval: AutoSync.portalIntervals[p.name])
+            return ledger.nextRun(p.name, lastSuccess: p.lastSuccess, now: now, timeZone: tz)
         }
         return times.min() ?? AutoSync.schedule.nextRun(last: nil, now: now, timeZone: tz)
     }
@@ -124,7 +134,7 @@ extension ContainerManager {
         let ledger = autoLedger(c)
         guard ledger.isDue(AutoSync.certificates, lastSuccess: nil, now: now, timeZone: AutoSync.timeZone(),
                            interval: AutoSync.certificatesInterval) else { return false }
-        ledger.recordAttempt(AutoSync.certificates, at: now)
+        ledger.recordAttempt(AutoSync.certificates, at: now, timeZone: AutoSync.timeZone())
         return true
     }
 
@@ -135,7 +145,7 @@ extension ContainerManager {
         let ledger = autoLedger(c)
         guard ledger.isDue(AutoSync.grades, lastSuccess: nil, now: now, timeZone: AutoSync.timeZone(),
                            interval: AutoSync.gradesInterval) else { return false }
-        ledger.recordAttempt(AutoSync.grades, at: now)
+        ledger.recordAttempt(AutoSync.grades, at: now, timeZone: AutoSync.timeZone())
         return true
     }
 
@@ -149,21 +159,23 @@ extension ContainerManager {
         guard !OpenSync.running.contains(c.key), !isSyncing(c.key) else { return [] }
         let due = autoSyncDue(now: now)
         guard !due.isEmpty else { return [] }
-        // Versuch vermerken, BEVOR er beginnt: auch ein gescheiterter oder abgebrochener Lauf wartet 30 Minuten
+        // Versuch vermerken, BEVOR er beginnt: auch ein gescheiterter oder abgebrochener Lauf zaehlt fuer sein Fenster
         let ledger = autoLedger(c)
-        for p in due { ledger.recordAttempt(p, at: now) }
+        for p in due { ledger.recordAttempt(p, at: now, timeZone: AutoSync.timeZone()) }
         OpenSync.last[c.key] = now
         let key = c.key
         OpenSync.running.insert(key)
         AutoSync.automatic[key] = Task { @MainActor in
             defer { AutoSync.automatic[key] = nil }
             await AutoSync.willRun?(c, due)
+            // Noten nur fragen, wenn eine Quelle der Dateien mitlaeuft (ein reiner Mail-Abruf verbraucht ihren Termin nicht)
+            let files = !due.subtracting([OpenSync.uniMail]).isEmpty
             if let hsh = self.hsh {
                 // eine abgelaufene Quelle meldet sich nach dem Lauf selbst still neu an (`HsHConnection.run`)
-                await hsh.run(forceGrades: self.autoGradesDue(c, now: now))
+                await hsh.run(forceGrades: files && self.autoGradesDue(c, now: now))
             } else if let h = self.hildesheim {
                 _ = await self.runHildesheimPortals(container: c, hildesheim: h, userAction: false,
-                                                    forceGrades: self.autoGradesDue(c, now: now), only: due, now: now)
+                                                    forceGrades: files && self.autoGradesDue(c, now: now), only: due, now: now)
             } else if self.syncsAllPortals {
                 _ = await self.runAllPortals(container: c, userAction: false, forceGrades: due.contains(OpenSync.qis), only: due, now: now)
             }
@@ -266,7 +278,7 @@ final class AutoSyncTicker {
         guard task == nil else { return }
         if MacBackgroundTicker.isMac {
             activity = ProcessInfo.processInfo.beginActivity(options: [.userInitiatedAllowingIdleSystemSleep],
-                                                             reason: "StudiNow gleicht zwischen 8 und 18 Uhr alle 30 Minuten ab")
+                                                             reason: "StudiNow gleicht zweimal am Tag ab, die Uni-Mail zwischen 8 und 18 Uhr alle 30 Minuten")
         }
         task = Task { @MainActor [weak self] in
             while !Task.isCancelled {

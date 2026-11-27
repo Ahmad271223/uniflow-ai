@@ -752,10 +752,18 @@ final class BackgroundSyncAppTests: XCTestCase {
         XCTAssertEqual(fake.kinds, [.refresh])
         XCTAssertEqual(grades, 1, "QIS nicht faellig: kein zweiter Notenabruf")
         XCTAssertEqual(ledger.lastAttempt("Stud.IP"), b.now())
-        // echte Regel: eben (10:00) versucht -> 10:29 nichts faellig, Wunschtermin 10:30; 10:30 wieder faellig
+        // echte Regel (seit 27.11.2026 zweimal am Tag): eben (10:00) versucht -> 13:59 nichts faellig, 14:00 wieder;
+        // die Uni-Mail dagegen nach 30 Minuten
         b.autoDue = { c, now, tz, kind in m.autoSyncDue(now: now, timeZone: tz, continueAtOnce: kind == .processing) }
-        XCTAssertEqual(m.autoLedger(luh).isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(29 * 60), timeZone: berlin), false)
-        XCTAssertEqual(m.autoLedger(luh).isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(30 * 60), timeZone: berlin), true)
+        let ledger2 = m.autoLedger(luh)
+        XCTAssertEqual(ledger2.isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(30 * 60), timeZone: berlin), false)
+        XCTAssertEqual(ledger2.isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(3 * 3600 + 59 * 60), timeZone: berlin), false)
+        XCTAssertEqual(ledger2.isDue("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(4 * 3600), timeZone: berlin), true)
+        XCTAssertEqual(local(ledger2.nextRun("Stud.IP", lastSuccess: nil, now: b.now().addingTimeInterval(60), timeZone: berlin)),
+                       "2026-10-26 14:00")
+        ledger2.recordAttempt("Uni-Mail", at: b.now(), timeZone: berlin)
+        XCTAssertEqual(ledger2.isDue("Uni-Mail", lastSuccess: nil, now: b.now().addingTimeInterval(29 * 60), timeZone: berlin), false)
+        XCTAssertEqual(ledger2.isDue("Uni-Mail", lastSuccess: nil, now: b.now().addingTimeInterval(30 * 60), timeZone: berlin), true)
         _ = s
     }
 
@@ -1108,8 +1116,12 @@ final class BackgroundSyncAppTests: XCTestCase {
     }
 
     func testCardTextsAreHonestAndTheCardRenders() async throws {
-        // Auftrag des Inhabers 17.11.2026: der Satz zur Regel zuerst, dann ehrlich, was iOS steuert
-        XCTAssertEqual(BackgroundSyncCard.timingShort, "Zwischen 8 und 18 Uhr gleicht StudiNow alle 30 Minuten ab. Außerhalb nur, wenn du auf Sync tippst.")
+        // Auftrag des Inhabers 17.11.2026: der Satz zur Regel zuerst, dann ehrlich, was iOS steuert; seit 27.11.2026
+        // zweimal am Tag, die Uni-Mail alle 30 Minuten
+        XCTAssertEqual(BackgroundSyncCard.timingShort, "StudiNow gleicht von selbst zweimal am Tag ab: ab 8 Uhr und ab 14 Uhr. Die Uni-Mail kommt öfter, zwischen 8 und 18 Uhr alle 30 Minuten. Sonst nur, wenn du auf Sync tippst.")
+        XCTAssertTrue(BackgroundSyncCard.timingText.contains("so oft du willst"))
+        XCTAssertTrue(BackgroundSyncCard.macText.contains("zweimal am Tag"))
+        XCTAssertFalse(BackgroundSyncCard.reloginText.contains("in 30 Minuten"))
         XCTAssertTrue(BackgroundSyncCard.timingText.hasPrefix(BackgroundSyncCard.timingShort))
         XCTAssertTrue(BackgroundSyncCard.timingText.contains("entscheidet iOS"))
         XCTAssertTrue(BackgroundSyncCard.timingText.contains("„Sync“ fragt immer sofort ab"))
