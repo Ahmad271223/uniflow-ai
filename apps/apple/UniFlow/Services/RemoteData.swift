@@ -80,7 +80,9 @@ final class RemoteData: ObservableObject {
         let mine = generation
         // Zwischenspeicher je Server getrennt (sonst zeigt ein anderer Server alte Daten)
         let key = api.base.absoluteString + path
-        if value == nil, let cached = cache.load(key) { state = .loaded(cached.0, offlineSince: cached.1) }
+        // Letzter Stand sofort zeigen, aber erst nach einem Netzfehler als "Offline" (27.11.2026: die Uebersicht zeigte
+        // sonst bei jedem Oeffnen kurz "Offline – Stand vor 8 Minuten", obwohl das Geraet online war und nur lud)
+        if value == nil, let cached = cache.load(key) { state = .loaded(cached.0, offlineSince: nil) }
         do {
             let v = try await api.value(path)
             guard mine == generation else { return }                      // inzwischen neuer geladen: veraltet
