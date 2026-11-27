@@ -28,7 +28,8 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
         private var _monthLeft = 0
         private var _plan = "pro_ai"
 
-        /// Tarif des Kontos beim Dienst: "pro_ai" (100 Monats-Credits, gekaufte fuer alles) oder "plus" (nur der KI-Chat)
+        /// Tarif des Kontos beim Dienst: "pro_ai" (Monats-Credits und gekaufte fuer alles) oder "plus" (seit 26.11.2026
+        /// keine Monats-Credits, gekaufte fuer alles; 15.-26.11.2026 nur der KI-Chat)
         var plan: String {
             get { lock.withLock { _plan } }
             set { lock.withLock { _plan = newValue } }
@@ -58,7 +59,7 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
             if plan == "plus" {
                 return ["period": "2026-11", "allowance": 0, "used": 0, "reserved": 0, "remaining": 0, "plan": "plus",
                         "resets_at": "2026-12-01T00:00:00+01:00", "credit_eur": 0.0065, "purchased": .number(Double(bought)),
-                        "purchased_usable": true, "purchased_scope": "chat", "available": .number(Double(bought)), "can_buy": .bool(canBuy)]
+                        "purchased_usable": true, "purchased_scope": "all", "available": .number(Double(bought)), "can_buy": .bool(canBuy)]
             }
             return ["period": "2026-11", "allowance": 100, "used": .number(Double(100 - left)), "reserved": 0, "remaining": .number(Double(left)),
                     "plan": "pro_ai", "resets_at": "2026-12-01T00:00:00+01:00", "credit_eur": 0.0065, "purchased": .number(Double(bought)),
@@ -535,104 +536,42 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
         XCTAssertEqual(AICost.chargeLine(.init(credits: 3, replay: false), remaining: l.credits?.available), "– 3 Credits (117 übrig)")
     }
 
-    // MARK: Plus: kaufen ja, aber nur der KI-Chat (Entscheidung des Inhabers 15.11.2026)
+    // MARK: Plus: alle KI mit Credits, kaufen ja (neues Tarifmodell 26.11.2026; 15.-26.11.2026 nur der KI-Chat)
 
-    /// Plus beim Dienst: nur der KI-Chat (`aiChatOnly`), alle uebrigen KI-Stellen bleiben beim Tarif-Hinweis; kaufen
-    /// darf das Konto, die Credits gelten fuer den Chat
-    func testPlusAccountIsChatOnlyAndMayBuy() async throws {
+    /// Plus beim Dienst: dieselbe StudiNow-KI wie Pro AI (kein Nur-Chat mehr), aber ohne Monats-Credits; kaufen darf das
+    /// Konto, die gekauften Credits gelten fuer alles. Ohne Credits fuehrt jede KI-Stelle zum Blatt mit den Paketen.
+    func testPlusAccountHasAllAIWithCreditsAndMayBuy() async throws {
         let service = Service()
         service.plan = "plus"
         let (l, ent, store) = await start(service)
         XCTAssertEqual(ent.plan, .plus)
         XCTAssertEqual(StudiNowAIAccess.decide(serviceConfigured: true, signedIn: true, localPlan: ent.plan.rawValue, servicePlan: l.planStatus?.plan,
-                                               serviceTrialActive: false), .planRequired, "die KI-Lernhilfe bleibt Pro AI")
-        XCTAssertFalse(l.aiChatOnly, "ohne Dienst-Adresse im Testbuild haengt keine StudiNow-KI")
-        XCTAssertTrue(StudiNowAIAccess.chatOnly(serviceConfigured: true, signedIn: true, localPlan: ent.plan.rawValue,
-                                                servicePlan: l.planStatus?.plan, serviceTrialActive: false))
+                                               serviceTrialActive: false), .ready, "Plus: alle KI-Stellen wie Pro AI")
+        XCTAssertFalse(StudiNowAIAccess.chatOnly(serviceConfigured: true, signedIn: true, localPlan: ent.plan.rawValue,
+                                                 servicePlan: l.planStatus?.plan, serviceTrialActive: false), "kein Nur-Chat mehr")
+        XCTAssertFalse(l.aiChatOnly)
         let c = try XCTUnwrap(l.credits)
         XCTAssertEqual([c.allowance, c.remaining, c.purchased, c.available], [0, 0, 0, 0])
-        XCTAssertEqual(c.purchasedScope, .chat)
+        XCTAssertEqual(c.purchasedScope, .all)
         XCTAssertTrue(c.canBuy)
-        XCTAssertEqual(AICost.balanceLine(c, labelled: false), "Gekauft: 0", "bei Plus kein 'Diesen Monat: x von 100'")
-        // leere Credits fuehren zum Blatt (nicht zum Tarif)
-        let exhausted = APIError(status: 429, body: Data(#"{"detail": "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.", "code": "credits_exhausted", "credits": {"period": "2026-11", "allowance": 0, "used": 0, "reserved": 0, "remaining": 0, "plan": "plus", "purchased": 0, "purchased_usable": true, "purchased_scope": "chat", "available": 0, "can_buy": true, "needed": 3}}"#.utf8))
+        XCTAssertTrue(l.mayBuyCredits)
+        XCTAssertEqual(AICost.balanceLine(c, labelled: false), "Gekauft: 0", "bei Plus kein 'Diesen Monat: x von 120'")
+        XCTAssertTrue(StudiNowCreditGate(c.balance).blocks(now: Date(timeIntervalSince1970: 1_795_000_000)), "ohne Credits keine StudiNow-KI")
+        // leere Credits fuehren zum Blatt (nicht zum Tarif), auch fuer Erklaeren und Zusammenfassen
+        let exhausted = APIError(status: 429, body: Data(#"{"detail": "Für die StudiNow-KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad.", "code": "credits_exhausted", "credits": {"period": "2026-11", "allowance": 0, "used": 0, "reserved": 0, "remaining": 0, "plan": "plus", "purchased": 0, "purchased_usable": true, "purchased_scope": "all", "available": 0, "can_buy": true, "needed": 3}}"#.utf8))
         XCTAssertEqual(StudoraAccountLink.errorAction(exhausted, account: l), .credits)
-        // Lernhilfe ueber den Dienst abgewiesen: Weg zum Tarif (Pro AI), kein Kauf-Blatt
-        let locked = APIError(status: 403, body: Data(#"{"detail": "Diese Funktion gibt es ab StudiNow Pro AI.", "code": "plan_required", "required_plan": "pro_ai"}"#.utf8))
-        XCTAssertEqual(StudoraAccountLink.errorAction(locked, account: l), .plans)
         try requireVisibleTestPurchases()
         let small = try XCTUnwrap(store.product(for: l.creditPacks[0]))
         guard case .booked(let r) = await store.purchase(small) else { return XCTFail("Kauf mit Plus") }
         XCTAssertEqual(r.creditsAdded, 100)
         XCTAssertEqual(l.credits?.purchased, 100)
-        XCTAssertEqual(l.credits?.purchasedScope, .chat)
+        XCTAssertEqual(l.credits?.purchasedScope, .all)
         XCTAssertEqual(AICost.balanceLine(l.credits, labelled: false), "Gekauft: 100")
+        XCTAssertFalse(StudiNowCreditGate(l.credits?.balance).blocks(now: Date(timeIntervalSince1970: 1_795_000_000)), "mit gekauften Credits: KI")
     }
 
-    /// KI-Hilfe mit Plus (iPad und iPhone): der Chat ist nutzbar - eine Frage geht als freie Frage (Modus ask) an die
-    /// KI -, die Lernhilfe-Knoepfe tragen ehrlich das Schloss "ab Pro AI" (kein toter Knopf: Antippen oeffnet die
-    /// Tarifwahl); nichts gequetscht
-    func testTutorWithPlusOffersTheChatAndLocksTheLearningHelp() throws {
-        let service = Service()
-        service.plan = "plus"
-        let (l, _, _) = startForViews(service)
-        l.noteAIResponse(["credits": ["period": "2026-11", "allowance": 0, "used": 0, "remaining": 0, "plan": "plus", "purchased": 91,
-                                      "purchased_usable": true, "purchased_scope": "chat", "available": 91, "can_buy": true]])
-        for (name, size, phone) in Self.sizes.prefix(2) {
-            UFCompact.phoneOverride = phone
-            let t = AIViewsAppTests.Transport()
-            let id = "f-plus-\(UUID().uuidString.prefix(8))"
-            t.answer("/api/index/file/\(id)/page/1", ["file_id": .string(id), "page": 1, "status": "none", "can_build": false])
-            t.answer("/api/ai/tutor", ["answer": "Eine Matrix ist ein rechteckiges Zahlenschema.", "cards": .null, "sources": [], "explain": .null,
-                                       "credits": ["period": "2026-11", "allowance": 0, "used": 0, "remaining": 0, "plan": "plus", "purchased": 82,
-                                                   "purchased_usable": true, "purchased_scope": "chat", "available": 82, "can_buy": true,
-                                                   "charged": 9, "replay": false]])
-            var request: EditorBridge.TutorRequest? = EditorBridge.TutorRequest(mode: "explain", selection: "Eine Matrix A ∈ ℝ^{m×n}")
-            let binding = Binding<EditorBridge.TutorRequest?>(get: { request }, set: { request = $0 })
-            let panel = TutorPanel(fileID: id, page: { 1 }, selection: { "" }, open: { _, _ in }, close: {}, request: binding)
-                .environment(\.ufAIEnabled, false).environment(\.ufAIChatOnly, true).environment(\.ufAIAccess, .planRequired)
-                .environment(\.ufStudoraAccount, l)
-            let env = try hostWithEnvironment(panel, api: APIClient(base: URL(string: "http://erfunden.test/")!, transport: t),
-                                              size: phone ? size : CGSize(width: 420, height: 820))
-            // der Chat ist da (Eingabefeld, Senden), nicht der Tarif-Hinweis der gesperrten KI-Hilfe
-            XCTAssertTrue(env.wait { self.button("Senden", in: env.view) != nil }, "\(name)\n" + texts(env.view).joined(separator: "\n"))
-            XCTAssertFalse(shows(env.view, "Die KI-Hilfe kommt mit der StudiNow-KI"), name)
-            // Fusszeile: nur der gekaufte Topf (die Zahl kommt vom Dienst), kein "Diesen Monat: x von 100"
-            XCTAssertTrue(env.wait { self.shows(env.view, "StudiNow-KI · Credits gekauft: ") || self.shows(env.view, "StudiNow-KI · – ") },
-                          "\(name)\n" + texts(env.view).joined(separator: "\n"))
-            XCTAssertFalse(shows(env.view, "Diesen Monat"), name)
-            // die Lernhilfe ist gesperrt "ab Pro AI": ein Element mit dem ehrlichen Satz, kein antippbarer Modus-Knopf
-            let lock = try XCTUnwrap(LayoutWidthAuditTests.elements(in: env.view).first { $0.accessibilityLabel == CreditText.chatLock && $0.accessibilityTraits.contains(.button) },
-                                     "\(name)\n" + texts(env.view).joined(separator: "\n"))
-            XCTAssertEqual(lock.accessibilityValue, "gesperrt, ab Pro AI", name)
-            XCTAssertNil(button("Zusammenfassen", in: env.view), "\(name): Lernhilfe nicht antippbar")
-            XCTAssertEqual(t.count("POST", "/api/ai/tutor"), 0, "\(name): 'Erklären' zum markierten Text wurde nicht gesendet (Lernhilfe)")
-            // der markierte Text steht als Anhang da; Senden stellt die freie Frage dazu (Tastatur vorher weg: sie liegt
-            // im Testfenster ueber dem Knopf)
-            XCTAssertTrue(env.wait { self.shows(env.view, "Eine Matrix A ∈ ℝ^{m×n}") }, name)
-            env.window.endEditing(true)
-            env.pump(0.5)
-            XCTAssertTrue(env.wait { self.button("Senden", in: env.view)?.accessibilityActivate() ?? false }, "\(name)\n" + texts(env.view).joined(separator: "\n"))
-            XCTAssertTrue(env.wait { t.count("POST", "/api/ai/tutor") == 1 }, "\(name)\n" + texts(env.view).joined(separator: "\n"))
-            let body = try XCTUnwrap(t.bodies("/api/ai/tutor").first)
-            XCTAssertEqual(body["mode"]?.string, "ask", "\(name): der KI-Chat ist die freie Frage")
-            XCTAssertEqual(body["question"]?.string, TutorPanel.chatOnlyAttachmentQuestion, name)
-            XCTAssertEqual(body["selection"]?.string, "Eine Matrix A ∈ ℝ^{m×n}", name)
-            XCTAssertTrue(env.wait { self.shows(env.view, "Eine Matrix ist ein rechteckiges Zahlenschema.") }, "\(name)\n" + texts(env.view).joined(separator: "\n"))
-            XCTAssertTrue(env.wait { self.shows(env.view, "– 9 Credits (82 übrig)") }, "\(name)\n" + texts(env.view).joined(separator: "\n"))
-            let squeezed = LayoutWidthAuditTests.squeezed(in: env.window).filter { !$0.text.hasPrefix("obere Haelfte") }
-            XCTAssertTrue(squeezed.isEmpty, "\(name): " + squeezed.map(\.text).joined(separator: "; "))
-            // kein toter Knopf: das Schloss oeffnet die Tarifwahl
-            XCTAssertTrue(lock.accessibilityActivate(), name)
-            XCTAssertTrue(env.wait { env.hosting.presentedViewController != nil }, "\(name): Tarifwahl offen")
-            env.hosting.dismiss(animated: false)
-            _ = env.wait(timeout: 3) { env.hosting.presentedViewController == nil }
-            env.window.isHidden = true
-        }
-    }
-
-    /// Plus ohne Credits: die Frage endet nicht in einer Sackgasse - das Blatt mit beiden Paketen oeffnet sich, mit
-    /// dem Satz, was Plus damit kann, und "Gekauft: 0" (kein Monats-Topf, kein Satz zum Monat)
+    /// Plus ohne Credits: das Blatt mit beiden Paketen, "Gekauft: 0", ohne Monats-Topf und ohne den frueheren Satz "nur
+    /// Fragen an die KI"; in der KI-Hilfe oeffnet der 429 des Dienstes das Blatt von selbst (auch bei "Zusammenfassen")
     func testPlusWithoutCreditsGetsTheShopWithTheHonestSentence() throws {
         let service = Service()
         service.plan = "plus"
@@ -650,7 +589,7 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
             XCTAssertTrue(all.contains("Deine Credits sind aufgebraucht"), name)
             XCTAssertTrue(all.contains("Gekauft: 0"), "\(name)\n" + all.joined(separator: "\n"))
             XCTAssertFalse(all.contains { $0.contains("Diesen Monat") || $0.contains("Monats-Credits") }, "\(name): Plus hat keinen Monats-Topf")
-            XCTAssertTrue(all.contains("Mit Credits kannst du Fragen an die KI stellen. Erklärungen, Karteikarten und Tests gibt es mit Pro AI."), name)
+            XCTAssertFalse(all.contains(CreditText.chatOnly), "\(name): die Credits gelten fuer alles")
             XCTAssertTrue(all.contains("Gekaufte Credits verfallen nicht."), name)
             XCTAssertTrue(all.contains { $0.hasPrefix("200 Credits kaufen für") }, name)
             XCTAssertNotNil(button("Nicht jetzt", in: env.view), name)
@@ -660,33 +599,29 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
             XCTAssertTrue(env.wait { closed }, name)
             env.window.isHidden = true
         }
-        // in der KI-Hilfe: 429 des Dienstes oeffnet das Blatt von selbst
+        // in der KI-Hilfe: "Zusammenfassen" ohne Credits - 429 des Dienstes oeffnet das Blatt von selbst
         UFCompact.phoneOverride = true
         let t = AIViewsAppTests.Transport()
         let id = "f-plus-leer-\(UUID().uuidString.prefix(8))"
         t.answer("/api/index/file/\(id)/page/1", ["file_id": .string(id), "page": 1, "status": "none", "can_build": false])
-        t.fail("/api/ai/tutor", 429, ["detail": "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.", "code": "credits_exhausted",
-                                      "credits": service.credits()])
-        var request: EditorBridge.TutorRequest? = EditorBridge.TutorRequest(mode: "ask", selection: "Satz von Bolzano")
-        let panel = TutorPanel(fileID: id, page: { 1 }, selection: { "" }, open: { _, _ in }, close: {},
-                               request: Binding(get: { request }, set: { request = $0 }))
-            .environment(\.ufAIEnabled, false).environment(\.ufAIChatOnly, true).environment(\.ufStudoraAccount, l)
+        t.fail("/api/ai/tutor", 429, ["detail": "Für die StudiNow-KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad.",
+                                      "code": "credits_exhausted", "credits": service.credits()])
+        let panel = TutorPanel(fileID: id, page: { 1 }, selection: { "" }, open: { _, _ in }, close: {})
+            .environment(\.ufAIEnabled, true).environment(\.ufStudiNowAI, true).environment(\.ufAIAccess, .ready)
+            .environment(\.ufStudoraAccount, l)
         let env = try hostWithEnvironment(panel, api: APIClient(base: URL(string: "http://erfunden.test/")!, transport: t), size: CGSize(width: 393, height: 852))
-        XCTAssertTrue(env.wait { self.shows(env.view, "Satz von Bolzano") }, texts(env.view).joined(separator: "\n"))
-        env.window.endEditing(true)
-        env.pump(0.5)
-        XCTAssertTrue(env.wait { self.button("Senden", in: env.view)?.accessibilityActivate() ?? false }, texts(env.view).joined(separator: "\n"))
-        XCTAssertTrue(env.wait { self.shows(env.view, "Du hast keine Credits mehr.") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(env.wait { self.button("Zusammenfassen", in: env.view) != nil }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(button("Zusammenfassen", in: env.view)?.accessibilityActivate() ?? false)
+        XCTAssertTrue(env.wait { self.shows(env.view, "Für die StudiNow-KI brauchst du Credits.") }, texts(env.view).joined(separator: "\n"))
         XCTAssertNotNil(button("Credits kaufen", in: env.view))
         XCTAssertTrue(env.wait { env.hosting.presentedViewController != nil }, "Blatt offen")
         let sheet = try XCTUnwrap(env.hosting.presentedViewController)
-        XCTAssertTrue(env.wait { self.shows(sheet.view, CreditText.chatOnly) }, texts(sheet.view).joined(separator: "\n"))
-        XCTAssertTrue(shows(sheet.view, "Gekauft: 0"))
+        XCTAssertTrue(env.wait { self.shows(sheet.view, "Gekauft: 0") }, texts(sheet.view).joined(separator: "\n"))
+        XCTAssertTrue(env.wait { self.texts(sheet.view).contains { $0.hasPrefix("100 Credits kaufen für") } }, texts(sheet.view).joined(separator: "\n"))
     }
 
-    /// KI-Start mit Plus: "Fragen" ist frei, Karteikarten/Erklären/Wochentest tragen weiter das Schloss "ab Pro AI";
-    /// die Zeile sagt, was Plus kann
-    func testAIStartWithPlusOpensOnlyTheQuestion() throws {
+    /// KI-Start mit Plus und StudiNow-KI: Fragen, Karteikarten, Erklaeren und Wochentest ohne Schloss (kein "ab Pro AI" mehr)
+    func testAIStartWithPlusHasEveryAction() throws {
         let service = Service()
         service.plan = "plus"
         let (l, _, _) = startForViews(service)
@@ -700,18 +635,19 @@ final class CreditShopAppTests: StoreKitSessionTestCase {
         t.answer("/api/tests", [])
         t.answer("/api/bg", ["running": false, "task": .null, "message": ""])
         let view = AIStartView(entitlements: Entitlements(observe: false, plan: .plus), recents: AIRecents(defaults: d, scope: "plus"))
-            .environment(\.ufAIEnabled, false).environment(\.ufAIChatOnly, true).environment(\.ufAIAccess, .planRequired)
+            .environment(\.ufAIEnabled, true).environment(\.ufStudiNowAI, true).environment(\.ufAIAccess, .ready)
             .environment(\.ufStudoraAccount, l)
         let env = try hostWithEnvironment(view, api: APIClient(base: URL(string: "http://erfunden.test/")!, transport: t))
-        XCTAssertTrue(env.wait { self.shows(env.view, CreditText.chatLock) }, texts(env.view).joined(separator: "\n"))
-        XCTAssertFalse(shows(env.view, "Die KI-Hilfe kommt mit der StudiNow-KI"), "kein Tarif-Hinweis statt des Chats")
+        XCTAssertTrue(env.wait {
+            LayoutWidthAuditTests.elements(in: env.view).contains { $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel?.hasPrefix("Wochentest") == true }
+        }, texts(env.view).joined(separator: "\n"))
+        XCTAssertFalse(shows(env.view, CreditText.chatLock), "kein Satz 'Erklären, Karteikarten und Tests gibt es mit Pro AI'")
+        XCTAssertFalse(shows(env.view, "Die KI-Hilfe kommt mit der StudiNow-KI"), "kein Tarif-Hinweis")
         let buttons = LayoutWidthAuditTests.elements(in: env.view).filter { $0.accessibilityTraits.contains(.button) }
-        let ask = try XCTUnwrap(buttons.first { $0.accessibilityLabel?.hasPrefix("Fragen") == true }, texts(env.view).joined(separator: "\n"))
-        XCTAssertFalse((ask.accessibilityValue ?? "").contains("gesperrt"), "Fragen ist frei")
-        for title in ["Karteikarten", "Erklären / PDF analysieren", "Wochentest"] {
+        for title in ["Fragen", "Karteikarten", "Erklären / PDF analysieren", "Wochentest"] {
             let b = try XCTUnwrap(buttons.first { $0.accessibilityLabel?.hasPrefix(title) == true }, title)
-            XCTAssertEqual(b.accessibilityValue, "gesperrt, ab Pro AI", title)
+            XCTAssertFalse((b.accessibilityValue ?? "").contains("gesperrt"), title)
         }
-        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0, chatOnly: true), "0 Anfragen diesen Monat · KI-Chat mit gekauften Credits")
+        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0, chatOnly: true), "0 Anfragen diesen Monat · KI-Chat mit Credits")
     }
 }

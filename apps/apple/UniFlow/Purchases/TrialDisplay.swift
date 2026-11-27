@@ -19,13 +19,14 @@ struct UFShownTrial: Equatable {
     /// (keine Probe zu zeigen, ausser der des Kontos) > laufende iPad-Probe > keine. Gilt die Probe des Kontos, zeigt
     /// die App nie die Tage der iPad-Probe, auch wenn der Dienst keine Resttage meldet.
     /// Seit 13.11.2026 (Inhaber: "Ja, ausblenden"): deckt ein Kauf die Probe ab (gekauft auf diesem iPad oder laut
-    /// Dienst `servicePaid`, mindestens der Tarif der Probe, also Pro AI), zeigt die App keine Probe mehr - die Karte
-    /// "Probe: noch 2 Tage … 25 Credits" war fuer Pro-AI-Kunden mit 100 Credits irrefuehrend. Probe + Plus zeigt die
-    /// Probe weiter (sie bringt bis zum Ende noch die KI). Nur Anzeige, Freischaltung und Credits bleiben.
+    /// Dienst `servicePaid`), zeigt die App keine Probe mehr - die Karte "Probe: noch 2 Tage … 25 Credits" war fuer
+    /// Pro-AI-Kunden mit ihren Monats-Credits irrefuehrend. Seit 26.11.2026 ist die Probe Plus mit 25 Credits: ein Kauf
+    /// deckt sie nur ab, wenn er selbst Monats-Credits bringt (Pro AI). Probe + Plus zeigt die Probe weiter (sie bringt bis
+    /// zum Ende noch die 25 Credits, wie `_paid_ai` im Dienst). Nur Anzeige, Freischaltung und Credits bleiben.
     static func make(service: UFPlan?, serviceDaysLeft: Int, serviceEndsAt: Date?, local: UFLocalTrial.State?,
                      purchased: UFPlan, servicePaid: UFPlan? = nil) -> UFShownTrial? {
         let paid = max(purchased, servicePaid ?? .free)
-        if paid != .free, paid >= (service ?? .proAI) { return nil }
+        if paid.monthlyCredits > 0 { return nil }
         if let service, service != .free {
             return serviceDaysLeft > 0 ? UFShownTrial(source: .service, daysLeft: serviceDaysLeft, endsAt: serviceEndsAt) : nil
         }

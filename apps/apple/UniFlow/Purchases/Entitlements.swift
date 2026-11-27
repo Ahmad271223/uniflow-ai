@@ -3,15 +3,15 @@ import UniFlowCore
 import SwiftUI
 
 // Funktionen der iPad-App und ihre Tarife (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 4; docs/ABO-SYSTEM.md).
-// Entscheidung des Inhabers vom 04.11.2026: drei StudiNow-Tarife Free, Plus, Pro AI (Plans.swift, Vertrag plans.json).
-// Pro AI enthaelt alles aus Plus; auf dem iPad gehoeren eigene Karteikarten zu Plus, seit 05.11.2026 auch die
-// Community (Lesen; Free ohne Community, "Community ab Plus"). Pro AI bringt die StudiNow-KI (KI-Hilfe, KI-Karteikarten,
-// Wochentests) und den Notizen-Abgleich ueber das StudiNow-Konto (Dienst app.studinow.app, Stand 07.11.2026). Was es auf
+// Seit 26.11.2026 (Entscheidung des Inhabers, neues Tarifmodell): drei StudiNow-Tarife Free, Plus, Pro AI (Plans.swift,
+// Vertrag plans.json). Plus hat alle Funktionen der App (Stift, Karteikarten, Community, Notizen-Abgleich, Erinnerungen,
+// neue Schreibfunktionen, KI-Hilfe, KI-Karteikarten, Wochentests); die StudiNow-KI darin laeuft nur mit Credits
+// (gekaufte, die der Probe oder die 120 Monats-Credits von Pro AI). Pro AI = Plus + 120 Credits je Monat. Was es auf
 // dem iPad nicht gibt (Testbibliothek, Lernstatistik, Empfehlungen, eigenes ChatGPT), steht auf keiner Tarifkarte, auch
-// nicht als "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit signiert
-// und geprueft, hoechster gueltiger Tarif). Dazu die Probe auf dem iPad (Entscheidung 04.11.2026, LocalTrial.swift):
-// 7 Tage alles wie Pro AI ohne Zahlungsdaten, Vorrang Dienst > App Store > Probe > Free (UFPlanPrecedence). Die
-// Pruefung im Dienst ist vorbereitet und abgeschaltet (BillingServiceLink.swift, V2).
+// nicht als "in Vorbereitung". Die Berechtigung entsteht auf dem Geraet aus Transaction.currentEntitlements (von StoreKit
+// signiert und geprueft, hoechster gueltiger Tarif; der einmalige 5-Jahres-Kauf ohne Ablaufdatum von Apple endet nach
+// `UFOffer.end`). Dazu die Probe auf dem iPad (LocalTrial.swift): 7 Tage alles wie Plus ohne Zahlungsdaten, Vorrang
+// Dienst > App Store > Probe > Free (UFPlanPrecedence).
 
 // MARK: - Funktionen
 
@@ -44,21 +44,19 @@ enum UFFeature: String, CaseIterable, Identifiable {
                              // "Lerneinheit automatisch einplanen", KI-Lernplan POST /api/calendar/ai-suggest): Plus
                              // (Inhaber 07.11.2026); Ausnahme mit eigenem ChatGPT (eigener OpenAI-Schluessel arbeitet,
                              // `Entitlements.ownChatGPTConnected`): dann auch in Free (UFFeatureMatrix.access `ownChatGPT`)
-    case aiChat              // KI-Chat mit gekauften Credits (Entscheidung des Inhabers 15.11.2026, can_use_ai_chat): die freie
-                             // Frage an die StudiNow-KI in der KI-Hilfe, auf KI-Start und bei Testaufgaben. Plus hat keine
-                             // Monats-Credits; bezahlt wird allein aus gekauften Credits (CreditPacks). Erklaeren,
-                             // Karteikarten und Tests bleiben Pro AI (`aiHelp`, `aiFlashcards`, `weeklyTests`).
-    // Pro AI: StudiNow-KI und Abgleich ueber das StudiNow-Konto (UFDeviceSupport.withAccount). Die KI selbst gibt
-    // `StudiNowAIAccess` frei (Pro AI bzw. Probe und angemeldet), die Matrix sagt nur, ab welchem Tarif.
+    case aiChat              // KI-Chat (can_use_ai_chat): die freie Frage an die StudiNow-KI in der KI-Hilfe, auf KI-Start
+                             // und bei Testaufgaben, ab Plus, nur mit Credits (seit 26.11.2026 wie alle KI-Funktionen)
+    // ab Plus (26.11.2026): StudiNow-KI und Abgleich ueber das StudiNow-Konto (UFDeviceSupport.withAccount). Die KI selbst
+    // gibt `StudiNowAIAccess` frei (Plus, Pro AI bzw. Probe und angemeldet) und nur mit Credits (`StudiNowCreditGate`,
+    // Dienst 429 `credits_exhausted`); die Matrix sagt nur, ab welchem Tarif.
     case aiHelp              // KI-Hilfe im Editor: Seite, markierter Bereich, ganzes Dokument (TutorPanel, TutorDocumentRun)
     case aiFlashcards        // Karteikarten aus einem Dokument (FlashcardComposer, POST /api/ai/flashcards)
     case weeklyTests         // Wochentest erstellen (QuizComposer, automatische Wochentests): braucht eine KI, auf dem
-                             // iPad die StudiNow-KI, darum Pro AI (07.11.2026; vorher Plus mit dem eigenen ChatGPT, das aus
-                             // ist). Wird das eigene ChatGPT freigegeben, hier neu entscheiden.
+                             // iPad die StudiNow-KI mit Credits (ab Plus seit 26.11.2026)
     case deviceSync          // Notizen auf allen Geraeten (DeviceSync G2 mit StudiNow-Konto, can_sync_annotations)
     case dueReminders        // Erinnerungen an Abgaben, Tests und Klausuren samt "Neuer Klausurtermin erkannt" (Mitteilungen;
-                             // can_use_due_reminders): ab Pro AI seit 18.11.2026 (Inhaber woertlich "Alles ab Pro AI"),
-                             // 11.-17.11.2026 ab Plus, vorher Free. Geht ohne StudiNow-Konto (auf dem Geraet). Fristen- und
+                             // can_use_due_reminders): ab Plus seit 26.11.2026 (18.-26.11.2026 ab Pro AI, 11.-17.11.2026
+                             // ab Plus, vorher Free). Geht ohne StudiNow-Konto (auf dem Geraet). Fristen- und
                              // Terminlisten und die Karte "Klausuren und Tests: bald und neu erkannt" bleiben in jedem Tarif
     // ab V2
     case uniflowEditor
@@ -72,11 +70,10 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .timer, .viewNotes,
              .uniGrades, .ownChatGPT:
             return .free
+        // seit 26.11.2026 alles ab Plus (Pro AI bringt nur die Monats-Credits dazu)
         case .communityRead, .pencilWriting, .shareSolutions, .splitView, .flashcards, .autoPlan, .uniflowEditor,
-             .aiChat:
+             .aiChat, .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders:
             return .plus
-        case .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders:
-            return .proAI
         }
     }
 
@@ -109,7 +106,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .flashcards: return "Eigene Karteikarten mit Wiederholung"
         case .dueReminders: return "Erinnerungen an Abgaben und Klausuren"
         case .autoPlan: return "Lernplan automatisch erstellen"
-        case .aiChat: return "KI-Chat mit gekauften Credits"
+        case .aiChat: return "KI-Chat mit Credits"
         case .aiHelp: return "KI-Lernhilfe zu deinen Unterlagen"
         case .aiFlashcards: return "Karteikarten aus deinen Unterlagen"
         case .weeklyTests: return "Wochentests erstellen"
@@ -123,7 +120,7 @@ enum UFFeature: String, CaseIterable, Identifiable {
         switch self {
         case .modulesTimetable: return "Deine Fächer geordnet nach Modulen"
         case .studyPlanning: return "Eintragen, verschieben, nachholen, „Woche retten“"
-        case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App"
+        case .uniGrades: return "Notenspiegel aus \(UFReleaseUniversities.gradePlatforms) direkt in der App (je nach Hochschule)"
         case .ownChatGPT: return "Mit deinem eigenen OpenAI-Schlüssel: Fragen zu deinen Unterlagen\(LearnCalendar.text(" und Lernplan-Vorschläge", off: "")) – in jedem Tarif, abgerechnet über dein OpenAI-Konto"
         case .communityRead: return "Lösungen anderer finden, laden und \(UFEditorAvailability.available ? "im Editor" : "auf leeren Seiten") ansehen, melden und blockieren, Lerngruppen beitreten"
         case .pencilWriting: return "Stift, Marker, Radierer, Lasso, Seiten einfügen, drehen und in den Papierkorb legen, Lesezeichen"
@@ -132,10 +129,10 @@ enum UFFeature: String, CaseIterable, Identifiable {
         case .flashcards: return "Selbst angelegt, Wiederholung nach dem Leitner-System"
         case .dueReminders: return "Mitteilung 3 Tage, 1 Tag und am Morgen vor Abgaben, Tests und Klausuren und bei neu erkannten Klausurterminen"
         case .autoPlan: return "Lernslots in deinen freien Zeiten"
-        case .aiChat: return "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI"
-        case .aiHelp: return "Erklären zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“ – mit 80 Credits im Monat, weitere Credits zum Nachkaufen"
-        case .aiFlashcards: return "Die StudiNow-KI schlägt Karten zu einem Dokument vor, du prüfst sie vor dem Übernehmen"
-        case .weeklyTests: return "Aus deinen Unterlagen, mit der StudiNow-KI"
+        case .aiChat: return "Fragen an die StudiNow-KI stellen, bezahlt aus deinen Credits"
+        case .aiHelp: return "Erklären zur Seite, zu einem markierten Bereich oder zum ganzen Dokument, z. B. „Ganze Vorlesung erklären“ und „Alle Aufgaben erklären“ – mit Credits"
+        case .aiFlashcards: return "Die StudiNow-KI schlägt Karten zu einem Dokument vor, du prüfst sie vor dem Übernehmen – mit Credits"
+        case .weeklyTests: return "Aus deinen Unterlagen, mit der StudiNow-KI und Credits"
         case .deviceSync: return "Abgleich über dein StudiNow-Konto"
         default: return nil
         }
@@ -172,18 +169,18 @@ enum UFFeature: String, CaseIterable, Identifiable {
 // MARK: - Funktionsmatrix
 
 /// Neue Schreibfunktionen im Editor (Auftrag des Inhabers 25.11.2026): Textbloecke "wie Word" (Formatleiste,
-/// Schriftarten, Einrasten auf den Linien, langes Druecken greift), Notizzettel, Klappkarten, Verweise. Erst "ab Plus"
-/// bestellt, am selben Tag korrigiert: "das alles ab Pro AI". Die Probewoche zaehlt wie Pro AI (sie IST dann der Tarif).
+/// Schriftarten, Einrasten auf den Linien, langes Druecken greift), Notizzettel, Klappkarten, Verweise, Tabelle. Seit
+/// 26.11.2026 (neues Tarifmodell: Plus hat alle Funktionen von Pro AI) ab Plus; 25.-26.11.2026 ab Pro AI. Die Probewoche
+/// zaehlt wie Plus (sie IST dann der Tarif).
 ///
-/// Plus behaelt genau, was es in 1.0.7 hat: einfaches Textfeld und gelbe Haftnotiz. Vorhandene Bloecke (aus der Probe,
-/// vom anderen Geraet, aus der Community) bleiben in jedem Tarif sichtbar; mit Plus lassen sie sich weiter verschieben,
-/// loeschen und ihr Text aendern - nur neu formatieren nicht.
+/// Free hat das einfache Textfeld und die gelbe Haftnotiz nicht (Stift ab Plus). Vorhandene Bloecke (aus der Probe,
+/// vom anderen Geraet, aus der Community) bleiben in jedem Tarif sichtbar.
 ///
 /// Bewusst (noch) kein `UFFeature`: Das stuende sofort auf den Tarifkarten und im Vertrag mit dem Dienst; den Text
 /// dafuer gibt der Inhaber frei (docs/TEXTBLOECKE-NOTIZZETTEL-KLAPPKARTEN-TABELLE-2026-11-25.md).
 enum UFRichNotes {
     /// EINE ZEILE ZUM UMSTELLEN: kleinster Tarif fuer die neuen Schreibfunktionen
-    static let minimumPlan: UFPlan = .proAI
+    static let minimumPlan: UFPlan = .plus
     static let title = "Text wie in Word"
 
     static func allowed(plan: UFPlan) -> Bool { plan >= minimumPlan }
@@ -240,9 +237,11 @@ enum UFFeatureMatrix {
     }
 
     /// Bietet der Tarif heute schon etwas, das der naechstkleinere nicht hat? Sonst sagt die Tarifkarte das offen.
+    /// Pro AI: die Monats-Credits (26.11.2026).
     static func hasAvailableExtras(in plan: UFPlan, uniGrades: Bool = uniGradesOnDevice,
                                    community: Bool = communityAvailable, flashcards: Bool = flashcardsOnDevice) -> Bool {
         if plan == .free { return true }
+        if plan.monthlyCredits > (plan.lower?.monthlyCredits ?? 0) { return true }
         return UFFeature.allCases.contains {
             $0.minimumPlan == plan && access($0, plan: plan, uniGrades: uniGrades, community: community, flashcards: flashcards) == .allowed
         }
@@ -301,23 +300,36 @@ struct UFPlanCardRow: Equatable {
 /// und auf dem iPad wirklich geht (auf dem Geraet oder mit StudiNow-Konto ueber den Dienst). Was es auf dem iPad nicht
 /// gibt, steht gar nicht da, auch nicht als "in Vorbereitung" (App Review 07.11.2026: keine Versprechen).
 enum UFPlanCard {
-    /// enthalten: Funktionen, die der Tarif mehr bietet als der naechstkleinere
+    /// enthalten: Funktionen, die der Tarif mehr bietet als der naechstkleinere; bei Pro AI die Monats-Credits
     static func included(_ plan: UFPlan) -> [UFPlanCardRow] {
         UFFeatureMatrix.added(in: plan).filter { !$0.isV2 && UFFeatureMatrix.access($0, plan: plan) == .allowed }.map {
             UFPlanCardRow(title: $0.title, detail: $0.detail, icon: $0.icon)
-        }
+        } + (creditsRow(plan).map { [$0] } ?? [])
     }
 
-    /// Kurzbeschreibung auf der Karte. Nicht wortgleich mit `UFPlan.tagline` (Vertrag): dort stehen fuer Plus die
-    /// Wochentests und fuer Pro AI das eigene ChatGPT, auf dem iPad gehoeren Wochentests zu Pro AI und ChatGPT ist aus.
+    /// Zeile der Monats-Credits (nur Pro AI, 26.11.2026: 120 je Monat, am 1. neu, der Rest verfaellt)
+    static func creditsRow(_ plan: UFPlan) -> UFPlanCardRow? {
+        guard plan.monthlyCredits > (plan.lower?.monthlyCredits ?? 0) else { return nil }
+        return UFPlanCardRow(title: "\(plan.monthlyCredits) Credits für die StudiNow-KI – jeden Monat",
+                             detail: "Am 1. neu aufgeladen, der Rest verfällt. Für Erklärungen, Zusammenfassungen, Karteikarten und Tests ohne Nachkaufen",
+                             icon: "sparkles")
+    }
+
+    /// Zusatz unter den Zeilen auf der Tarifseite (27.11.2026): Pro AI kann weitere Credits dazukaufen (Credit-Pakete wie
+    /// Plus). Nicht Teil von `included`, weil es kein eigenes Recht von Pro AI ist.
+    static func extraRows(_ plan: UFPlan) -> [UFPlanCardRow] {
+        guard plan == .proAI else { return [] }
+        return [UFPlanCardRow(title: "Weitere Credits jederzeit dazukaufen",
+                              detail: "Credit-Pakete in der App, gekaufte Credits verfallen nicht", icon: "sparkles")]
+    }
+
+    /// alle Zeilen einer Karte der Tarifseite
+    static func rows(_ plan: UFPlan) -> [UFPlanCardRow] { included(plan) + extraRows(plan) }
+
+    /// Kurzbeschreibung auf der Karte wie im Vertrag (`UFPlan.tagline`, 26.11.2026)
     static func tagline(_ plan: UFPlan) -> String? {
         guard UFFeatureMatrix.hasAvailableExtras(in: plan) else { return nil }
-        switch plan {
-        case .free: return plan.tagline
-        case .plus: return UFEditorAvailability.available ? UFDevice.adapt("Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community")
-            : "Karteikarten, Community und in der iPad-App mit Apple Pencil schreiben"
-        case .proAI: return "Die StudiNow-KI für deine Unterlagen inklusive"
-        }
+        return plan.tagline
     }
 
     /// Ueberschrift ueber den Zeilen
@@ -338,6 +350,18 @@ struct UFEntitlementEntry: Equatable {
     /// Ablaufdatum vorbei, Apple zaehlt das Abo aber noch: Ende der Kulanzfrist (Billing Grace Period,
     /// `RenewalState.inGracePeriod`) bzw. kurze Frist, solange die Verlaengerung unterwegs ist (`.subscribed`)
     var graceUntil: Date?
+    /// Kaufzeit (fuer den einmaligen Kauf ueber Jahre, `UFOffer.end`)
+    var purchaseDate: Date?
+
+    /// Einmal bezahltes Angebot ohne Ablaufdatum von Apple (StoreKit `.nonRenewable`, 5 Jahre Plus)?
+    var isNonRenewing: Bool { UFOffer(productID: productID)?.kind == .nonRenewing }
+
+    /// Ablauf des Rechts: bei einem Abo das Datum von Apple, beim einmaligen Kauf Kaufzeit + Jahre (26.11.2026; Apple
+    /// nennt dort kein Ende, `Transaction.currentEntitlements` liefert den Kauf auch nach Jahren noch)
+    var effectiveExpiration: Date? {
+        if isNonRenewing { return purchaseDate.flatMap { UFOffer(productID: productID)?.end(purchasedAt: $0) } }
+        return expirationDate
+    }
 }
 
 extension UFEntitlementEntry {
@@ -346,20 +370,33 @@ extension UFEntitlementEntry {
         expirationDate = t.expirationDate
         revocationDate = t.revocationDate
         isUpgraded = t.isUpgraded
+        purchaseDate = t.purchaseDate
     }
 }
 
 enum UFEntitlementResolver {
     /// gueltig = nicht erstattet/widerrufen, nicht abgelaufen (oder in der Kulanzfrist), nicht durch ein hoeheres Abo
-    /// ersetzt
+    /// ersetzt. Der einmalige Kauf ueber Jahre gilt bis Kaufzeit + Jahre (`effectiveExpiration`), ohne Kaufzeit nie.
     static func isActive(_ e: UFEntitlementEntry, now: Date) -> Bool {
         guard e.revocationDate == nil, !e.isUpgraded else { return false }
+        if e.isNonRenewing {
+            guard let end = e.effectiveExpiration else { return false }
+            return end > now
+        }
         if let exp = e.expirationDate, exp <= now { return (e.graceUntil ?? exp) > now }
         return true
     }
 
-    /// Ende des Rechts: Ende der Kulanzfrist, sonst Ablauf des Zeitraums (nil = unbefristet)
-    static func rightsEnd(_ e: UFEntitlementEntry) -> Date? { e.graceUntil ?? e.expirationDate }
+    /// Ende des Rechts: Ende der Kulanzfrist, sonst Ablauf des Zeitraums bzw. des einmaligen Kaufs (nil = unbefristet)
+    static func rightsEnd(_ e: UFEntitlementEntry) -> Date? { e.graceUntil ?? e.effectiveExpiration }
+
+    /// Welcher gueltige Kauf traegt den Tarif? Bei mehreren (z. B. Monatsabo und 5 Jahre Plus) der, dessen Recht am
+    /// laengsten reicht; nil ohne gueltigen Kauf des Tarifs
+    static func carrying(_ plan: UFPlan, in entries: [UFEntitlementEntry], now: Date) -> UFEntitlementEntry? {
+        let ids = Set(plan.productIDs)
+        return entries.filter { ids.contains($0.productID) && isActive($0, now: now) }
+            .max { (rightsEnd($0) ?? .distantFuture) < (rightsEnd($1) ?? .distantFuture) }
+    }
 
     /// hoechster gueltiger Tarif wie current_plan() in app/billing.py, sonst Free
     static func plan(from entries: [UFEntitlementEntry], now: Date = Date()) -> UFPlan {
@@ -415,8 +452,13 @@ final class Entitlements: ObservableObject {
     private var expiryCheck: Task<Void, Never>?
     /// zur naechsten Verlaengerung vorgemerkter kleinerer Tarif (Downgrade), sonst nil
     @Published private(set) var pendingPlan: UFPlan?
-    /// Zahlweise des gekauften Abos (jaehrlich; monatlich nur bei einem frueheren Monatsabo); nil ohne Abo
-    @Published private(set) var purchasedBilling: UFBilling?
+    /// Angebot des gueltigen Kaufs (Plus monatlich, Plus 5 Jahre, Pro AI jaehrlich); nil ohne Kauf und bei einem
+    /// frueheren Produkt (z. B. Plus-Jahresabo 19,99 EUR, `UFPlan.legacyProductIDs`)
+    @Published private(set) var purchasedOffer: UFOffer?
+    /// Produkt des gueltigen Kaufs (auch ein frueheres); nil ohne Kauf
+    @Published private(set) var purchasedProductID: String?
+    /// alle gueltigen Angebote (27.11.2026: das Bachelor+Master-Paket kann neben Pro AI laufen; dann kein zweiter Kauf)
+    @Published private(set) var activeOffers: Set<UFOffer> = []
     /// verlaengert sich das gueltige Abo? false = gekuendigt, laeuft bis `expiresAt`; nil = unbekannt bzw. Free
     @Published private(set) var willRenew: Bool?
     /// Abo noch nicht geprueft (erster Abruf von currentEntitlements laeuft)
@@ -566,6 +608,17 @@ final class Entitlements: ObservableObject {
     /// Tarif, den das Konto hat, ohne Probe: gekauft oder geschenkt, der hoehere (Tarifseite "Aktueller Tarif")
     var ownedPlan: UFPlan { max(purchasedPlan, carryingGift?.plan ?? .free) }
 
+    /// bezahlter Tarif ohne Probe: hier gekauft, geschenkt oder beim Dienst bezahlt (`paid_plan`, z. B. im Web)
+    var paidPlan: UFPlan { max(ownedPlan, planIsForced ? .free : (servicePaid ?? .free)) }
+
+    /// Darf dieses Konto Credit-Pakete kaufen? Nur Plus oder Pro AI, nie Free und nie die Probe allein (26.11.2026,
+    /// `CreditPacks.canBuy`, wie `plans.can_buy_credits` im Dienst); die Kaufseite fragt zusaetzlich `credits.can_buy`
+    /// des Dienstes. "Nur aus der Probe": kein bezahlter Tarif, aber eine laufende Probe (Konto oder iPad).
+    var canBuyCredits: Bool {
+        let fromTrial = !planIsForced && paidPlan == .free && (serviceTrial != nil || localTrial?.isActive == true)
+        return CreditPacks.canBuy(plan: max(plan, paidPlan).rawValue, trialOnly: fromTrial)
+    }
+
     /// laufende Probe auf dem iPad ohne Kauf (die Tarifseite markiert dann keinen Tarif als "Aktueller Tarif"); nil mit
     /// gekauftem Abo, vor der Anmeldung, nach der Probe und waehrend des ersten Abrufs
     var runningLocalTrial: UFLocalTrial.State? {
@@ -642,9 +695,11 @@ final class Entitlements: ObservableObject {
         }
         var p = UFEntitlementResolver.plan(from: entries, now: now)
         var renewal: (willAutoRenew: Bool, productID: String?)?
-        // gueltige Transaktion des Tarifs: Jahresabo oder frueheres Monatsabo (UFPlan.productIDs, 09.11.2026)
-        var current = p.productIDs.lazy.compactMap { active[$0] }.first
-        if let t = current { renewal = await Self.renewal(of: t) }
+        // gueltige Transaktion des Tarifs (Angebot oder frueheres Produkt, UFPlan.productIDs); bei mehreren die, deren
+        // Recht am laengsten reicht (26.11.2026: Monatsabo neben 5 Jahre Plus)
+        var current = UFEntitlementResolver.carrying(p, in: Array(activeEntries.values), now: now).flatMap { active[$0.productID] }
+        // nicht verlaengernd (5 Jahre): keine Verlaengerung, kein Wechsel in der Abo-Gruppe
+        if let t = current, t.productType != .nonRenewable { renewal = await Self.renewal(of: t) }
         #if DEBUG
         // Startargument -UFPlan free|plus|pro_ai (alt: pro_connect = pro_ai): fester Tarif fuer Simulator-Ablaeufe ohne
         // StoreKit-Testkonfiguration
@@ -653,12 +708,14 @@ final class Entitlements: ObservableObject {
         purchasedPlan = p
         if let t = localTrial { localTrial = t.updated(now: now) }
         recompute()
-        expiresAt = current?.expirationDate
         let currentEntry = current.flatMap { activeEntries[$0.productID] }
+        expiresAt = currentEntry?.effectiveExpiration
         graceUntil = current.flatMap { graceProducts.contains($0.productID) ? currentEntry?.graceUntil : nil }
         rightsEnd = currentEntry.flatMap(UFEntitlementResolver.rightsEnd)
-        purchasedBilling = current.flatMap { UFBilling(productID: $0.productID) }
-        willRenew = renewal?.willAutoRenew
+        purchasedOffer = current.flatMap { UFOffer(productID: $0.productID) }
+        purchasedProductID = current?.productID
+        activeOffers = Set(activeEntries.keys.compactMap { UFOffer(productID: $0) })
+        willRenew = currentEntry?.isNonRenewing == true ? false : renewal?.willAutoRenew
         pendingPlan = renewal.flatMap {
             UFEntitlementResolver.pendingPlan(current: p, willAutoRenew: $0.willAutoRenew, autoRenewProductID: $0.productID)
         }
@@ -717,13 +774,27 @@ final class Entitlements: ObservableObject {
     #if DEBUG
     /// nur Tests und Vorschauen
     func setPlanForTesting(_ p: UFPlan) { plan = p; loading = false }
+
+    /// nur Tests: gekaufter Tarif ohne StoreKit (Kaufseite, Credit-Regel)
+    func setPurchasedForTesting(_ p: UFPlan, offer: UFOffer? = nil, expiresAt: Date? = nil, willRenew: Bool? = nil,
+                                alsoActive: Set<UFOffer> = []) {
+        purchasedPlan = p
+        purchasedOffer = offer
+        purchasedProductID = offer?.productID
+        activeOffers = Set(offer.map { [$0] } ?? []).union(alsoActive)
+        self.expiresAt = expiresAt
+        self.willRenew = willRenew
+        loading = false
+        recompute()
+    }
     #endif
 }
 
 // MARK: - Schloss: gesperrte Funktionen sichtbar (Auftrag des Inhabers 12.11.2026)
 
 /// "Alle Funktionen, die in Plus und Pro AI enthalten sind, sollen bei Free ein Schloss haben, und alle, die in Pro AI
-/// enthalten sind und Plus nicht hat, bei Plus ein Schloss." Gesperrte Funktionen werden darum nicht ausgeblendet,
+/// enthalten sind und Plus nicht hat, bei Plus ein Schloss." Seit 26.11.2026 hat Plus alles, die Schloesser heissen
+/// darum "ab Plus"; was bei Plus fehlt, sind nur Credits (Credit-Pakete statt Schloss). Gesperrte Funktionen werden nicht ausgeblendet,
 /// sondern ueberall gleich gezeigt: Schloss-Symbol mit "ab Plus" bzw. "ab Pro AI" (`UFLockMark`), VoiceOver
 /// "gesperrt, ab Plus", Antippen oeffnet die Tarifwahl mit dem noetigen Tarif vorausgewaehlt (`UFPlanSheet(required:)`).
 /// Was es im Build oder auf dem Geraet gar nicht gibt (`UFAccess.comingSoon`, V2, Community ohne iCloud-Container),
@@ -759,8 +830,9 @@ enum UFLock {
     }
 
     /// Schloss einer KI-Stelle (KI-Hilfe, "KI fragen", "Bereich an KI", KI-Karteikarten, Wochentests): mit verbundener KI
-    /// (eigenes ChatGPT in jedem Tarif oder StudiNow-KI) frei; sonst das Schloss "ab Pro AI", solange der Tarif die
-    /// StudiNow-KI nicht enthaelt. Pro AI ohne Anmeldung ist kein Tarif-Thema (die Stelle zeigt den Weg zur Anmeldung).
+    /// (eigenes ChatGPT in jedem Tarif oder StudiNow-KI) frei; sonst das Schloss "ab Plus", solange der Tarif die
+    /// StudiNow-KI nicht enthaelt. Plus ohne Anmeldung ist kein Tarif-Thema (die Stelle zeigt den Weg zur Anmeldung),
+    /// Plus ohne Credits auch nicht (die Stelle zeigt die Credit-Pakete, 429 `credits_exhausted`).
     /// `offerHidden`: Pro AI ist nicht zu kaufen (nur Store-Bilder der Fassung nur mit Plus) – dann kein Schloss.
     static func ai(_ f: UFFeature = .aiHelp, plan: UFPlan, aiEnabled: Bool, offerHidden: Bool = false) -> UFPlan? {
         guard !aiEnabled, !offerHidden else { return nil }

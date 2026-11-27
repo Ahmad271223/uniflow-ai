@@ -220,7 +220,8 @@ def test_08_plan_and_trial_normal_cases(hosted):
     uid = _user("p@beispiel.de")
     conn = credits.connect()
     try:
-        assert credits.plan_and_trial(conn, uid) == ("pro_ai", True), "neues Konto: Probe mit Pro-AI-Umfang"
+        # 26.11.2026 neues Modell: die Probe ist Plus (frueher Pro-AI-Umfang)
+        assert credits.plan_and_trial(conn, uid) == ("plus", True), "neues Konto: Probe mit Plus-Umfang"
         from app import accounts
         accounts.set_plan(uid, "pro_ai")
         assert credits.plan_and_trial(conn, uid) == ("pro_ai", False), "von Hand gesetzter Tarif schlaegt die Probe"

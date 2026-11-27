@@ -259,7 +259,7 @@ extension ObjectEditing {
         await place(objects: copies, ink: inkCopies, inkOffset: CGPoint(x: Self.pasteOffset, y: Self.pasteOffset), on: key)
     }
 
-    static let copyLockedHint = "Klappkarten und Verweise vervielfältigen geht mit Pro AI."
+    static let copyLockedHint = "Klappkarten und Verweise vervielfältigen geht mit Plus."
 
     /// Was sich vervielfaeltigen laesst: Ohne Pro AI keine Klappkarten und Verweise (anlegen geht dann auch nicht -
     /// Duplizieren und Einfuegen waeren sonst der Weg daran vorbei).

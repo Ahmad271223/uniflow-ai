@@ -75,7 +75,7 @@ final class MailRewriteTests: XCTestCase {
 
     func testMessages() {
         XCTAssertEqual(MailRewrite.message(code: "quota_exhausted", fallback: "x"), "Du hast diesen Monat alle 50 KI-Mails genutzt. Am 1. gibt es neue.")
-        XCTAssertEqual(MailRewrite.message(code: "plan_required", fallback: "x"), "E-Mails mit KI verbessern gibt es mit StudiNow Pro AI.")
+        XCTAssertEqual(MailRewrite.message(code: "plan_required", fallback: "x"), "E-Mails mit KI verbessern gibt es mit StudiNow Plus oder Pro AI und Credits.")
         XCTAssertEqual(MailRewrite.message(code: nil, fallback: "Fehler"), "Fehler")
     }
 }

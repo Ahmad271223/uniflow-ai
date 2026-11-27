@@ -21,9 +21,9 @@ protocol UFAdoptQuotaService: Sendable {
 extension StudoraAccount: UFAdoptQuotaService {}
 
 /// Karteikarten-Stapel von StudiNow uebernehmen (Entscheidung 05.11.2026, Kontingent `card_stacks_adopted` in
-/// plans.json): fertige Wochenstapel aus dem Pool und geteilte Stapel der Modul-Community, Plus 4 je Kalendermonat, Pro AI
-/// (und die Probe) unbegrenzt. Derselbe Stapel zaehlt im Monat nur einmal; selbst erzeugte Stapel (eigenes ChatGPT)
-/// zaehlen nicht.
+/// plans.json): fertige Wochenstapel aus dem Pool und geteilte Stapel der Modul-Community. Seit 26.11.2026 (neues
+/// Tarifmodell, plans.json `quotas.plus.card_stacks_adopted` null) Plus und Pro AI (und die Probe) unbegrenzt, Free keine;
+/// vorher Plus 4 je Kalendermonat. Die Zaehlung bleibt (Dienst mit Fair-Use-Grenze, ein Tarif mit fester Grenze).
 ///
 /// Je Konto statt je Geraet (Entscheidung des Inhabers 08.11.2026, Audit P43-06):
 /// - mit StudiNow-Konto (`service`) zaehlt der Dienst im vorhandenen Kontingent des Kontos, ueber alle Geraete und
@@ -45,14 +45,23 @@ struct UFAdoptQuota {
     /// StudiNow-Dienst des angemeldeten Kontos; nil ohne Anmeldung
     var service: (any UFAdoptQuotaService)?
 
-    /// Grenze je Monat; nil = unbegrenzt (Pro AI, Fair Use nur im Dienst)
+    /// Grenze je Monat; nil = unbegrenzt (Plus und Pro AI seit 26.11.2026, plans.json `quotas.plus.card_stacks_adopted`
+    /// null; Fair Use nur im Dienst)
     static func limit(_ plan: UFPlan) -> Int? {
+        #if DEBUG
+        if let t = testLimits, let v = t[plan] { return v }
+        #endif
         switch plan {
         case .free: return 0
-        case .plus: return 4
-        case .proAI: return nil
+        case .plus, .proAI: return nil
         }
     }
+
+    #if DEBUG
+    /// nur Tests: feste Grenze je Tarif (z. B. Plus 4 wie vor dem 26.11.2026), damit die Zaehlung ueber Geraete und Dienst
+    /// pruefbar bleibt, obwohl heute kein bezahlter Tarif eine feste Grenze hat; nil = die echte Regel
+    nonisolated(unsafe) static var testLimits: [UFPlan: Int?]?
+    #endif
 
     static func exhaustedMessage(limit: Int) -> String {
         "\(label): Kontingent für diesen Monat aufgebraucht (\(limit) von \(limit))."

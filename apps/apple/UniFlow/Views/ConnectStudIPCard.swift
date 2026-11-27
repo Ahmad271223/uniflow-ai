@@ -126,8 +126,8 @@ struct UFNoServerContent: Equatable {
     static var examsText: String {
         ChatGPTLink.isEnabled ? "Tests gibt es nur mit verbundenem ChatGPT. Ohne ChatGPT wiederholst du mit deinen eigenen Karteikarten."
                               : OpenAIKeyLink.isOffered
-                              ? "Tests erstellt die StudiNow-KI in StudiNow Pro AI – oder dein eigener OpenAI-Schlüssel (Einstellungen → Erweitert). Wiederholen mit deinen eigenen Karteikarten geht ab StudiNow Plus."
-                              : "Tests erstellt die StudiNow-KI in StudiNow Pro AI. Wiederholen mit deinen eigenen Karteikarten geht ab StudiNow Plus."
+                              ? "Tests erstellt die StudiNow-KI ab StudiNow Plus mit Credits – oder dein eigener OpenAI-Schlüssel (Einstellungen → Erweitert). Wiederholen mit deinen eigenen Karteikarten geht ab StudiNow Plus."
+                              : "Tests erstellt die StudiNow-KI ab StudiNow Plus mit Credits. Wiederholen mit deinen eigenen Karteikarten geht ab StudiNow Plus."
     }
 
     private static func text(_ kind: UFNoServerPage.Kind) -> String {

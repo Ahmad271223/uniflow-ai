@@ -92,10 +92,18 @@ def test_unknown_and_unsafe_entries(hosted, ablage):
     assert jcall(hosted, "POST", "/api/erklaerungen/buy", h, {"sha256": "../x"})[0] == 422
 
 
-def test_only_pro_ai_and_switch(hosted, ablage, monkeypatch):
-    u, h = user(hosted, "erkl-plus@beispiel.de", plan="plus")
+def test_only_with_credits_and_switch(hosted, ablage, monkeypatch):
+    # 26.11.2026 neues Modell: Free hat das Recht nicht (403); Plus hat es, ohne Credits aber 429 (frueher 403 Pro AI);
+    # die eigene Liste (Gekauftes abholen) braucht keine verfuegbaren Credits
+    u, h = user(hosted, "erkl-free@beispiel.de")
     st, d = jcall(hosted, "POST", "/api/erklaerungen/offer", h, {"sha256": [SHA_VL]})
     assert st == 403 and code(d) == "plan_required"
+    assert jcall(hosted, "GET", "/api/erklaerungen/mine", h)[0] == 403
+    u, h = user(hosted, "erkl-plus@beispiel.de", plan="plus")
+    st, d = jcall(hosted, "POST", "/api/erklaerungen/offer", h, {"sha256": [SHA_VL]})
+    assert st == 429 and code(d) == "credits_exhausted"
+    st, d = jcall(hosted, "GET", "/api/erklaerungen/mine", h)
+    assert st == 200, d
 
     u, h = user(hosted, "erkl-aus@beispiel.de", plan="pro_ai")
     monkeypatch.setenv("LERNAPP_ERKLAERUNGEN", "0")

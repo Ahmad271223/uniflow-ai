@@ -271,7 +271,7 @@ struct CoverOptions: View {
 }
 
 extension ObjectEditing {
-    static let coverLockedHint = "Klappkarten zum Abfragen gibt es mit Pro AI."
+    static let coverLockedHint = "Klappkarten zum Abfragen gibt es mit Plus."
     static let coverHereHint = "Hier liegt schon eine Karte. Eine weitere darüber legst du durch Ziehen an."
 
     /// Neue Klappkarte: gezogenes Rechteck (`rect`) oder, beim Antippen, die gewaehlte Groesse um den Punkt

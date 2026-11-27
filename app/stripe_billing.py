@@ -212,8 +212,10 @@ APP_RETURN_PATH = "/abo-fertig"
 def active_source(conn, user_id: str, source: str) -> bool:
     """Traegt die Quelle (app_store, stripe) gerade einen aktiven, nicht abgelaufenen Tarif?"""
     t = datetime.now(timezone.utc).isoformat()
+    group = billing.SOURCE_GROUPS.get(source, (source,))
     for (plan, expires, status) in conn.execute(
-            "SELECT plan, expires_at, status FROM entitlements WHERE user_id=? AND source=?", (str(user_id), source)):
+            f"SELECT plan, expires_at, status FROM entitlements WHERE user_id=? AND source IN ({','.join('?' * len(group))})",
+            (str(user_id), *group)):
         if billing.normalize_plan(plan) and billing._row_active(status, expires, t):
             return True
     return False

@@ -679,10 +679,11 @@ def test_only_pro_ai_at_luh_and_only_with_the_switch(wb, monkeypatch):
     _u, h = user(app, "luh-pro@beispiel.de", plan="pro_ai")
     assert _j(asgi_call(app, "GET", "/api/entitlements", headers=h))[1]["wissensbank"] is True
     assert "wissensbank" not in _j(asgi_call(app, "GET", "/api/entitlements", headers=h_hi))[1]
+    # 26.11.2026 neues Modell: Plus hat das Recht zum Erklaeren, ohne Credits aber keine StudiNow-KI (429 statt 403)
     _u, h_plus = user(app, "luh-plus@beispiel.de", plan="plus")
     assert "wissensbank" not in _j(asgi_call(app, "GET", "/api/entitlements", headers=h_plus))[1]
     st, d = ask(app, h_plus)
-    assert st == 403, "Erklaeren bleibt Pro AI"
+    assert (st, d["code"]) == (429, "credits_exhausted"), "Erklaeren nur mit Credits"
     # zweite Meinung: nie aus der Wissensbank
     _, d = ask(app, h, second_opinion=True)
     assert d["source"] == "ki"

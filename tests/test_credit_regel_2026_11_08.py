@@ -7,6 +7,10 @@ Credits je Kalendermonat (Europe/Berlin):
 Laufende Probe + Plus gekauft: 25, bis die Probe endet, danach 0. Laufende Probe + Pro AI gekauft: 100.
 Vorher (docs/release/TESTFLIGHT-500-2026-11-08.md 7.1): Probe + Plus bekam 100, weil is_trial_account bei jedem bezahlten
 Tarif "keine Probe" sagte und die Probe (Pro-AI-Umfang) den Rahmen bestimmte.
+
+26.11.2026 neues Modell (docs/TARIFE-CREDITS-2026-11-26.md): die Probe ist Plus (Kennung "plus:trial" statt
+"plus:trial"); Plus hat weiter keine Monats-Credits und die StudiNow-KI nur mit gekauften Credits (429 statt 403).
+Pro AI hat 120 Credits je Monat (die Tests rechnen mit dem alten Kurs 100, tests/conftest.py).
 """
 from __future__ import annotations
 
@@ -69,10 +73,10 @@ def _allowance(uid: str, now: datetime) -> tuple[int, str]:
 # Kombination, Zeitpunkt -> (Credits, Kennung in credit_months.plan)
 CASES = [
     ("free", T_OCT, 0, "free"),
-    ("trial", T_OCT, 25, "pro_ai:trial"),
+    ("trial", T_OCT, 25, "plus:trial"),
     ("plus", T_OCT, 0, "plus"),
     ("pro_ai", T_OCT, 100, "pro_ai"),
-    ("trial+plus", T_OCT, 25, "pro_ai:trial"),       # vorher 100 (der Fehler)
+    ("trial+plus", T_OCT, 25, "plus:trial"),       # vorher 100 (der Fehler)
     ("trial+pro_ai", T_OCT, 100, "pro_ai"),
     ("trial+plus", T_AFTER, 0, "plus"),              # Probe abgelaufen + Plus
     ("trial+pro_ai", T_AFTER, 100, "pro_ai"),
@@ -97,7 +101,7 @@ def test_trial_plus_drops_to_zero_when_the_trial_ends_in_the_same_month(hosted):
                                 expires_at=(T_NOV + timedelta(days=30)).isoformat(), now=T_NOV)
     finally:
         conn.close()
-    assert _allowance(uid, T_NOV) == (25, "pro_ai:trial")
+    assert _allowance(uid, T_NOV) == (25, "plus:trial")
     assert _allowance(uid, T_NOV + timedelta(days=7)) == (0, "plus"), "Probe vorbei: Plus hat keine Credits"
 
 
@@ -105,7 +109,7 @@ def test_trial_plus_upgrade_to_pro_ai_mid_month_gives_100(hosted):
     from app import billing
     uid = _account("upgrade@beispiel.de")
     _setup(uid, "trial+plus")
-    assert _allowance(uid, T_OCT) == (25, "pro_ai:trial")
+    assert _allowance(uid, T_OCT) == (25, "plus:trial")
     conn = billing.connect()
     try:
         billing.set_entitlement(conn, uid, "app_store", "pro_ai", original_transaction_id=f"otid-{uid}", expires_at=YEAR, now=T_OCT)
@@ -153,9 +157,9 @@ def test_users_plan_counts_like_a_paid_plan(hosted):
     from app import accounts
     uid = accounts.register("legacy@beispiel.de", "sehr-geheim-123", "luh")["id"]     # mit Probe ab jetzt
     now = datetime.now(UTC)
-    assert _allowance(uid, now) == (25, "pro_ai:trial")
+    assert _allowance(uid, now) == (25, "plus:trial")
     accounts.set_plan(uid, "plus")
-    assert _allowance(uid, now) == (25, "pro_ai:trial")
+    assert _allowance(uid, now) == (25, "plus:trial")
     accounts.set_plan(uid, "pro_ai")
     assert _allowance(uid, now) == (100, "pro_ai")
 
@@ -189,25 +193,27 @@ def test_api_trial_plus_shows_25_and_ai_works(hosted):
     finally:
         conn.close()
     e = _ent(hosted, h)
-    assert (e["plan"], e["paid_plan"], e["credits"]["allowance"], e["credits"]["plan"]) == ("pro_ai", "plus", 25, "pro_ai:trial")
+    assert (e["plan"], e["paid_plan"], e["credits"]["allowance"], e["credits"]["plan"]) == ("plus", "plus", 25, "plus:trial")
     assert e["trial"]["active"] is True and e["access"]["state"] == "active"
     st, r = _ask(hosted, h, "pp-1")
     assert st == 200, r
     assert fake.calls == 1
-    assert r["credits"]["allowance"] == 25 and r["credits"]["plan"] == "pro_ai:trial"
+    assert r["credits"]["allowance"] == 25 and r["credits"]["plan"] == "plus:trial"
 
 
 def test_api_plus_has_no_ai_and_zero_credits(hosted):
+    """26.11.2026 neues Modell: Plus hat das Recht (Tarif-Tabelle), aber ohne Credits keine StudiNow-KI: 429
+    credits_exhausted mit dem Stand (frueher 403 "ab StudiNow Pro AI")."""
     from app import ai_backend
     fake = FakeAI()
     ai_backend.set_provider(fake)
     _, h = user(hosted, "nur-plus@beispiel.de", plan="plus")
     e = _ent(hosted, h)
     assert (e["plan"], e["credits"]["allowance"], e["credits"]["remaining"], e["credits"]["plan"]) == ("plus", 0, 0, "plus")
-    assert e["entitlements"]["can_use_ai_explanations"] is False
+    assert e["credits"]["available"] == 0 and e["credits"]["can_buy"] is True
     st, r = _ask(hosted, h, "plus-1")
-    assert (st, r["code"], r["required_plan"]) == (403, "plan_required", "pro_ai"), r
-    assert r["detail"] == "Diese Funktion gibt es ab StudiNow Pro AI."
+    assert (st, r["code"], r["credits"]["available"]) == (429, "credits_exhausted", 0), r
+    assert r["detail"] == "Für die StudiNow-KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad."
     assert fake.calls == 0
 
 

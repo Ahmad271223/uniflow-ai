@@ -1,7 +1,9 @@
 """Probe nur einmal je Person und Geraet, auch nach "Konto loeschen" (Auftrag des Inhabers 24.11.2026,
 app/trial_claims.py). Vorher: Konto loeschen + neu anmelden = neues Konto = neue 7 Tage; ebenso eine zweite Apple-ID
 auf demselben Geraet (die App uebernimmt eine laufende Probe des Dienstes mit Vorrang vor ihrer Geraete-Marke).
-Belegt wird ueber die echten Endpunkte: Apple-Anmeldung, Registrierung mit E-Mail, Loeschen, Tarifauskunft."""
+Belegt wird ueber die echten Endpunkte: Apple-Anmeldung, Registrierung mit E-Mail, Loeschen, Tarifauskunft.
+26.11.2026 neues Modell: die laufende Probe zeigt den Tarif "plus" (Probe = 7 Tage Plus, frueher "pro_ai") und die
+Credits-Kennung "plus:trial"."""
 import json
 from datetime import datetime, timedelta, timezone
 
@@ -54,7 +56,7 @@ def _claims():
 
 def test_delete_and_sign_in_again_keeps_the_old_trial_end(apple_login, hosted):  # noqa: F811
     st, a, ha = apple_login("apple-sub-A", "ipad-1", university="luh")
-    assert st == 201 and ent(hosted, ha)["plan"] == "pro_ai"
+    assert st == 201 and ent(hosted, ha)["plan"] == "plus"
     first = _trial(a["user"]["id"])
     assert first["active"] and first["days_left"] == 7
     # Tag 3 der Probe: Konto loeschen, mit derselben Apple-ID neu anmelden -> neues Konto, aber dieselbe Probe
@@ -66,7 +68,7 @@ def test_delete_and_sign_in_again_keeps_the_old_trial_end(apple_login, hosted): 
     again = _trial(b["user"]["id"])
     assert again["active"] and again["days_left"] == 5, "Rest der alten Probe, keine neuen 7 Tage"
     assert again["ends_at"] == ends.replace(microsecond=0).isoformat()
-    assert ent(hosted, hb)["plan"] == "pro_ai"
+    assert ent(hosted, hb)["plan"] == "plus"
 
 
 def test_delete_after_the_trial_and_sign_in_again_starts_without_trial(apple_login, hosted):  # noqa: F811
@@ -97,7 +99,7 @@ def test_same_device_with_another_apple_id_gets_no_second_trial(apple_login, hos
     assert st == 201 and ent(hosted, hc)["plan"] == "free"
     # ein anderes, neues Geraet mit neuer Apple-ID bekommt seine Probe wie bisher
     st, d, hd = apple_login("apple-sub-D", "ipad-9", university="luh")
-    assert st == 201 and _trial(d["user"]["id"])["days_left"] == 7 and ent(hosted, hd)["plan"] == "pro_ai"
+    assert st == 201 and _trial(d["user"]["id"])["days_left"] == 7 and ent(hosted, hd)["plan"] == "plus"
 
 
 def test_second_device_of_an_account_with_trial_is_marked_too(apple_login, hosted):  # noqa: F811
@@ -107,7 +109,7 @@ def test_second_device_of_an_account_with_trial_is_marked_too(apple_login, hoste
     # andere Apple-ID auf diesem iPhone, noch in der Probe: Rest der ersten Probe, keine neuen 7 Tage
     st, b, hb = apple_login("apple-sub-B", "iphone-1", university="luh")
     assert st == 201 and _trial(b["user"]["id"])["ends_at"] == _trial(a["user"]["id"])["ends_at"]
-    assert _trial(b["user"]["id"])["days_left"] == 4 and ent(hosted, hb)["plan"] == "pro_ai"
+    assert _trial(b["user"]["id"])["days_left"] == 4 and ent(hosted, hb)["plan"] == "plus"
     _days_pass(5)
     st, c, hc = apple_login("apple-sub-C", "iphone-1", university="luh")
     assert st == 201 and _trial(c["user"]["id"])["expired"] and ent(hosted, hc)["plan"] == "free"
@@ -151,7 +153,7 @@ def test_used_trial_credits_follow_into_the_new_account(apple_login, hosted):  #
         bal = credits.balance(conn, b["user"]["id"])
     finally:
         conn.close()
-    assert (bal["allowance"], bal["used"], bal["remaining"], bal["plan"]) == (25, 18, 7, "pro_ai:trial"), \
+    assert (bal["allowance"], bal["used"], bal["remaining"], bal["plan"]) == (25, 18, 7, "plus:trial"), \
         "Loeschen und neu anmelden fuellt die Probe-Credits nicht auf"
 
 

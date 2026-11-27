@@ -241,8 +241,8 @@ struct DueReminderCard: View {
     @State private var hint: String?
 
     var body: some View {
-        // ab Pro AI (Entscheidung des Inhabers 18.11.2026 "Alles ab Pro AI"; 11.-17.11.2026 ab Plus): ohne Pro AI die
-        // Sperrkarte mit "Mit StudiNow Pro AI freischalten" statt des Schalters
+        // ab Plus (26.11.2026; 18.-26.11.2026 ab Pro AI, 11.-17.11.2026 ab Plus): ohne Plus die Sperrkarte mit
+        // "Mit StudiNow Plus freischalten" statt des Schalters
         if !entitlements.allows(.dueReminders) {
             UFLockedCard(.dueReminders, entitlements: entitlements)
                 .accessibilityIdentifier("due.reminders.locked")

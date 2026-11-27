@@ -233,14 +233,14 @@ def test_week_stack_is_generated_once_and_adopted_by_others_in_the_service(hoste
     assert cardshare.slots(c2["stack"]["source_ref"]) and not any(s["status"] == "pending" for s in cardshare.slots(cardshare.week_key("luh", "uebung", [{"content_sha256": H["blatt5"]}])).values())
     fake.fail = False
     # Plus (04.11.2026): uebernimmt einen fertigen Wochenstapel ohne KI, ohne Credits und ohne bestaetigte E-Mail; einen
-    # NEUEN Satz erzeugen ist StudiNow-KI (Pro AI)
+    # NEUEN Satz erzeugen ist StudiNow-KI (26.11.2026 neues Modell: Plus hat das Recht, ohne Credits aber 429)
     _, hp = user(hosted, "plus@beispiel.de", plan="plus", verified=False)
     mp = _seed_user(hosted, hp)
     calls = fake.calls
     p = _call(hosted, "POST", f"/api/flashcard-stacks/week/{mp}/5/vorlesung", headers=hp)
     assert (p["status"], p["credits"], fake.calls) == ("adopted", None, calls) and p["stack"]["source_ref"] == key
-    d = _call(hosted, "POST", f"/api/flashcard-stacks/week/{mp}/5/uebung", headers=hp, status=403)
-    assert (d["code"], d["entitlement"]) == ("plan_required", "can_use_ai_generated_questions") and fake.calls == calls
+    d = _call(hosted, "POST", f"/api/flashcard-stacks/week/{mp}/5/uebung", headers=hp, status=429)
+    assert (d["code"], d["credits"]["available"]) == ("credits_exhausted", 0) and fake.calls == calls
     assert not any(s["status"] == "pending" for s in cardshare.slots(cardshare.week_key("luh", "uebung", [{"content_sha256": H["blatt5"]}])).values()), "kein belegter Platz"
     # Free: Wochenstapel (auch uebernehmen) gibt es ab Plus
     _, hf = user(hosted, "free@beispiel.de")
@@ -418,11 +418,15 @@ def test_free_account_can_still_withdraw_its_shared_stack(hosted):
     assert _call(hosted, "POST", f"/api/flashcard-stacks/{own['id']}/share", headers=ha, status=403)
 
 
-def test_adopting_stacks_counts_plus_four_per_month_pro_ai_fair_use(hosted, monkeypatch):
-    """Kontingent `card_stacks_adopted` (Entscheidung 05.11.2026): Plus uebernimmt 4 Stapel von StudiNow je Monat, der
+def test_adopting_stacks_counts_per_month_with_fair_use(hosted, monkeypatch):
+    """Kontingent `card_stacks_adopted` (Entscheidung 05.11.2026): Plus uebernahm 4 Stapel von StudiNow je Monat, der
     fuenfte antwortet 429 quota_exhausted; derselbe Stapel zaehlt einmal (vorhandene Kopie, Loeschen und erneut
-    uebernehmen); Pro AI unbegrenzt (Fair Use 300)."""
+    uebernehmen); Pro AI unbegrenzt (Fair Use 300). 26.11.2026 neues Modell: Plus ebenfalls unbegrenzt (Fair Use 300);
+    die Zaehlung wird hier mit einer Plus-Grenze von 4 geprueft."""
+    from app import plans
     from app.solution_format import community_module_key
+    assert plans.quota_limit("plus", "card_stacks_adopted") == 300
+    monkeypatch.setitem(plans.QUOTAS["plus"], "card_stacks_adopted", 4)
     monkeypatch.setenv("LERNAPP_LIMIT_DECK_USER", "100/1440")
     ada, ha = user(hosted, "ada-kontingent@beispiel.de", plan="plus")
     ben, hb = user(hosted, "ben-kontingent@beispiel.de", plan="plus")

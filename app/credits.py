@@ -353,8 +353,9 @@ def reserve(conn: sqlite3.Connection, user_id: str, request_id: str, purpose: st
         bought_free = wallet["free"] if plans.can_use_purchased_credits(wallet["plan"], purpose) else 0
         if estimate > month_free + bought_free:
             conn.execute("COMMIT")
-            # Plus (nur KI-Chat, keine Monats-Credits): dort kommt am 1. nichts Neues - ehrlicher Text
-            message = EXHAUSTED_NO_MONTHLY_MESSAGE if allow <= 0 and wallet["scope"] == "chat" else EXHAUSTED_MESSAGE
+            # Ohne Monats-Credits (Plus): dort kommt am 1. nichts Neues - ehrlicher Text. 26.11.2026 neues Modell: Plus hat
+            # purchased_scope "all" (nicht mehr "chat"), darum zaehlt allein der fehlende Monatsrahmen
+            message = EXHAUSTED_NO_MONTHLY_MESSAGE if allow <= 0 else EXHAUSTED_MESSAGE
             raise CreditsError("credits_exhausted", message, 429,
                                {"credits": {**_balance_dict(row, t, wallet), "needed": estimate}})
         from_month = min(estimate, month_free)              # zuerst die Monats-Credits

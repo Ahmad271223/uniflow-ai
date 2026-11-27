@@ -23,11 +23,12 @@ def test_no_surcharge_for_strong_models(monkeypatch):
     assert ai_prices.credits_for(49_000, "gpt-6-luna") == 5
 
 
-def test_pro_ai_has_80_credits_and_costs_at_most_80_cent(monkeypatch):
+def test_pro_ai_has_120_credits_and_costs_at_most_120_cent(monkeypatch):
+    """26.11.2026 neues Modell: Pro AI 120 Credits je Monat (frueher 80) = hoechstens 1,20 EUR KI-Kosten."""
     monkeypatch.delenv("LERNAPP_CREDITS_PRO_AI", raising=False)
-    assert plans.CREDITS["pro_ai"] == 80
-    assert credits.allowance("pro_ai", False) == 80
-    assert credits.allowance("pro_ai", False) * ai_prices.MICROEUR_PER_CREDIT / 1_000_000 == 0.80
+    assert plans.CREDITS["pro_ai"] == 120
+    assert credits.allowance("pro_ai", False) == 120
+    assert credits.allowance("pro_ai", False) * ai_prices.MICROEUR_PER_CREDIT / 1_000_000 == 1.20
 
 
 def test_packs_have_80_and_160_credits_and_cost_at_most_their_cents(monkeypatch):

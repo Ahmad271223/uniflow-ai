@@ -37,7 +37,7 @@ final class GiftPlanAppTests: XCTestCase {
         let running = UFLocalTrial.state(startedAt: Date(), now: Date())
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, gift: .plus, purchased: .free, localTrial: running), .plus,
                        "geschenktes Plus wie gekauftes Plus: die iPad-Probe zaehlt daneben nicht")
-        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, gift: nil, purchased: .free, localTrial: running), .proAI)
+        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, gift: nil, purchased: .free, localTrial: running), .plus, "Probe wie Plus (26.11.2026)")
     }
 
     // MARK: An und aus

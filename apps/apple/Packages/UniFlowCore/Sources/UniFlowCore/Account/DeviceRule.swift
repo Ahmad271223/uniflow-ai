@@ -9,6 +9,10 @@ import Foundation
 ///    wird nie gesperrt (App-Review-Richtlinie 3.1.2: ein gekauftes Abo gilt auf allen Geraeten derselben Apple-ID).
 /// 3. Pro AI und die laufende Probe: keine Einschraenkung.
 ///
+/// Seit 26.11.2026 (neues Tarifmodell, app/plans.py) hat Plus den Notizen-Abgleich (`can_sync_annotations` ab Plus):
+/// der Dienst meldet Plus dann `ok` (app/device_limit.py `evaluate`), und die App zeigt mit Plus nichts mehr. Der Hinweis
+/// fuer Free nennt Plus (der kleinste Tarif mit Abgleich).
+///
 /// Die App meldet dem Dienst die Faehigkeit `device_limit` in der Kopfzeile `X-StudiNow-Caps`; nur dann schickt der
 /// Dienst die Auskunft `device`. Gesperrt wird nur nach einer ausdruecklichen Antwort des Dienstes, nie ohne Netz und
 /// nie bei einer unbekannten Antwort.
@@ -33,7 +37,8 @@ public enum DeviceRule {
         public var isPrimary: Bool
         /// Name des einen Geraets ("iPad", "iPhone", "Mac"); nil, wenn der Dienst keinen kennt
         public var primaryName: String?
-        /// Listenpreis von Pro AI in Cent je Jahr (nur Rueckfall, wenn StoreKit keinen Preis liefert)
+        /// Listenpreis des genannten Tarifs in Cent je `period` (seit 26.11.2026 Plus, 199 je Monat; nur Rueckfall, wenn
+        /// StoreKit keinen Preis liefert)
         public var priceCents: Int?
         public var currency: String?
         public var period: String?
@@ -60,14 +65,13 @@ public enum DeviceRule {
     }
 
     /// Was das Geraet zeigt: Auskunft des Dienstes und der Tarif auf dem Geraet (Kauf im App Store, laufende Probe;
-    /// Schluessel wie in plans.json: free, plus, pro_ai). Ein Kauf auf dem Geraet geht vor: mit Pro AI nie ein Hinweis
-    /// (er verschwindet sofort nach dem Kauf, auch bevor der Dienst ihn kennt), mit Plus nie gesperrt. Ohne Auskunft:
-    /// `ok`. Wie `device_limit.shown_state` (Vertrag `client_cases`).
+    /// Schluessel wie in plans.json: free, plus, pro_ai). Ein Kauf auf dem Geraet geht vor: mit einem Tarif mit Abgleich
+    /// (seit 26.11.2026 Plus und Pro AI) nie ein Hinweis (er verschwindet sofort nach dem Kauf, auch bevor der Dienst ihn
+    /// kennt). Ohne Auskunft: `ok`. Wie `device_limit.shown_state` (Vertrag `client_cases`).
     public static func shown(server: State?, localPlan: String) -> State {
         guard let server else { return .ok }
         switch localPlan {
-        case "pro_ai", "pro_connect": return .ok
-        case "plus": return server == .blocked ? .hintPlus : server
+        case "plus", "pro_ai", "pro_connect": return .ok
         default: return server
         }
     }
@@ -78,7 +82,7 @@ public enum DeviceRule {
 public enum DeviceRuleTexts {
     // Hinweis-Bildschirm (Free auf einem zweiten Geraet)
     public static let blockedTitle = "StudiNow Free gilt für ein Gerät"
-    public static let showPlans = "Pro AI ansehen"
+    public static let showPlans = "Plus ansehen"
     public static let useThisDevice = "Dieses Gerät stattdessen nutzen"
     public static let signOut = "Abmelden"
     public static let dataStays = "Deine Daten auf diesem Gerät bleiben erhalten."
@@ -99,9 +103,14 @@ public enum DeviceRuleTexts {
     /// "39,99 € im Jahr" mit dem Preis aus StoreKit
     public static func yearly(_ price: String) -> String { "\(price) im Jahr" }
 
-    /// Rueckfall ohne Preis aus dem Store: Listenpreis des Dienstes, sonst der Preis aus plans.json (39,99 €)
+    /// "1,99 € im Monat" bzw. "39,99 € im Jahr" (`period` wie in plans.json: month, year; sonst Monat)
+    public static func perPeriod(_ price: String, period: String?) -> String {
+        period == "year" ? yearly(price) : "\(price) im Monat"
+    }
+
+    /// Rueckfall ohne Preis aus dem Store: Listenpreis des Dienstes, sonst der Preis von Plus aus plans.json (1,99 €)
     public static func fallbackPrice(cents: Int? = nil, currency: String? = nil) -> String {
-        let c = (cents ?? 0) > 0 ? cents! : 3999
+        let c = (cents ?? 0) > 0 ? cents! : 199
         let amount = "\(c / 100),\(String(format: "%02d", c % 100))"
         let cur = (currency ?? "EUR").uppercased()
         return cur == "EUR" ? "\(amount) €" : "\(amount) \(cur)"
@@ -113,14 +122,14 @@ public enum DeviceRuleTexts {
         return "Dein Konto läuft schon auf einem anderen Gerät (\(n))."
     }
 
-    /// zweiter Satz: das Angebot. `price`: "39,99 €"
-    public static func blockedOffer(price: String, mac: Bool = false) -> String {
-        "Mit Pro AI nutzt du StudiNow auf \(devices(mac: mac)) – mit Abgleich. \(yearly(price))."
+    /// zweiter Satz: das Angebot (seit 26.11.2026 Plus). `price`: "1,99 €", `period` wie in plans.json
+    public static func blockedOffer(price: String, mac: Bool = false, period: String? = "month") -> String {
+        "Mit Plus nutzt du StudiNow auf \(devices(mac: mac)) – mit Abgleich. Ab \(perPeriod(price, period: period))."
     }
 
     /// ganzer Text fuer VoiceOver und Tests
-    public static func blockedText(primaryName: String?, price: String, mac: Bool = false) -> String {
-        "\(blockedWhere(primaryName: primaryName)) \(blockedOffer(price: price, mac: mac))"
+    public static func blockedText(primaryName: String?, price: String, mac: Bool = false, period: String? = "month") -> String {
+        "\(blockedWhere(primaryName: primaryName)) \(blockedOffer(price: price, mac: mac, period: period))"
     }
 
     public static func confirmText(primaryName: String?) -> String {
@@ -128,9 +137,9 @@ public enum DeviceRuleTexts {
         return "StudiNow Free läuft dann auf diesem Gerät. \(other) erscheint beim nächsten Öffnen dieser Hinweis. Deine Daten bleiben auf beiden Geräten erhalten."
     }
 
-    /// Plus gleicht Module, Stundenplan, Lernplan und Karteikarten schon ab; nur die Notizen bleiben je Geraet
-    /// (`can_sync_annotations` ab Pro AI). Darum nennt der Hinweis die Notizen.
+    /// Nur noch fuer einen Dienst vor dem 26.11.2026, der Plus `hint_plus` meldet (seit dann hat Plus den Abgleich und
+    /// die App zeigt den Hinweis mit Plus nicht mehr, `shown`). Der Text nennt darum keinen hoeheren Tarif.
     public static func plusText(price: String, mac: Bool = false) -> String {
-        "Deine Notizen bleiben auf dem Gerät, auf dem du sie schreibst. Den Abgleich zwischen \(devices(mac: mac)) gibt es mit Pro AI für \(yearly(price))."
+        "Mit Plus gleicht StudiNow deine Notizen zwischen \(devices(mac: mac)) ab."
     }
 }

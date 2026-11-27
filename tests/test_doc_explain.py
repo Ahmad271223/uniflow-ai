@@ -248,7 +248,7 @@ def _hosted_file(app, headers, texts, monkeypatch):
     monkeypatch.setattr(scriptsearch, "page_texts", lambda conn, fid, *a, **k: texts)
 
 
-def test_hosted_needs_pro_ai_and_charges_credits_once_then_shares(hosted, monkeypatch):
+def test_hosted_needs_credits_and_charges_credits_once_then_shares(hosted, monkeypatch):
     from app import ai_backend, credits
     fake = FakeAI()
     ai_backend.set_provider(fake)
@@ -260,7 +260,8 @@ def test_hosted_needs_pro_ai_and_charges_credits_once_then_shares(hosted, monkey
     _, plus = user(hosted, "plus@beispiel.de", plan="plus")
     _hosted_file(hosted, plus, texts, monkeypatch)
     st, d = post(hosted, "/api/ai/document/plan", {"file_id": "dx-doc", "question": "Erkläre die ganze Vorlesung"}, plus)
-    assert (st, d["code"]) == (403, "plan_required"), "Plus hat keine KI: Tarif-Schranken bleiben"
+    # 26.11.2026 neues Modell: Plus hat das Recht, ohne Credits aber keine KI (429 statt 403 plan_required)
+    assert (st, d["code"]) == (429, "credits_exhausted"), "Plus ohne Credits: keine KI"
     assert post(hosted, "/api/ai/document/plan", {"file_id": "dx-doc", "question": "Was ist das?"}, plus) == (200, {"intent": False})
 
     u1, h1 = user(hosted, "pro1@beispiel.de", plan="pro_ai")

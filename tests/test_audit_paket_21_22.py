@@ -82,7 +82,8 @@ def test_p21_06_legacy_plan_without_until_is_permanent_but_only_set_by_operation
     conn = _conn()
     try:
         assert billing.current_plan(conn, uid, T0, {"plan": "pro_ai", "plan_until": None}) == "pro_ai"
-        assert billing.current_plan(conn, uid, T0, {"plan": "pro_ai", "plan_until": "2026-11-07"}) in ("pro_ai", "free")
+        # abgelaufen: es bleibt die Probe des Kontos (26.11.2026 neues Modell: Plus, frueher Pro AI) oder Free
+        assert billing.current_plan(conn, uid, T0, {"plan": "pro_ai", "plan_until": "2026-11-07"}) in ("plus", "free")
         assert billing.current_plan(conn, "x", T0, {"plan": "pro_ai", "plan_until": "2026-11-07"}) == "free"
         assert billing.current_plan(conn, "x", T0, {"plan": "pro_ai", "plan_until": "2026-11-08"}) == "pro_ai", "bis einschliesslich"
         assert billing.current_plan(conn, "x", T0, {"plan": "kaputt", "plan_until": None}) == "free"
@@ -382,11 +383,12 @@ def test_p22_04_trial_info_with_naive_or_z_timestamps(hosted):
 @pytest.mark.parametrize("plan,trial,flash,ai", [
     ("free", False, (403, 402), (403, 402)),
     ("free", True, (200, 200), (200, 200)),
-    ("plus", False, (200, 200), (403, 403)),
+    ("plus", False, (200, 200), (429, 429)),        # 26.11.2026 neues Modell: Plus ohne Credits 429 statt 403
     ("pro_ai", False, (200, 200), (200, 200)),
 ])
 def test_p22_05_server_side_rights_per_plan_and_client(hosted, plan, trial, flash, ai):
-    """(iPad, Web/Windows): Karteikarten ab Plus, StudiNow-KI ab Pro AI; Free ohne Abo in Web/Windows: 402."""
+    """(iPad, Web/Windows): Karteikarten ab Plus, StudiNow-KI nur mit Credits (26.11.2026 neues Modell: ab Plus, ohne
+    Credits 429 credits_exhausted; frueher ab Pro AI); Free ohne Abo in Web/Windows: 402."""
     from app import ai_backend
     ai_backend.set_provider(FakeAI())
     _, tok = _token_of(hosted, f"p2205-{plan}-{int(trial)}@beispiel.de", plan=plan, trial=trial)
@@ -494,7 +496,7 @@ def test_p22_09_status_reads_in_one_snapshot(hosted):
     conn = _conn()
     try:
         st = billing.status(conn, accounts.get_user(uid))
-        assert st["plan"] == "pro_ai" and not conn.in_transaction, "Transaktion wieder zu"
+        assert st["plan"] == "plus" and not conn.in_transaction, "Transaktion wieder zu"      # Probe = Plus (26.11.2026)
         conn.execute("BEGIN")
         billing.status(conn, accounts.get_user(uid))
         assert conn.in_transaction, "fremde Transaktion bleibt offen"

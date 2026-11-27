@@ -50,14 +50,14 @@
     "trial_only": false,
     "can_buy": true,
     "purchased_usable": true,
-    "purchased_scope": "chat"
+    "purchased_scope": "all"
    },
    {
     "plan": "plus",
     "trial_only": true,
     "can_buy": false,
     "purchased_usable": true,
-    "purchased_scope": "chat"
+    "purchased_scope": "all"
    },
    {
     "plan": "pro_ai",
@@ -459,17 +459,17 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
+     "allowance": 120,
      "used": 0,
      "reserved": 0,
-     "remaining": 80,
+     "remaining": 120,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 80,
+     "available": 120,
      "can_buy": true
     },
     "credit_packs": {
@@ -516,17 +516,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
+     "allowance": 120,
      "used": 0,
      "reserved": 0,
-     "remaining": 80,
+     "remaining": 120,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 80,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 160,
+     "available": 200,
      "can_buy": true
     }
    }
@@ -551,17 +551,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
+     "allowance": 120,
      "used": 0,
      "reserved": 0,
-     "remaining": 80,
+     "remaining": 120,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 80,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 160,
+     "available": 200,
      "can_buy": true
     }
    }
@@ -586,17 +586,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
+     "allowance": 120,
      "used": 0,
      "reserved": 0,
-     "remaining": 80,
+     "remaining": 120,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 240,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 320,
+     "available": 360,
      "can_buy": true
     }
    }
@@ -612,17 +612,17 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
-     "used": 80,
+     "allowance": 120,
+     "used": 110,
      "reserved": 0,
-     "remaining": 0,
+     "remaining": 10,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
-     "purchased": 210,
+     "purchased": 240,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 210,
+     "available": 250,
      "can_buy": true
     },
     "credit_packs": {
@@ -664,7 +664,7 @@
     "applied": true,
     "status": "refunded",
     "credits_added": 0,
-    "credits_removed": 50,
+    "credits_removed": 80,
     "product_id": "de.uniflow.credits.klein"
    }
   },
@@ -679,17 +679,17 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
-     "used": 80,
+     "allowance": 120,
+     "used": 110,
      "reserved": 0,
-     "remaining": 0,
+     "remaining": 10,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 160,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 160,
+     "available": 170,
      "can_buy": true
     },
     "credit_packs": {
@@ -736,17 +736,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
-     "used": 80,
+     "allowance": 120,
+     "used": 110,
      "reserved": 0,
-     "remaining": 0,
+     "remaining": 10,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 160,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 160,
+     "available": 170,
      "can_buy": true
     }
    }
@@ -767,17 +767,17 @@
     "code": "credits_exhausted",
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
+     "allowance": 120,
      "used": 80,
      "reserved": 0,
-     "remaining": 0,
+     "remaining": 40,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 0,
+     "available": 40,
      "can_buy": true,
      "needed": 354
     }
@@ -796,8 +796,9 @@
    },
    "status": 429,
    "response": {
-    "detail": "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.",
+    "detail": "Für die StudiNow-KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad.",
     "code": "credits_exhausted",
+    "credits_required": true,
     "credits": {
      "period": "<monat>",
      "allowance": 0,
@@ -809,10 +810,10 @@
      "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
-     "purchased_scope": "chat",
+     "purchased_scope": "all",
      "available": 0,
      "can_buy": true,
-     "needed": 353
+     "needed": 1
     }
    }
   },
@@ -828,7 +829,7 @@
     "credits": {
      "period": "<monat>",
      "allowance": 0,
-     "used": 80,
+     "used": 110,
      "reserved": 0,
      "remaining": 0,
      "plan": "plus",
@@ -836,7 +837,7 @@
      "credit_eur": 0.01,
      "purchased": 160,
      "purchased_usable": true,
-     "purchased_scope": "chat",
+     "purchased_scope": "all",
      "available": 160,
      "can_buy": true
     },
@@ -883,7 +884,7 @@
     "credits": {
      "period": "<monat>",
      "allowance": 0,
-     "used": 80,
+     "used": 110,
      "reserved": 0,
      "remaining": 0,
      "plan": "plus",
@@ -891,7 +892,7 @@
      "credit_eur": 0.01,
      "purchased": 154,
      "purchased_usable": true,
-     "purchased_scope": "chat",
+     "purchased_scope": "all",
      "available": 154,
      "can_buy": true,
      "charged": 6,
@@ -910,12 +911,26 @@
     "page_text": "Matrizen",
     "request_id": "plus-lernhilfe-1"
    },
-   "status": 403,
+   "status": 429,
    "response": {
-    "detail": "Diese Funktion gibt es ab StudiNow Pro AI.",
-    "code": "plan_required",
-    "entitlement": "can_use_ai_explanations",
-    "required_plan": "pro_ai"
+    "detail": "Du hast keine Credits mehr. Credits kaufst du in der App für iPhone und iPad.",
+    "code": "credits_exhausted",
+    "credits": {
+     "period": "<monat>",
+     "allowance": 0,
+     "used": 110,
+     "reserved": 0,
+     "remaining": 0,
+     "plan": "plus",
+     "resets_at": "<zeit>",
+     "credit_eur": 0.01,
+     "purchased": 154,
+     "purchased_usable": true,
+     "purchased_scope": "all",
+     "available": 154,
+     "can_buy": true,
+     "needed": 354
+    }
    }
   },
   {
@@ -930,7 +945,7 @@
     "credits": {
      "period": "<monat>",
      "allowance": 0,
-     "used": 80,
+     "used": 110,
      "reserved": 0,
      "remaining": 0,
      "plan": "free",
@@ -977,17 +992,17 @@
     "plan": "pro_ai",
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
-     "used": 80,
+     "allowance": 120,
+     "used": 110,
      "reserved": 0,
-     "remaining": 0,
+     "remaining": 10,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 154,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 154,
+     "available": 164,
      "can_buy": true
     },
     "credit_packs": {
@@ -1022,14 +1037,14 @@
    "request": null,
    "status": 200,
    "response": {
-    "plan": "pro_ai",
+    "plan": "plus",
     "credits": {
      "period": "<monat>",
      "allowance": 25,
      "used": 0,
      "reserved": 0,
      "remaining": 25,
-     "plan": "pro_ai:trial",
+     "plan": "plus:trial",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 0,
@@ -1124,17 +1139,17 @@
     "sandbox_limited": false,
     "credits": {
      "period": "<monat>",
-     "allowance": 80,
+     "allowance": 120,
      "used": 0,
      "reserved": 0,
-     "remaining": 80,
+     "remaining": 120,
      "plan": "pro_ai",
      "resets_at": "<zeit>",
      "credit_eur": 0.01,
      "purchased": 0,
      "purchased_usable": true,
      "purchased_scope": "all",
-     "available": 80,
+     "available": 120,
      "can_buy": true
     }
    }

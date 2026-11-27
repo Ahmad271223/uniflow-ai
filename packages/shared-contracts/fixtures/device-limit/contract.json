@@ -11,11 +11,11 @@
   "hint_plus"
  ],
  "upgrade": {
-  "plan": "pro_ai",
-  "name": "StudiNow Pro AI",
-  "price_cents": 3999,
+  "plan": "plus",
+  "name": "StudiNow Plus",
+  "price_cents": 199,
   "currency": "EUR",
-  "period": "year"
+  "period": "month"
  },
  "rule_cases": [
   {
@@ -52,7 +52,7 @@
    "plan": "plus",
    "device_id": "b",
    "primary_device_id": "a",
-   "state": "hint_plus"
+   "state": "ok"
   },
   {
    "plan": "plus",
@@ -130,7 +130,7 @@
   {
    "server_state": "blocked",
    "local_plan": "plus",
-   "shown": "hint_plus"
+   "shown": "ok"
   },
   {
    "server_state": "blocked",
@@ -145,7 +145,7 @@
   {
    "server_state": "hint_plus",
    "local_plan": "plus",
-   "shown": "hint_plus"
+   "shown": "ok"
   },
   {
    "server_state": "hint_plus",
@@ -199,10 +199,10 @@
      "is_primary": true,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -236,10 +236,10 @@
      "is_primary": false,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -260,10 +260,10 @@
      "is_primary": true,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -284,10 +284,10 @@
      "is_primary": false,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -305,10 +305,10 @@
      "is_primary": false,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -326,10 +326,10 @@
      "is_primary": true,
      "primary_name": "iPhone",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -350,10 +350,10 @@
      "is_primary": false,
      "primary_name": "iPhone",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -374,10 +374,10 @@
      "is_primary": false,
      "primary_name": "iPhone",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -411,10 +411,10 @@
      "is_primary": true,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -444,14 +444,14 @@
     },
     "token": "<token>",
     "device": {
-     "state": "hint_plus",
+     "state": "ok",
      "is_primary": false,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -468,14 +468,14 @@
     "paid_plan": "plus",
     "needs_plan_choice": false,
     "device": {
-     "state": "hint_plus",
+     "state": "ok",
      "is_primary": false,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -509,10 +509,10 @@
      "is_primary": true,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -546,10 +546,10 @@
      "is_primary": false,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -583,10 +583,10 @@
      "is_primary": true,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },
@@ -620,10 +620,10 @@
      "is_primary": false,
      "primary_name": "iPad",
      "primary_set_at": "<zeit-utc>",
-     "upgrade_plan": "pro_ai",
-     "price_cents": 3999,
+     "upgrade_plan": "plus",
+     "price_cents": 199,
      "currency": "EUR",
-     "period": "year"
+     "period": "month"
     }
    }
   },

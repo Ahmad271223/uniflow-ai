@@ -33,7 +33,7 @@ test("Schloss ohne Pro AI bzw. Plus mit Weg zur Tarifseite", () => {
   assert.deepEqual(F.aiAccess(all), { locked: false });
   assert.equal(F.aiAccess(none).locked, true);
   assert.equal(F.aiAccess(none).href, "#/abo");
-  assert.match(F.aiAccess(none).text, /Pro AI/);
+  assert.match(F.aiAccess(none).text, /ab StudiNow Plus mit Credits/);  // 26.11.2026 neues Modell
   assert.match(F.shareAccess(none).text, /StudiNow Plus/);
   const onlyPlus = n => n === "can_use_flashcards";
   assert.equal(F.aiAccess(onlyPlus).locked, true, "KI-Auftrag ist StudiNow-KI (Pro AI)");

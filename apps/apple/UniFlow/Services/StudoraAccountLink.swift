@@ -56,8 +56,8 @@ extension Notification.Name {
 /// App-Store-Kaeufe an `POST /api/billing/apple/verify` und zeigt den Credits-Stand (docs/ABO-SYSTEM.md Abschnitt 6b).
 @MainActor
 final class StudoraAccountLink: ObservableObject {
-    /// Hinweis an den KI-Stellen bei Pro AI bzw. Probe ohne Anmeldung (`StudiNowAIAccess.signInRequired`)
-    nonisolated static let aiSignInHint = "Mit StudiNow Pro AI antwortet hier die StudiNow-KI. Melde dich dafür einmal mit deinem StudiNow-Konto an – am einfachsten mit Apple."
+    /// Hinweis an den KI-Stellen bei Plus, Pro AI bzw. Probe ohne Anmeldung (`StudiNowAIAccess.signInRequired`)
+    nonisolated static let aiSignInHint = "Mit StudiNow Plus und Pro AI antwortet hier die StudiNow-KI mit deinen Credits. Melde dich dafür einmal mit deinem StudiNow-Konto an – am einfachsten mit Apple."
 
     /// Feste Adresse des Dienstes, wie `service_link.DEFAULT_SERVICE_URL` der Windows-App
     nonisolated static let defaultServiceURL = "https://app.studinow.app"
@@ -187,9 +187,8 @@ final class StudoraAccountLink: ObservableObject {
     }
     /// Weg zur StudiNow-KI (`StudiNowAIAccess`): bereit, Anmeldung fehlt, Tarif fehlt; die KI-Stellen richten sich danach
     @Published private(set) var aiAccess: StudiNowAIAccess = .planRequired
-    /// Nur der KI-Chat (Entscheidung des Inhabers 15.11.2026): angemeldet mit Plus, ohne Pro AI und ohne Probe. Dann
-    /// antwortet die StudiNow-KI auf die freie Frage (`StudiNowChatAI`), bezahlt allein aus gekauften Credits;
-    /// `aiAccess` bleibt `.planRequired`, alle uebrigen KI-Stellen zeigen wie bisher den Tarif-Hinweis.
+    /// Nur der KI-Chat (15.11. bis 26.11.2026: Plus nur mit der freien Frage). Seit 26.11.2026 hat Plus alle KI-Funktionen
+    /// mit Credits (`aiAccess == .ready`), `StudiNowAIAccess.chatOnly` ist immer false; der Schalter bleibt fuer die Stellen.
     @Published private(set) var aiChatOnly = false
     /// StudiNow-KI dieses Apple-Nutzers (nil ohne Dienst-Adresse); haengt nur mit `aiAccess == .ready` im Backend
     private(set) var studinowAI: StudiNowAI?
@@ -199,8 +198,12 @@ final class StudoraAccountLink: ObservableObject {
     private var attachTask: Task<Void, Never>?
     /// Kaeufe dieses Kontos wurden in diesem Prozess schon an den Dienst gemeldet
     private var reportedPurchasesFor: String?
-    /// Credits der StudiNow-KI in diesem Monat (`credits` aus `GET /api/entitlements`); nil ohne Konto oder ohne Stand
-    @Published private(set) var credits: StudoraCredits?
+    /// Credits der StudiNow-KI in diesem Monat (`credits` aus `GET /api/entitlements`); nil ohne Konto oder ohne Stand.
+    /// Jeder neue Stand geht an die Sperre der StudiNow-KI (26.11.2026, `StudiNowCreditGate`: ohne nutzbare Credits geht
+    /// keine KI-Anfrage an den Dienst, die Stelle zeigt die Credit-Pakete)
+    @Published private(set) var credits: StudoraCredits? {
+        didSet { studinowAI?.creditGate = StudiNowCreditGate(credits?.balance) }
+    }
     /// Was die letzte KI-Antwort gekostet hat (`charged`), fuer die Kostenzeile; nil bis zur ersten Antwort mit Stand
     @Published private(set) var lastCharge: StudoraCredits.Charge?
     private var creditsClient: StudoraCredits.Client?
@@ -590,6 +593,7 @@ final class StudoraAccountLink: ObservableObject {
         }, onSignedOut: { [weak self] in
             Task { @MainActor in self?.signedOutByService() }
         })
+        studinowAI?.creditGate = StudiNowCreditGate(credits?.balance)
         updateAI()
     }
 
@@ -625,8 +629,8 @@ final class StudoraAccountLink: ObservableObject {
         attachTask?.cancel()
         attachTask = Task { @MainActor [weak self] in
             guard let backend = try? await host.backend(), let self, !Task.isCancelled else { return }
-            // Pro AI bzw. Probe: die StudiNow-KI fuer alles; Plus: nur der KI-Chat (jede andere Aufgabe weist
-            // `StudiNowChatAI` ab, ohne dass etwas an den Dienst geht); sonst haengt nichts
+            // Plus, Pro AI bzw. Probe: die StudiNow-KI fuer alles, nur mit Credits (`StudiNowCreditGate`); der Nur-Chat
+            // (`StudiNowChatAI`) gilt seit 26.11.2026 nicht mehr; sonst haengt nichts
             let service: AIProvider? = self.aiAccess == .ready ? self.studinowAI
                 : self.aiChatOnly ? self.studinowAI.map(StudiNowChatAI.init) : nil
             backend.context.ai.setService(service)
@@ -650,6 +654,15 @@ final class StudoraAccountLink: ObservableObject {
     /// Nur Tests und Vorschauen: Credits ueber einen Schein-Dienst laden, ohne Dienst-Adresse im Build
     func attach(creditsClient: StudoraCredits.Client?) {
         self.creditsClient = creditsClient
+    }
+
+    /// Darf dieses Konto jetzt Credit-Pakete kaufen? Der Dienst erlaubt es (`credits.can_buy`) und der Tarif auf dem
+    /// Geraet auch (26.11.2026: nur Plus und Pro AI, nie Free, nie die Probe allein, `Entitlements.canBuyCredits`)
+    var mayBuyCredits: Bool { Self.mayBuyCredits(credits?.balance, entitlements: entitlements) }
+
+    /// Regel zu `mayBuyCredits` (testbar)
+    static func mayBuyCredits(_ b: CreditPacks.Balance?, entitlements: Entitlements) -> Bool {
+        CreditPacks.offersShop(b) && entitlements.canBuyCredits
     }
 
     private func clearCredits() {
@@ -722,9 +735,9 @@ final class StudoraAccountLink: ObservableObject {
     /// wird der Stand uebernommen), Anmeldung ohne gueltige Sitzung; nil = nur die Meldung
     static func errorAction(_ error: Error, account: StudoraAccountLink?) -> StudiNowAIAction? {
         if account?.noteAIError(error) ?? StudoraCredits.isExhausted(error) {
-            // Credits reichen nicht: darf das Konto Pakete kaufen (Regel des Dienstes), fuehrt der Weg zum Blatt
-            // "Credits kaufen", sonst wie bisher zum Tarif
-            return CreditPacks.offersShop(account?.credits?.balance) ? .credits : .plans
+            // Credits reichen nicht: darf das Konto Pakete kaufen (Regel des Dienstes und des Tarifs auf dem Geraet:
+            // Free und die Probe allein nie), fuehrt der Weg zum Blatt "Credits kaufen", sonst zum Tarif
+            return account?.mayBuyCredits == true ? .credits : .plans
         }
         let code = (error as? APIError)?.code ?? (error as? AccountError)?.code
         let action = StudiNowAIText.action(code: code)
@@ -1079,8 +1092,8 @@ enum AccountDeletion {
     }
 }
 
-/// Credits der StudiNow-KI (docs/ABO-SYSTEM.md Abschnitt 6a, app/credits.py): 1 Credit = 0,65 Cent echter KI-Kosten, Pro AI
-/// 100 je Kalendermonat, Probe 25, andere Tarife 0. Stand aus `credits` in `GET /api/entitlements` und in den
+/// Credits der StudiNow-KI (docs/ABO-SYSTEM.md Abschnitt 6a, app/credits.py): 1 Credit = 1 Cent KI-Kosten, Pro AI
+/// 120 je Kalendermonat (26.11.2026), Probe 25, andere Tarife 0; Plus und Pro AI kaufen dazu. Stand aus `credits` in `GET /api/entitlements` und in den
 /// KI-Antworten (`/api/ai/tutor`, `/api/ai/flashcards`: zusaetzlich `charged`, `replay`). Reihenfolge der Bezahlung:
 /// Geteiltes (0) -> eigenes ChatGPT (0) -> Credits. Am eigenen PC und ohne Konto ist der Stand nil.
 struct StudoraCredits: Equatable {

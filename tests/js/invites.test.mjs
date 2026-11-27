@@ -2,9 +2,9 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import * as L from "../../app/static/invites-logic.js";
 
-test("ohne Entscheidung des Inhabers keine Belohnungen im Web", () => {
+test("keine Belohnungen mehr (Inhaber 27.11.2026), auch kein Hinweis darauf", () => {
   assert.equal(L.WEB_REWARDS, false);
-  assert.match(L.REWARDS_NOTE, /noch nicht entschieden/);
+  assert.equal(L.REWARDS_NOTE, undefined);
 });
 
 test("Zähler und Zeilen je Link", () => {

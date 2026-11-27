@@ -39,7 +39,7 @@ enum ExamGeneratorShop {
     static let folderName = "Probeklausuren"
     /// die zwei PDFs je Probeklausur: Kennung beim Dienst und Zusatz im Titel
     static let parts = [("aufgaben", "Aufgaben"), ("loesungen", "Lösungen")]
-    static let needsService = "Der Klausur-Generator läuft über die StudiNow-KI. Melde dich dafür mit deinem StudiNow-Konto an (StudiNow Pro AI)."
+    static let needsService = "Der Klausur-Generator läuft über die StudiNow-KI. Melde dich dafür mit deinem StudiNow-Konto an (StudiNow Plus oder Pro AI, mit Credits)."
 
     static func relay(_ ctx: LocalContext) throws -> StudiNowAI {
         guard let r = ctx.ai.serviceProvider as? StudiNowAI else {

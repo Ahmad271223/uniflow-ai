@@ -179,54 +179,91 @@ Aushang vor Ort. In jedem Tarif frei.</p>
 <div class="wrap">
 <div class="section-head">
 <h2 id="preise-title">Preise</h2>
-<p>Zum Start testest du 7 Tage alles wie StudiNow Pro AI, ohne Zahlungsdaten (einmal je iPad). Danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI – deine Daten bleiben.</p>
+<p>Zum Start testest du 7 Tage alles wie StudiNow Plus, dazu 25 Credits für die KI, ohne Zahlungsdaten (einmal je iPad). Danach wählst du: Free bleibt kostenlos, oder Plus bzw. Pro AI – deine Daten bleiben.</p>
 </div>
+<div class="plans plans-solo">
+<article class="plan plan-special" aria-labelledby="p-paket">
+<p class="special-badge">Unser Special</p>
+<h3 id="p-paket">Bachelor+Master-Paket</h3>
+<p class="special-sub">StudiNow Plus für 5 Jahre</p>
+<p class="price"><span class="amount">39,99 €</span> <span class="per">einmalig</span></p>
+<p class="save save-big">Du sparst 79,41 € (67 %)</p>
+<p class="save-detail">gegenüber 60 × 1,99 € = 119,40 € mit dem normalen Plus – das sind nur 0,67 € im Monat</p>
+<ul class="checks">
+<li>Alle Funktionen von Plus, 5 Jahre lang</li>
+<li>Einmal zahlen – kein Abo, verlängert sich nicht, endet von selbst</li>
+<li>Reicht für Bachelor und Master</li>
+<li>KI von StudiNow mit Credits, die du dazukaufst</li>
+</ul>
+</article>
+</div>
+<p class="plans-group">Monatlich</p>
 <div class="plans">
 <article class="plan" aria-labelledby="p-free">
 <h3 id="p-free">StudiNow Free</h3>
 <p class="price"><span class="amount">0 €</span></p>
 <p class="tagline">Studium organisieren und Unterlagen lesen</p>
 <ul class="checks">
-<li>Abgleich mit deiner Hochschule</li>
-<li>Speiseplan deiner Mensa</li>
-<li>PDFs lesen und durchsuchen</li>
-<li>Stundenplan mit Hinweisen zu Terminen, Fristen und Klausuren</li>
-<li>Uni-Mail, Noten und Raumfinder</li>
+<li>Abgleich mit deiner Hochschule: Kurse, Ordner, neue Dateien</li>
+<li>PDFs öffnen, lesen und durchsuchen</li>
+<li>Module und Stundenplan mit Hinweisen zu Terminen, Fristen und Klausuren</li>
+<li>Uni-Mail, Noten, Mensa und Raumfinder (je nach Hochschule)</li>
+<li>Lernblöcke selbst planen, Zeitmesser</li>
+<li>Notizen ansehen und als PDF exportieren</li>
 <li>Widgets für den nächsten Termin und die Mensa</li>
 </ul>
 </article>
 <article class="plan" aria-labelledby="p-plus">
 <h3 id="p-plus">StudiNow Plus</h3>
-<p class="price"><span class="amount">19,99 €</span> <span class="per">pro Jahr</span></p>
-<p class="tagline">Alles aus Free, dazu:</p>
+<p class="price"><span class="amount">1,99 €</span> <span class="per">im Monat</span></p>
+<p class="tagline">Alles aus Free, dazu alle Funktionen ohne KI:</p>
 <ul class="checks">
 <li>Schreiben mit dem Apple Pencil</li>
+<li>Text wie in Word, Notizzettel, Klappkarten, Tabellen</li>
 <li>Übung und Skript nebeneinander</li>
 <li>Lesezeichen setzen, Seiten einfügen und ordnen</li>
 <li>Eigene Karteikarten mit Stapeln und Lernstand je Modul</li>
 <li>Community deines Kurses: lesen, fragen, Lösungen teilen</li>
-<li>Geteilte Karteikarten-Stapel aus der Community übernehmen (4 im Monat)</li>
-<li>Fragen an die KI mit gekauften Credits</li>
+<li>Geteilte Tests und Karteikarten-Stapel ohne Monatsgrenze</li>
+<li>Notizen auf deinen Hochschul-PDFs auf allen deinen Geräten</li>
+<li>Erinnerungen an Abgaben und Klausuren</li>
+<li>KI von StudiNow mit Credits, die du dazukaufst</li>
 </ul>
 </article>
 <article class="plan plan-top" aria-labelledby="p-pro">
 <h3 id="p-pro">StudiNow Pro AI</h3>
-<p class="price"><span class="amount">39,99 €</span> <span class="per">pro Jahr</span></p>
-<p class="tagline">Alles aus Plus, dazu die KI von StudiNow, ohne eigenes ChatGPT-Konto:</p>
+<p class="price"><span class="amount">3,99 €</span> <span class="per">im Monat</span></p>
+<p class="tagline">Alles aus Plus, dazu jeden Monat Credits für die KI:</p>
 <ul class="checks">
-<li>80 Credits im Monat für die KI, weitere zum Nachkaufen</li>
+<li>120 Credits jeden Monat neu, weitere zum Nachkaufen</li>
 <li>KI-Erklärungen, auch für das ganze Dokument</li>
-<li>Wochentests aus deinen Unterlagen: 20 neue KI-Tests im Monat</li>
+<li>Zusammenfassungen und Lernfragen zu deinen Unterlagen</li>
+<li>Wochentests aus deinen Unterlagen: bis zu 20 neue KI-Tests im Monat</li>
 <li>Karteikarten aus deinen Unterlagen erstellen lassen</li>
-<li>Geteilte Tests und Karteikarten-Stapel ohne Monatsgrenze</li>
-<li>Notizen auf deinen Hochschul-PDFs auf allen deinen Geräten</li>
-<li>Erinnerungen an Abgaben und Klausuren</li>
+<li>Uni-Mails mit KI verbessern</li>
 </ul>
 </article>
 </div>
-<p class="fine">Preise inkl. USt. Plus und Pro AI gibt es als Jahresabo. Ein Abo verlängert sich automatisch um ein Jahr, wenn du es nicht mindestens 24 Stunden
-vor Ablauf in den Einstellungen deines Apple-Kontos kündigst. Nach dem Ende eines Abos bleiben alle
-Notizen lesbar und exportierbar. „Ohne Monatsgrenze“ heißt faire Nutzung, höchstens 300 im Monat. Einzelheiten in den <a href="https://studinow.app/nutzungsbedingungen">Nutzungsbedingungen</a>.</p>
+<div class="plans plans-solo">
+<article class="plan" aria-labelledby="p-pro-jahr">
+<p class="plans-group in-card">Jährlich</p>
+<h3 id="p-pro-jahr">StudiNow Pro AI</h3>
+<p class="price"><span class="amount">39,99 €</span> <span class="per">pro Jahr</span></p>
+<p class="save">Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €</p>
+<p class="tagline">Alles aus Pro AI monatlich – nur rund 3,33 € im Monat:</p>
+<ul class="checks">
+<li>Alle Funktionen von Plus</li>
+<li>120 Credits jeden Monat neu, auch im Jahresabo</li>
+<li>Alle KI-Funktionen von StudiNow</li>
+</ul>
+</article>
+</div>
+<p class="fine">Preise inkl. USt. Die KI von StudiNow funktioniert nur mit Credits: Pro AI bringt jeden Monat 120 mit, mit Plus kaufst du
+sie in der App dazu (in Free nicht). Plus und Pro AI im Monat verlängern sich um einen Monat, Pro AI im Jahr um ein Jahr, wenn du
+das Abo nicht mindestens 24 Stunden vor Ablauf in den Einstellungen deines Apple-Kontos kündigst. Das Bachelor+Master-Paket zahlst du
+einmal; es endet 5 Jahre nach dem Kauf von selbst. Nach dem Ende bleiben alle Notizen lesbar und exportierbar. „Ohne Monatsgrenze“
+heißt faire Nutzung, höchstens 300 im Monat. StudiNow arbeitet nicht mit der LUH oder einer anderen Hochschule zusammen; die
+Anbindung an Hochschulsysteme ist nicht zugesichert. Einzelheiten in den <a href="https://studinow.app/nutzungsbedingungen">Nutzungsbedingungen</a>.</p>
 </div>
 </section>
 
@@ -269,8 +306,8 @@ Noten sind immer die Systeme deiner Hochschule.</p>
 <details>
 <summary>Gibt es StudiNow fürs iPhone?</summary>
 <p>Ja. Am iPhone liest du Unterlagen und siehst Stundenplan, Nachrichten, Uni-Mail,
-Noten und Mensa. Geschrieben wird mit dem Apple Pencil weiter am iPad. StudiNow Free gilt für ein Gerät; mit Pro AI
-nutzt du iPhone und iPad zusammen.</p>
+Noten und Mensa. Geschrieben wird mit dem Apple Pencil weiter am iPad. StudiNow Free gilt für ein Gerät; mit Plus oder
+Pro AI nutzt du iPhone und iPad zusammen.</p>
 </details>
 <details>
 <summary>Wie kündige ich ein Abo?</summary>

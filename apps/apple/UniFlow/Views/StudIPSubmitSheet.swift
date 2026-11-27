@@ -295,8 +295,12 @@ struct StudIPSubmitEntry: View {
     }
 
     /// Angebot im Teilen-Menue: nur auf dem Geraet (lokales Backend) an einer Hochschule mit Stud.IP
+    /// Schalter (26.11.2026, Inhaber: "Stud.IP-Abgaben erstmal ausschalten"): aus, der Menuepunkt erscheint nicht; der
+    /// Code bleibt fuer spaeter. Wieder an: `true`.
+    static let isEnabled = false
+
     static func offered(api: APIClient, readOnly: Bool) -> Bool {
-        !readOnly && api.isLocal && ActiveContainer.current?.key.university.profile.studipBase != nil
+        isEnabled && !readOnly && api.isLocal && ActiveContainer.current?.key.university.profile.studipBase != nil
     }
 
     /// Letzte Abgabe dieses Dokuments ("Abgegeben am … in …") fuer das Menue; nil ohne Abgabe

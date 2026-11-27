@@ -10,7 +10,8 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 test("Recht wie in app/plans.py", () => {
   const plans = JSON.parse(readFileSync(join(root, "packages/shared-contracts/fixtures/plans/plans.json"), "utf8"));
-  assert.equal(plans.entitlements[RIGHT].from, "pro_ai");
+  assert.equal(plans.entitlements[RIGHT].from, "plus");                 // 26.11.2026 neues Modell (frueher pro_ai)
+  assert.equal(plans.entitlements[RIGHT].needs_credits, true);
   assert.equal(plans.entitlements[RIGHT].status, "available");
 });
 

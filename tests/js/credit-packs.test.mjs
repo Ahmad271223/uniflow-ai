@@ -38,7 +38,8 @@ test("Tarifseite: Stand zeigen, kaufen nur in der App", () => {
   const abo = read("views-abo.js");
   const pro = flow("Verbrauch: erst die 80 Monats-Credits, dann 30 gekaufte");
   assert.ok(showsCredits(pro.credits));
-  assert.equal(balanceLine(pro.credits), "Diesen Monat: 0 von 80 · Gekauft: 210");
+  // 26.11.2026 neues Modell: Pro AI 120 Monats-Credits (frueher 80); der Ablauf des Fixture-Werkzeugs verbraucht weiter 110
+  assert.equal(balanceLine(pro.credits), "Diesen Monat: 10 von 120 · Gekauft: 240");
   assert.equal(webNote(pro.credits, pro.credit_packs), `${KEEP} ${pro.credit_packs.purchase.web.note}`);
   assert.ok(pro.credit_packs.purchase.web.note.includes("iPhone und iPad") && pro.credit_packs.purchase.web.available === false);
   // ohne Angabe des Dienstes (Windows-App mit aelterem Zwischenstand): der feste Hinweis
@@ -46,12 +47,15 @@ test("Tarifseite: Stand zeigen, kaufen nur in der App", () => {
     `Gekaufte Credits verfallen nicht. Deine 100 Monats-Credits gibt es am 1. Dezember wieder. ${WEB_HINT}`);
   const resting = flow("Pro AI ist vorbei: die gekauften Credits bleiben beim Konto und ruhen");
   assert.ok(showsCredits(resting.credits) && webNote(resting.credits, resting.credit_packs).startsWith("Du hast noch 154 gekaufte Credits."));
-  // Plus (15.11.2026): nur der gekaufte Topf, dazu der Satz, was die Credits dort koennen (nur der KI-Chat)
+  // Plus (15.11.2026): nur der gekaufte Topf; 26.11.2026 neues Modell: die gekauften Credits gelten mit Plus fuer alles
+  // (purchased_scope "all"), darum kein Satz "nur der KI-Chat" mehr
   const plus = flow("Wechsel zu Plus: die gekauften Credits bleiben, gelten aber nur noch fuer den KI-Chat");
+  assert.equal(plus.credits.purchased_scope, "all");
   assert.equal(balanceLine(plus.credits), "Gekauft: 160");
-  assert.equal(webNote(plus.credits, plus.credit_packs), `${KEEP} ${CHAT_ONLY} ${plus.credit_packs.purchase.web.note}`);
+  assert.equal(webNote(plus.credits, plus.credit_packs), `${KEEP} ${plus.credit_packs.purchase.web.note}`);
   assert.ok(showsCredits({ allowance: 0, remaining: 0, purchased: 0, purchased_usable: true, purchased_scope: "chat" }), "Plus sieht die Zeile auch mit 0");
-  assert.ok(abo.includes("KI-Chat mit gekauften Credits") && abo.includes("weitere Credits zum Nachkaufen"));
+  // 26.11.2026 neues Modell: Plus nutzt die StudiNow-KI mit gekauften Credits (frueher nur der KI-Chat)
+  assert.ok(abo.includes("Die StudiNow-KI mit Credits, die du dazukaufst") && abo.includes("weitere Credits zum Nachkaufen"));
   assert.ok(!showsCredits({ allowance: 0, remaining: 0, purchased: 0 }) && !showsCredits(null));
   // die Seite bindet die Zeile ein und bietet keinen Kauf an (kein Knopf, kein Bezahlweg fuer Credits)
   assert.ok(abo.includes('id="aboCredits"') && abo.includes("webNote(me.credits, me.credit_packs)"));

@@ -6,7 +6,8 @@ import XCTest
 
 /// Geraete-Regel in der App (Auftrag des Inhabers vom 14.11.2026, DeviceRuleViews.swift): Free auf einem zweiten Geraet
 /// zeigt statt der App den Hinweis-Bildschirm (iPad und iPhone), "Dieses Gerät stattdessen nutzen" nach Rueckfrage,
-/// "Abmelden", der Kauf von Pro AI hebt den Hinweis sofort auf, Plus bekommt einmal einen Hinweis. Gesperrt wird nur
+/// "Abmelden", der Kauf von Plus oder Pro AI hebt den Hinweis sofort auf (seit 26.11.2026 hat Plus den Abgleich); den
+/// einmaligen Plus-Hinweis zeigt die App nur noch, wenn ein aelterer Dienst ihn fuer ein Free-Geraet meldet. Gesperrt wird nur
 /// nach einer Antwort des Dienstes, nie ohne Netz. Schein-Dienst ueber `accountFactory`, nie ins Netz, kein StoreKit.
 @MainActor
 final class DeviceRuleAppTests: IPhoneLearnTestCase {
@@ -130,12 +131,13 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
         func hint(_ server: DeviceRule.State?, _ plan: UFPlan, ready: Bool = true, seen: Bool = false, loading: Bool = false) -> Bool {
             DeviceRuleScreen.plusHintDue(server: server, plan: plan, entitlementsLoading: loading, signedIn: true, canSwitch: true, ready: ready, seen: seen)
         }
-        XCTAssertTrue(hint(.hintPlus, .plus))
-        XCTAssertTrue(hint(.hintPlus, .free), "Plus nur beim Dienst bekannt (z. B. im Web gekauft)")
-        XCTAssertTrue(hint(.blocked, .plus), "Plus auf diesem Gerät gekauft, der Dienst kennt es noch nicht")
-        XCTAssertFalse(hint(.hintPlus, .plus, seen: true), "einmalig")
-        XCTAssertFalse(hint(.hintPlus, .plus, ready: false), "erst wenn die Oberfläche steht")
-        XCTAssertFalse(hint(.hintPlus, .plus, loading: true))
+        // seit 26.11.2026: Plus auf dem Geraet hat den Abgleich, kein Hinweis mehr (vorher einmal hintPlus)
+        XCTAssertFalse(hint(.hintPlus, .plus))
+        XCTAssertFalse(hint(.blocked, .plus), "Plus auf diesem Gerät gekauft: kein Hinweis, auch bevor der Dienst es kennt")
+        XCTAssertTrue(hint(.hintPlus, .free), "aelterer Dienst, Plus nur dort bekannt (z. B. im Web gekauft)")
+        XCTAssertFalse(hint(.hintPlus, .free, seen: true), "einmalig")
+        XCTAssertFalse(hint(.hintPlus, .free, ready: false), "erst wenn die Oberfläche steht")
+        XCTAssertFalse(hint(.hintPlus, .free, loading: true))
         XCTAssertFalse(hint(.hintPlus, .proAI))
         XCTAssertFalse(hint(.ok, .plus), "auf dem ersten Gerät kein Hinweis")
         XCTAssertFalse(hint(nil, .plus))
@@ -163,9 +165,12 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
         m.forget(scope: "a")
         XCTAssertNil(m.load(scope: "a"))
         XCTAssertFalse(m.plusHintSeen(scope: "a"))
-        XCTAssertEqual(DeviceRulePrice.text(store: "39,99 €", status: nil), "39,99 €", "Preis aus StoreKit geht vor")
-        XCTAssertEqual(DeviceRulePrice.text(store: nil, status: blocked), "39,99 €", "Rückfall: Listenpreis des Dienstes")
-        XCTAssertEqual(DeviceRulePrice.text(store: "", status: nil), "39,99 €")
+        XCTAssertEqual(DeviceRulePrice.text(store: "1,99 €", status: nil), "1,99 €", "Preis aus StoreKit geht vor")
+        // Rueckfall: Listenpreis des Dienstes nur als Monatspreis (Plus); ein aelterer Dienst nennt Pro AI im Jahr
+        XCTAssertEqual(DeviceRulePrice.text(store: nil, status: DeviceRule.Status(state: .blocked, priceCents: 199, currency: "EUR", period: "month")), "1,99 €")
+        XCTAssertEqual(DeviceRulePrice.text(store: nil, status: DeviceRule.Status(state: .blocked, priceCents: 3999, currency: "EUR", period: "year")), "1,99 €")
+        XCTAssertEqual(DeviceRulePrice.text(store: "", status: nil), "1,99 €")
+        _ = blocked
     }
 
     // MARK: Hinweis-Bildschirm auf iPad und iPhone
@@ -175,16 +180,16 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
     private static var devices: String { ProcessInfo.processInfo.isiOSAppOnMac ? "iPhone, iPad und Mac" : "iPhone und iPad" }
 
     private func blockedLayout(taps: @escaping (String) -> Void = { _ in }) -> some View {
-        DeviceLimitLayout(primaryName: "iPad", price: "39,99 €", onPlans: { taps("plans") }, onUseThis: { taps("use") }, onSignOut: { taps("out") })
+        DeviceLimitLayout(primaryName: "iPad", price: "1,99 €", onPlans: { taps("plans") }, onUseThis: { taps("use") }, onSignOut: { taps("out") })
     }
 
     private func assertBlockedScreen(_ env: HostedEnvironment, _ name: String, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertTrue(env.wait(timeout: 5) { self.shows(env, DeviceRuleTexts.blockedTitle) }, "\(name): \(dump(env))", file: file, line: line)
         let title = element(env, label: DeviceRuleTexts.blockedTitle)
         XCTAssertEqual(title?.accessibilityTraits.contains(.header), true, "\(name): Überschrift für VoiceOver", file: file, line: line)
-        let spoken = "Dein Konto läuft schon auf einem anderen Gerät (iPad). Mit Pro AI nutzt du StudiNow auf \(Self.devices) – mit Abgleich. 39,99 € im Jahr."
+        let spoken = "Dein Konto läuft schon auf einem anderen Gerät (iPad). Mit Plus nutzt du StudiNow auf \(Self.devices) – mit Abgleich. Ab 1,99 € im Monat."
         XCTAssertNotNil(element(env, label: spoken), "\(name): \(dump(env))", file: file, line: line)
-        for label in ["Pro AI ansehen", "Dieses Gerät stattdessen nutzen", "Abmelden"] {
+        for label in ["Plus ansehen", "Dieses Gerät stattdessen nutzen", "Abmelden"] {
             let b = button(env, label)
             XCTAssertNotNil(b, "\(name): Knopf „\(label)“ fehlt: \(dump(env))", file: file, line: line)
             XCTAssertGreaterThanOrEqual(frame(b).height, 30, "\(name): \(label)", file: file, line: line)
@@ -198,11 +203,11 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
         assertBlockedScreen(env, "iPhone")
         assertFitsOnAllPhones(env, "geraete-hinweis")
         // die drei Knöpfe stehen untereinander und sind ganz im Bild
-        let frames = ["Pro AI ansehen", "Dieses Gerät stattdessen nutzen", "Abmelden"].map { frame(button(env, $0)) }
+        let frames = ["Plus ansehen", "Dieses Gerät stattdessen nutzen", "Abmelden"].map { frame(button(env, $0)) }
         XCTAssertLessThan(frames[0].maxY, frames[1].minY + 1)
         XCTAssertLessThan(frames[1].maxY, frames[2].minY + 1)
         XCTAssertLessThanOrEqual(frames[2].maxY, Self.phone.height)
-        XCTAssertTrue(tap(env, "Pro AI ansehen") && tap(env, "Dieses Gerät stattdessen nutzen") && tap(env, "Abmelden"))
+        XCTAssertTrue(tap(env, "Plus ansehen") && tap(env, "Dieses Gerät stattdessen nutzen") && tap(env, "Abmelden"))
         XCTAssertEqual(taps, ["plans", "use", "out"])
         shoot(env, "iphone-geraete-hinweis")
     }
@@ -218,9 +223,9 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
         XCTAssertEqual(taps, ["out"])
         shoot(env, "ipad-geraete-hinweis")
         // ohne Namen des anderen Geräts und mit einer Fehlermeldung
-        let other = try hostPad(DeviceLimitLayout(primaryName: nil, price: "39,99 €", busy: true, problem: DeviceRuleTexts.switchFailed,
+        let other = try hostPad(DeviceLimitLayout(primaryName: nil, price: "1,99 €", busy: true, problem: DeviceRuleTexts.switchFailed,
                                                   onPlans: {}, onUseThis: {}, onSignOut: {}), api: remote(Canned()))
-        XCTAssertTrue(other.wait(timeout: 5) { self.shows(other, "Dein Konto läuft schon auf einem anderen Gerät. Mit Pro AI") }, dump(other))
+        XCTAssertTrue(other.wait(timeout: 5) { self.shows(other, "Dein Konto läuft schon auf einem anderen Gerät. Mit Plus") }, dump(other))
         XCTAssertTrue(shows(other, DeviceRuleTexts.switchFailed))
     }
 
@@ -374,21 +379,22 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
 
     func testPlusHintLayoutFitsThePhone() throws {
         var taps: [String] = []
-        let env = try hostPhone(DevicePlusHint(price: "39,99 €", onPlans: { taps.append("plans") }, onClose: { taps.append("close") }),
+        let env = try hostPhone(DevicePlusHint(price: "1,99 €", onPlans: { taps.append("plans") }, onClose: { taps.append("close") }),
                                 api: remote(Canned()))
         XCTAssertTrue(env.wait(timeout: 5) { self.shows(env, DeviceRuleTexts.plusTitle) }, dump(env))
         XCTAssertEqual(element(env, label: DeviceRuleTexts.plusTitle)?.accessibilityTraits.contains(.header), true)
-        XCTAssertTrue(shows(env, "Deine Notizen bleiben auf dem Gerät, auf dem du sie schreibst. Den Abgleich zwischen \(Self.devices) gibt es mit Pro AI für 39,99 € im Jahr."), dump(env))
+        XCTAssertTrue(shows(env, "Mit Plus gleicht StudiNow deine Notizen zwischen \(Self.devices) ab."), dump(env))
         assertFitsOnAllPhones(env, "geraete-plus-hinweis")
-        XCTAssertTrue(tap(env, "Pro AI ansehen") && tap(env, "Verstanden"))
+        XCTAssertTrue(tap(env, "Plus ansehen") && tap(env, "Verstanden"))
         XCTAssertEqual(taps, ["plans", "close"])
         shoot(env, "iphone-geraete-plus-hinweis")
     }
 
-    /// Plus auf dem zweiten Geraet: die App laeuft, einmal erscheint der Hinweis; nach "Verstanden" nie wieder
+    /// Aelterer Dienst meldet `hint_plus` (Plus im Web gekauft, auf dem Geraet Free): die App laeuft, einmal erscheint der
+    /// Hinweis; nach "Verstanden" nie wieder. Mit Plus auf dem Geraet kommt er seit 26.11.2026 gar nicht (Abgleich ab Plus).
     func testPlusRunsAndShowsTheHintOnce() throws {
         let service = Service(device: Service.status("hint_plus"), plan: "plus")
-        let (l, ent) = link(service, plan: .plus)
+        let (l, ent) = link(service, plan: .free)
         let env = try hostPad(gate(l, ent), api: remote(Canned()))
         l.use(userScope: scope)
         XCTAssertTrue(waitSheet(env, showing: DeviceRuleTexts.plusTitle), dump(env))
@@ -406,7 +412,7 @@ final class DeviceRuleAppTests: IPhoneLearnTestCase {
         XCTAssertFalse(sheetOpen(env), "einmalig")
 
         // nächster Start
-        let (again, ent2) = link(service, plan: .plus)
+        let (again, ent2) = link(service, plan: .free)
         let env2 = try hostPad(gate(again, ent2), api: remote(Canned()))
         again.use(userScope: scope)
         XCTAssertTrue(env2.wait(timeout: 10) { again.deviceStatus?.state == .hintPlus }, dump(env2))

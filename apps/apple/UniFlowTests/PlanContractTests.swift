@@ -35,24 +35,67 @@ final class PlanContractTests: XCTestCase {
             XCTAssertEqual(p["name"]?.string, plan.name, plan.rawValue)
             XCTAssertEqual(int(p["price_cents"]), plan.priceCents, plan.rawValue)
             XCTAssertEqual(p["currency"]?.string, "EUR", plan.rawValue)
-            // nur noch Jahresabos (Entscheidung des Inhabers vom 09.11.2026): Preis je Jahr, Free ohne Zeitraum
-            XCTAssertEqual(p["period"]?.string, plan == .free ? nil : "year", plan.rawValue)
+            // neues Tarifmodell (26.11.2026): Plus 1,99 € im Monat, Pro AI 39,99 € im Jahr, Free ohne Zeitraum
+            XCTAssertEqual(p["period"]?.string, plan.period, plan.rawValue)
             if plan == .free {
                 XCTAssertEqual(p["apple_product_id"]?.isNull, true)
             }
             XCTAssertEqual(p["apple_product_id"]?.string, plan.productID, plan.rawValue)
-            XCTAssertEqual(plan.productID, plan.productID(.yearly), plan.rawValue)
             XCTAssertNil(p["apple_product_id_yearly"], "kein eigenes Feld fuer das Jahresabo mehr: \(plan.rawValue)")
             XCTAssertNil(p["price_cents_yearly"], plan.rawValue)
             XCTAssertEqual(p["tagline"]?.string, plan.tagline, plan.rawValue)
             XCTAssertEqual(int(p["credits"]), plan.monthlyCredits, plan.rawValue)
+            XCTAssertEqual(p["sellable"]?.bool, plan != .free, "verkauft werden Plus und Pro AI: \(plan.rawValue)")
         }
         XCTAssertEqual(int(c["credits"]?["pro_ai"]), UFPlan.proAI.monthlyCredits)
-        // Reihenfolge = Rang, jeder hoehere Tarif kostet mehr
+        XCTAssertEqual(UFPlan.proAI.monthlyCredits, 120, "Pro AI: 120 Credits je Monat (26.11.2026)")
+        XCTAssertEqual(UFPlan.plus.monthlyCredits, 0)
         XCTAssertEqual(UFPlan.allCases.map(\.rank), [0, 1, 2])
-        XCTAssertEqual(UFPlan.allCases.map(\.priceCents), UFPlan.allCases.map(\.priceCents).sorted())
-        XCTAssertEqual(UFPlan.allCases.map(\.priceCents), [0, 1999, 3999], "19,99 € und 39,99 € im Jahr (09.11.2026)")
-        XCTAssertFalse(try text().contains("monthly"), "kein Monatsprodukt im Vertrag")
+        XCTAssertEqual(UFPlan.allCases.map(\.priceCents), [0, 199, 3999], "Plus 1,99 € im Monat, Pro AI 39,99 € im Jahr (26.11.2026)")
+        XCTAssertEqual(UFPlan.allCases.map(\.period), [nil, "month", "year"])
+    }
+
+    /// Angebote je Apple-Produkt (plans.json `offers`, 26.11.2026): Reihenfolge, Tarif, Art, Preis, Zeitraum bzw. Jahre, Text
+    func testOffersMatchContract() throws {
+        let offers = try XCTUnwrap(contract()["offers"]?.array)
+        XCTAssertEqual(offers.compactMap { $0["product_id"]?.string }, UFOffer.allCases.map(\.productID))
+        XCTAssertEqual(UFOffer.allCases.map(\.productID), ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly", "de.uniflow.proai.yearly",
+                                                           "de.uniflow.plus.fuenfjahre"])
+        for (o, offer) in zip(offers, UFOffer.allCases) {
+            let tag = offer.productID
+            XCTAssertEqual(o["plan"]?.string, offer.plan.rawValue, tag)
+            XCTAssertEqual(o["kind"]?.string, offer.kind.rawValue, tag)
+            XCTAssertEqual(int(o["price_cents"]), offer.priceCents, tag)
+            XCTAssertEqual(o["period"]?.string, offer.period, tag)
+            XCTAssertEqual(int(o["years"]), offer.years, tag)
+            XCTAssertEqual(o["label"]?.string, offer.label, tag)
+            XCTAssertEqual(UFPlan(productID: offer.productID), offer.plan, tag)
+            // Bereich, Name, Abzeichen, Hervorhebung, Vergleich und Ersparnis (27.11.2026)
+            XCTAssertEqual(o["group"]?.string, offer.group.rawValue, tag)
+            XCTAssertEqual(o["name"]?.string, offer.name, tag)
+            XCTAssertEqual(o["badge"]?.string, offer.badge, tag)
+            XCTAssertEqual(o["highlight"]?.bool ?? false, offer.highlight, tag)
+            XCTAssertEqual(o["compare"]?.string, offer.compare?.productID, tag)
+            if let s = offer.savings {
+                let c = try XCTUnwrap(o["savings"]?.object, tag)
+                XCTAssertEqual(int(c["months"]), s.months, tag)
+                XCTAssertEqual(int(c["regular_cents"]), s.regularCents, tag)
+                XCTAssertEqual(int(c["saved_cents"]), s.savedCents, tag)
+                XCTAssertEqual(int(c["saved_percent"]), s.savedPercent, tag)
+                XCTAssertEqual(int(c["per_month_cents"]), s.perMonthCents, tag)
+                XCTAssertEqual(c["text"]?.string, s.text, tag)
+                XCTAssertEqual(c["per_month_text"]?.string, s.perMonthText, tag)
+            } else {
+                XCTAssertNil(o["savings"]?.object, tag)
+            }
+        }
+        XCTAssertEqual(UFOffer.plusFiveYears.kind, .nonRenewing)
+        XCTAssertEqual(UFPlan.plus.offers, [.plusMonthly, .plusFiveYears])
+        XCTAssertEqual(UFPlan.proAI.offers, [.proAIMonthly, .proAIYearly])
+        // Bereiche der Tarifseite wie `offer_groups`
+        let groups = try XCTUnwrap(contract()["offer_groups"]?.array)
+        XCTAssertEqual(groups.compactMap { $0["key"]?.string }, UFOfferGroup.allCases.map(\.rawValue))
+        XCTAssertEqual(groups.compactMap { $0["title"]?.string }, UFOfferGroup.allCases.map(\.title))
     }
 
     func testEntitlementsMatchContract() throws {
@@ -100,14 +143,14 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(keys, UFEntitlement.allCases.map(\.rawValue))
     }
 
-    /// StoreKit-Konfigurationen: `UniFlow.storekit` (App) hat genau die Abo-Tarife des iPads (Plus, Pro AI); die
-    /// Testkonfiguration `UniFlowAlleTarife.storekit` (Wechsel-Logik) alle Abo-Tarife des Vertrags in einer Gruppe.
-    /// Stufen nach Rang (Stufe 1 = hoechster Tarif: Pro AI 1, Plus 2 in der App), nur jaehrlich (09.11.2026), Gruppe "StudiNow", Namen
-    /// wie im Vertrag, **kein Einfuehrungsangebot** (Entscheidung 04.11.2026: Probe auf dem iPad statt Apple-Angebot).
+    /// StoreKit-Konfigurationen: `UniFlow.storekit` (App) hat genau die Abo-Tarife des iPads (Plus monatlich, Pro AI
+    /// jaehrlich) in einer Gruppe und Plus 5 Jahre als nicht verlaengerndes Abo (26.11.2026); die Testkonfiguration
+    /// `UniFlowAlleTarife.storekit` (Wechsel-Logik) dasselbe. Stufen nach Rang (Stufe 1 = hoechster Tarif: Pro AI 1,
+    /// Plus 2), Gruppe "StudiNow", Namen wie im Vertrag, **kein Einfuehrungsangebot** (Probe auf dem iPad statt Apple-Angebot).
     func testStoreKitConfigurationsMatchContract() throws {
         let app = UFPlanCatalog.sellable.filter { $0.productID != nil }
         XCTAssertEqual(app, [.plus, .proAI], "das iPad verkauft StudiNow Plus und Pro AI (Entscheidung 04.11.2026)")
-        XCTAssertEqual(PurchaseStore.productIDs, app.compactMap(\.productID))
+        XCTAssertEqual(PurchaseStore.productIDs, UFOffer.allCases.map(\.productID))
         for (file, plans) in [("UniFlow", app), ("UniFlowAlleTarife", UFPlan.paid)] {
             let url = ContainerTestBed.repoURL("apps/apple/UniFlowTests/\(file).storekit")
             let sk = try JSONValue.parse(String(contentsOf: url, encoding: .utf8))
@@ -130,15 +173,25 @@ final class PlanContractTests: XCTestCase {
             }
             XCTAssertEqual(contractPacks.compactMap { $0["credits"]?.double.map { Int($0) } }, CreditPacks.defaultPacks.map(\.credits), file)
             let subs = try XCTUnwrap(groups.first?["subscriptions"]?.array, file)
-            // nur die Jahresabos (Entscheidung des Inhabers vom 09.11.2026), kein Monatsabo
-            XCTAssertEqual(subs.compactMap { $0["productID"]?.string }, plans.compactMap(\.productID), file)
+            // die Abos der Gruppe: Plus monatlich, Pro AI monatlich und jaehrlich (27.11.2026)
+            let autos = UFOffer.allCases.filter { $0.kind == .autoRenewable && plans.contains($0.plan) }
+            XCTAssertEqual(subs.compactMap { $0["productID"]?.string }, autos.map(\.productID), file)
+            // Plus 5 Jahre: nicht verlaengerndes Abo ausserhalb der Gruppe, Preis wie im Vertrag
+            let once = try XCTUnwrap(sk["nonRenewingSubscriptions"]?.array, file)
+            XCTAssertEqual(once.compactMap { $0["productID"]?.string }, [UFOffer.plusFiveYears.productID], file)
+            XCTAssertEqual(once.first?["type"]?.string, "NonRenewingSubscription", file)
+            XCTAssertEqual(once.first?["displayPrice"]?.string, String(format: "%.2f", Double(UFOffer.plusFiveYears.priceCents) / 100), file)
+            XCTAssertLessThanOrEqual(once.first?["localizations"]?.array?.first?["description"]?.string?.count ?? 99, 45, file)
+            XCTAssertLessThanOrEqual(once.first?["localizations"]?.array?.first?["displayName"]?.string?.count ?? 99, 30, file)
             // Stufe 1 = hoechster Tarif der Datei, dann absteigend (App: Pro AI 1, Plus 2)
             let levels = Dictionary(uniqueKeysWithValues: plans.sorted(by: >).enumerated().map { ($1, $0 + 1) })
-            for (plan, s) in zip(plans, subs) {
-                let tag = "\(file): \(plan.rawValue)"
-                XCTAssertEqual(s["displayPrice"]?.string, String(format: "%.2f", Double(plan.priceCents) / 100), tag)
+            for (offer, s) in zip(autos, subs) {
+                let plan = offer.plan
+                let tag = "\(file): \(offer.productID)"
+                XCTAssertEqual(s["displayPrice"]?.string, String(format: "%.2f", Double(offer.priceCents) / 100), tag)
+                // Pro AI monatlich und jaehrlich auf derselben Stufe (Wechsel zwischen ihnen = gleicher Tarif)
                 XCTAssertEqual(int(s["groupNumber"]), levels[plan], "Stufe in der Gruppe: \(tag)")
-                XCTAssertEqual(s["recurringSubscriptionPeriod"]?.string, "P1Y", tag)
+                XCTAssertEqual(s["recurringSubscriptionPeriod"]?.string, offer.period == "month" ? "P1M" : "P1Y", tag)
                 XCTAssertNil(s["introductoryOffer"], "kein Apple-Einführungsangebot: \(tag)")
                 XCTAssertEqual(s["localizations"]?.array?.first?["displayName"]?.string, plan.name, tag)
                 // Grenzen von App Store Connect: Anzeigename 30, Beschreibung 45 Zeichen (docs/release/APP-STORE.md)
@@ -149,20 +202,21 @@ final class PlanContractTests: XCTestCase {
         }
     }
 
-    /// Was das iPad anbietet (Entscheidung des Inhabers vom 04.11.2026): StudiNow Free, Plus und Pro AI. Die Pro-AI-Karte
+    /// Was das iPad anbietet (Entscheidung des Inhabers vom 26.11.2026): StudiNow Free, Plus und Pro AI. Die Pro-AI-Karte
     /// nur mit Produkt aus dem Store (vor dem Dienst nur Free und Plus, darunter ein Satz ohne Preis); Pro Connect gibt
     /// es nicht mehr (alter Schluessel gilt wie Pro AI); ein laufender Tarif behaelt seine Karte.
     func testIPadSellsFreePlusAndProAI() {
         XCTAssertEqual(UFPlanCatalog.sellable, [.free, .plus, .proAI])
-        XCTAssertEqual(UFPlanCatalog.sellableProductIDs, ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"])
+        XCTAssertEqual(UFPlanCatalog.sellableProductIDs, ["de.uniflow.plus.monthly", "de.uniflow.proai.monthly", "de.uniflow.proai.yearly",
+                                                          "de.uniflow.plus.fuenfjahre"])
         XCTAssertEqual(UFPlanCatalog.needsProduct, [.proAI])
         XCTAssertEqual(UFPlanCatalog.proAIMissingNote, "StudiNow Pro AI konnte gerade nicht aus dem App Store geladen werden. Öffne die Seite später noch einmal.")
         for later in ["folgt", "kommt später", "bald", "in Vorbereitung"] {
             XCTAssertFalse(UFPlanCatalog.proAIMissingNote.contains(later), "Pro AI wird mit 1.0 verkauft: kein „\(later)“")
         }
         XCTAssertNil(UFPlanCatalog.proAIMissingNote.range(of: #"\d|€"#, options: .regularExpression), "kein Preis im Hinweis")
-        let both: Set<String> = ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"]
-        let plusOnly: Set<String> = ["de.uniflow.plus.yearly"]
+        let both: Set<String> = ["de.uniflow.plus.monthly", "de.uniflow.proai.yearly"]
+        let plusOnly: Set<String> = ["de.uniflow.plus.monthly"]
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: both), [.free, .plus, .proAI])
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: plusOnly), [.free, .plus], "ohne Produkt keine Pro-AI-Karte")
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: []), [.free, .plus], "Store nicht erreichbar: Karten ohne Preis")
@@ -174,44 +228,51 @@ final class PlanContractTests: XCTestCase {
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: plusOnly, loading: true, current: .free))
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: [], loading: false, current: .free), "Fehlerkarte sagt es schon")
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: plusOnly, loading: false, current: .proAI))
-        // Konto-Hinweis nur auf der Pro-AI-Karte (07.11.2026), Credits wie im Vertrag
+        // Konto-Hinweis auf der Pro-AI-Karte mit den Credits wie im Vertrag; Plus: die KI mit gekauften Credits (26.11.2026)
         XCTAssertEqual(UFPlanCatalog.serviceNote(.proAI), UFPlanCatalog.proAIServiceNote)
-        XCTAssertEqual(UFPlanCatalog.proAIServiceNote, "Braucht ein StudiNow-Konto (Anmelden mit Apple). 80 Credits im Monat, weitere Credits zum Nachkaufen.")
+        XCTAssertEqual(UFPlanCatalog.proAIServiceNote, "Braucht ein StudiNow-Konto (Anmelden mit Apple). 120 Credits im Monat, am 1. neu aufgeladen, weitere Credits zum Nachkaufen.")
         XCTAssertFalse(UFPlanCatalog.proAIServiceNote.contains("denselben Umfang"))
-        XCTAssertNil(UFPlanCatalog.serviceNote(.plus))
+        XCTAssertEqual(UFPlanCatalog.serviceNote(.plus), UFPlanCatalog.plusServiceNote)
+        XCTAssertTrue(UFPlanCatalog.plusServiceNote.contains("Credits"))
         XCTAssertNil(UFPlanCatalog.serviceNote(.free))
         // drei Tarife (Entscheidung 04.11.2026)
         XCTAssertEqual(UFPlan.allCases.count, 3)
-        // fruehere Monatsprodukte gelten weiter wie ihr Tarif (09.11.2026: nur noch angeboten wird jaehrlich)
+        // fruehere Produkte gelten weiter wie ihr Tarif (plans.LEGACY_PRODUCTS): Plus-Jahresabo 19,99 € (bis 26.11.2026),
+        // Pro Connect; angeboten werden sie nicht mehr. Pro AI monatlich ist seit 27.11.2026 wieder ein Angebot
         XCTAssertEqual(UFPlan(productID: "de.uniflow.proai.monthly"), .proAI)
         XCTAssertEqual(UFPlan(productID: "de.uniflow.proai.yearly"), .proAI)
-        XCTAssertEqual(UFPlan(productID: "de.uniflow.plus.yearly"), .plus)
-        XCTAssertEqual(UFBilling(productID: "de.uniflow.plus.yearly"), .yearly)
-        XCTAssertEqual(UFBilling(productID: "de.uniflow.proai.monthly"), .monthly)
-        XCTAssertNil(UFBilling(productID: "de.uniflow.proconnect.monthly"))
-        XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: ["de.uniflow.proai.monthly"]), [.free, .plus],
-                       "ein altes Monatsprodukt bringt keine Pro-AI-Karte")
-        XCTAssertEqual(UFOfferText.yearlyNote(perMonth: "1,67 €"), "entspricht 1,67 € im Monat")
+        XCTAssertEqual(UFPlan(productID: "de.uniflow.plus.yearly"), .plus, "frueheres Jahres-Plus gilt weiter als Plus")
+        XCTAssertEqual(UFPlan(productID: "de.uniflow.plus.monthly"), .plus)
+        XCTAssertEqual(UFPlan(productID: "de.uniflow.plus.fuenfjahre"), .plus)
+        XCTAssertEqual(UFPlan(productID: "de.uniflow.proconnect.monthly"), .proAI)
+        XCTAssertNil(UFOffer(productID: "de.uniflow.plus.yearly"), "nicht mehr angeboten")
+        XCTAssertEqual(UFOffer(productID: "de.uniflow.proai.monthly"), .proAIMonthly, "wieder angeboten (27.11.2026)")
+        XCTAssertFalse(UFPlanCatalog.sellableProductIDs.contains("de.uniflow.plus.yearly"))
+        XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: ["de.uniflow.proai.monthly"]), [.free, .plus, .proAI],
+                       "Pro AI monatlich allein bringt die Pro-AI-Karte")
+        XCTAssertEqual(UFOfferText.yearlyNote(perMonth: "3,33 €"), "entspricht 3,33 € im Monat")
         // Texte der Seite nennen Pro AI nur mit Produkt
         let withProAI = PlanPickerView.subtitle(proAI: true)
         XCTAssertTrue(withProAI.contains(UFPlan.free.name) && withProAI.contains(UFPlan.plus.name) && withProAI.contains(UFPlan.proAI.name))
-        XCTAssertTrue(withProAI.contains("über den StudiNow-Dienst"))
+        XCTAssertTrue(withProAI.contains("Die StudiNow-KI nutzt du mit Credits."))
+        XCTAssertTrue(withProAI.contains("120 Credits"))
         XCTAssertFalse(PlanPickerView.subtitle(proAI: false).contains("Pro"))
         XCTAssertTrue(PlanPickerView.legalText.contains("höheren Tarif"), "zwei Abo-Tarife in einer Gruppe: Wechselregel steht dabei")
         XCTAssertTrue(PlanPickerView.legalText.contains("24 Stunden"))
     }
 
-    /// Probe auf dem iPad wie `trial` im Vertrag (plans.TRIAL im Dienst): 7 Tage, Tarif Pro AI
+    /// Probe auf dem iPad wie `trial` im Vertrag (plans.TRIAL im Dienst): 7 Tage, Tarif Plus (26.11.2026; vorher Pro AI)
     func testLocalTrialMatchesContract() throws {
         let c = try contract()
         XCTAssertEqual(int(c["trial"]?["days"]), UFLocalTrial.days)
         XCTAssertEqual(c["trial"]?["plan"]?.string, UFLocalTrial.plan.rawValue)
         XCTAssertEqual(UFLocalTrial.length, 7 * 86_400)
-        // "Probe: alles wie Pro AI, 25 Credits" (Entscheidung 04.11.2026): Zahl wie im Vertrag
+        // "Probe: alles wie Plus, 25 Credits" (26.11.2026): Zahl wie im Vertrag
         XCTAssertEqual(int(c["trial"]?["credits"]), UFTrialTexts.credits)
-        XCTAssertTrue(UFTrialTexts.offerProAI.contains("alles wie StudiNow Pro AI, mit \(UFTrialTexts.credits) Credits"))
+        XCTAssertEqual(UFLocalTrial.plan, .plus)
+        XCTAssertTrue(UFTrialTexts.offerProAI.contains("alles wie StudiNow Plus, mit \(UFTrialTexts.credits) Credits"))
         XCTAssertEqual(UFTrialBannerContent.running(daysLeft: 3, source: .service).text, UFTrialTexts.runningTextService)
-        XCTAssertTrue(UFTrialTexts.runningTextService.hasPrefix("Alles wie StudiNow Pro AI, mit \(UFTrialTexts.credits) Credits"))
+        XCTAssertTrue(UFTrialTexts.runningTextService.hasPrefix("Alles wie StudiNow Plus, mit \(UFTrialTexts.credits) Credits"))
         // ohne Dienst (kein Pro-AI-Produkt) nennt die Probe Pro AI und Credits nicht
         XCTAssertFalse(UFTrialTexts.offer.contains("Pro AI") || UFTrialTexts.runningText.contains("Credits"))
     }
@@ -259,7 +320,7 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFEntitlement.canUseFlashcards.onDevice, .onDevice([.flashcards]))
         XCTAssertEqual(UFEntitlement.canUseFlashcards.from, .plus)
         XCTAssertEqual(UFEntitlement.canUseFlashcards.label, UFFeature.flashcards.title)
-        // Pro AI mit StudiNow-Konto (07.11.2026): StudiNow-KI und Notizen-Abgleich
+        // mit StudiNow-Konto (seit 26.11.2026 ab Plus): StudiNow-KI mit Credits und Notizen-Abgleich
         XCTAssertEqual(UFEntitlement.canUseAIExplanations.onDevice, .withAccount([.aiHelp]))
         XCTAssertEqual(UFEntitlement.canUseAISummaries.onDevice, .withAccount([.aiHelp]))
         XCTAssertEqual(UFEntitlement.canUseAIGeneratedQuestions.onDevice, .withAccount([.aiFlashcards, .weeklyTests]))
@@ -277,9 +338,10 @@ final class PlanContractTests: XCTestCase {
                     XCTAssertFalse(f.isV2, "\(e.rawValue): \(f.rawValue)")
                     XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), .allowed, "\(e.rawValue): \(f.rawValue)")
                 }
-                // mit Konto: die Pro-AI-Rechte und der KI-Chat ab Plus (gekaufte Credits liegen beim Konto, 15.11.2026)
+                // mit Konto: StudiNow-KI (nur mit Credits) und Abgleich, seit 26.11.2026 alles ab Plus
                 if case .withAccount = e.onDevice {
-                    XCTAssertEqual(e.from, e == .canUseAIChat ? .plus : .proAI, "mit Konto nur die Pro-AI-Rechte und der KI-Chat: \(e.rawValue)")
+                    XCTAssertEqual(e.from, .plus, "mit Konto ab Plus: \(e.rawValue)")
+                    XCTAssertEqual(e.needsCredits, e != .canSyncAnnotations, "KI braucht Credits, der Abgleich nicht: \(e.rawValue)")
                 }
             case .needsService:
                 XCTAssertFalse(e.availableOnDevice, e.rawValue)
@@ -299,26 +361,37 @@ final class PlanContractTests: XCTestCase {
         XCTAssertFalse(UFEntitlement.canWriteCommunityComments.availableOnDevice)
     }
 
-    /// Pro AI enthaelt alles aus Plus; dazu kommen die StudiNow-KI (KI-Hilfe, KI-Karteikarten, Wochentests) und der
-    /// Notizen-Abgleich (07.11.2026, Wochentests vorher Plus mit dem eigenen ChatGPT, das aus ist)
-    func testProPlansContainEverythingFromPlus() {
-        for f in UFFeature.allCases where f.minimumPlan <= .plus {
+    /// Seit 26.11.2026 (neues Tarifmodell) hat Plus alle Funktionen, Pro AI genau dieselben (dazu nur die Monats-Credits).
+    /// Vorher gehoerten KI-Hilfe, KI-Karteikarten, Wochentests, Abgleich und Erinnerungen zu Pro AI.
+    func testPlusHasEverythingAndProAIAddsOnlyCredits() {
+        for f in UFFeature.allCases {
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), UFFeatureMatrix.access(f, plan: .plus), f.rawValue)
         }
-        for f: UFFeature in [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan] {
+        XCTAssertTrue(UFFeature.allCases.filter { $0.minimumPlan == .proAI }.isEmpty, "keine Funktion nur in Pro AI")
+        let formerlyPro: [UFFeature] = [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders]
+        for f: UFFeature in [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan, .aiChat] + formerlyPro {
             XCTAssertEqual(f.minimumPlan, .plus, f.rawValue)
+            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .allowed, f.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.plus), f.rawValue)
         }
-        // dazu die Erinnerungen an Abgaben und Klausuren (Inhaber 18.11.2026 "Alles ab Pro AI"), auf dem Geraet ohne Konto
-        let pro: [UFFeature] = [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders]
-        XCTAssertEqual(UFFeature.allCases.filter { $0.minimumPlan == .proAI }, pro)
         XCTAssertEqual(UFEntitlement.canUseDueReminders.onDevice, .onDevice([.dueReminders]))
-        for f in pro {
-            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .proAI), .allowed, f.rawValue)
-            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .plus), .locked(.proAI), f.rawValue)
-            XCTAssertEqual(UFFeatureMatrix.access(f, plan: .free), .locked(.proAI), f.rawValue)
+        XCTAssertTrue(UFEntitlement.allCases.allSatisfy { $0.from <= .plus }, "jedes Recht ab Plus oder Free")
+        XCTAssertEqual(UFFeatureMatrix.notes(plan: .plus), UFNoteAccess(canView: true, canExport: true, canEdit: true))
+        // neue Schreibfunktionen (Textbloecke, Notizzettel, Klappkarten, Verweise, Tabelle) ab Plus
+        XCTAssertEqual(UFRichNotes.minimumPlan, .plus)
+        XCTAssertTrue(UFRichNotes.allowed(plan: .plus))
+        XCTAssertFalse(UFRichNotes.allowed(plan: .free))
+        // KI-Rechte nur mit Credits (plans.json `needs_credits`)
+        let ai: Set<UFEntitlement> = [.canGenerateStudoraAITests, .canUseAIChat, .canUseAIExplanations, .canUseAIGeneratedQuestions,
+                                      .canUseAISummaries, .canUseAIRecommendations, .canUsePreparedWeekSets]
+        XCTAssertEqual(Set(UFEntitlement.allCases.filter(\.needsCredits)), ai)
+    }
+
+    func testNeedsCreditsMatchesContract() throws {
+        let rights = try XCTUnwrap(contract()["entitlements"]?.object)
+        for e in UFEntitlement.allCases {
+            XCTAssertEqual(rights[e.rawValue]?["needs_credits"]?.bool ?? false, e.needsCredits, e.rawValue)
         }
-        XCTAssertEqual(UFFeatureMatrix.notes(plan: .proAI), UFNoteAccess(canView: true, canExport: true, canEdit: true))
     }
 
     // MARK: Tarifkarten
@@ -332,34 +405,33 @@ final class PlanContractTests: XCTestCase {
         XCTAssertFalse(LearnCalendar.enabled)
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
                        [UFFeature.studipSync, .readDocuments, .modulesTimetable, .viewNotes, .uniGrades].map(\.title))
-        XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
-                       ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
-                        "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
-                        "KI-Chat mit gekauften Credits"]
-                           .map { UFDevice.adapt($0) })
+        // seit 26.11.2026 alles auf der Plus-Karte, die KI-Zeilen mit dem Zusatz "mit Credits"
+        let plusRows = ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
+                        "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung"]
+        let plusAI = ["KI-Chat mit Credits", "KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen",
+                      "Wochentests erstellen", "Notizen auf allen deinen Geräten", "Erinnerungen an Abgaben und Klausuren"]
+        XCTAssertEqual(UFPlanCard.included(.plus).map(\.title), (plusRows + plusAI).map { UFDevice.adapt($0) })
         LearnCalendar.enabled = true
         defer { LearnCalendar.enabled = false }
         XCTAssertEqual(UFPlanCard.included(.free).map(\.title),
                        [UFFeature.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning,
                         .viewNotes, .uniGrades].map(\.title))             // ohne „Eigenes ChatGPT“ (aus seit 11.11.2026)
         XCTAssertEqual(UFPlanCard.included(.plus).map(\.title),
-                       ["Schreiben mit Apple Pencil", "Community lesen, beitreten und mitmachen", "Eigene Lösungen teilen",
-                        "Übung und Skript nebeneinander", "Eigene Karteikarten mit Wiederholung",
-                        "Lernplan automatisch erstellen", "KI-Chat mit gekauften Credits"]
-                           .map { UFDevice.adapt($0) })   // am Mac „Schreiben mit Maus oder Trackpad“
+                       (plusRows + ["Lernplan automatisch erstellen"] + plusAI).map { UFDevice.adapt($0) })   // am Mac „Schreiben mit Maus oder Trackpad“
         // Free (07.11.2026): Lernkalender von Hand, der automatische Lernplan gehoert zu Plus
         XCTAssertFalse((UFPlanCard.included(.free).map { $0.title + " " + ($0.detail ?? "") }).joined().contains("automatisch"))
         XCTAssertEqual(UFPlanCard.included(.plus).first { $0.title == UFFeature.autoPlan.title }?.detail, "Lernslots in deinen freien Zeiten")
-        // Plus (Entscheidung des Inhabers 15.11.2026): KI-Chat mit gekauften Credits - ehrlich, was nicht dazugehoert
-        XCTAssertEqual(UFPlanCard.included(.plus).last?.detail,
-                       "Fragen an die KI stellen, bezahlt aus Credits, die du in der App kaufst. Erklären, Karteikarten und Tests gibt es mit Pro AI")
-        XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title),
-                       ["KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen",
-                        "Notizen auf allen deinen Geräten", "Erinnerungen an Abgaben und Klausuren"])   // ab Pro AI seit 18.11.2026
-        let help = try? XCTUnwrap(UFPlanCard.included(.proAI).first)
+        // KI-Zeilen ehrlich: nur mit Credits
+        for t in ["KI-Chat mit Credits", "KI-Lernhilfe zu deinen Unterlagen", "Karteikarten aus deinen Unterlagen", "Wochentests erstellen"] {
+            XCTAssertTrue(UFPlanCard.included(.plus).first { $0.title == t }?.detail?.contains("Credits") == true, t)
+        }
+        // Pro AI: nur die Monats-Credits dazu
+        XCTAssertEqual(UFPlanCard.included(.proAI).map(\.title), ["120 Credits für die StudiNow-KI – jeden Monat"])
+        XCTAssertTrue(UFPlanCard.included(.proAI).first?.detail?.contains("Am 1. neu aufgeladen, der Rest verfällt") == true)
+        let help = try? XCTUnwrap(UFPlanCard.included(.plus).first { $0.title == UFFeature.aiHelp.title })
         XCTAssertTrue(help?.detail?.contains("„Ganze Vorlesung erklären“") == true)
         XCTAssertTrue(help?.detail?.contains("„Alle Aufgaben erklären“") == true)
-        XCTAssertTrue(help?.detail?.contains("80 Credits im Monat, weitere Credits zum Nachkaufen") == true)
+        XCTAssertFalse(UFPlanCard.included(.plus).contains { ($0.detail ?? "").contains("80 Credits") })
         XCTAssertFalse(UFPlanCard.included(.free).contains { $0.title.contains("Community") }, "Free ohne Community")
 
         // was es auf dem iPad nicht gibt, steht auf keiner Karte; "ChatGPT" nur in der Zeile des eigenen Schluessels
@@ -368,10 +440,10 @@ final class PlanContractTests: XCTestCase {
             for r in UFPlanCard.included(plan) {
                 XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: forbidden, options: .regularExpression), r.title)
                 if r.title != UFFeature.ownChatGPT.title { XCTAssertFalse((r.title + " " + (r.detail ?? "")).contains("ChatGPT"), r.title) }
-                // unter Pro AI nennt nur die Zeile des KI-Chats (Plus) die KI
-                if plan != .proAI, r.title != UFFeature.aiChat.title {
+                // Free nennt weder KI noch Abgleich (beides ab Plus)
+                if plan == .free {
                     XCTAssertNil((r.title + " " + (r.detail ?? "")).range(of: #"\bKI\b|KI-|allen deinen Geräten"#, options: .regularExpression),
-                                 "KI und Abgleich gehoeren zu Pro AI: \(r.title)")
+                                 "KI und Abgleich gehoeren zu Plus: \(r.title)")
                 }
             }
             // jedes Recht ab diesem Tarif, das auf dem iPad geht, steht auf der Karte; die anderen nicht
@@ -390,11 +462,10 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(UFPlanCard.intro(.free), "Alles für den Uni-Alltag:")
         XCTAssertEqual(UFPlanCard.intro(.plus), "Alles aus StudiNow Free, dazu:")
         XCTAssertEqual(UFPlanCard.intro(.proAI), "Alles aus StudiNow Plus, dazu:")
-        // Kurzbeschreibung der Karten: Plus ohne Wochentests (gehoeren zu Pro AI), Pro AI ohne ChatGPT
+        // Kurzbeschreibung der Karten wie im Vertrag (26.11.2026)
         XCTAssertEqual(UFPlanCard.tagline(.free), UFPlan.free.tagline)
-        XCTAssertEqual(UFPlanCard.tagline(.plus),                       // am Mac „Mit Maus oder Trackpad …“
-                       UFDevice.adapt("Mit Apple Pencil auf deinen Unterlagen schreiben, Karteikarten und Community"))
-        XCTAssertEqual(UFPlanCard.tagline(.proAI), "Die StudiNow-KI für deine Unterlagen inklusive")
+        XCTAssertEqual(UFPlanCard.tagline(.plus), "Alle Funktionen ohne KI – KI mit Credits dazu")
+        XCTAssertEqual(UFPlanCard.tagline(.proAI), "Alles aus Plus und 120 Credits für die StudiNow-KI – jeden Monat neu")
         // Seitenkopf nie "gratis" (kein Einfuehrungsangebot); die Probe steht in eigener Zeile (testTrialStatusOnPlanPage)
         XCTAssertFalse(PlanPickerView.subtitle(proAI: true).contains("gratis"))
         XCTAssertFalse(PlanPickerView.subtitle(proAI: true).contains("Probe"))
@@ -408,20 +479,20 @@ final class PlanContractTests: XCTestCase {
         XCTAssertEqual(PlanPickerView.accessibilityLabel(UFPlanCardRow(title: "Stundenplan", icon: "check")), "Stundenplan")
     }
 
-    /// Probe auf dem iPad (07.11.2026): oben "Probe aktiv: alle Funktionen von StudiNow Pro AI bis … (noch n Tage)",
-    /// ehrlich zur KI (StudiNow-Konto, 25 Credits beim Dienst); keine Karte "Aktueller Tarif", auch Free nicht; die
-    /// Probe schaltet alles wie Pro AI frei, danach Free
+    /// Probe auf dem iPad: oben "Probe aktiv: alle Funktionen von StudiNow Plus bis … (noch n Tage)" (26.11.2026; vorher
+    /// Pro AI), ehrlich zur KI (StudiNow-Konto, 25 Credits beim Dienst); keine Karte "Aktueller Tarif", auch Free nicht;
+    /// die Probe schaltet alles wie Plus frei, danach Free
     func testTrialStatusOnPlanPage() throws {
         let start = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-11-07T10:00:00Z"))
         let t = UFLocalTrial.state(startedAt: start, now: start)
         let s = PlanPickerView.trialStatus(t, proAI: true)
-        XCTAssertEqual(s.title, "Probe aktiv: alle Funktionen von StudiNow Pro AI bis 14.11.2026 (noch 7 Tage)")
+        XCTAssertEqual(s.title, "Probe aktiv: alle Funktionen von StudiNow Plus bis 14.11.2026 (noch 7 Tage)")
         XCTAssertTrue(s.note.contains("StudiNow-Konto (Anmelden mit Apple)"), s.note)
         XCTAssertTrue(s.note.contains("25 Credits"), s.note)
         XCTAssertTrue(s.note.contains("Danach gilt StudiNow Free"), s.note)
         XCTAssertFalse(s.note.contains("ChatGPT") || s.note.contains("gratis"), s.note)
         let last = UFLocalTrial.state(startedAt: start, now: start.addingTimeInterval(6.5 * 86_400))
-        XCTAssertEqual(PlanPickerView.trialStatus(last, proAI: true).title, "Probe aktiv: alle Funktionen von StudiNow Pro AI bis 14.11.2026 (noch 1 Tag)")
+        XCTAssertEqual(PlanPickerView.trialStatus(last, proAI: true).title, "Probe aktiv: alle Funktionen von StudiNow Plus bis 14.11.2026 (noch 1 Tag)")
         // ohne Pro-AI-Produkt im Store weder Pro AI noch KI
         let plain = PlanPickerView.trialStatus(t, proAI: false)
         XCTAssertEqual(plain.title, "Probe aktiv: alle Funktionen bis 14.11.2026 (noch 7 Tage)")
@@ -433,9 +504,9 @@ final class PlanContractTests: XCTestCase {
         XCTAssertTrue(PlanPickerView.isCurrent(.free, purchased: .free, loading: false, trial: false))
         XCTAssertTrue(PlanPickerView.isCurrent(.plus, purchased: .plus, loading: false, trial: true))
         XCTAssertFalse(PlanPickerView.isCurrent(.free, purchased: .free, loading: true, trial: false))
-        // Probe = Pro AI: alle Funktionen des iPads frei, danach Free
-        XCTAssertEqual(UFLocalTrial.plan, .proAI)
-        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: t), .proAI)
+        // Probe = Plus: alle Funktionen des iPads frei, danach Free
+        XCTAssertEqual(UFLocalTrial.plan, .plus)
+        XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: t), .plus)
         let over = UFLocalTrial.state(startedAt: start, now: start.addingTimeInterval(8 * 86_400))
         XCTAssertEqual(UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: over), .free)
         for f in UFFeature.allCases where !f.isV2 && (f != .timer || StudyTimer.isEnabled) {
@@ -448,7 +519,7 @@ final class PlanContractTests: XCTestCase {
         let ent = Entitlements(observe: false, plan: .free)
         let now = Date()
         ent.useLocalTrial(startedAt: now, now: now)
-        XCTAssertEqual(ent.plan, .proAI, "Probe: alles wie Pro AI")
+        XCTAssertEqual(ent.plan, .plus, "Probe: alles wie Plus (26.11.2026)")
         XCTAssertEqual(ent.runningLocalTrial?.daysLeft, 7)
         ent.useLocalTrial(startedAt: now.addingTimeInterval(-8 * 86_400), now: now)
         XCTAssertNil(ent.runningLocalTrial, "nach der Probe")

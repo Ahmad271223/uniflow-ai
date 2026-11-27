@@ -882,7 +882,7 @@ private struct AppAccountCards: View {
                 if !ent.loading { UFBadge(ent.statusLabel, tone: ent.plan == .free ? .neutral : .ok) }
             }
             Text(canSwitchPlan
-                 ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen."
+                 ? "\(Self.planNames) wählen, Abo verwalten und Käufe wiederherstellen. \(UFPlan.proAI.name) gibt es \(UFPlanCatalog.proAIFrom)."
                  : "Die Auswahl zwischen \(Self.planNames) folgt hier.")
                 .ufFont(13.12).foregroundStyle(UF.muted)
             Text(UFTrialTexts.perAppleID).ufFont(12.8).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
@@ -1001,7 +1001,7 @@ struct StudoraCreditsRow: View {
 
     /// Wie viele Credits es gibt, ohne Centbetrag (Entscheidung des Inhabers 11.11.2026: „das müssen Nutzer nicht wissen“);
     /// die Tarife und ihren Rahmen zeigt "Tarif wechseln" darunter
-    static let explanation = "Pro AI hat 80 Credits im Monat, die Probewoche 25, andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang. Gekaufte Credits verfallen nicht; mit Plus reichen sie für Fragen an die KI. Welcher Tarif was enthält, steht unter „Tarif wechseln“."
+    static let explanation = "Die StudiNow-KI läuft nur mit Credits: Pro AI hat \(UFPlan.proAI.monthlyCredits) im Monat, die Probewoche \(UFTrialTexts.credits), andere Tarife keine; nicht Verbrauchtes verfällt zum Monatsanfang. Gekaufte Credits verfallen nicht, kaufen kannst du sie mit Plus und Pro AI. Welcher Tarif was enthält, steht unter „Tarif wechseln“."
 
     var body: some View {
         if let c = link.credits, let value = AICost.balanceLine(c, trial: link.planStatus?.trialActive ?? false, labelled: false) {

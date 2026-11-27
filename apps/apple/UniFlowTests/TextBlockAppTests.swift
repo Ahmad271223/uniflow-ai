@@ -1152,15 +1152,16 @@ final class TextBlockAppTests: XCTestCase {
 
     // MARK: Tarif
 
-    /// Tarif-Regel (Inhaber 25.11.2026: "das alles ab Pro AI"): Free und Plus nicht, Pro AI ja
+    /// Tarif-Regel: seit 26.11.2026 (neues Tarifmodell, Plus hat alle Funktionen von Pro AI) ab Plus; 25.-26.11.2026
+    /// "das alles ab Pro AI". Free nicht, Plus und Pro AI ja, die Probewoche zaehlt wie Plus.
     func testTarifRegel() {
-        XCTAssertEqual(UFRichNotes.minimumPlan, .proAI)
+        XCTAssertEqual(UFRichNotes.minimumPlan, .plus)
         XCTAssertFalse(UFRichNotes.allowed(plan: .free))
-        XCTAssertFalse(UFRichNotes.allowed(plan: .plus))
+        XCTAssertTrue(UFRichNotes.allowed(plan: .plus))
         XCTAssertTrue(UFRichNotes.allowed(plan: .proAI))
-        XCTAssertEqual(UFRichNotes.lockedPlan(plan: .plus), .proAI)
-        XCTAssertNil(UFRichNotes.lockedPlan(plan: .proAI))
-        XCTAssertEqual(UFLocalTrial.plan, .proAI, "die Probewoche zaehlt wie Pro AI")
+        XCTAssertEqual(UFRichNotes.lockedPlan(plan: .free), .plus)
+        XCTAssertNil(UFRichNotes.lockedPlan(plan: .plus))
+        XCTAssertEqual(UFLocalTrial.plan, .plus, "die Probewoche zaehlt wie Plus")
     }
 
     /// Plus (ohne Pro AI) behaelt, was es in 1.0.7 hat: Das Werkzeug "Text" legt das einfache Textfeld an (kein Block,

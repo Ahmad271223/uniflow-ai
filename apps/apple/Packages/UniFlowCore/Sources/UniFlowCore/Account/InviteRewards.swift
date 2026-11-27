@@ -4,8 +4,11 @@ import Foundation
 /// wie in app/invites.py (`reward_tier`), geprueft gegen packages/shared-contracts/fixtures/invites/cases.json in
 /// beiden Welten. Belohnungen sind Angebotscodes aus App Store Connect, eingeloest in Apples Dialog; die App schaltet
 /// nie selbst einen Tarif frei.
+///
+/// Seit 27.11.2026 OHNE Belohnungen (Inhaber: "gar keine mehr, entnimm das komplett"): `tiers` ist leer wie
+/// app/invites.py `TIERS`; Links, QR-Code, Teilen und der Zaehler bleiben. Die Typen bleiben, damit die Technik ruht.
 public enum InviteRewards {
-    /// Wahl der Belohnung je Stufe: `plus` (Plus-Monate gratis) oder `proai` (Pro AI zum Plus-Preis, nur Stufe 20)
+    /// Wahl der Belohnung je Stufe (bis 26.11.2026): `plus` oder `proai`
     public enum Choice: String, CaseIterable, Sendable {
         case plus
         case proai
@@ -27,13 +30,11 @@ public enum InviteRewards {
     public static let createDays = 7
     public static let linkBase = "https://studinow.app/i/"
 
-    /// Die Tabelle (aufsteigend); Texte wie in app/invites.py REWARD_LABELS
-    public static let tiers: [Tier] = [
-        Tier(count: 5, choices: [.plus], rewards: [.plus: "1 Monat StudiNow Plus gratis"]),
-        Tier(count: 10, choices: [.plus], rewards: [.plus: "3 Monate StudiNow Plus gratis"]),
-        Tier(count: 20, choices: [.plus, .proai], rewards: [.plus: "12 Monate StudiNow Plus gratis",
-                                                            .proai: "12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 €)"]),
-    ]
+    /// Die Tabelle (aufsteigend) wie app/invites.py TIERS: seit 27.11.2026 leer, keine Belohnungen mehr
+    public static let tiers: [Tier] = []
+
+    /// Gibt es ueberhaupt Belohnungen? (seit 27.11.2026 nein; die App zeigt dann keine Stufen)
+    public static var hasRewards: Bool { !tiers.isEmpty }
 
     /// Hoechste erreichte Stufe (5, 10, 20) fuer so viele angekommene Personen; nil unter der ersten Stufe
     public static func tier(count: Int) -> Int? {

@@ -328,7 +328,8 @@ def test_hosted_local_only_paths_answer_501(hosted):
                  ("POST", "/api/files/abc/analyze"), ("POST", "/api/tests/generate-week")):
         st, data, _ = _json(asgi_call(hosted, m, p, headers=_auth(token), body="{}"))
         assert st == 501 and data["code"] == "not_available_hosted", (m, p, st, data)
-    # KI im Editor gibt es im Dienst ueber die StudiNow-KI (Pro AI); ohne Tarif (nach der Probe) 403 plan_required statt 501
+    # KI im Editor gibt es im Dienst ueber die StudiNow-KI (26.11.2026 neues Modell: ab Plus mit Credits, frueher Pro AI);
+    # ohne Tarif (nach der Probe) 403 plan_required statt 501
     from app import billing
     conn = billing.connect()
     try:
@@ -337,7 +338,7 @@ def test_hosted_local_only_paths_answer_501(hosted):
     finally:
         conn.close()
     st, data, _ = _json(asgi_call(hosted, "POST", "/api/ai/tutor", headers=_auth(token), body="{}"))
-    assert st == 403 and data["code"] == "plan_required" and data["required_plan"] == "pro_ai", data
+    assert st == 403 and data["code"] == "plan_required" and data["required_plan"] == "plus", data
     assert asgi_call(hosted, "GET", "/api/sync/status", headers=_auth(token))[0] == 200
     # Hochschul-Abgleich und Zugangsdaten gibt es im Dienst nicht mehr (06.11.2026, tests/test_hosted_sync.py)
     st, data, _ = _json(asgi_call(hosted, "POST", "/api/sync", headers=_auth(token), body="{}"))

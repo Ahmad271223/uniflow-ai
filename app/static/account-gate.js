@@ -18,13 +18,13 @@ export const GATE_TEXTS = {
   readOnly: "Nur lesen",
   apple: "Du hast schon ein Abo über Apple – verwalten in den Einstellungen deines iPads/iPhones.",
   loginTitle: "Bei StudiNow anmelden",
-  loginText: "StudiNow für Windows braucht dein StudiNow-Konto – dasselbe wie auf dem iPad und im Web. Neue Konten haben 7 Tage Probe mit allem wie StudiNow Pro AI, ohne Zahlungsdaten.",
+  loginText: "StudiNow für Windows braucht dein StudiNow-Konto – dasselbe wie auf dem iPad und im Web. Neue Konten haben 7 Tage Probe mit allem wie StudiNow Plus und 25 Credits für die KI, ohne Zahlungsdaten.",
   browserWait: "Im Browser geöffnet. Melde dich dort an; StudiNow wechselt danach von selbst weiter.",
   checkoutOpened: "Die Bezahlseite ist in deinem Browser geöffnet. Nach dem Bezahlen erscheint dein Abo hier von selbst.",
 };
 
-/** "Probe: noch N Tage alles wie StudiNow Pro AI" */
-export const trialBarTitle = days => { const n = Math.max(1, Number(days) || 1); return `Probe: noch ${n} ${n === 1 ? "Tag" : "Tage"} alles wie StudiNow Pro AI`; };
+/** "Probe: noch N Tage alles wie StudiNow Plus" */
+export const trialBarTitle = days => { const n = Math.max(1, Number(days) || 1); return `Probe: noch ${n} ${n === 1 ? "Tag" : "Tage"} alles wie StudiNow Plus`; };
 
 /**
  * Zustand der Oberflaeche: "open" (keine Pflicht: eigener PC ohne Konto-Pflicht, Entwicklung), "login" (Windows ohne

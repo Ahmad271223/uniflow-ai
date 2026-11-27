@@ -26,7 +26,7 @@ enum ErklaerungShop {
     static let cacheSeconds: Int64 = 600
     /// so viele Pruefsummen nimmt der Dienst auf einmal (`MAX_OFFER`)
     static let maxPerRequest = 2000
-    static let needsService = "Die Erklärungen von StudiNow gibt es mit StudiNow Pro AI. Melde dich dafür mit deinem StudiNow-Konto an."
+    static let needsService = "Die Erklärungen von StudiNow gibt es mit StudiNow Plus oder Pro AI und Credits. Melde dich dafür mit deinem StudiNow-Konto an."
     /// Kauf und Abholen nie gleichzeitig (sonst laege dieselbe PDF doppelt im Ordner); eigene Sperre neben der des
     /// Klausur-Generators
     static let gate = ExamShopGate()

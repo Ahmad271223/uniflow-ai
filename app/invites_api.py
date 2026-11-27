@@ -5,6 +5,7 @@
                                     Vorrat der Angebotscodes nur fuer Admins
 - POST /api/invites/redeem {code}   Einloesung durch das neue Konto (einmal je Person, idempotent)
 - POST /api/invites/claim {tier, choice}   Angebotscode fuer eine erreichte Stufe + Apples Einloese-Adresse
+  (seit 27.11.2026 ohne Belohnungen: 410 invite_rewards_off, ebenso das Hochladen des Vorrats)
 - POST /api/billing/offer-codes {product, tier, codes|text}   Vorrat hochladen (nur Admin, Export aus App Store Connect)
 - GET  /api/billing/offer-codes     Vorrat je Produkt und Stufe (nur Admin)
 

@@ -31,7 +31,7 @@ enum IntroTourPage: Int, CaseIterable, Identifiable {
         case .plan:
             return "Der Smart Planner verteilt Lernzeit auf deine freien Stunden – passend zu Prüfungen und Lernzielen."
         case .notes:
-            return UFDevice.adapt("Notizen mit dem Apple Pencil direkt im Skript, dazu Karteikarten zum Wiederholen – mit Pro AI auch aus deinen Unterlagen.")
+            return UFDevice.adapt("Notizen mit dem Apple Pencil direkt im Skript, dazu Karteikarten zum Wiederholen – mit Plus und Credits auch aus deinen Unterlagen.")
         }
     }
 }

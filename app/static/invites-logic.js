@@ -2,14 +2,11 @@
 // Reine Funktionen ohne DOM (tests/js/invites.test.mjs). Daten: GET /api/invites (im Dienst direkt, in der Windows-App
 // ueber das StudiNow-Konto weitergereicht, app/invites_api.py `_forward`).
 //
-// Belohnungen: Auf dem iPad sind es Apple-Angebotscodes, die nur im App Store einloesbar sind. Fuer Web und Windows
-// (Stripe-Gutscheine) hat der Inhaber noch nicht entschieden (docs/EINLADUNGEN.md Abschnitt 9). Solange
-// `WEB_REWARDS` false ist, zeigt die Seite Links, Teilen, QR-Code und den Zaehler, aber keine Belohnungen und nichts
-// zum Einloesen.
+// Belohnungen gibt es seit 27.11.2026 nirgends mehr (Inhaber: "gar keine mehr", app/invites.py TIERS leer): die Seite
+// zeigt Links, Teilen, QR-Code und den Zaehler, keinen Hinweis auf Belohnungen.
 
 export const WEB_REWARDS = false;
 export const APP_SCHEME = "uniflow://invite/";
-export const REWARDS_NOTE = "Belohnungen für Einladungen gibt es bisher nur als App-Store-Code in der iPad-App. Ob es sie auch im Browser und unter Windows gibt, ist noch nicht entschieden – hier wird darum nichts versprochen.";
 
 const two = n => String(n).padStart(2, "0");
 /** "05.12.2026" aus ISO */

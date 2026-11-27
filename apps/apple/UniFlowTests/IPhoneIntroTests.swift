@@ -16,9 +16,9 @@ final class IPhoneIntroTests: IPhoneLearnTestCase {
     }
 
     private struct PlanShot: View {
-        @State private var selected: UFPlan = .free
+        @State private var selected: UFOffer?
         var body: some View {
-            IntroPlanLayout(trialDays: 7, proAIOffered: true, plans: [.free, .plus, .proAI], selected: $selected,
+            IntroPlanLayout(trialDays: 7, proAIOffered: true, offers: UFOffer.allCases, selected: $selected,
                             price: IntroShotsAppTests.price, onPrimary: {}, onCompare: {}, onRestore: {}, onLegal: { _ in })
         }
     }

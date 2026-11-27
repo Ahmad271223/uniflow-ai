@@ -84,13 +84,14 @@ def test_one_subscription_belongs_to_one_account_on_all_its_devices(apple_login,
     assert ent(hosted, hc)["plan"] == "free" and ent(hosted, ha)["plan"] == "pro_ai"
 
 
-def test_note_sync_between_devices_stays_pro_ai_only(apple_login, hosted):  # noqa: F811
+def test_note_sync_between_devices_needs_plus(apple_login, hosted):  # noqa: F811
+    """26.11.2026 neues Modell: der Abgleich der Notizen zwischen Geraeten gibt es ab Plus (frueher nur Pro AI)."""
     from app import accounts, plans
-    assert plans.ENTITLEMENTS["can_sync_annotations"]["from"] == "pro_ai"
+    assert plans.ENTITLEMENTS["can_sync_annotations"]["from"] == "plus"
     st, a, ha = apple_login("apple-sub-N", "ipad-1", university="luh")
     accounts.end_trial(a["user"]["id"])
     note = {"entity": "annotations", "id": "f1", "data": {"version": 2, "pages": {}}}
-    for plan, refused in (("free", True), ("plus", True), ("pro_ai", False)):
+    for plan, refused in (("free", True), ("plus", False), ("pro_ai", False)):
         accounts.set_plan(a["user"]["id"], plan)
         st, out = _j(asgi_call(hosted, "POST", "/api/sync/push", headers=ha,
                                body=json.dumps({"device_id": "ipad-1", "items": [note]})))

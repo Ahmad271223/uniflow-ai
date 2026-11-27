@@ -52,7 +52,7 @@ class FailingAI(FakeAI):
 def test_allowance_per_plan_and_env(monkeypatch):
     from app import credits
     monkeypatch.delenv("LERNAPP_CREDITS_PRO_AI", raising=False)   # ohne den alten Kurs der Rechen-Tests (conftest)
-    assert credits.allowance("pro_ai", False) == 80, "Pro AI 80 Credits = hoechstens 0,80 EUR (24.11.2026)"
+    assert credits.allowance("pro_ai", False) == 120, "Pro AI 120 Credits = hoechstens 1,20 EUR (26.11.2026 neues Modell, vorher 80)"
     assert [credits.allowance(p, False) for p in ("plus", "free", "unbekannt")] == [0, 0, 0]
     assert credits.allowance("free", True) == 25, "Probe: eigener Rahmen"
     monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "40")
@@ -60,7 +60,7 @@ def test_allowance_per_plan_and_env(monkeypatch):
     monkeypatch.setenv("LERNAPP_CREDITS_TRIAL", "7")
     assert (credits.allowance("pro_ai", False), credits.allowance("plus", False), credits.allowance("plus", True)) == (40, 5, 7)
     monkeypatch.setenv("LERNAPP_CREDITS_PRO_AI", "kaputt")
-    assert credits.allowance("pro_ai", False) == 80
+    assert credits.allowance("pro_ai", False) == 120
 
 
 def test_month_is_the_calendar_month_in_berlin():
@@ -100,7 +100,7 @@ def test_month_row_appears_lazily_on_first_use_and_follows_the_plan(hosted):
 def test_trial_account_has_its_own_allowance(hosted, monkeypatch):
     _, h = trial_account(hosted, "probe@beispiel.de")
     c = credits_of(hosted, h)
-    assert (c["allowance"], c["plan"]) == (25, "pro_ai:trial")
+    assert (c["allowance"], c["plan"]) == (25, "plus:trial")        # 26.11.2026 neues Modell: Probe = Plus
     monkeypatch.setenv("LERNAPP_CREDITS_TRIAL", "7")
     assert credits_of(hosted, h)["allowance"] == 7
 
@@ -186,7 +186,8 @@ def test_funding_order_shared_then_own_chatgpt_then_credits():
     assert credits.funding_for(own_chatgpt=True) == "own_chatgpt"
     assert credits.funding_for() == "credits"
     assert ai_backend.charges_credits("tutor:explain") and ai_backend.charges_credits("flashcards")
-    assert not ai_backend.charges_credits("test_generation") and not ai_backend.charges_credits("weekly_test")
+    # 26.11.2026 neues Modell ("KI nur mit Credits"): auch Wochentests und das Erzeugen fuer den Fragenpool kosten Credits
+    assert ai_backend.charges_credits("test_generation") and ai_backend.charges_credits("weekly_test")
 
 
 # ---------------------------------------------------------------- ueber die Endpunkte
@@ -300,16 +301,18 @@ def test_cost_comes_only_from_usage_never_from_the_client(hosted, monkeypatch):
     assert ai_backend.Completion.from_usage("x", {"output": []}, "m").input_tokens == 0
 
 
-def test_pool_generation_and_shared_tests_cost_no_credits(hosted, monkeypatch):
+def test_pool_generation_costs_credits_and_shared_tests_cost_none(hosted, monkeypatch):
+    """26.11.2026 neues Modell: wer einen neuen Test fuer den Pool erzeugen laesst, bezahlt den KI-Aufruf mit Credits
+    (vorher nur Kontingent); ein schon vorhandener gemeinsamer Test bleibt kostenlos (funding shared)."""
     from app import ai_backend
     ai_backend.set_provider(FakeAI())
     cheap_calls(monkeypatch)
     _, h = user(hosted, "pool@beispiel.de", plan="pro_ai")
     assert library_test(hosted, h, "Determinanten")[0] == 200
-    assert credits_of(hosted, h)["used"] == 0
+    assert credits_of(hosted, h)["used"] > 0
     conn = ledger_conn()
     try:
-        assert conn.execute("SELECT COUNT(*) FROM credit_ledger").fetchone()[0] == 0, "Pool-Erzeugung laeuft ueber das Kontingent"
+        assert conn.execute("SELECT COUNT(*) FROM credit_ledger WHERE purpose='test_generation' AND state='settled'").fetchone()[0] >= 1
         from app import credits
         credits.record_free(conn, "u", "shared-1", "week_test", "shared", now=T0)
         assert conn.execute("SELECT state, charged FROM credit_ledger WHERE request_id='shared-1'").fetchone()[:] == ("free", 0)
@@ -471,7 +474,7 @@ def test_request_id_of_another_account_never_replays_its_answer(hosted):
 
 def test_exhausted_credits_stop_before_the_provider_even_with_a_client_cost_claim(hosted, monkeypatch):
     """Rahmen 0: 429 credits_exhausted, ohne den Anbieter zu rufen, auch wenn der Client 0 Kosten oder Credits behauptet.
-    (Plus ohne KI scheitert schon vorher mit 403 plan_required.)"""
+    26.11.2026 neues Modell: Plus ohne Credits ebenso 429 credits_exhausted (frueher 403 plan_required)."""
     from app import ai_backend
     fake = FakeAI()
     ai_backend.set_provider(fake)
@@ -481,7 +484,7 @@ def test_exhausted_credits_stop_before_the_provider_even_with_a_client_cost_clai
     st, d = ask(hosted, h, "Gratis?", "z1", credits=1000, cost_microeur=0, estimate=0, charged=0)
     assert (st, d["code"], d["credits"]["remaining"]) == (429, "credits_exhausted", 0), d
     _, hp = user(hosted, "plus@beispiel.de", plan="plus")
-    assert ask(hosted, hp, "Gratis?", "z2", credits=1000)[1]["code"] == "plan_required"
+    assert ask(hosted, hp, "Gratis?", "z2", credits=1000)[1]["code"] == "credits_exhausted"
     assert fake.calls == 0, "kein Aufruf des Anbieters"
 
 

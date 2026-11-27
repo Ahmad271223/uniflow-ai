@@ -154,10 +154,13 @@ def test_mine_lists_bought_exams_of_the_account_only(hosted, fake):
     assert m["items"][0]["files"] == sorted([SHA_VL, SHA_UB, SHA_AK]), "Fingerabdruecke der Unterlagen, sonst nichts"
     assert "Folgen" not in json.dumps(m) and "doc_type" not in json.dumps(m)
 
-    # ein anderes Konto sieht davon nichts; ohne Pro AI gibt es die Liste nicht
+    # ein anderes Konto sieht davon nichts; ohne den Tarif (Free) gibt es die Liste nicht. 26.11.2026 neues Modell: Plus
+    # hat das Recht; die eigene Liste (Gekauftes abholen) braucht keine verfuegbaren Credits
     assert jcall(hosted, "GET", "/api/exam-shop/mine", hb)[1] == {"items": []}
     up, hp = user(hosted, "pk-mine-plus@beispiel.de", plan="plus")
-    assert call(hosted, "GET", "/api/exam-shop/mine", hp)[0] == 403
+    assert jcall(hosted, "GET", "/api/exam-shop/mine", hp) == (200, {"items": []})
+    uf, hf = user(hosted, "pk-mine-free@beispiel.de")
+    assert call(hosted, "GET", "/api/exam-shop/mine", hf)[0] == 403
 
 
 def test_failure_costs_nothing_and_can_be_retried(hosted, fake):
@@ -188,9 +191,13 @@ def test_wrong_result_is_fixed_before_selling(hosted, fake):
 
 
 def test_limits_plan_and_credits(hosted, fake):
+    # 26.11.2026 neues Modell: Free hat das Recht nicht (403), Plus hat es, ohne Credits aber 429 (frueher 403)
+    u, h = user(hosted, "pk-free@beispiel.de")
+    st, d = jcall(hosted, "POST", "/api/exam-shop/offer", h, {"files": FILES})
+    assert st == 403 and d["code"] == "plan_required", d
     u, h = user(hosted, "pk-plus@beispiel.de", plan="plus")
     st, d = jcall(hosted, "POST", "/api/exam-shop/offer", h, {"files": FILES})
-    assert st == 403 and d["detail"]["code"] == "plan_required" if isinstance(d.get("detail"), dict) else d["code"] == "plan_required"
+    assert st == 429 and d["code"] == "credits_exhausted", d
 
     u, h = user(hosted, "pk-grenzen@beispiel.de", plan="pro_ai")
     many = [{"sha256": f"{i:064x}", "doc_type": "vorlesung", "pages": 31} for i in range(10)]

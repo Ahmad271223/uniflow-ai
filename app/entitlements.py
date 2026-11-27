@@ -44,7 +44,48 @@ def has(user: dict | None, entitlement: str) -> bool:
     if not config.is_hosted():
         am = _account_mode()
         return plans.has(am.effective_plan(), entitlement) if am else True
-    return plans.has(plan_of(user), entitlement)
+    if not plans.has(plan_of(user), entitlement):
+        return False
+    # StudiNow-KI nur mit Credits (26.11.2026, Inhaber: "erst wenn wer KI-Credits kauft, kann er alle KI-Sachen nutzen,
+    # Zusammenfassungen ohne Credits sollen nie klappen"): Rest des Monats (Pro AI, Probe) oder nutzbare gekaufte Credits
+    if plans.needs_credits(entitlement):
+        return bool(user) and credits_available(user["id"]) > 0
+    return True
+
+
+# Meldung, wenn der Tarif das Recht hat, aber keine Credits da sind (die App zeigt dann die Credit-Pakete)
+NO_CREDITS_MESSAGE = "Für die StudiNow-KI brauchst du Credits. Credits kaufst du in der App für iPhone und iPad."
+
+
+def credit_state(user_id: str) -> dict | None:
+    """Stand der Credits wie GET /api/entitlements `credits` (app/credits.py `balance`); ein Fehler heisst None."""
+    from . import credits
+    try:
+        conn = credits.connect()
+        try:
+            return credits.balance(conn, user_id)
+        finally:
+            conn.close()
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def credits_available(user_id: str) -> int:
+    """Jetzt nutzbare Credits des Kontos (Monat + gekaufte, `available`). Ein Fehler heisst 0."""
+    return int((credit_state(user_id) or {}).get("available") or 0)
+
+
+def no_credits(user: dict | None = None) -> HTTPException:
+    """429 credits_exhausted wie beim Reservieren (app/credits.py) mit dem Stand (`credits`: can_buy, available ...),
+    damit die Apps dieselbe Kaufseite zeigen."""
+    state = credit_state(user["id"]) if user else None
+    # Monatsrahmen (Pro AI, Probe) aufgebraucht: derselbe Text wie beim Reservieren ("am 1. gibt es neue")
+    from .credits import EXHAUSTED_MESSAGE
+    detail = EXHAUSTED_MESSAGE if state and int(state.get("allowance") or 0) > 0 else NO_CREDITS_MESSAGE
+    body = {"detail": detail, "code": "credits_exhausted", "credits_required": True}
+    if state is not None:
+        body["credits"] = {**state, "needed": 1}
+    return HTTPException(429, body)
 
 
 def user_of(request: Request | None) -> dict | None:
@@ -73,6 +114,8 @@ def require(request: Request, entitlement: str) -> dict | None:
     """403 plan_required, wenn das Konto der Anfrage das Recht nicht hat. Liefert den Nutzer (lokal: None)."""
     user = user_of(request)
     if not has(user, entitlement):
+        if config.is_hosted() and plans.needs_credits(entitlement) and plans.has(plan_of(user), entitlement):
+            raise no_credits(user)
         raise forbidden(entitlement)
     return user
 

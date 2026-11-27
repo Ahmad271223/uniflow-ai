@@ -183,14 +183,15 @@ final class EditorObenFlachTests: XCTestCase {
                     XCTAssertLessThanOrEqual(pageGap, pdfKitTop * m.scale + 0.5, "\(what): kein leerer Streifen bis zur Seite")
                     XCTAssertLessThanOrEqual(pageGap, 11, "\(what): kein leerer Streifen bis zur Seite")
                     // keine Funktion fehlt: alles, was die Navigationsleiste trug, steht einzeln in der Zeile
-                    var wanted = ["doc.pages", "doc.search", "toolbar.askAI.locked", "doc.split", "doc.pencilOnly", "doc.layers", "doc.share",
+                    // seit 26.11.2026 hat Plus die KI (mit Credits): "KI fragen" ohne Schloss, ohne KI-Verbindung kein Knopf
+                    var wanted = ["doc.pages", "doc.search", "doc.split", "doc.pencilOnly", "doc.layers", "doc.share",
                                "doc.more", "editor.header.hide", "doc.tab.\(ids[count - 1])"]       // der aktive Reiter ist in Sicht
                     if withTools {
                         // mit Werkzeugen in der Zeile ("Oben fest"): Suchen, Finger/Stift, Ebenen im Menue "Mehr"; schmal
                         // (hoch) auch Seiten, Daneben, Teilen und "Leiste ausblenden" (`EditorHeaderLayout.compactActions`)
                         let layout = EditorHeaderLayout(width: header.width, hasTools: true)
                         XCTAssertFalse(layout.showsAllActions, what)
-                        wanted = ["toolbar.askAI.locked", "doc.more", "doc.tab.\(ids[count - 1])"]
+                        wanted = ["doc.more", "doc.tab.\(ids[count - 1])"]
                         if !layout.compactActions { wanted += ["doc.pages", "doc.split", "doc.share", "editor.header.hide"] }
                         let present = EditorToolbarTests.identifiers(in: env.view)
                         for inMore in ["doc.search", "doc.pencilOnly", "doc.layers"] {

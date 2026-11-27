@@ -83,7 +83,8 @@ class StoreKitSessionTestCase: XCTestCase {
     }
 }
 
-/// Abo-Kauf (Entscheidung des Inhabers vom 04.11.2026): StudiNow Plus und Pro AI, kein Einfuehrungsangebot; die Probe
+/// Abo-Kauf (Tarifmodell des Inhabers vom 26.11.2026): StudiNow Plus (monatlich oder 5 Jahre einmalig) und Pro AI
+/// (jaehrlich), kein Einfuehrungsangebot; die Probe
 /// laeuft auf dem iPad ohne Kauf (LocalTrialTests). Konfiguration `UniFlow.storekit` wie in der App (Schema "Run").
 @MainActor
 final class PurchaseTests: StoreKitSessionTestCase {
@@ -91,26 +92,30 @@ final class PurchaseTests: StoreKitSessionTestCase {
     /// dem Produkt. Pro Connect und das fruehere Pro gibt es nicht, auch nicht auf Nachfrage.
     func test0ProductsCarryNoIntroductoryOffer() async throws {
         let (store, ent) = await makeStore()
-        // nur die Jahresabos (Entscheidung des Inhabers vom 09.11.2026), nach Preis
-        XCTAssertEqual(store.products.map(\.id), ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"])
+        // die vier Angebote (27.11.2026): Plus monatlich, Pro AI monatlich und jaehrlich, Plus 5 Jahre einmalig
+        XCTAssertEqual(Set(store.products.map(\.id)), Set(UFOffer.allCases.map(\.productID)))
+        XCTAssertEqual(store.products.first?.id, "de.uniflow.plus.monthly", "nach Preis: 1,99 € zuerst")
         let other = try await Product.products(for: ["de.uniflow.proconnect.monthly", "de.uniflow.pro.monthly",
-                                                     "de.uniflow.plus.monthly", "de.uniflow.proai.monthly"])
-        XCTAssertEqual(other.map(\.id), [], "kein Monatsabo, kein Pro Connect und kein frueheres Pro in der Konfiguration der App")
+                                                     "de.uniflow.plus.yearly"])
+        XCTAssertEqual(other.map(\.id), [], "kein frueheres Produkt (Jahres-Plus, Pro Connect, Pro) in der Konfiguration der App")
         XCTAssertEqual(ent.plan, .free)
-        for plan in [UFPlan.plus, .proAI] {
+        for (plan, unit, word, renew) in [(UFPlan.plus, Product.SubscriptionPeriod.Unit.month, "Monat", "monatlich"), (.proAI, .year, "Jahr", "jährlich")] {
             let p = try XCTUnwrap(store.product(for: plan), plan.rawValue)
             XCTAssertEqual(p.displayName, plan.name)
             XCTAssertNil(p.subscription?.introductoryOffer, "kein Apple-Einführungsangebot: \(plan.rawValue)")
-            XCTAssertEqual(p.ufPeriod.1, .year)
+            XCTAssertEqual(p.ufPeriod.1, unit)
             XCTAssertEqual(UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod),
-                           "\(plan.name) für \(p.displayPrice)/Jahr")
+                           "\(plan.name) für \(p.displayPrice)/\(word)")
             XCTAssertEqual(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod),
-                           "\(p.displayPrice)/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar")
+                           "\(p.displayPrice)/\(word), verlängert sich \(renew), jederzeit zum Laufzeitende kündbar")
         }
+        let once = try XCTUnwrap(store.product(for: .plusFiveYears))
+        XCTAssertEqual(once.type, .nonRenewable, "5 Jahre: nicht verlaengerndes Abo")
+        XCTAssertNil(once.subscription, "ausserhalb der Abo-Gruppe")
         // Tarifkarten: mit Pro-AI-Produkt drei Karten, ohne (vor dem Dienst) nur Free und Plus
         XCTAssertEqual(UFPlanCatalog.cards(current: ent.purchasedPlan, loaded: store.loadedProductIDs), [.free, .plus, .proAI])
         XCTAssertFalse(PlanPickerView.showsProAIMissingNote(loaded: store.loadedProductIDs, loading: false, current: .free))
-        let plusOnly = PurchaseStore(entitlements: ent, productIDs: ["de.uniflow.plus.yearly"])
+        let plusOnly = PurchaseStore(entitlements: ent, productIDs: ["de.uniflow.plus.monthly"])
         await plusOnly.loadProducts()
         XCTAssertNil(plusOnly.lastError)
         XCTAssertEqual(UFPlanCatalog.cards(current: .free, loaded: plusOnly.loadedProductIDs), [.free, .plus])
@@ -125,7 +130,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
         XCTAssertEqual(ent.plan, .plus)
         XCTAssertEqual(ent.purchasedPlan, .plus)
-        XCTAssertEqual(ent.purchasedBilling, .yearly)
+        XCTAssertEqual(ent.purchasedOffer, .plusMonthly)
         XCTAssertTrue(ent.allows(.pencilWriting))
         XCTAssertTrue(ent.allows(.splitView))
         // Uni & Noten (QIS bzw. LSF auf dem Geraet) gehoert zu Free; eigene Loesungen teilen zu Plus
@@ -138,7 +143,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
         }
     }
 
-    /// Jahresabo (seit 09.11.2026 das einzige Abo): Tarif, Zahlweise und Ablauf nach einem Jahr
+    /// Jahresabo von Pro AI: Tarif, Angebot und Ablauf nach einem Jahr
     func testYearlyPurchaseUnlocksPlanWithYearlyBilling() async throws {
         try requireVisibleTestPurchases()
         let (store, ent) = await makeStore()
@@ -147,7 +152,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
         XCTAssertEqual(outcome, .success, store.lastError ?? "")
         XCTAssertEqual(ent.plan, .proAI)
         XCTAssertEqual(ent.purchasedPlan, .proAI)
-        XCTAssertEqual(ent.purchasedBilling, .yearly)
+        XCTAssertEqual(ent.purchasedOffer, .proAIYearly)
         XCTAssertNotNil(ent.expiresAt, "Ablauf des Jahresabos bekannt")
         XCTAssertNil(ent.pendingPlan)
         XCTAssertEqual(ent.willRenew, true)
@@ -189,7 +194,7 @@ final class PurchaseTests: StoreKitSessionTestCase {
         let (store, ent) = await makeStore()
         let now = Date()
         ent.useLocalTrial(startedAt: now, now: now)
-        XCTAssertEqual(ent.plan, .proAI, "Probe: alles wie Pro AI")
+        XCTAssertEqual(ent.plan, .plus, "Probe: alles wie Plus (26.11.2026)")
         XCTAssertEqual(ent.purchasedPlan, .free)
         let plus = try XCTUnwrap(store.product(for: .plus))
         let bought = await store.purchase(plus)

@@ -32,9 +32,10 @@ final class DeviceRuleTests: XCTestCase {
         XCTAssertEqual(c["capability"]?["value"]?.string, DeviceRule.capability)
         XCTAssertEqual(c["states"]?.array?.compactMap(\.string), ["ok", "blocked", "hint_plus"])
         for s in c["states"]?.array?.compactMap(\.string) ?? [] { XCTAssertNotNil(DeviceRule.State(rawValue: s), s) }
-        XCTAssertEqual(c["upgrade"]?["plan"]?.string, "pro_ai")
-        XCTAssertEqual(c["upgrade"]?["price_cents"]?.double, 3999)
-        XCTAssertEqual(c["upgrade"]?["period"]?.string, "year")
+        // seit 26.11.2026 nennt die Regel Plus (1,99 € im Monat, kleinster Tarif mit Abgleich; vorher Pro AI im Jahr)
+        XCTAssertEqual(c["upgrade"]?["plan"]?.string, "plus")
+        XCTAssertEqual(c["upgrade"]?["price_cents"]?.double, 199)
+        XCTAssertEqual(c["upgrade"]?["period"]?.string, "month")
     }
 
     /// Jede Anfrage der App meldet die Faehigkeit; ohne sie schickt der Dienst die Auskunft nicht
@@ -57,11 +58,11 @@ final class DeviceRuleTests: XCTestCase {
         let (acc, fake, _) = make()
         await answer(fake, try flow("Free: Stand auf dem ersten Geraet"))
         let first = try await acc.planStatus()
-        XCTAssertEqual(first.device, DeviceRule.Status(state: .ok, isPrimary: true, primaryName: "iPad", priceCents: 3999, currency: "EUR", period: "year"))
+        XCTAssertEqual(first.device, DeviceRule.Status(state: .ok, isPrimary: true, primaryName: "iPad", priceCents: 199, currency: "EUR", period: "month"))
         await answer(fake, try flow("Free: Stand auf dem zweiten Geraet"))
         let second = try await acc.planStatus()
         XCTAssertEqual(second.plan, "free")
-        XCTAssertEqual(second.device, DeviceRule.Status(state: .blocked, isPrimary: false, primaryName: "iPad", priceCents: 3999, currency: "EUR", period: "year"))
+        XCTAssertEqual(second.device, DeviceRule.Status(state: .blocked, isPrimary: false, primaryName: "iPad", priceCents: 199, currency: "EUR", period: "month"))
         // "Dieses Gerät stattdessen nutzen"
         let f = try flow("Free: dieses Geraet stattdessen nutzen")
         XCTAssertEqual(f["path"]?.string, "/api/account/device/primary")
@@ -88,11 +89,11 @@ final class DeviceRuleTests: XCTestCase {
         await answer(fake, try flow("Plus: Stand auf dem zweiten Geraet"))
         let plus = try await acc.planStatus()
         XCTAssertEqual(plus.plan, "plus")
-        XCTAssertEqual(plus.device?.state, .hintPlus)
+        XCTAssertEqual(plus.device?.state, .ok, "seit 26.11.2026 hat Plus den Abgleich: kein Hinweis mehr")
         // Anmelde-Antworten tragen dieselbe Auskunft
         XCTAssertEqual(DeviceRule.Status.parse(try flow("Pro AI: zweites Geraet anmelden (keine Einschraenkung)")["response"]?["device"])?.state, .ok)
         XCTAssertEqual(DeviceRule.Status.parse(try flow("Probe: zweites Geraet anmelden (zaehlt wie Pro AI)")["response"]?["device"])?.state, .ok)
-        XCTAssertEqual(DeviceRule.Status.parse(try flow("Plus: zweites Geraet anmelden (einmaliger Hinweis, nie gesperrt)")["response"]?["device"])?.state, .hintPlus)
+        XCTAssertEqual(DeviceRule.Status.parse(try flow("Plus: zweites Geraet anmelden (einmaliger Hinweis, nie gesperrt)")["response"]?["device"])?.state, .ok)
         // ein Dienst ohne die Regel (oder eine Antwort ohne das Feld): keine Auskunft, nie gesperrt
         await answer(fake, try flow("Aeltere App: Stand ohne Feld device"))
         let old = try await acc.planStatus()
@@ -123,7 +124,7 @@ final class DeviceRuleTests: XCTestCase {
         XCTAssertEqual(DeviceRule.Status.parse(["is_primary": true])?.state, .ok)
         XCTAssertEqual(DeviceRule.Status.parse(["state": "blocked", "primary_name": "  "]), DeviceRule.Status(state: .blocked))
         // gemerkter Zustand uebersteht Speichern und Laden
-        let s = DeviceRule.Status(state: .blocked, isPrimary: false, primaryName: "iPad", priceCents: 3999, currency: "EUR", period: "year")
+        let s = DeviceRule.Status(state: .blocked, isPrimary: false, primaryName: "iPad", priceCents: 199, currency: "EUR", period: "month")
         XCTAssertEqual(try JSONDecoder().decode(DeviceRule.Status.self, from: JSONEncoder().encode(s)), s)
     }
 
@@ -138,7 +139,10 @@ final class DeviceRuleTests: XCTestCase {
                            "\(c["server_state"]?.string ?? "nil") / \(plan)")
         }
         XCTAssertEqual(DeviceRule.shown(server: .blocked, localPlan: "free"), .blocked)
-        XCTAssertEqual(DeviceRule.shown(server: .blocked, localPlan: "plus"), .hintPlus, "Plus wird nie gesperrt")
+        // seit 26.11.2026 hat Plus den Notizen-Abgleich (can_sync_annotations ab Plus): kein Hinweis mehr (vorher hintPlus)
+        XCTAssertEqual(DeviceRule.shown(server: .blocked, localPlan: "plus"), .ok, "Plus wird nie gesperrt und hat den Abgleich")
+        XCTAssertEqual(DeviceRule.shown(server: .hintPlus, localPlan: "plus"), .ok)
+        XCTAssertEqual(DeviceRule.shown(server: .hintPlus, localPlan: "free"), .hintPlus, "aelterer Dienst: Hinweis bleibt fuer Free")
         XCTAssertEqual(DeviceRule.shown(server: .blocked, localPlan: "pro_ai"), .ok, "nach dem Kauf von Pro AI sofort frei")
         XCTAssertEqual(DeviceRule.shown(server: .blocked, localPlan: "pro_connect"), .ok)
         XCTAssertEqual(DeviceRule.shown(server: nil, localPlan: "free"), .ok, "ohne Auskunft (kein Netz) nie sperren")
@@ -146,21 +150,24 @@ final class DeviceRuleTests: XCTestCase {
 
     func testTexts() throws {
         let c = try deviceContract()
-        let price = DeviceRuleTexts.fallbackPrice(cents: c["upgrade"]?["price_cents"]?.double.map { Int($0) }, currency: c["upgrade"]?["currency"]?.string)
-        XCTAssertEqual(price, "39,99 €")
-        XCTAssertEqual(DeviceRuleTexts.fallbackPrice(), "39,99 €")
+        // seit 26.11.2026 nennt der Hinweis Plus (kleinster Tarif mit Abgleich, 1,99 € im Monat; vorher Pro AI im Jahr)
+        let up = try XCTUnwrap(c["upgrade"])
+        XCTAssertEqual(up["plan"]?.string, "plus", "Vertrag device-limit/contract.json neu erzeugen (tools/gen-device-limit-fixture.py)")
+        let price = DeviceRuleTexts.fallbackPrice(cents: up["price_cents"]?.double.map { Int($0) }, currency: up["currency"]?.string)
+        XCTAssertEqual(price, "1,99 €")
+        XCTAssertEqual(DeviceRuleTexts.fallbackPrice(), "1,99 €")
         XCTAssertEqual(DeviceRuleTexts.fallbackPrice(cents: 4900, currency: "chf"), "49,00 CHF")
         XCTAssertEqual(DeviceRuleTexts.blockedTitle, "StudiNow Free gilt für ein Gerät")
-        XCTAssertEqual(DeviceRuleTexts.blockedText(primaryName: "iPad", price: price),
-                       "Dein Konto läuft schon auf einem anderen Gerät (iPad). Mit Pro AI nutzt du StudiNow auf iPhone und iPad – mit Abgleich. 39,99 € im Jahr.")
+        XCTAssertEqual(DeviceRuleTexts.blockedText(primaryName: "iPad", price: price, period: up["period"]?.string),
+                       "Dein Konto läuft schon auf einem anderen Gerät (iPad). Mit Plus nutzt du StudiNow auf iPhone und iPad – mit Abgleich. Ab 1,99 € im Monat.")
         XCTAssertEqual(DeviceRuleTexts.blockedText(primaryName: nil, price: price, mac: true),
-                       "Dein Konto läuft schon auf einem anderen Gerät. Mit Pro AI nutzt du StudiNow auf iPhone, iPad und Mac – mit Abgleich. 39,99 € im Jahr.")
+                       "Dein Konto läuft schon auf einem anderen Gerät. Mit Plus nutzt du StudiNow auf iPhone, iPad und Mac – mit Abgleich. Ab 1,99 € im Monat.")
+        XCTAssertEqual(DeviceRuleTexts.perPeriod("39,99 €", period: "year"), "39,99 € im Jahr")
         XCTAssertEqual([DeviceRuleTexts.showPlans, DeviceRuleTexts.useThisDevice, DeviceRuleTexts.signOut],
-                       ["Pro AI ansehen", "Dieses Gerät stattdessen nutzen", "Abmelden"])
+                       ["Plus ansehen", "Dieses Gerät stattdessen nutzen", "Abmelden"])
         XCTAssertEqual(DeviceRuleTexts.confirmText(primaryName: "iPad"),
                        "StudiNow Free läuft dann auf diesem Gerät. Auf dem anderen Gerät (iPad) erscheint beim nächsten Öffnen dieser Hinweis. Deine Daten bleiben auf beiden Geräten erhalten.")
         XCTAssertEqual(DeviceRuleTexts.plusTitle, "Plus läuft auf jedem Gerät für sich")
-        XCTAssertEqual(DeviceRuleTexts.plusText(price: price),
-                       "Deine Notizen bleiben auf dem Gerät, auf dem du sie schreibst. Den Abgleich zwischen iPhone und iPad gibt es mit Pro AI für 39,99 € im Jahr.")
+        XCTAssertEqual(DeviceRuleTexts.plusText(price: price), "Mit Plus gleicht StudiNow deine Notizen zwischen iPhone und iPad ab.")
     }
 }

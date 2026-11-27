@@ -508,13 +508,13 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         }
         closeOverlay(env)
 
-        // Wochentest: Free/Plus -> Hinweis auf Pro AI; Pro AI -> erstellen und bewerten
+        // Wochentest: Free -> Hinweis auf Plus; Plus/Pro AI -> erstellen (seit 26.11.2026 ab Plus), Pro AI zusaetzlich bewerten
         _ = overlay.modal { QuizComposer(moduleID: 0) }
         env.pump(1.0)
-        if plan != .proAI {
-            expect(env, "Mit \(UFPlan.proAI.name) freischalten")
-            if plan == .free { shoot(env, "23-free-wochentest-gesperrt") }
-        } else {
+        if plan == .free {
+            expect(env, "Mit \(UFPlan.plus.name) freischalten")
+            shoot(env, "23-free-wochentest-gesperrt")
+        } else if plan == .proAI {
             shoot(env, "24-proai-wochentest-dialog")
         }
         closeOverlay(env)
@@ -560,21 +560,24 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
             Entitlements.shared.setPlanForTesting(plan)
             let p = plan.rawValue
             openTutor(env)
-            expect(env, ChatGPTLink.planHint, timeout: 25)
+            // Free: Tarif-Hinweis; Plus (seit 26.11.2026 mit KI) ohne Anmeldung: der Weg zur Anmeldung
+            let hint = plan == .free ? ChatGPTLink.planHint : StudoraAccountLink.aiSignInHint
+            expect(env, hint, timeout: 25)
             // „Eigenes ChatGPT“ aus (11.11.2026): der Hinweis nennt nur die StudiNow-KI
             XCTAssertFalse(ChatGPTLink.planHint.contains("ChatGPT"))
             shoot(env, "30-\(p)-ki-hilfe-ohne-ki")
             env.router.go(.aiStart)
-            expect(env, ChatGPTLink.planHint)
+            expect(env, hint)
             shoot(env, "31-\(p)-ki-start-ohne-ki")
             _ = overlay.modal { FlashcardComposer(moduleID: 0, fileID: "demo-skript") }
             env.pump(1.0)
-            if plan == .free { expect(env, "Mit \(UFPlan.plus.name) freischalten") } else { expect(env, ChatGPTLink.planHint) }
+            if plan == .free { expect(env, "Mit \(UFPlan.plus.name) freischalten") } else { expect(env, hint) }
             shoot(env, "32-\(p)-karteikarten-ohne-ki")
             closeOverlay(env)
             _ = overlay.modal { QuizComposer(moduleID: 0) }
             env.pump(1.0)
-            expect(env, "Mit \(UFPlan.proAI.name) freischalten")
+            // Free: Schloss ab Plus; Plus ohne KI-Verbindung: der Weg zur KI (seit 26.11.2026 kein Schloss "ab Pro AI")
+            if plan == .free { expect(env, "Mit \(UFPlan.plus.name) freischalten") } else { expect(env, "Melde dich einmal mit deinem StudiNow-Konto an") }
             shoot(env, "33-\(p)-wochentest-ohne-ki")
             closeOverlay(env)
         }
@@ -648,10 +651,12 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         // Fehler: Credits leer, Dienst nicht erreichbar, 500, Zeitueberschreitung. Je Fall: die Anfrage muss beim Dienst
         // ankommen und fertig sein, bevor der Text geprueft wird - sonst passt "Credits" schon auf die Fusszeile der
         // vorigen Antwort bzw. die Meldung "nicht erreichbar" noch vom Fall davor (Befund 13.11.2026, jeder zweite Lauf rot)
-        for (fail, text, shot) in [(KIServiceStub.Fail.credits, "Credits für diesen Monat sind aufgebraucht", "43-proai-credits-leer"),
-                                   (.offline, StudiNowAIText.unreachable, "44-proai-dienst-nicht-erreichbar"),
+        // "Credits leer" zuletzt: danach kennt die App einen Stand ohne Credits und schickt bis zum neuen Stand keine
+        // KI-Anfrage mehr (`StudiNowCreditGate`, 26.11.2026)
+        for (fail, text, shot) in [(KIServiceStub.Fail.offline, StudiNowAIText.unreachable, "44-proai-dienst-nicht-erreichbar"),
                                    (.server, StudiNowAIText.unavailable, "45-proai-dienst-500"),
-                                   (.timeout, StudiNowAIText.unreachable, "46-proai-zeitueberschreitung")] {
+                                   (.timeout, StudiNowAIText.unreachable, "46-proai-zeitueberschreitung"),
+                                   (.credits, "Credits für diesen Monat sind aufgebraucht", "43-proai-credits-leer")] {
             KIServiceStub.fail = fail
             waitTutorIdle(env)
             let before = relayCount
@@ -708,7 +713,7 @@ final class KIAbnahmeLUHAppTests: XCTestCase {
         link.consentCenter = AIConsentCenter(store: AIConsentStore(defaults: UserDefaults(suiteName: "ki-abnahme-trial-\(UUID().uuidString)")!))
         try pumping { try await self.openDemo() }
         Entitlements.shared.useLocalTrial(startedAt: Date())
-        XCTAssertEqual(Entitlements.shared.plan, .proAI, "Probe = Pro-AI-Umfang")
+        XCTAssertEqual(Entitlements.shared.plan, .plus, "Probe = Plus-Umfang (26.11.2026)")
         let env = try host()
         try pumping(30) { await link.loginWithApple(identityToken: "erfundenes-apple-token", nonce: "n", email: nil) }
         XCTAssertEqual(link.aiAccess, .ready)
