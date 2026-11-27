@@ -257,7 +257,7 @@ auf der Zeile</li>
 <p class="when">Daran arbeiten wir gerade</p>
 <h4>Neue Funktionen</h4>
 <ul class="checks planned">
-<li><strong>Tabellen</strong> direkt im Dokument, mit Pro AI</li>
+<li><strong>Tabellen</strong> direkt im Dokument</li>
 <li><strong>Universität Göttingen:</strong> Uni-Mail und deine Prüfungsanmeldungen aus FlexNow</li>
 </ul>
 <p class="fine">Das ist eine Vorschau. Bis zur Veröffentlichung kann sich noch etwas ändern, auch in welchem Tarif eine
