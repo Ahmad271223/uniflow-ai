@@ -175,7 +175,8 @@ release/1.0.8-alles):** Anmeldung und Abgleich in Ordnung – 9 Kurse, 153 Datei
 9 Ankündigungen, 34 Einträge am Schwarzen Brett; Stundenplan, Nachrichten, Module, Übersicht angesehen. Drei Fehler dort
 gefunden und in release behoben: d9bda316 (maskiertes `&lt;div&gt;&lt;/div&gt;` am Ende von Nachrichten), 028ee2a8
 (Anführungszeichen im Titel trennten Vorlesung und Übung in zwei Module), 8f3cb718 (kurz „Offline – Stand vor …“ beim
-Laden). Die Hintergrund-Anmeldung ohne Fenster bleibt gesperrt, bis der Inhaber sie freigibt.
+Laden). Die Hintergrund-Anmeldung ohne Fenster hat der Inhaber danach freigegeben („Ja, freigeben“, 27.11.2026) – auf
+`uni/goettingen`, für ein Update nach Build 51.
 
 Vor dem Kontotest **nicht** mit dem echten Konto geprüft (nur gegen die Nachbildung):
 - Die Anmeldung *in der App* selbst (Anmeldefenster, „Passwort merken“, Fehlermeldung bei falschem Passwort – deren
@@ -211,7 +212,7 @@ Kabel aufs iPad, er meldet sich im Anmeldefenster selbst an, ein Abgleich, dann 
 | Bescheinigungen, Vorlesungsverzeichnis | eCampus (HISinOne) | nicht angesehen; Academic Cloud mit 2. Faktor | Anmeldung mit 2. Faktor im Fenster (Passkey/Code) klären; dann ähnlich PLuS/HsH (`CertificateClient`). |
 | Uni-Mail | Exchange bei der GWDG (`email.gwdg.de`) | nicht angesehen; Webmail über Academic Cloud (2. Faktor) | Laut öffentlicher Anleitung der Uni (27.11.2026 nachgesehen, studit.uni-goettingen.de) geht IMAP: `email.gwdg.de`, Port 993 (SSL/TLS), Benutzer `ug-student\<Kennung>`, SMTP `email.gwdg.de`; Thunderbird-Anleitung nennt `email.stud.uni-goettingen.de`. Eigene IMAP-Anbindung nötig (die App kann bisher nur SOGo); Passwort tippt nur der Nutzer am Gerät. |
 | Videos | Mediacast (Reiter „Medien“), teils ILIAS | Einstieg gesehen, kein Kurs mit Video | Mit einem Kurs mit Video ansehen, dann Leser für die Aufzeichnungen. |
-| Hintergrund-Anmeldung ohne Webansicht | Stud.IP-Formular | gesperrt (`allowedForms`) | Nach einem echten Test freigeben. |
+| Hintergrund-Anmeldung ohne Webansicht | Stud.IP-Formular | **freigegeben 27.11.2026** (Inhaber: „Ja, freigeben“, nach dem echten Kontotest), `UniFormLogin.allowedForms`, Test `testBackgroundLoginWithoutWebView`; nur auf `uni/goettingen`, nicht in Build 51 | Am Gerät beobachten, ob die stille Erneuerung nach Ablauf der Sitzung ohne Fenster klappt. |
 | Mensa | Studierendenwerk | eingebaut ohne Preise | Beim Studierendenwerk fragen, ob das Abrufen in Ordnung ist und ob es Preise je Gericht gibt; Bistro HAWK und Cafeterien fehlen. |
 | Raumfinder | Lageplan (ArcGIS), eCampus-Raumsuche | nur Standorte | Klären, ob die Daten genutzt werden dürfen. |
 | Dienst (Server) | `app/universities.py` u. a. | im Zweig, nicht ausgerollt | Mit dem nächsten Deploy (nur mit Okay) – sonst lehnt der Dienst ein Göttinger Konto mit `university_unknown` ab. |

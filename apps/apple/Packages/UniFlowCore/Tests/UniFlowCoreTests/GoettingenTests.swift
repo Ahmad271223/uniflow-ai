@@ -180,8 +180,40 @@ final class GoettingenTests: XCTestCase {
                                              domains: domains, submitted: [form.id], isDone: true), .done)
         XCTAssertEqual(UniAutoLoginFlow.step(url: u("https://sso.idm.uni-hannover.de/idp/x"), html: html, university: .goettingen, domains: domains,
                                              submitted: [], isDone: false), .abort, "nie auf den Rechnern einer anderen Hochschule")
-        // ohne Webansicht (Hintergrund) ist das Formular bewusst nicht freigegeben: erst nach einem Test mit echtem Konto
-        XCTAssertFalse(UniFormLogin.allowedForms.contains(form.id))
+        // ohne Webansicht (Hintergrund) freigegeben seit dem echten Kontotest (Inhaber 27.11.2026: „Ja, freigeben“)
+        XCTAssertTrue(UniFormLogin.allowedForms.contains(form.id))
+    }
+
+    /// Anmeldung im Hintergrund ohne Webansicht: Formular einmal per POST an dieselbe Adresse, mit den versteckten Feldern
+    /// wie im Formular; danach Stud.IP-Startseite. Abgelehnt nur mit Fehlertext, nie ein zweiter POST, nie ein fremder Rechner.
+    func testBackgroundLoginWithoutWebView() async throws {
+        let html = try String(contentsOf: Self.stubDirectory.appendingPathComponent("studip.html"), encoding: .utf8)
+        let login = URL(string: "https://studip.uni-goettingen.de/dispatch.php/login")!
+        let start = "https://studip.uni-goettingen.de/dispatch.php/start"
+        let cred = (username: "testnutzer-erfunden", password: "Pw-Test-erfunden-123")
+        func run(_ t: UniFormLoginTests.Scripted) async -> UniFormLogin.Result {
+            await UniFormLogin.run(transport: t, entry: login, university: .goettingen, domains: ["uni-goettingen.de"], credential: cred,
+                                   deadline: Date().addingTimeInterval(30)) { u, _ in u.path.hasPrefix("/dispatch.php/start") }
+        }
+        let ok = UniFormLoginTests.Scripted { r in
+            if r.url.path == "/dispatch.php/login", r.method == "GET" { return UniFormLoginTests.page(html, r.url) }
+            if r.url.path == "/dispatch.php/login" { return UniFormLoginTests.redirect(r.url, to: start, cookie: "Studip_Session=neu; Path=/; Secure") }
+            return UniFormLoginTests.page("<html><body>Start</body></html>", r.url)
+        }
+        let result = await run(ok)
+        XCTAssertEqual(result, .done(passwordSent: true))
+        let posts = ok.requests.filter { $0.method == "POST" }
+        XCTAssertEqual(posts.count, 1)
+        XCTAssertEqual(posts.first?.url.absoluteString, login.absoluteString, "POST auf dieselbe Adresse")
+        XCTAssertEqual(String(decoding: posts.first?.body ?? Data(), as: UTF8.self),
+                       "loginname=testnutzer-erfunden&password=Pw-Test-erfunden-123&security_token=stub&login_ticket=stub&resolution=&Login=")
+        XCTAssertTrue(ok.requests.allSatisfy { $0.url.host == "studip.uni-goettingen.de" })
+        // abgelehnt: Formular kommt mit Fehlermeldung wieder
+        let failedHTML = html.replacingOccurrences(of: "<form", with: #"<div class="messagebox messagebox_error">Bei der Anmeldung trat ein Fehler auf!</div><form"#)
+        let rejected = UniFormLoginTests.Scripted { r in UniFormLoginTests.page(r.method == "POST" ? failedHTML : html, r.url) }
+        let r2 = await run(rejected)
+        XCTAssertEqual(r2, .rejected)
+        XCTAssertEqual(rejected.requests.filter { $0.method == "POST" }.count, 1, "nie ein zweites Mal senden")
     }
 
     /// Abgelaufene Sitzung: Stud.IP leitet auf dispatch.php/login um bzw. antwortet der JSON:API mit 401

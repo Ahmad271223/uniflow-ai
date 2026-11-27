@@ -119,9 +119,12 @@ public enum UniFormLogin {
     }
 
     /// Diese Formulare darf der Ablauf ohne Webansicht ausfuellen: Feldnamen am echten Formular bestaetigt und klassisch
-    /// ohne JavaScript (QIS, WebSSO, CAS). SOGo (JavaScript-Anwendung), HISinOne (Ajax) und Moodle nicht.
+    /// ohne JavaScript (QIS, WebSSO, CAS, Stud.IP Goettingen). SOGo (JavaScript-Anwendung), HISinOne (Ajax) und Moodle nicht.
+    /// Stud.IP Goettingen (`form#login-form`, POST auf dieselbe Adresse, versteckt `security_token`, `login_ticket`,
+    /// `resolution`) seit 27.11.2026: nach dem echten Kontotest in der App freigegeben (Inhaber: „Ja, freigeben“)
     public static let allowedForms: Set<String> = [UniLoginForms.luhQIS.id, UniLoginForms.luhWebSSO.id,
-                                                    UniLoginForms.hildesheimCAS.id, UniLoginForms.hildesheimCASBare.id]
+                                                    UniLoginForms.hildesheimCAS.id, UniLoginForms.hildesheimCASBare.id,
+                                                    UniLoginForms.goettingenStudIP.id]
 
     /// Teile von Adressen, die der Ablauf nie aufruft (Abmelden, Pruefungsan-/abmeldung, Ruecktritt, Bescheinigungen,
     /// Berichte; QIS: `state=user&type=4` ist das Abmelden)
