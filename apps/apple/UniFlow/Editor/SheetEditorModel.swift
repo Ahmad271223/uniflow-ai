@@ -228,7 +228,11 @@ final class SheetEditorModel: ObservableObject {
             && filled((0..<sheet.rows).map { SheetRef(col: at.col, row: $0) })
         if typed || growRow || growCol {
             change { s in
-                if typed, let text { s.set(text, at: at) }
+                if typed, let text {
+                    s.set(text, at: at)
+                    // ist der Text breiter als die Spalte, waechst sie mit (Wunsch des Inhabers 27.11.2026)
+                    Self.growColumns(&s, [at.col])
+                }
                 if growRow { s.insertRows(at: s.rows) }
                 if growCol { s.insertCols(at: s.cols) }
             }
@@ -331,6 +335,46 @@ final class SheetEditorModel: ObservableObject {
     }
 
     func setWidth(_ w: Double, col: Int) { change { $0.setWidth(w, col: col) } }
+
+    // MARK: Breite nach dem Inhalt
+
+    /// Platz, den eine Zelle fuer ihren Text braucht (Tabellen-Punkte, mit Rand)
+    static func neededWidth(_ s: Sheet, _ calc: SheetCalc, _ r: SheetRef) -> Double {
+        let shown = s.display(r, calc)
+        guard !shown.isEmpty else { return 0 }
+        let font = SheetRender.font(s.style(r), header: s.header && r.row == 0)
+        let w = (shown as NSString).size(withAttributes: [.font: font]).width
+        return Double(ceil(w)) + 2 * Sheet.cellPadding + 4
+    }
+
+    /// Spalten so breit machen, dass ihr Text hineinpasst - nur breiter, nie schmaler (eine bewusst schmal gezogene Spalte
+    /// bleibt schmal, bis wieder etwas Laengeres hineinkommt), hoechstens bis zur groessten Breite
+    static func growColumns(_ s: inout Sheet, _ cols: Set<Int>) {
+        let calc = s.calc()
+        for col in cols where col >= 0 && col < s.cols {
+            var need = 0.0
+            for row in 0..<s.rows where s.cells[SheetRef(col: col, row: row)] != nil {
+                need = max(need, neededWidth(s, calc, SheetRef(col: col, row: row)))
+            }
+            if need > s.width(col) { s.setWidth(min(Sheet.colWidthRange.upperBound, need), col: col) }
+        }
+    }
+
+    /// "Breite an Inhalt anpassen": so breit wie der laengste Text der Spalte (auch schmaler), mindestens die Grundbreite
+    /// fuer leere Spalten
+    func fitWidth(cols: ClosedRange<Int>) {
+        settle()
+        change { s in
+            let calc = s.calc()
+            for col in cols where col < s.cols {
+                var need = 0.0
+                for row in 0..<s.rows where s.cells[SheetRef(col: col, row: row)] != nil {
+                    need = max(need, Self.neededWidth(s, calc, SheetRef(col: col, row: row)))
+                }
+                s.setWidth(need > 0 ? min(Sheet.colWidthRange.upperBound, max(Sheet.colWidthRange.lowerBound, need)) : Sheet.defaultColWidth, col: col)
+            }
+        }
+    }
     func setHeight(_ h: Double, row: Int) { change { $0.setHeight(h, row: row) } }
     func toggleHeader() { settle(); change { $0.header.toggle() } }
 
@@ -434,13 +478,19 @@ final class SheetEditorModel: ObservableObject {
         let text = UIPasteboard.general.string
         if let own = Self.clipboard, text == nil || text == own.text {
             var filled = SheetRange(at)
-            change { filled = $0.paste(own.block, at: at, cut: own.cut) }
+            change { s in
+                filled = s.paste(own.block, at: at, cut: own.cut)
+                Self.growColumns(&s, Set(filled.cols))
+            }
             // nach dem ersten Einfuegen ist es eine gewoehnliche Kopie
             if own.cut { Self.clipboard = (own.block, own.text, false) }
             select(filled)
         } else if let text, !text.isEmpty {
             var filled = SheetRange(at)
-            change { filled = $0.pasteText(text, at: at) }
+            change { s in
+                filled = s.pasteText(text, at: at)
+                Self.growColumns(&s, Set(filled.cols))
+            }
             select(filled)
         }
     }
@@ -499,7 +549,10 @@ final class SheetEditorModel: ObservableObject {
             if isEditing { commitEditing() }
             let before = sheet
             var outcome = SheetAI.Outcome()
-            change { outcome = SheetAI.apply(plan, to: &$0, at: at) }
+            change { s in
+                outcome = SheetAI.apply(plan, to: &s, at: at)
+                if let f = outcome.filled { Self.growColumns(&s, Set(f.cols)) }
+            }
             guard outcome.cells > 0 || outcome.charts > 0 else { aiError = Self.aiNothing; return false }
             guard sheet != before else { aiError = Self.aiSame; return false }
             if let f = outcome.filled { select(f) }

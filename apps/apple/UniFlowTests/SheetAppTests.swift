@@ -751,6 +751,64 @@ final class SheetAppTests: XCTestCase {
         try await BildProbe.wait("neuer Stand") { (page.objectsView.subviews.first { $0 is SheetBoxView }) !== before }
     }
 
+    /// Wunsch des Inhabers 27.11.2026: Spalten und Zeilen einzeln ziehen, zu langes Wort macht die Spalte breiter,
+    /// einzelne Spalten und Zeilen einfuegen und loeschen
+    func testSpaltenWachsenMitUndZeilenSpaltenEinzeln() async throws {
+        let m = SheetEditorModel(sheet: table(), title: "T")
+        let w0 = m.sheet.width(0)
+        m.select(SheetRef("A2")!)
+        m.beginEditing("Grundlagen der theoretischen Informatik")
+        m.commitEditing()
+        XCTAssertGreaterThan(m.sheet.width(0), w0, "die Spalte waechst mit dem Text")
+        XCTAssertLessThanOrEqual(m.sheet.width(0), Sheet.colWidthRange.upperBound)
+        m.undo()
+        XCTAssertEqual(m.sheet.width(0), w0, "Text und Breite sind ein Schritt")
+        // kurzer Text: nichts aendert sich; schmal gezogene Spalte bleibt schmal, bis Laengeres kommt
+        m.setWidth(60, col: 1)                      // passt fuer "Note" (Kopf) und die Zahlen
+        m.select(SheetRef("B2")!)
+        m.beginEditing("2")
+        m.commitEditing()
+        XCTAssertEqual(m.sheet.width(1), 60)
+        m.fitWidth(cols: 1...1)
+        XCTAssertGreaterThanOrEqual(m.sheet.width(1), Sheet.colWidthRange.lowerBound)
+        XCTAssertLessThan(m.sheet.width(1), Sheet.defaultColWidth, "an den Inhalt angepasst: schmal")
+        // Einfuegen aus einer anderen App: auch dann
+        UIPasteboard.general.string = "Ein sehr langer eingefuegter Text in der Spalte C"
+        SheetEditorModel.clipboard = nil
+        m.select(SheetRef("C2")!)
+        m.paste()
+        XCTAssertGreaterThan(m.sheet.width(2), Sheet.defaultColWidth)
+
+        // einzelne Zeile und Spalte an der Stelle einfuegen und loeschen
+        let rows = m.sheet.rows, cols = m.sheet.cols
+        m.select(SheetRef("B3")!)
+        m.insertRows(below: false)
+        XCTAssertEqual(m.sheet.rows, rows + 1)
+        XCTAssertEqual(m.sheet.raw(SheetRef("A3")!), "")
+        m.deleteRows()
+        XCTAssertEqual(m.sheet.rows, rows)
+        m.insertCols(right: true)
+        XCTAssertEqual(m.sheet.cols, cols + 1)
+        XCTAssertEqual(m.sheet.raw(SheetRef("C3")!), "")
+        m.select(SheetRef("C3")!)
+        m.deleteCols()
+        XCTAssertEqual(m.sheet.cols, cols)
+
+        // Zeile hoeher ziehen und Spalte am Kopf ziehen (echte Beruehrung)
+        let (grid, window) = gridWindow(m)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        let edge = grid.convert(CGPoint(x: SheetGridView.headerWidth + grid.grid.colX[1] * grid.zoom - grid.scroll.contentOffset.x, y: SheetGridView.headerHeight / 2), to: nil)
+        let before = m.sheet.width(0)
+        try await BildProbe.dragWindow(from: edge, to: CGPoint(x: edge.x + 60, y: edge.y), in: window)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertGreaterThan(m.sheet.width(0), before + 20, "Spalte breiter gezogen")
+        let rowEdge = grid.convert(CGPoint(x: SheetGridView.headerWidth / 2, y: SheetGridView.headerHeight + grid.grid.rowY[2] * grid.zoom - grid.scroll.contentOffset.y), to: nil)
+        let h0 = m.sheet.height(1)
+        try await BildProbe.dragWindow(from: rowEdge, to: CGPoint(x: rowEdge.x, y: rowEdge.y + 30), in: window)
+        try await Task.sleep(nanoseconds: 300_000_000)
+        XCTAssertGreaterThan(m.sheet.height(1), h0 + 10, "Zeile hoeher gezogen")
+    }
+
     // MARK: KI-Hilfe
 
     private final class Asked {

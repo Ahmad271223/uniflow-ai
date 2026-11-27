@@ -40,6 +40,7 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     /// Zweiter Tipp auf dieselbe Zelle kurz danach = Doppeltipp (ohne dass der erste Tipp darauf warten muss)
     private var lastTap: (ref: SheetRef, time: TimeInterval)?
     static let doubleTapTime: TimeInterval = 0.4
+    private var lastEdgeTap: (col: Int, time: TimeInterval)?
     private var laidOutSize = CGSize.zero
     private lazy var editMenu = UIEditMenuInteraction(delegate: self)
     private var headLines: [String: SheetRender.Line] = [:]
@@ -243,8 +244,10 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
             case .handle, .colEdge, .rowEdge: return false
             default: break
             }
-            if case .cell = target(at: p, forDrag: false) { return true }
-            return false
+            switch target(at: p, forDrag: false) {
+            case .cell, .colHeader, .rowHeader: return true
+            default: return false
+            }
         }
         guard g === pan else { return true }
         let start = pan.location(in: self)
@@ -266,6 +269,16 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     @objc private func tapped(_ g: UITapGestureRecognizer) {
         let p = g.location(in: self)
         let shift = g.modifierFlags.contains(.shift)
+        // Doppeltipp auf den Rand einer Spalte im Kopf: Breite an den Inhalt anpassen (wie in Excel)
+        if case .colEdge(let c) = target(at: p, forDrag: true), !model.readOnly {
+            let now = ProcessInfo.processInfo.systemUptime
+            if let l = lastEdgeTap, l.col == c, now - l.time < Self.doubleTapTime {
+                lastEdgeTap = nil
+                model.fitWidth(cols: c...c)
+                return
+            }
+            lastEdgeTap = (c, now)
+        }
         switch target(at: p, forDrag: false) {
         case .cell(let r):
             if model.isFormulaEditing, r != model.active { lastTap = nil; model.insertReference(r); return }
@@ -307,10 +320,14 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     @objc private func secondaryClicked(_ g: UITapGestureRecognizer) { showMenu(at: g.location(in: self)) }
 
     private func showMenu(at p: CGPoint) {
-        guard case .cell(let r) = target(at: p, forDrag: false) else { return }
-        if !model.selection.contains(r) {
-            model.commitEditing()
-            model.select(r)
+        switch target(at: p, forDrag: false) {
+        case .cell(let r):
+            if !model.selection.contains(r) { model.commitEditing(); model.select(r) }
+        case .colHeader(let c):
+            if !(model.selection.cols.contains(c) && model.selection.rows.count == model.sheet.rows) { model.commitEditing(); model.selectColumn(c) }
+        case .rowHeader(let r):
+            if !(model.selection.rows.contains(r) && model.selection.cols.count == model.sheet.cols) { model.commitEditing(); model.selectRow(r) }
+        default: return
         }
         editMenu.presentEditMenu(with: UIEditMenuConfiguration(identifier: nil, sourcePoint: p))
     }
@@ -318,11 +335,25 @@ final class SheetGridView: UIView, UIScrollViewDelegate, UIGestureRecognizerDele
     func editMenuInteraction(_ interaction: UIEditMenuInteraction, menuFor configuration: UIEditMenuConfiguration,
                              suggestedActions: [UIMenuElement]) -> UIMenu? {
         let m = model
-        var items = [UIAction(title: "Kopieren", image: UIImage(systemName: "doc.on.doc")) { _ in m.copy() }]
+        var items: [UIMenuElement] = [UIAction(title: "Kopieren", image: UIImage(systemName: "doc.on.doc")) { _ in m.copy() }]
         if !m.readOnly {
             items.insert(UIAction(title: "Ausschneiden", image: UIImage(systemName: "scissors")) { _ in m.cut() }, at: 0)
             items.append(UIAction(title: "Einfügen", image: UIImage(systemName: "doc.on.clipboard")) { _ in m.paste() })
             items.append(UIAction(title: "Inhalt löschen", image: UIImage(systemName: "delete.left"), attributes: .destructive) { _ in m.clearContents() })
+            // einzelne Zeilen und Spalten an dieser Stelle (Wunsch des Inhabers 27.11.2026)
+            let sel = m.selection
+            let rows = sel.rows.count > 1 ? "\(sel.rows.count) Zeilen" : "Zeile", cols = sel.cols.count > 1 ? "\(sel.cols.count) Spalten" : "Spalte"
+            items.append(UIMenu(title: "Zeilen", image: UIImage(systemName: "arrow.up.and.down"), children: [
+                UIAction(title: "\(rows) darüber einfügen", image: UIImage(systemName: "arrow.up.to.line")) { _ in m.insertRows(below: false) },
+                UIAction(title: "\(rows) darunter einfügen", image: UIImage(systemName: "arrow.down.to.line")) { _ in m.insertRows(below: true) },
+                UIAction(title: "\(rows) löschen", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in m.deleteRows() },
+            ]))
+            items.append(UIMenu(title: "Spalten", image: UIImage(systemName: "arrow.left.and.right"), children: [
+                UIAction(title: "\(cols) links einfügen", image: UIImage(systemName: "arrow.left.to.line")) { _ in m.insertCols(right: false) },
+                UIAction(title: "\(cols) rechts einfügen", image: UIImage(systemName: "arrow.right.to.line")) { _ in m.insertCols(right: true) },
+                UIAction(title: "Breite an Inhalt anpassen", image: UIImage(systemName: "arrow.left.and.right.text.vertical")) { _ in m.fitWidth(cols: sel.cols) },
+                UIAction(title: "\(cols) löschen", image: UIImage(systemName: "trash"), attributes: .destructive) { _ in m.deleteCols() },
+            ]))
         }
         return UIMenu(children: items)
     }

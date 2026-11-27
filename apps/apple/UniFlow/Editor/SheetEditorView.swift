@@ -287,6 +287,7 @@ struct SheetEditorView: View {
                     Button { model.insertRows(below: true) } label: { Label("Zeile darunter einfügen", systemImage: "arrow.down.to.line") }
                     Button { model.insertCols(right: false) } label: { Label("Spalte links einfügen", systemImage: "arrow.left.to.line") }
                     Button { model.insertCols(right: true) } label: { Label("Spalte rechts einfügen", systemImage: "arrow.right.to.line") }
+                    Button { model.fitWidth(cols: model.selection.cols) } label: { Label("Spaltenbreite an Inhalt anpassen", systemImage: "arrow.left.and.right.text.vertical") }
                     Divider()
                     Button(role: .destructive) { model.deleteRows() } label: { Label(model.selection.rows.count > 1 ? "Zeilen löschen" : "Zeile löschen", systemImage: "trash") }
                     Button(role: .destructive) { model.deleteCols() } label: { Label(model.selection.cols.count > 1 ? "Spalten löschen" : "Spalte löschen", systemImage: "trash") }
