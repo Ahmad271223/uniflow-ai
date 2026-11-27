@@ -15,8 +15,9 @@ App Store oder Google Play gelten zusätzlich die Bedingungen von Apple bzw. Goo
 StudiNow ist eine Lern-App für Studierende: Sie ruft Dateien, Termine, Fristen und Ankündigungen aus den Systemen
 deiner Hochschule ab, zeigt sie in Bibliothek und Stundenplan und lässt dich Dokumente lesen und – mit
 Plus – mit dem Stift beschreiben, Karteikarten führen, in der Community deines Kurses mitmachen
-und Lösungen zu Übungsblättern mit anderen teilen. StudiNow Pro AI enthält zusätzlich die KI von StudiNow über den
-StudiNow-Dienst, zum Beispiel für Erklärungen und Wochentests.
+und Lösungen zu Übungsblättern mit anderen teilen. Die KI von StudiNow (zum Beispiel Erklärungen, Zusammenfassungen und
+Wochentests) läuft über den StudiNow-Dienst und **funktioniert nur mit Credits**: StudiNow Pro AI enthält jeden Monat
+Credits, mit Plus kaufst du sie dazu (Abschnitt 5).
 
 | Funktion | Free | Plus | Pro AI |
 |---|:---:|:---:|:---:|
@@ -29,12 +30,10 @@ StudiNow-Dienst, zum Beispiel für Erklärungen und Wochentests.
 | Schreiben mit dem Stift (Stift, Marker, Radierer, Lasso), Seiten einfügen, drehen, Lesezeichen | – | ✓ | ✓ |
 | Übung und Skript nebeneinander, Skriptsuche zur Aufgabe | – | ✓ | ✓ |
 | Eigene Karteikarten mit Wiederholung | – | ✓ | ✓ |
-| Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung, auch bei neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | – | ✓ |
-| Wochentests aus deinen Unterlagen erstellen (mit der KI von StudiNow, Abschnitt 5a) | – | – | ✓ |
+| Erinnerungen an Abgaben, Tests und Klausuren als Mitteilung, auch bei neu erkannten Klausurterminen (die Fristen und Termine selbst siehst du in jedem Tarif) | – | ✓ | ✓ |
 | Community deines Kurses: lesen, beitreten, Fragen stellen, Lösungen und Karteikarten-Stapel teilen und vergleichen | – | ✓ | ✓ |
-| Fragen an die KI mit gekauften Credits (KI-Chat) | – | ✓ | ✓ |
-| Notizen auf Hochschul-Dokumenten zwischen eigenen Geräten abgleichen (über den StudiNow-Dienst; eigene Dokumente und Notizblätter bleiben nur auf dem Gerät) | – | – | ✓ |
-| KI von StudiNow ohne eigenes ChatGPT-Konto (Erklärungen, Zusammenfassungen, Karteikarten aus Dokumenten) mit Credits, nur mit dem StudiNow-Dienst | – | – | ✓ |
+| Notizen auf Hochschul-Dokumenten zwischen eigenen Geräten abgleichen (über den StudiNow-Dienst; eigene Dokumente und Notizblätter bleiben nur auf dem Gerät) | – | ✓ | ✓ |
+| KI von StudiNow (Erklärungen, Zusammenfassungen, Lernfragen, Wochentests, Karteikarten aus Dokumenten, Fragen an die KI, E-Mails verbessern), nur mit dem StudiNow-Dienst und **nur mit Credits** | – | mit gekauften Credits | ✓ 120 Credits je Monat, weitere kaufbar |
 
 Welche Funktionen in deiner App-Version verfügbar sind, zeigt die App selbst an; was nicht freigeschaltet ist,
 ist als gesperrt gekennzeichnet und wird nicht vorgetäuscht. Wir entwickeln StudiNow weiter und können Funktionen
@@ -61,13 +60,25 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   Abruf jederzeit funktioniert oder vollständig ist. **Verbindlich für Termine, Fristen, Räume, Noten und
   Abgaben sind ausschließlich die Hochschulsysteme und die Auskünfte deiner Hochschule.** Prüfe wichtige Fristen
   dort.
-- StudiNow ist kein Angebot der Hochschulen und nicht mit ihnen verbunden.
+- **StudiNow ist ein unabhängiges Angebot von IT solutions by Ahmad Fakih.** Wir arbeiten nicht mit der Leibniz
+  Universität Hannover (LUH) oder einer anderen Hochschule zusammen, haben mit keiner Hochschule einen Vertrag und
+  werden von keiner beauftragt oder unterstützt. Namen von Hochschulen und ihren Systemen nennen wir nur, um zu
+  beschreiben, womit die App zusammenarbeitet.
+- **Die Verbindung zu den Systemen deiner Hochschule ist nicht zugesichert.** Eine Hochschule kann ihre Systeme
+  jederzeit ändern, den Abruf durch Apps einschränken oder StudiNow sperren. Darauf haben wir keinen Einfluss, und wir
+  schulden dir nicht, eine bestimmte Hochschule dauerhaft anzubinden. Der Preis eines Kaufs gilt für die Funktionen der
+  App selbst (zum Beispiel Dokumente bearbeiten, Stift, Karteikarten, Community, eigene Module und Notizen); sie bleiben
+  auch ohne Hochschulanbindung nutzbar, mit Dokumenten, die du selbst importierst. Fällt die Anbindung aus Gründen weg,
+  die bei der Hochschule liegen (zum Beispiel eine Sperre oder Umstellung ihrer Systeme), ist das kein Mangel von
+  StudiNow und begründet keinen Anspruch auf Rückerstattung oder Preisminderung, soweit das Gesetz nichts anderes
+  zwingend vorschreibt. Deine gesetzlichen Rechte bleiben unberührt; über Rückerstattungen für Käufe im App Store
+  entscheidet Apple.
 
-## 5. Probe und Abos (StudiNow Plus, StudiNow Pro AI)
+## 5. Probe, Käufe und Credits (StudiNow Plus, StudiNow Pro AI)
 
-- **Probe:** Jede Person erhält einmal eine kostenlose Probe von 7 Tagen mit dem Umfang von StudiNow Pro AI, ohne
+- **Probe:** Jede Person erhält einmal eine kostenlose Probe von 7 Tagen mit dem Umfang von StudiNow Plus, ohne
   Zahlungsdaten; mit StudiNow-Konto gehören dazu 25 Credits für die KI von StudiNow. Nach der Probe gilt automatisch
-  StudiNow Free, es sei denn, du schließt ein Abo ab; die Probe wird nie von selbst kostenpflichtig.
+  StudiNow Free, es sei denn, du kaufst Plus oder Pro AI; die Probe wird nie von selbst kostenpflichtig.
 - **Web und Windows:** Die Web-Oberfläche und die Windows-App nutzt du immer mit deinem StudiNow-Konto. Dort gibt es
   keinen Free-Tarif zum Arbeiten: Nach der Probe brauchst du StudiNow Plus oder Pro AI; ohne aktives Abo kannst du dort
   deine Daten nur ansehen und exportieren, gelöscht wird nichts. Free bleibt in der App für iPhone, iPad und Mac nutzbar. Die Windows-App
@@ -76,24 +87,35 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
   Bezahlseite in deinem Browser), sobald wir ihn eingerichtet haben; Kündigen und Wechseln im Kundenportal von Stripe.
   Löschst du dein Konto, beenden wir ein Abo über Stripe sofort (Abschnitt 10). Ein Abo aus der Apple-App gilt automatisch auch im Web und unter Windows; ein zweites Abo über Stripe ist dann nicht
   möglich.
-- **StudiNow Plus** ist ein Jahresabo (Stand: 19,99 € pro Jahr inkl. USt) mit den Plus-Funktionen aus Abschnitt 2.
-  Monatsabos bieten wir nicht an.
-- **StudiNow Pro AI** ist ein Jahresabo (Stand: 39,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und die
-  KI von StudiNow über den StudiNow-Dienst, ohne eigenes ChatGPT-Konto. Dafür brauchst du ein StudiNow-Konto; die App
-  bietet Pro AI erst an, wenn der Dienst verfügbar ist. Die KI wird mit Credits abgerechnet: 80 Credits je
-  Kalendermonat (auch beim Jahresabo). Nicht verbrauchte
-  Credits verfallen am Monatsende; sind sie aufgebraucht, steht die KI von StudiNow bis zum nächsten Monat nicht zur
-  Verfügung, alle anderen Funktionen bleiben. Dazu kommen bis zu 50 E-Mails je Kalendermonat, die du in Uni-Mail mit
-  „Mit KI verbessern“ überarbeiten lassen kannst (ohne Credits); den Vorschlag übernimmst du nur, wenn du willst, und
-  gesendet wird nur mit „Senden“. Antworten der KI können fehlerhaft sein; prüfe sie an den Unterlagen deiner
-  Hochschule.
-- Den Preis zeigt die App vor dem Kauf an; er wird für ein Jahr im Voraus berechnet. Das Abo verlängert sich automatisch um ein Jahr, wenn du es nicht
-  spätestens 24 Stunden vor Ablauf des laufenden Jahres kündigst. Nach einer Kündigung bleibt der Tarif bis zum Ende des bezahlten
-  Jahres nutzbar. Kündigen und verwalten kannst du es in den
+- **StudiNow Plus** enthält alle Funktionen aus Abschnitt 2; die KI von StudiNow nutzt du mit Plus nur mit gekauften
+  Credits. Plus gibt es auf zwei Arten (Stand, inkl. USt):
+  - als **Monatsabo für 1,99 € im Monat**;
+  - **einmalig für 39,99 € für 5 Jahre** („Bachelor+Master-Paket“). Das ist kein Abo: Es verlängert sich nicht, es wird nichts weiter
+    berechnet, und es endet automatisch 5 Jahre nach dem Kauf. Danach gilt StudiNow Free, bis du wieder kaufst; deine
+    Daten bleiben.
+- **StudiNow Pro AI** gibt es als Monatsabo (Stand: 3,99 € im Monat inkl. USt) oder als Jahresabo
+  (Stand: 39,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und dazu **120 Credits je Kalendermonat** für die KI
+  von StudiNow, die am Monatsersten neu aufgeladen werden (auch beim Jahresabo). Nicht verbrauchte Monats-Credits verfallen am Monatsende. Für die KI von StudiNow brauchst du ein
+  StudiNow-Konto.
+- **KI-Credits:** Die KI von StudiNow funktioniert nur, solange du Credits hast; ohne Credits steht sie nicht zur
+  Verfügung, alle anderen Funktionen bleiben. Mit Plus oder Pro AI kannst du in der App Credit-Pakete dazukaufen (den
+  Preis zeigt die App vor dem Kauf an); in StudiNow Free und allein mit der Probe nicht. Gekaufte Credits verfallen
+  nicht und werden erst nach den Monats-Credits verbraucht. Sie gelten, solange du Plus oder Pro AI hast; endet beides,
+  ruhen sie und gelten wieder, sobald du wieder Plus oder Pro AI hast. Mit Credits kannst du außerdem bis zu 50 E-Mails
+  je Kalendermonat in Uni-Mail mit „Mit KI verbessern“ überarbeiten lassen; den Vorschlag übernimmst du nur, wenn du
+  willst, und gesendet wird nur mit „Senden“. Antworten der KI können fehlerhaft sein; prüfe sie an den Unterlagen
+  deiner Hochschule.
+- **Ohne Credits:** Die Mitschrift von Aufnahmen auf deinem Gerät und Anfragen über deinen eigenen OpenAI-Schlüssel
+  (falls du einen einträgst; die Kosten trägst du dann selbst bei OpenAI) brauchen keine Credits von StudiNow.
+- Den Preis zeigt die App vor dem Kauf an; ein Abo wird für den jeweiligen Zeitraum (Monat bzw. Jahr) im Voraus
+  berechnet. Ein Abo verlängert sich automatisch um denselben Zeitraum, wenn du es nicht spätestens 24 Stunden vor
+  Ablauf des laufenden Zeitraums kündigst. Nach einer Kündigung bleibt der Tarif bis zum Ende des bezahlten Zeitraums
+  nutzbar. Kündigen und verwalten kannst du es in den
   Abo-Einstellungen deines Apple- bzw. Google-Kontos; das Löschen der App beendet das Abo nicht. Ein Wechsel zu einem
   höheren Tarif gilt sofort, zu einem niedrigeren ab der nächsten Verlängerung.
 - Kauf, Zahlung, Rechnung, Rückerstattung und Widerruf wickelt Apple bzw. Google nach deren Bedingungen ab. Mit dem
-  Start des Abos verlangst du die sofortige Bereitstellung digitaler Inhalte.
+  Kauf verlangst du die sofortige Bereitstellung digitaler Inhalte. Vor dem Kauf zeigt die App den Hinweis aus
+  Abschnitt 4, dass die Verbindung zu den Systemen deiner Hochschule nicht zugesichert ist.
 - Nach dem Ende eines Abos oder der Probe bleiben alle deine Notizen erhalten, lesbar und als PDF exportierbar; nur das
   Bearbeiten und die anderen Funktionen des Tarifs sind gesperrt, bis du wieder abonnierst. Eigene Beiträge in der
   Community kannst du auch ohne Plus zurückziehen; lesen und mitmachen kannst du dort erst wieder mit Plus.
@@ -106,14 +128,14 @@ Mit StudiNow-Konto gelten im Dienst monatliche Grenzen, die die App anzeigt:
 
 | Je Kalendermonat | Free | Plus | Pro AI |
 |---|:---:|:---:|:---:|
-| Neue KI-Tests von StudiNow (Wochentests) | – | – | 20 |
-| Geteilte Tests anderer aus deinem Kurs | – | – | unbegrenzt (Fair Use: 300) |
-| Geteilte Karteikarten-Stapel aus der Community übernehmen | – | 4 | unbegrenzt (Fair Use: 300) |
-| Credits für die KI von StudiNow | – | – | 80 |
+| Neue KI-Tests von StudiNow (Wochentests, nur mit Credits) | – | 20 | 20 |
+| Geteilte Tests anderer aus deinem Kurs | – | unbegrenzt (Fair Use: 300) | unbegrenzt (Fair Use: 300) |
+| Geteilte Karteikarten-Stapel aus der Community übernehmen | – | unbegrenzt (Fair Use: 300) | unbegrenzt (Fair Use: 300) |
+| Credits für die KI von StudiNow | – | nur gekaufte | 120 je Monat, dazu gekaufte |
 
 Ein gemeinsamer Wochentest, den andere schon erstellt haben, zählt nicht; derselbe Karteikarten-Stapel zählt im Monat
-nur einmal. Die Testliste im Dienst zeigt in Free und
-Plus die letzten 10 Tests, in Pro AI alle; ältere Tests bleiben gespeichert und zählen weiter für den Lernstand.
+nur einmal. Die Testliste im Dienst zeigt in Free die letzten 10 Tests, in Plus und Pro AI alle; ältere Tests
+bleiben gespeichert und zählen weiter für den Lernstand.
 
 ## 6. Deine Inhalte und die Inhalte deiner Hochschule
 
@@ -156,6 +178,8 @@ Hochschulregeln.
 
 - Wir bemühen uns um eine hohe Verfügbarkeit des Dienstes, garantieren sie aber nicht; Wartung und Störungen können
   zu Unterbrechungen führen. Die Apps funktionieren ohne Dienst weiter mit den Daten auf deinem Gerät.
+- Für die Verfügbarkeit der Hochschulsysteme und für Sperren durch eine Hochschule sind wir nicht verantwortlich
+  (Abschnitt 4).
 - StudiNow ersetzt nicht die Hochschulsysteme. Für Fehler in übernommenen Terminen, Fristen oder Noten, für
   versäumte Fristen oder für Entscheidungen, die du auf Grundlage der angezeigten Daten triffst, haften wir nur
   nach den folgenden Regeln.

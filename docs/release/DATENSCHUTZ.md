@@ -16,7 +16,7 @@ nötig ist oder was du eingeschaltet hast.
 - **Zum Konto** speichern wir deine Apple-Kennung bzw. E-Mail-Adresse (bei Apple ggf. eine Weiterleitungsadresse),
   ein Passwort nur als Hash (falls du eines setzt), deine Hochschule, Sitzungen, Tarif und Probe (Abschnitt 5). Mit der
   Anmeldung gleicht die App Module, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten ab,
-  Notizen nur mit Pro AI (Abschnitt 7). Deine Notizen ohne Pro AI und alles in Abschnitt 3 bleiben auf dem Gerät.
+  Notizen nur mit Plus oder Pro AI (Abschnitt 7). Deine Notizen in Free und alles in Abschnitt 3 bleiben auf dem Gerät.
   Kursdateien nimmt StudiNow seit dem 26.11.2026 nicht mehr an (Abschnitt 7a). Die Community schaltest du selbst ein
   (Abschnitte 8, 8b).
 - **Deine Hochschul-Zugangsdaten** gibst du nur bei den Systemen deiner Hochschule ein. Wenn du sie merken lässt,
@@ -28,7 +28,7 @@ nötig ist oder was du eingeschaltet hast.
   KI-Funktionen, die du nutzt. Es gibt zwei Wege:
   - Du verbindest **dein eigenes ChatGPT** (Abschnitt 8a). Dann gehen die Texte direkt von deinem Gerät an OpenAI.
     Diese Verbindung ist in den Apps noch ausgeschaltet („bald verfügbar“).
-  - Du nutzt im Tarif **Pro AI** die **StudiNow-KI** (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
+  - Du nutzt mit Credits (Plus mit gekauften Credits oder Pro AI) die **StudiNow-KI** (Abschnitt 8c). Dann gibt der Dienst die einzelne Anfrage an einen
     von zwei Auftragsverarbeitern weiter: OpenAI oder Amazon Web Services (Frankfurt).
 - **Absturzberichte:** Stürzt die App ab, schickt sie ab Version 1.0.8 einen kurzen technischen Bericht an StudiNow –
   ohne deinen Namen und ohne dein Konto. Das kannst du ausschalten (Abschnitt 10a).
@@ -147,7 +147,9 @@ Ort bzw. den Koordinaten; ab dann gelten die Datenschutzhinweise von Google bzw.
 
 Für diese Systeme ist deine Hochschule verantwortlich; es gelten ihre Datenschutzhinweise und Nutzungsregeln. Sie
 sieht die üblichen Verbindungsdaten (IP-Adresse deines Geräts bzw. unseres Dienstes, Zeitpunkt). StudiNow ist kein
-Angebot der Hochschulen und nicht mit ihnen verbunden. Verbindlich für Termine, Fristen und Noten sind immer die
+Angebot der Hochschulen und nicht mit ihnen verbunden: Wir arbeiten nicht mit der Leibniz Universität Hannover
+(LUH) oder einer anderen Hochschule zusammen und bekommen von keiner Hochschule Daten über dich – nur das, was deine
+App mit deinen eigenen Zugangsdaten selbst abruft. Verbindlich für Termine, Fristen und Noten sind immer die
 Hochschulsysteme selbst.
 
 ## 4a. Video, YouTube und Lernseiten neben einem Dokument (Plus)
@@ -245,7 +247,7 @@ Mit Konto speichert der Dienst in einem eigenen, von anderen Konten getrennten D
 die Dateiliste (Name, Ordner, Datum, Größe, Fingerabdruck, Seitentext – die Dateien selbst nicht, siehe Abschnitt 7a),
 Termine, Fristen, Ankündigungen und – nur auf deinen Abruf hin – Noten und Bescheinigungen; mit dem
 Geräteabgleich außerdem Module, Lesezeichen, Stundenplan, Lernkalender, Aufgaben, Karteikarten und Einstellungen,
-ab Pro AI auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
+ab Plus auch deine Notizen, damit iPad, Android, Windows und Web denselben Stand zeigen. Übertragung nur verschlüsselt (TLS).
 Die iPad-App gleicht mit deinem Konto ab, sobald du angemeldet bist (beim Öffnen der App, höchstens alle drei Minuten,
 und mit „Jetzt abgleichen“), und nur mit dem Datenbereich der Hochschule, die zu deinem Konto gehört. Damit sich die
 Daten zweier Stud.IP-Benutzer nicht mischen, schickt sie dabei einen Hash (SHA-256) deiner Stud.IP-Benutzerkennung
@@ -420,9 +422,9 @@ Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO (du veröffentlichst bzw. nutzt die 
 Sperren Art. 6 Abs. 1 lit. f DSGVO (Schutz der anderen Nutzerinnen und Nutzer). Alle drei Funktionen sind freiwillig;
 ohne sie funktioniert StudiNow genauso.
 
-## 8c. StudiNow-KI im Dienst (Tarif Pro AI)
+## 8c. StudiNow-KI im Dienst (mit Credits: Plus oder Pro AI)
 
-- **Wann:** nur wenn du mit deinem StudiNow-Konto (Pro AI oder Probe, bestätigte E-Mail-Adresse) eine KI-Funktion im
+- **Wann:** nur wenn du mit deinem StudiNow-Konto (mit Credits aus Pro AI, der Probe oder einem Kauf, bestätigte E-Mail-Adresse) eine KI-Funktion im
   Dienst nutzt, z. B. eine Frage im Editor, eine Erklärung des ganzen Dokuments, Karteikarten oder einen Wochentest.
   Vor der ersten Anfrage zeigen App, Web und Windows einmal den Hinweis „KI-Hilfe: Was wird gesendet?“ (was, an wen)
   und senden erst nach „Okay, los“; widerrufen kannst du das jederzeit in den Einstellungen
@@ -499,12 +501,12 @@ Lösungen.
 
 ## 9. Käufe und Abos
 
-Die Abos StudiNow Plus und StudiNow Pro AI kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und
+StudiNow Plus (Monatsabo oder einmalig für 5 Jahre), StudiNow Pro AI und Credit-Pakete kaufst du über den App Store (Apple) bzw. Google Play. Vertrags- und
 Zahlungsabwicklung, Rechnungen, Rückerstattungen und Kündigung laufen über Apple bzw. Google nach deren
 Datenschutzbestimmungen. Wir erhalten keine Zahlungsdaten. Die iPad-App prüft den Kauf auf dem Gerät; mit deinem
 StudiNow-Konto (Abschnitt 3) schickt sie uns außerdem die von Apple signierte Kaufbestätigung (Transaktions- und
 Produktkennung, Laufzeit, die zufällige Kontokennung `appAccountToken`), damit wir den Tarif deinem Konto zuordnen
-(z. B. die Credits der StudiNow-KI in Pro AI). Ein Abo gehört so genau einem StudiNow-Konto: Es gilt auf allen
+(z. B. die Laufzeit von Plus oder die Credits der StudiNow-KI). Ein Abo gehört so genau einem StudiNow-Konto: Es gilt auf allen
 Geräten mit derselben Apple-ID, ein anderes Konto kann es nicht übernehmen. Diese Information speichern wir, solange das Konto besteht. Rechtsgrundlage:
 Art. 6 Abs. 1 lit. b DSGVO.
 
