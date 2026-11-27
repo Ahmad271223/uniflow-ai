@@ -18,6 +18,8 @@ final class TextBlockAppTests: XCTestCase {
         /// Seiten: PDF-Seite, linierte Seite, leere Seite
         let lined: String
         let blank: String
+        var root: URL? = nil
+        var api: APIClient? = nil
     }
 
     private static func pdf() -> Data {
@@ -89,7 +91,59 @@ final class TextBlockAppTests: XCTestCase {
             window.rootViewController = nil
             await store.close()
         }
-        return Shown(store: store, editor: editor, window: window, lined: lined, blank: blank)
+        return Shown(store: store, editor: editor, window: window, lined: lined, blank: blank, root: root, api: api)
+    }
+
+    /// Dokument schliessen und wieder oeffnen (neuer Speicher, neuer Editor im Fenster) - wie Zurueck und erneut antippen
+    private func reopen(_ s: Shown, proAI: Bool = true) async throws -> Shown {
+        let root = try XCTUnwrap(s.root), api = try XCTUnwrap(s.api)
+        s.editor.objects.endTextEditing()
+        s.editor.showToolPicker(false)
+        s.window.rootViewController = nil
+        await s.store.close()
+        let store = DocumentStore(file: s.store.file, api: api, root: root)
+        await store.load()
+        XCTAssertNil(store.errorMessage, store.errorMessage ?? "")
+        XCTAssertTrue(store.isWritable, "wieder geoeffnet: schreibbar")
+        let suite = "uniflow.tests.textblock.\(UUID().uuidString)"
+        let editor = PDFEditorController(store: store, tools: EditorToolState(defaults: UserDefaults(suiteName: suite) ?? .standard))
+        editor.pencilOnly = true
+        editor.ownNotesVisible = true
+        editor.canEdit = true
+        editor.richNotesOverride = proAI
+        s.window.rootViewController = editor
+        s.window.makeKeyAndVisible()
+        addTeardownBlock { @MainActor in
+            editor.objects.endTextEditing()
+            editor.showToolPicker(false)
+            await store.close()
+        }
+        return Shown(store: store, editor: editor, window: s.window, lined: s.lined, blank: s.blank, root: root, api: api)
+    }
+
+    /// Meldung des Inhabers 27.11.2026: Klappkarte auf einer PDF, PDF schliessen - danach liessen sich Karten ("Balken")
+    /// und Notizzettel nicht mehr loeschen. Nachgestellt mit echten Beruehrungen: Auswaehlen, Papierkorb.
+    func testNachDemWiederoeffnenLassenSichKartenUndZettelLoeschen() async throws {
+        let first = try await open()
+        _ = try await overlay(first, key: "p1")
+        let card = FlipCover.cover(id: "k", x: 70, y: 180, width: 240, height: 50)
+        let note = StickyNote.note(id: "z", x: 300, y: 400)
+        await first.store.editObjects(pageKey: "p1") { $0 + [card, note] }
+        await first.store.flush()
+        let s = try await reopen(first)
+        let page = try await overlay(s, key: "p1")
+        try await BildProbe.wait("Karte und Zettel gezeigt") { page.objectsView.shownObjects.count == 2 }
+        s.editor.choose(.select)
+        // Karte antippen, loeschen
+        try await BildProbe.tap(CGPoint(x: 150, y: 205), on: page, in: s.window)
+        try await BildProbe.wait("Karte gewaehlt") { s.editor.objects.selection?.ids == ["k"] }
+        s.editor.objects.deleteSelection()
+        try await BildProbe.wait("Karte geloescht") { await s.store.objects(forPageKey: "p1").contains { $0["id"] == "k" } == false }
+        // Zettel antippen, loeschen
+        try await BildProbe.tap(CGPoint(x: 330, y: 430), on: page, in: s.window)
+        try await BildProbe.wait("Zettel gewaehlt") { s.editor.objects.selection?.ids == ["z"] }
+        s.editor.objects.deleteSelection()
+        try await BildProbe.wait("Zettel geloescht") { await s.store.objects(forPageKey: "p1").isEmpty }
     }
 
     /// Seite zeigen und warten, bis sie mit Notizen geladen ist
