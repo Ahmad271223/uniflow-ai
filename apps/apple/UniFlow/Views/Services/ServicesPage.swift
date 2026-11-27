@@ -20,6 +20,8 @@ struct ServicesPage: View {
     @Environment(\.hildesheim) private var hildesheim
     @Environment(\.qis) private var qisConnection
     @Environment(\.hsh) private var hshConnection
+    /// FlexNow 2 der Uni Goettingen (angemeldete Pruefungen, nur lesend; 27.11.2026)
+    @Environment(\.flexnow) private var flexnow
     @EnvironmentObject private var studip: StudIPSync
     @Environment(\.ufDemoActive) private var demo
     /// iPhone: "Bescheinigungen öffnen" in voller Breite unter dem Text
@@ -142,10 +144,15 @@ struct ServicesPage: View {
 
             ServicesSpanLayout() {
                 if let plain {
-                    UFNotOfferedCard(icon: "exam", title: UFUniversityScope.gradesTitle(plain), text: UFUniversityScope.gradesText(plain),
-                                     link: UFUniversityScope.serviceURL("flexnow", plain).map { ("\(plain.profile.gradesSource) öffnen", $0) },
-                                     identifier: "services.grades.notoffered")
-                        .environment(\.ufFillsCell, true)
+                    // Uni Goettingen (27.11.2026): angemeldete Pruefungen mit Abmeldefrist aus FlexNow; Noten weiter nicht
+                    if plain == .goettingen, let flexnow {
+                        FlexNowCard(connection: flexnow, api: session.api).environment(\.ufFillsCell, true)
+                    } else {
+                        UFNotOfferedCard(icon: "exam", title: UFUniversityScope.gradesTitle(plain), text: UFUniversityScope.gradesText(plain),
+                                         link: UFUniversityScope.serviceURL("flexnow", plain).map { ("\(plain.profile.gradesSource) öffnen", $0) },
+                                         identifier: "services.grades.notoffered")
+                            .environment(\.ufFillsCell, true)
+                    }
                     VStack(alignment: .leading, spacing: 8) {                              // .stack
                         timetableCard
                         LUHSourcesCard()

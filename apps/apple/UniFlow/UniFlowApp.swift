@@ -130,6 +130,7 @@ struct UniFlowApp: App {
                     .environment(\.hildesheim, containers.hildesheim)          // Learnweb und LSF (nur Uni Hildesheim)
                     .environment(\.qis, containers.qis)                        // QIS-Noten (nur LUH)
                     .environment(\.hsh, containers.hsh)                        // Moodle und Campusmanagement (nur HsH)
+                    .environment(\.flexnow, containers.flexnow)                // FlexNow 2 (nur Uni Göttingen)
                     .environment(\.uniMail, containers.uniMail)               // Uni-Mail und Uni-Kalender (SOGo, LUH und Uni Hildesheim)
                     .environment(\.backgroundSync, background)                 // Karte "Im Hintergrund abgleichen"
                     .environment(\.ufDemoActive, containers.demoActive)        // Demo-Inhalte: Hinweis statt "… verbinden"

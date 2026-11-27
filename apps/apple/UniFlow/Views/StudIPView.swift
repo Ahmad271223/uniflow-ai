@@ -456,6 +456,9 @@ struct StudIPWebView: UIViewRepresentable {
     var phoneFitQIS = false
     /// Hauptrahmen: statt einer Adresse eine andere laden (`Coordinator.reroute`)
     var rerouteNavigation: (@MainActor (URL) -> URL?)? = nil
+    /// Links und Formulare mit `target="_blank"` bzw. `window.open` in derselben Webansicht laden statt sie still zu
+    /// verwerfen (FlexNow der Uni Goettingen, 27.11.2026; Vorgabe aus wie bisher)
+    var opensNewWindowsInPlace = false
     let onPageLoaded: (WKWebView) -> Void
 
     func makeCoordinator() -> Coordinator {
@@ -485,6 +488,7 @@ struct StudIPWebView: UIViewRepresentable {
         if phoneFitQIS, UFCompact.phoneLayouts { QISPhoneFit.install(in: config) }
         let view = WKWebView(frame: .zero, configuration: config)
         view.navigationDelegate = context.coordinator
+        if opensNewWindowsInPlace { view.uiDelegate = context.coordinator }
         load?.webView = view
         load?.lastURL = url
         // nur Debug mit -UFLoginStub: lokale Nachbildung der Anmeldeseite (DebugUniStub), Lesezugriff auf ihren Ordner
@@ -497,7 +501,7 @@ struct StudIPWebView: UIViewRepresentable {
 
     func updateUIView(_ uiView: WKWebView, context: Context) {}
 
-    final class Coordinator: NSObject, WKNavigationDelegate {
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         let onPageLoaded: (WKWebView) -> Void
         let intercept: (@MainActor (URL) -> Bool)?
         /// Hauptrahmen: statt dieser Adresse eine andere laden (nil = nichts aendern), z. B. `HildesheimLogin.reroute`
@@ -535,6 +539,15 @@ struct StudIPWebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             load?.failed(error)
+        }
+
+        /// nur mit `opensNewWindowsInPlace`: neues Fenster -> dieselbe Webansicht (die Regeln fuer den Hauptrahmen gelten)
+        func webView(_ webView: WKWebView, createWebViewWith configuration: WKWebViewConfiguration,
+                     for navigationAction: WKNavigationAction, windowFeatures: WKWindowFeatures) -> WKWebView? {
+            if navigationAction.targetFrame == nil, let url = navigationAction.request.url, !StudIPWebView.blocksMainFrame(url) {
+                webView.load(navigationAction.request)
+            }
+            return nil
         }
 
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) { load?.failed(error) }

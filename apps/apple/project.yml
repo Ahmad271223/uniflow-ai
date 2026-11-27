@@ -293,6 +293,10 @@ targets:
       - path: DebugStub/goettingen
         type: folder
         buildPhase: resources
+      # FlexNow 2 der Uni Goettingen (von Hand im gesehenen Aufbau), fuer FlexNowAppTests
+      - path: DebugStub/goettingen-flexnow
+        type: folder
+        buildPhase: resources
       - path: ../../packages/shared-contracts/fixtures
         type: folder
         buildPhase: resources

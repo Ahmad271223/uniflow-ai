@@ -51,6 +51,8 @@ enum UniLinks {
                 if h.hasPrefix("www.") { out.append(Scope(host: String(h.dropFirst(4)), pathPrefix: "/" + stem)) }
             }
         }
+        // Uni Goettingen (27.11.2026): FlexNow mit der Anmeldung der App (Karte "Prüfungen (FlexNow)")
+        if u == .goettingen { out.append(Scope(host: FlexNowPage.host, pathPrefix: "/")) }
         if u == .hsh {
             // Hochschule Hannover: ganzes Moodle und Campusmanagement, das alte QIS (Iframe) nur unter /qisserver/
             whole(UniversityProfile.hshMoodle)

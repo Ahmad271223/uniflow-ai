@@ -44,6 +44,11 @@ final class ExamRegistrationReminderScheduler: ObservableObject {
             .map { q in q.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty<Int, Never>().eraseToAnyPublisher() }
             .switchToLatest()
             .sink { [weak self] _ in Task { await self?.refresh() } }.store(in: &bag)
+        // Uni Goettingen: jedes Lesen von FlexNow plant die Erinnerungen an die Abmeldefristen neu
+        containers.$flexnow
+            .map { f in f.map { $0.$finishedRuns.dropFirst().eraseToAnyPublisher() } ?? Empty<Int, Never>().eraseToAnyPublisher() }
+            .switchToLatest()
+            .sink { [weak self] _ in Task { await self?.refresh() } }.store(in: &bag)
     }
 
     /// Mit dem offenen Container planen (ohne Container: alle zuruecknehmen)
@@ -106,6 +111,9 @@ final class ExamRegistrationReminderScheduler: ObservableObject {
 /// Schalter "An die Prüfungsanmeldung erinnern" (Karte, Studienverlauf): Ein fragt iOS um Erlaubnis
 struct ExamRegistrationReminderToggle: View {
     @ObservedObject var scheduler: ExamRegistrationReminderScheduler = .shared
+    /// Uni Goettingen (FlexNow): eigener Titel und Zeile darunter (Abmeldefristen statt Meldezeitraum)
+    var title = "An die Prüfungsanmeldung erinnern"
+    var note = "Am ersten Tag, 7 und 2 Tage vor dem Ende um 9:00 Uhr."
     @State private var on = false
     @State private var loaded = false
 
@@ -115,12 +123,12 @@ struct ExamRegistrationReminderToggle: View {
                 on = v
                 Task { on = await scheduler.setEnabled(v) && v }
             })) {
-                Text("An die Prüfungsanmeldung erinnern").ufFont(13.12, 600).foregroundStyle(UF.text)
+                Text(title).ufFont(13.12, 600).foregroundStyle(UF.text)
             }
             .tint(UF.accent)
             .accessibilityIdentifier("examreg.reminders")
             Text(scheduler.denied ? "Mitteilungen sind für StudiNow ausgeschaltet (\(UFDevice.textName)-Einstellungen → StudiNow → Mitteilungen)."
-                                  : "Am ersten Tag, 7 und 2 Tage vor dem Ende um 9:00 Uhr.")
+                                  : note)
                 .ufFont(11.84).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }
         .task {

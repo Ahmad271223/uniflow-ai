@@ -58,8 +58,45 @@ public enum ExamRegistrationAPI {
         return out
     }
 
+    // MARK: Uni Goettingen (FlexNow 2, nur lesend)
+
+    public static let flexNowHint = "An- und abmelden tust du selbst in FlexNow („Prüfungen an-/abmelden“). StudiNow liest nur, was dort angemeldet ist, und schickt nichts ab."
+    public static let flexNowDisclaimer = "Verbindlich sind die Fristen in FlexNow und deine Prüfungsordnung."
+
+    /// Antwort an der Uni Goettingen: angemeldete Pruefungen aus FlexNow (`FlexNowRegistrationsSync`) mit Modul, Art und
+    /// Abmeldefrist; keine Fenster, keine Vorschlaege (kein Studienverlauf), keine Karte auf der Uebersicht.
+    /// `withdraw_reminders`: Erinnerungen vor dem Ende der Abmeldefrist (`ExamRegistrationReminders.planWithdraw`).
+    static func flexNowResponse(_ c: SQLiteConnection) throws -> JSONValue {
+        let regs = try QISRegistrationsSync.rows(c)
+        let run = try QISRegistrationsSync.lastRun(c)
+        let entry = JSONValue.string(FlexNowPage.entry.absoluteString)
+        let registered: [JSONValue] = regs.map { r in
+            ["pruefungsnr": StudyPlanEngine.opt(r.pruefungsnr), "text": .string(r.text), "semester": StudyPlanEngine.opt(r.semester),
+             "date": StudyPlanEngine.opt(r.isoDate), "date_text": StudyPlanEngine.opt(r.datum), "time": StudyPlanEngine.opt(r.clock),
+             "room": StudyPlanEngine.opt(r.room), "status": StudyPlanEngine.opt(r.status), "registered": .bool(r.registered),
+             "withdraw_until": StudyPlanEngine.opt(r.isoWithdraw), "withdraw_time": StudyPlanEngine.opt(RegistrationRows.clock(r.withdraw)),
+             "withdraw_text": StudyPlanEngine.opt(r.withdraw), "form": StudyPlanEngine.opt(r.form), "module": StudyPlanEngine.opt(r.abschluss)]
+        }
+        return [
+            "supported": true, "university": .string(UniversityKey.goettingen.rawValue), "program": .null, "program_name": .null,
+            "source": ["url": entry, "general_url": entry, "checked_at": .null],
+            "term": .null, "window": .null, "vbp_window": .null, "periods": [], "show_card": false,
+            "plan_available": false, "plan_message": .null, "suggestions": [], "open_count": 0,
+            "registered_count": .number(Double(regs.filter(\.registered).count)), "registered": .array(registered),
+            "registrations_checked_at": run?["at"] ?? .null, "registrations_ok": run?["ok"] ?? .null,
+            "registrations_message": run?["message"] ?? .null,
+            "registrations_synced_at": run?["ok"]?.bool != true ? StudyPlanEngine.opt(try QISRegistrationsSync.syncedAt(c)) : .null,
+            "warnings": [], "qis_url": entry, "hint": .string(flexNowHint), "rules": [], "disclaimer": .string(flexNowDisclaimer),
+            "system": .string(FlexNowRegistrationsSync.system), "open_label": "In FlexNow öffnen", "period_note": .null,
+            "withdraw_reminders": true,
+        ]
+    }
+
     public static func response(_ c: SQLiteConnection, today: String) throws -> JSONValue {
         let university = try c.scalar("SELECT value FROM settings WHERE key='university'")?.string ?? Migrations.defaultUniversity
+        // Uni Goettingen (27.11.2026): keine Meldezeitraeume und kein Studienverlauf, nur die aus FlexNow gelesenen
+        // Anmeldungen mit ihrer Abmeldefrist
+        if university == UniversityKey.goettingen.rawValue { return try flexNowResponse(c) }
         guard let data = ExamRegistrationPeriods.for(university: university), data.university == university else {
             return ["supported": false, "university": .string(university), "show_card": false, "suggestions": [], "registered": [],
                     "warnings": [], "periods": [], "qis_url": .null, "hint": .string(hint), "disclaimer": .string(disclaimer)]

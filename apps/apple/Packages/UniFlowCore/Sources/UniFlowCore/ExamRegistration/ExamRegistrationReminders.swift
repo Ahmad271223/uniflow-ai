@@ -51,7 +51,40 @@ public enum ExamRegistrationReminders {
                                                  itemID: "examreg-\(period)"))
             }
         }
+        out += planWithdraw(response, container: container, now: now)
         return out.sorted { $0.fireAt != $1.fireAt ? $0.fireAt < $1.fireAt : $0.identifier < $1.identifier }
+    }
+
+    /// Ziel beim Antippen einer Erinnerung an die Abmeldefrist: "Uni & Noten" (Karte "Prüfungen (FlexNow)")
+    public static let withdrawRoute = "#/services"
+
+    /// Uni Goettingen (FlexNow, 27.11.2026; nur mit `withdraw_reminders` in der Antwort, also nicht an LUH oder
+    /// Hildesheim): 7 und 2 Tage vor dem Ende der Abmeldefrist einer angemeldeten Pruefung um 9:00 (Berlin), je Tag
+    /// eine Mitteilung fuer alle Pruefungen mit derselben Frist. Kennungen "<prefix><Container>.abmeldung.<Tag>.d7|d2".
+    public static func planWithdraw(_ response: JSONValue, container: String, now: Date) -> [DueReminders.Reminder] {
+        guard response["supported"]?.bool == true, response["withdraw_reminders"]?.bool == true else { return [] }
+        let system = response["system"]?.string ?? "FlexNow"
+        var byDay: [String: [(title: String, time: String?)]] = [:]
+        for r in response["registered"]?.array ?? [] where r["registered"]?.bool != false {
+            guard let day = r["withdraw_until"]?.string, BerlinClock.parseISODate(day) != nil, let title = r["text"]?.string else { continue }
+            byDay[day, default: []].append((title, r["withdraw_time"]?.string))
+        }
+        var out: [DueReminders.Reminder] = []
+        for (iso, items) in byDay {
+            guard let end = BerlinClock.parseISODate(iso) else { continue }
+            let time = items.compactMap(\.time).first.map { ", \($0) Uhr" } ?? ""
+            let names = items.map(\.title)
+            let what = names.count == 1 ? names[0] : "\(names.count) angemeldete Prüfungen (\(names.prefix(3).joined(separator: ", "))\(names.count > 3 ? " …" : ""))"
+            let body = "\(what): Abmeldung in \(system) möglich bis \(when(iso))\(time)."
+            let base = prefix(container: container) + "abmeldung." + iso + "."
+            for (tag, day, title) in [("d7", end - 7, "Abmeldefrist: noch 7 Tage"), ("d2", end - 2, "Abmeldefrist endet übermorgen")] {
+                let fire = DueReminders.date(day: day, minutes: at)
+                guard fire > now else { continue }
+                out.append(DueReminders.Reminder(identifier: base + tag, fireAt: fire, title: title, body: body, route: withdrawRoute,
+                                                 itemID: "examreg-abmeldung"))
+            }
+        }
+        return out
     }
 
     /// Abgleich mit den geplanten Mitteilungen: nur eigene Kennungen (`prefix`) zuruecknehmen

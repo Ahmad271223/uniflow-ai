@@ -141,8 +141,9 @@ final class GoettingenTests: XCTestCase {
     func testLoginForm() throws {
         let form = UniLoginForms.goettingenStudIP
         func u(_ s: String) -> URL { URL(string: s)! }
-        XCTAssertEqual(UniLoginForms.forms(.goettingen), [form])
-        XCTAssertEqual(UniLoginForms.hosts(.goettingen), ["studip.uni-goettingen.de"])
+        // seit 27.11.2026 dazu das eigene Formular von FlexNow (FlexNowTests)
+        XCTAssertEqual(UniLoginForms.forms(.goettingen), [form, UniLoginForms.goettingenFlexNow])
+        XCTAssertEqual(UniLoginForms.hosts(.goettingen), ["studip.uni-goettingen.de", "flexnow2.uni-goettingen.de"])
         XCTAssertEqual(UniLoginForms.form(for: u("https://studip.uni-goettingen.de/dispatch.php/login"), university: .goettingen), form)
         XCTAssertEqual(UniLoginForms.form(for: u("https://studip.uni-goettingen.de/dispatch.php/login?again=yes"), university: .goettingen), form)
         XCTAssertNil(UniLoginForms.form(for: u("https://studip.uni-goettingen.de/dispatch.php/start"), university: .goettingen), "angemeldete Seite")

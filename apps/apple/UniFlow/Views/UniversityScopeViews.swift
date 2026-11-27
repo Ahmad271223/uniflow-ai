@@ -11,7 +11,8 @@ enum UFUniversityScope {
     /// Hochschule des offenen Containers (nil ohne Container: eigener Server, vor der Hochschulwahl)
     static var current: UniversityKey? { ActiveContainer.current?.key.university }
 
-    /// Liest die App an dieser Hochschule Noten aus einem Portal (QIS, LSF, HISinOne)? Uni Goettingen: nein (FlexNow 2)
+    /// Liest die App an dieser Hochschule Noten aus einem Portal (QIS, LSF, HISinOne)? Uni Goettingen: nein (aus FlexNow 2
+    /// nur die angemeldeten Pruefungen, seit 27.11.2026, `FlexNowConnection`)
     static func readsGrades(_ u: UniversityKey?) -> Bool { u.map { $0.profile.gradeLayout != nil } ?? true }
 
     /// Studienverlauf: braucht den Notenspiegel (Studiengang, Pruefungsordnung) und einen Modulkatalog der Hochschule
@@ -26,7 +27,7 @@ enum UFUniversityScope {
     }
 
     /// Woher Pruefungstermine von selbst kommen (Einstieg): an der LUH aus QIS; an der Uni Goettingen nur aus
-    /// Ankuendigungen in Stud.IP (FlexNow ist nicht angebunden)
+    /// Ankuendigungen in Stud.IP (FlexNow nennt bei den angemeldeten Pruefungen keinen Termin)
     static func examSource(_ u: UniversityKey? = current) -> String { readsGrades(u) ? "QIS" : "Stud.IP" }
 
     /// Zeile "fertig" im Einstieg, wenn noch kein Pruefungstermin bekannt ist
@@ -47,11 +48,11 @@ enum UFUniversityScope {
     static func gradesTitle(_ u: UniversityKey) -> String { "Noten (\(u.profile.gradesSource))" }
 
     static func gradesText(_ u: UniversityKey) -> String {
-        "Die \(u.profile.name) führt Noten und Prüfungsanmeldungen in \(u.profile.gradesSource). StudiNow liest \(u.profile.gradesSource) noch nicht – deine Noten siehst du dort im Browser."
+        "Die \(u.profile.name) führt Noten und Prüfungsanmeldungen in \(u.profile.gradesSource). StudiNow liest dort bisher nur deine angemeldeten Prüfungen, die Noten noch nicht – deine Noten siehst du dort im Browser."
     }
 
     static func servicesSub(_ u: UniversityKey) -> String {
-        "Alle Dienste der \(u.profile.name) an einem Ort. Kurse, Dateien und Stundenplan kommen aus Stud.IP; Noten liest StudiNow dort noch nicht."
+        "Alle Dienste der \(u.profile.name) an einem Ort. Kurse, Dateien und Stundenplan kommen aus Stud.IP, angemeldete Prüfungen aus \(u.profile.gradesSource); Noten liest StudiNow dort noch nicht."
     }
 
     static func studyPlanTitle(_ u: UniversityKey) -> String { "Den Studienverlauf gibt es für die \(u.profile.short) noch nicht" }
@@ -63,8 +64,8 @@ enum UFUniversityScope {
     static func newNotice(_ u: UniversityKey?) -> (title: String, have: String, missing: String)? {
         guard u == .goettingen else { return nil }
         return ("Universität Göttingen – neu in StudiNow",
-                "Schon dabei: Stud.IP mit Kursen, Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu das Schwarze Brett und der Speiseplan der Mensen (noch ohne Preise). Alle Lernfunktionen von StudiNow – Editor, Notizen, Karteikarten und je nach Tarif die KI – gehen wie an jeder anderen Hochschule.",
-                "Noch nicht dabei: Noten und Prüfungsanmeldung (FlexNow), Bescheinigungen und Vorlesungsverzeichnis (eCampus), Uni-Mail und Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch anbinden können, und ergänzen sie, sobald das möglich ist.")
+                "Schon dabei: Stud.IP mit Kursen, Dateien, Stundenplan, Terminen, Nachrichten, Ankündigungen und Lehrenden, dazu das Schwarze Brett und der Speiseplan der Mensen (noch ohne Preise). Aus FlexNow liest StudiNow deine angemeldeten Prüfungen mit Abmeldefrist. Alle Lernfunktionen von StudiNow – Editor, Notizen, Karteikarten und je nach Tarif die KI – gehen wie an jeder anderen Hochschule.",
+                "Noch nicht dabei: Noten (FlexNow), Bescheinigungen und Vorlesungsverzeichnis (eCampus), Uni-Mail und Vorlesungsaufzeichnungen. Wir prüfen gerade, wie wir sie technisch anbinden können, und ergänzen sie, sobald das möglich ist.")
     }
 
     static func studyPlanText(_ u: UniversityKey) -> String {

@@ -98,10 +98,12 @@ final class GoettingenAppTests: XCTestCase {
         XCTAssertEqual(URLSessionUniTransport.studipDomains(host: "studip.uni-hannover.de"), ["sso.idm.uni-hannover.de", "studip.uni-hannover.de"])
         XCTAssertEqual(URLSessionUniTransport.studipDomains, ["sso.idm.uni-hannover.de", "studip.uni-hannover.de"], "LUH unverändert")
         XCTAssertEqual(UniWebSessions.domains(.goettingen), ["uni-goettingen.de"])
-        // In-App-Browser: Stud.IP in der App; FlexNow, eCampus und E-Mail gehen an den Browser des Systems
+        // In-App-Browser: Stud.IP und (seit 27.11.2026) FlexNow in der App; eCampus und E-Mail gehen an den Browser des Systems
         XCTAssertEqual(UniLinks.route(URL(string: "https://studip.uni-goettingen.de/dispatch.php/my_courses")!, university: .goettingen),
                        .inApp(URL(string: "https://studip.uni-goettingen.de/dispatch.php/my_courses")!))
-        for outside in ["https://flexnow2.uni-goettingen.de/", "https://ecampus.uni-goettingen.de/", "https://email.stud.uni-goettingen.de/",
+        XCTAssertEqual(UniLinks.route(URL(string: "https://flexnow2.uni-goettingen.de/")!, university: .goettingen),
+                       .inApp(URL(string: "https://flexnow2.uni-goettingen.de/")!))
+        for outside in ["https://ecampus.uni-goettingen.de/", "https://email.stud.uni-goettingen.de/",
                         "https://studip.uni-hannover.de/"] {
             XCTAssertEqual(UniLinks.route(URL(string: outside)!, university: .goettingen), .system, outside)
         }
@@ -204,8 +206,13 @@ final class GoettingenAppTests: XCTestCase {
         // was es dort nicht gibt: keine Noten, keine Meldezeitraeume
         let grades = try await c.api.value("/api/grades")
         XCTAssertEqual(grades.list("grades").count, 0)
+        // seit 27.11.2026: nur die aus FlexNow gelesenen Anmeldungen (noch keine), keine Meldezeitraeume, keine Vorschlaege
         let registration = try await c.api.value("/api/exam-registration")
-        XCTAssertNotEqual(registration["supported"], true, "\(registration)")
+        XCTAssertEqual(registration["system"]?.string, "FlexNow", "\(registration)")
+        XCTAssertEqual(registration["window"], .null)
+        XCTAssertEqual(registration.list("suggestions").count, 0)
+        XCTAssertEqual(registration.list("registered").count, 0)
+        XCTAssertEqual(registration["show_card"]?.bool, false)
 
         // fehlende Wege: gemerkt statt jedes Mal gefragt; die Erweiterung der LUH fuer Aufzeichnungen nie gefragt
         XCTAssertEqual(counting.count("consultation-bookings"), 1)

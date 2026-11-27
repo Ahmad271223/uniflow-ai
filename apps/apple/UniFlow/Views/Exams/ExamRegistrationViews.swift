@@ -104,6 +104,13 @@ struct ExamRegistrationState: Equatable {
         let time: String?
         let registered: Bool
         let withdrawUntil: String?
+        // FlexNow (Uni Goettingen, 27.11.2026): Kuerzel, Modul, Art, Semester und die Frist wie angezeigt
+        var pruefungsnr: String? = nil
+        var module: String? = nil
+        var form: String? = nil
+        var semester: String? = nil
+        var withdrawText: String? = nil
+        var withdrawTime: String? = nil
     }
 
     let supported: Bool
@@ -158,7 +165,9 @@ struct ExamRegistrationState: Equatable {
         openCount = v.i("open_count") ?? suggestions.filter { !$0.registered }.count
         registered = v.list("registered").enumerated().map { i, r in
             Registered(id: i, text: r.s("text") ?? "", date: r.s("date"), dateText: r.s("date_text"), time: r.s("time"),
-                       registered: r["registered"]?.bool ?? true, withdrawUntil: r.s("withdraw_until"))
+                       registered: r["registered"]?.bool ?? true, withdrawUntil: r.s("withdraw_until"), pruefungsnr: r.s("pruefungsnr"),
+                       module: r.s("module"), form: r.s("form"), semester: r.s("semester"), withdrawText: r.s("withdraw_text"),
+                       withdrawTime: r.s("withdraw_time"))
         }
         registrationsCheckedAt = v.s("registrations_checked_at")
         registrationsMessage = v.s("registrations_message")

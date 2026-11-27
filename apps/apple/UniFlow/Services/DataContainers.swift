@@ -190,6 +190,8 @@ final class ContainerManager: ObservableObject {
     @Published private(set) var qis: QISConnection?
     /// Moodle und Campusmanagement des aktiven Containers der Hochschule Hannover (sonst nil)
     @Published private(set) var hsh: HsHConnection?
+    /// FlexNow 2 des offenen Goettinger Containers (angemeldete Pruefungen, nur lesend; 27.11.2026), sonst nil
+    @Published private(set) var flexnow: FlexNowConnection?
     /// Uni-Mail und Uni-Kalender (SOGo) des aktiven Containers der LUH oder der Uni Hildesheim (sonst nil),
     /// docs/UNI-MAIL-2026-11-05.md
     @Published private(set) var uniMail: UniMailConnection?
@@ -392,6 +394,9 @@ final class ContainerManager: ObservableObject {
         hsh = key.university == .hsh
             ? HsHConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: hshTransport)
             : nil
+        flexnow = key.university == .goettingen
+            ? FlexNowConnection(container: c, websiteDataStore: websiteDataStore(for: c), clock: clock)
+            : nil
         uniMail = SOGoSite.for(key.university).map {             // LUH, Uni Hildesheim; HsH ohne SOGo
             UniMailConnection(container: c, site: $0, websiteDataStore: websiteDataStore(for: c), clock: clock, transport: uniMailTransport)
         }
@@ -403,6 +408,7 @@ final class ContainerManager: ObservableObject {
         if let hildesheim { syncs.append(SyncRef(key: key, sync: hildesheim)) }
         if let qis { syncs.append(SyncRef(key: key, sync: qis)) }
         if let hsh { syncs.append(SyncRef(key: key, sync: hsh)) }
+        if let flexnow { syncs.append(SyncRef(key: key, sync: flexnow)) }
         if let uniMail { syncs.append(SyncRef(key: key, sync: uniMail)) }
         demoActive = false
         generation += 1
@@ -455,6 +461,7 @@ final class ContainerManager: ObservableObject {
         hildesheim = nil
         qis = nil
         hsh = nil
+        flexnow = nil
         uniMail = nil
         demoActive = false
         generation += 1

@@ -195,8 +195,25 @@ public enum UniLoginForms {
         markers: ["name=\"loginname\"", "id=\"loginname\""],
         failureMarkers: generalFailure + ["messagebox_error", "Bei der Anmeldung trat ein Fehler auf"], confirmed: true)
 
+    /// FlexNow 2 der Uni Goettingen (Pruefungsverwaltung, 27.11.2026): `flexnow2.uni-goettingen.de/` leitet auf
+    /// `/FN2AUTH/login.jsp`, das Formular geht per POST an `/FN2AUTH/FN2AuthServlet?op=…` mit `kennung` und `kennwort`
+    /// (versteckt: `emrexSessionId`, `emrexReUrl`), ohne zweiten Faktor; Feldnamen am 26.11.2026 an der echten Seite
+    /// gelesen. Derselbe Kasten auf `www.uni-goettingen.de` zaehlt nicht (anderer Rechner: dort fuellt und liest die App
+    /// nichts). Der Absende-Knopf und der Text einer Ablehnung sind nicht gesehen: Knopf ueber das Formular, sonst
+    /// `requestSubmit`; abgelehnt gilt nur mit Fehlertext (`generalFailure`), sonst "nicht gelungen" ohne Loeschen.
+    public static let goettingenFlexNow = UniLoginForm(
+        id: "goettingen-flexnow", university: .goettingen, name: "FlexNow der Uni Göttingen (eigenes Formular)",
+        target: UniversityLoginTarget(host: "flexnow2.uni-goettingen.de", pathPrefix: "/FN2AUTH/"),
+        userFields: ["input[name=\"kennung\"]", "input#kennung"],
+        passwordFields: ["input[name=\"kennwort\"]", "input#kennwort"],
+        submitButtons: ["form[action*=\"FN2AuthServlet\"] button[type=\"submit\"]", "form[action*=\"FN2AuthServlet\"] input[type=\"submit\"]",
+                        "form[action*=\"FN2AuthServlet\"] button", "button[type=\"submit\"]", "input[type=\"submit\"]"],
+        markers: ["name=\"kennwort\"", "id=\"kennwort\""],
+        failureMarkers: generalFailure + ["Kennung oder Kennwort", "Kennwort ist falsch", "falsches Kennwort"], confirmed: true)
+
     public static let all: [UniLoginForm] = [luhWebSSO, luhQIS, luhSOGo, hildesheimCAS, hildesheimCASBare, hildesheimLSF,
-                                             hildesheimPLuS, hildesheimSOGo, hshMoodle, hshIdP, hshCampus, goettingenStudIP]
+                                             hildesheimPLuS, hildesheimSOGo, hshMoodle, hshIdP, hshCampus, goettingenStudIP,
+                                             goettingenFlexNow]
 
     /// Formulare einer Hochschule (eine Zugangskennung fuer alle: LUH-ID, UNI-Account, SSO-Account)
     public static func forms(_ u: UniversityKey) -> [UniLoginForm] { all.filter { $0.university == u } }

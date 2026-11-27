@@ -19,6 +19,10 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "apps" / "apple" / "DebugStub" / "goettingen"
 PDFS = ROOT / "apps" / "apple" / "DebugStub" / "erststart"
+# FlexNow 2 (27.11.2026): von Hand geschriebene Seiten im echten Aufbau, hier nur hineinkopiert, damit ein Ordner fuer
+# den Simulator reicht (`-UFLoginStub .../goettingen`); Quelle und Beschreibung in goettingen-flexnow/README.md
+FLEXNOW = ROOT / "apps" / "apple" / "DebugStub" / "goettingen-flexnow"
+FLEXNOW_PAGES = ("flexnow.html", "flexnow-angemeldet.html")
 BASE = "https://studip.uni-goettingen.de"
 API = "jsonapi.php/v1/"
 
@@ -342,6 +346,8 @@ def build() -> dict[str, bytes]:
     for _, _, fkey, _, pdf, _ in FILES:
         files[pdf] = (PDFS / pdf).read_bytes()
         route(f"{API}file-refs/{hid('file-' + fkey)}/content", pdf)
+    for flex in FLEXNOW_PAGES:
+        files[flex] = (FLEXNOW / flex).read_bytes()
     route(API + "terms-of-use", "empty.json")
 
     # Schwarzes Brett: Themenliste (sb-categories) und RSS je Thema wie am echten Stud.IP
