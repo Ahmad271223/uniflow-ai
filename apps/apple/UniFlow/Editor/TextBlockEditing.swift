@@ -41,6 +41,9 @@ struct TextFormat: Equatable {
 extension ObjectEditing {
     /// So lange gedrueckt halten greift einen Textblock. EINE ZEILE ZUM UMSTELLEN (der Inhaber hat 3 Sekunden bestellt).
     static var holdSeconds: TimeInterval = 3
+    /// So kurz nach dem letzten Stiftkontakt gilt ein ruhender Finger als aufliegende Hand (zwischen zwei Woertern hebt
+    /// man den Stift meist kuerzer ab)
+    static let pencilRestWindow: TimeInterval = 1
     static let holdHint = "Block gegriffen – ziehen verschiebt ihn, an den Ecken änderst du die Breite."
 
     // MARK: Anlegen
@@ -117,9 +120,11 @@ extension ObjectEditing {
 
     func holdShouldBegin() -> Bool {
         guard grab == nil, !transferring, let (overlay, p) = locate(hold) else { return false }
-        // beim Schreiben liegt die Hand oft sekundenlang still auf der Seite: Solange der Stift in dieser Zeit
-        // geschrieben hat, greift das Halten nichts (sonst wechselte der Editor mitten im Satz auf "Auswählen")
-        if !isActive, overlay.touchTracker.sincePencil < Self.holdSeconds { return false }
+        // beim Schreiben liegt die Hand still auf der Seite: Liegt der Stift gerade auf oder hat er eben noch
+        // geschrieben (`pencilRestWindow`), greift das Halten nichts (sonst wechselte der Editor mitten im Satz auf
+        // "Auswählen"). Vorher galten 3 s - dann griff ein Finger nach dem Schreiben oft gar nicht (Inhaber 27.11.2026:
+        // "geht aber sehr langsam ab und zu")
+        if !isActive, overlay.touchTracker.sincePencil < Self.pencilRestWindow { return false }
         return textObject(on: overlay, at: p) != nil
     }
 
