@@ -21,7 +21,7 @@ settings:
     # (docs/release/BUILD-HERKUNFT.md). Build-Nummer: eine fortlaufende ganze Zahl ueber alle Uploads hinweg,
     # je Upload +1, nie zurueck (0.2.0 hatte Build 2). Neue Version (1.0.1, 1.1) -> MARKETING_VERSION, Build weiterzaehlen.
     MARKETING_VERSION: "1.0.8"
-    CURRENT_PROJECT_VERSION: "51"
+    CURRENT_PROJECT_VERSION: "52"
     ENABLE_USER_SCRIPT_SANDBOXING: YES
 targets:
   UniFlow:
