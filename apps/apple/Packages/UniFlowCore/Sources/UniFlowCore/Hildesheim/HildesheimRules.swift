@@ -23,6 +23,9 @@ public enum UniRules {
     private static let bracketNote = PyRegex(#"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*|Gruppe\s*\w+)\)"#, ignoreCase: true)
     private static let trailingTranche = PyRegex(#",?\s*Tranche\s*\w+.*$"#, ignoreCase: true)
     private static let spaces = PyRegex(#"\s+"#)
+    /// Anfuehrungszeichen: 'Übung zur Vorlesung "Jahresabschluss" B.WIWI-BWL.0111' und 'Jahresabschluss B.WIWI-BWL.0111'
+    /// sind dasselbe Modul (echtes Konto Uni Goettingen, 27.11.2026)
+    private static let quoteMarks = PyRegex(#"["„“”«»]"#)
 
     /// (Fach, Art) aus dem Kurstitel (`classify`); Art: vorlesung | gruppenuebung | hoersaaluebung | uebung | tutorium |
     /// sonstiges (Begruessung, Einfuehrung, Erstsemester). Vorlesung und Uebung eines Fachs ergeben dasselbe Fach.
@@ -37,6 +40,7 @@ public enum UniRules {
         s = trailingQuestions.sub(s)
         s = bracketNote.sub(s)
         s = trailingTranche.sub(s)
+        s = quoteMarks.sub(s)                                                     // nicht Teil des Fachs
         s = PyText.strip(spaces.sub(s, " "), chars: " -:,(")
         return (s, kind)
     }
