@@ -1,5 +1,7 @@
 # StudiNow-Preisliste (Entscheidung des Inhabers vom 04.11.2026, angeglichen am 05.11., 07.11. und 09.11.2026)
 
+> **Überholt seit 26.11.2026:** neues Modell – Free; Plus 1,99 € im Monat oder 39,99 € einmalig für 5 Jahre; Pro AI 39,99 € im Jahr mit 120 Credits je Monat; StudiNow-KI nur mit Credits. Maßgeblich: `docs/TARIFE-CREDITS-2026-11-26.md` und `app/plans.py`. Der Text unten ist der Stand davor.
+
 Drei Tarife, Preise inkl. USt. **Seit 09.11.2026 nur noch Jahresabos** (Entscheidung des Inhabers, abends: „Monatliche
 Abos komplett entfernen. Nur 19,99 und 39,99.“, `docs/release/ABO-NUR-JAHR-2026-11-09.md`); Kontingente und Credits
 gelten weiter je Kalendermonat. **Quelle aller Werte: `app/plans.py`** (`PLANS`, `QUOTAS`, `FAIR_USE`, `CREDITS`,
@@ -14,7 +16,7 @@ Karteikarten-Stapel von StudiNow für Plus begrenzt).
 
 | | StudiNow Free | StudiNow Plus | StudiNow Pro AI |
 |---|:---:|:---:|:---:|
-| Preis (Jahresabo, `price_cents`, `period` „year“) | 0,00 € | 19,99 € / Jahr (entspricht 1,67 € im Monat) | 39,99 € / Jahr (entspricht 3,33 € im Monat) |
+| Preis (seit 26.11.2026) | 0,00 € | 1,99 € / Monat oder 39,99 € einmalig für 5 Jahre | 39,99 € / Jahr (entspricht 3,33 € im Monat) |
 | Apple-Produkt | – | `de.uniflow.plus.yearly` | `de.uniflow.proai.yearly` (Dienst `app.studinow.app` läuft) |
 | PDFs lesen, Kurse, Abgleich mit Stud.IP/Learnweb, Stundenplan, Lernkalender | ✓ | ✓ | ✓ |
 | Eigenes ChatGPT über den eigenen OpenAI-API-Schlüssel (`chatgpt_connection_premium`, `available` seit 07.11.2026; iPad: Einstellungen → Erweitert → „Eigenes ChatGPT“): KI-Hilfe zu den Unterlagen und KI-Lernplan in jedem Tarif, nie an den Tarif gekoppelt ² | ✓ | ✓ | ✓ |
@@ -114,12 +116,11 @@ Modulen × 14 Wochen × 3 Sätzen also etwa 400–1.700 € pro Semester, vertei
 
 ## Was ankommt (je Kunde und Jahr, geschätzt)
 
-| | Plus 19,99 € / Jahr | Pro AI 39,99 € / Jahr |
-| --- | --- | --- |
-| nach 19 % MwSt | 16,80 € | 33,61 € |
-| nach Apple (15 %) | **14,28 €** | **28,57 €** |
-| nach Stripe (Web, ca. 1,5 % + 0,25 €) | **16,25 €** | **32,76 €** |
-| KI-Kosten | 0 € (eigenes ChatGPT) | höchstens 7,80 € (12 × 100 Credits à 0,65 Cent, seit 15.11.2026), dazu der Anteil an der Bibliothek |
+| (seit 26.11.2026) | Plus 1,99 € / Monat (12 Monate) | Plus 39,99 € für 5 Jahre (je Jahr) | Pro AI 39,99 € / Jahr |
+| --- | --- | --- | --- |
+| nach 19 % MwSt | 20,07 € | 6,72 € | 33,61 € |
+| nach Apple (15 %) | **17,06 €** | **5,71 €** | **28,57 €** |
+| KI-Kosten | 0 € (KI nur mit gekauften Credits) | 0 € (KI nur mit gekauften Credits) | höchstens 14,40 € (12 × 120 Credits à 1 Cent) |
 
 ## Wo was heute steht
 

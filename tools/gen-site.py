@@ -56,7 +56,7 @@ PAGES = [
 # Seiten ausserhalb der Navigation: (Markdown, Ausgabe in einem Unterordner, Titel-Rueckfall, Beschreibung)
 EXTRA_PAGES = [
     ("EINLADUNG.md", "i/index.html", "Einladung",
-     "Du bist zu StudiNow eingeladen: App laden, Konto anlegen, Einladung annehmen. Die einladende Person bekommt Angebotscodes."),
+     "Du bist zu StudiNow eingeladen: App laden, Konto anlegen, Einladung annehmen."),
 ]
 # Titel, die nicht aus der ersten Ueberschrift kommen (die Startseite beginnt mit HTML)
 TITLES = {"index.html": "StudiNow – dein Studium an einem Ort"}

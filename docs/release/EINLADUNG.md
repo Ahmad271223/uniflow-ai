@@ -18,19 +18,7 @@ Tracking.
 Die Einladung zählt, wenn du neu bei StudiNow bist, dein Konto nach der Einladung angelegt wurde und der Link nicht
 älter als 30 Tage ist. Pro Person zählt eine Einladung.
 
-## Was die einladende Person bekommt
-
-Wer in der Probewoche Freunde einlädt, bekommt für angekommene Einladungen Belohnungen als Angebotscodes für den App
-Store (eingelöst in Apples Dialog, nie automatisch):
-
-| Angekommene Personen | Belohnung |
-|---|---|
-| 5 | 1 Monat StudiNow Plus gratis |
-| 10 | 3 Monate StudiNow Plus gratis |
-| 20 | 12 Monate StudiNow Plus gratis – oder 12 Monate StudiNow Pro AI zum Plus-Preis (19,99 € statt 39,99 € für das Jahr) |
-
-Jede Stufe lässt sich einmal einlösen. Für dich als eingeladene Person ändert sich nichts an Preisen oder Probe; du
-musst nichts kaufen und nichts teilen.
+Für dich als eingeladene Person ändert sich nichts an Preisen oder Probe; du musst nichts kaufen und nichts teilen.
 
 ## Fragen?
 

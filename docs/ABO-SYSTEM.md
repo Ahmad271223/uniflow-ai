@@ -1,5 +1,7 @@
 # StudiNow-Abosystem: drei Tarife, Berechtigungen, KI-Testbibliothek (Stand 05.11.2026, iPad-Teile 07.11.2026, nur Jahresabos 09.11.2026)
 
+> **Überholt seit 26.11.2026:** neues Modell – Free; Plus 1,99 € im Monat oder 39,99 € einmalig für 5 Jahre; Pro AI 39,99 € im Jahr mit 120 Credits je Monat; StudiNow-KI nur mit Credits. Maßgeblich: `docs/TARIFE-CREDITS-2026-11-26.md` und `app/plans.py`. Der Text unten ist der Stand davor.
+
 Auftrag des Inhabers vom 27.10.2026, Tarife und Kontingente nach der Entscheidung vom 04.11.2026 (`docs/PREISLISTE.md`). Umgesetzt im Dienst (Python, `LERNAPP_MODE=hosted`), in der Web-Oberfläche
 (gilt auch für die Windows-App) und als gemeinsamer Vertrag für die Apps. Branch `feature/studora-abos`.
 Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ aus `docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 6.
@@ -9,7 +11,7 @@ Ersetzt die Entscheidungen „nur Free und Plus“ und „KI entfällt in V1“ 
 | Tarif | Preis/Jahr | Neue KI-Tests | Bibliothekstests | Stapel von StudiNow | KI-Erklärungen u. a. | Credits | PDF bearbeiten | Community |
 |---|---:|---:|---:|---:|---:|---:|:---:|:---:|
 | StudiNow Free | 0,00 € | 0 | 0 | 0 | 0 | 0 | nein | nein |
-| StudiNow Plus | 19,99 € | 4 | 4 | 4 | 0 | 0 | ja | ja |
+| StudiNow Plus | (bis 26.11.2026 Jahresabo) | 4 | 4 | 4 | 0 | 0 | ja | ja |
 | StudiNow Pro AI | 39,99 € | 20 | unbegrenzt (Fair Use 300) | unbegrenzt (Fair Use 300) | 150 | 100 | ja | ja |
 
 **Angleichung vom 05.11.2026** (`docs/ENTSCHEIDUNGEN-INHABER-2026-11-05.md`): Free ohne Community (auch kein Lesen,
@@ -37,7 +39,7 @@ stehen nur in `app/plans.py` (`QUOTAS`) und lassen sich dort ändern.
 Kalendermonat, bezahlt wird für ein Jahr im Voraus. Die Kontingent-Spalten heißen „je Monat“, der Preis „je Jahr“.
 
 Apple-Produkte (eine Abo-Gruppe „StudiNow“, damit Apple Upgrades, Downgrades und Doppel-Abos regelt):
-`de.uniflow.plus.yearly` (19,99 €, Stufe 2) und `de.uniflow.proai.yearly` (39,99 €, Stufe 1); in `app/plans.py`
+`de.uniflow.plus.yearly` (Jahres-Plus bis 26.11.2026, Stufe 2) und `de.uniflow.proai.yearly` (39,99 €, Stufe 1); in `app/plans.py`
 `apple_product_id` mit `price_cents` und `period` „year“. Die Kennungen bleiben bei `de.uniflow`, weil die Bundle-ID
 `de.uniflow.ai` ist. Die früheren Monatsabos `de.uniflow.plus.monthly` und `de.uniflow.proai.monthly` (bis 09.11.2026)
 sind in App Store Connect aus dem Verkauf genommen; wie das frühere `de.uniflow.proconnect.monthly` gelten sie beim
@@ -156,7 +158,7 @@ in der Apple-App weiter über den App Store. Ein Abo gilt auf allen Geräten des
 ## 3b. Probe auf dem iPad ohne Dienst (04.11.2026)
 
 Entscheidung des Inhabers (ersetzt „Apple-Einführungsangebot auf Plus, eigene Probe wird nicht gebaut“ vom 25.10.2026 in
-`docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 5): Die iPad-App bietet **drei Tarife** an – Free, Plus 19,99 €/Jahr
+`docs/AUFTRAG-APPSTORE-V1.md`, Abschnitt 5): Die iPad-App bietet **drei Tarife** an – Free, Plus (bis 26.11.2026 als Jahresabo)
 (`de.uniflow.plus.yearly`) und Pro AI 39,99 €/Jahr (`de.uniflow.proai.yearly`; nur Jahresabos seit 09.11.2026),
 **ohne Apple-Einführungsangebote**.
 Jede Person bekommt ab dem ersten Start **dieselbe Probe wie beim Dienst** (`TRIAL`: 7 Tage, alles wie Pro AI), ohne
