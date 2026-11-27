@@ -90,12 +90,12 @@ ergänzen, ändern oder einstellen; über Änderungen, die bezahlte Funktionen b
 - **StudiNow Plus** enthält alle Funktionen aus Abschnitt 2; die KI von StudiNow nutzt du mit Plus nur mit gekauften
   Credits. Plus gibt es auf zwei Arten (Stand, inkl. USt):
   - als **Monatsabo für 1,99 € im Monat**;
-  - **einmalig für 39,99 € für 5 Jahre**. Das ist kein Abo: Es verlängert sich nicht, es wird nichts weiter
+  - **einmalig für 39,99 € für 5 Jahre** („Bachelor+Master-Paket“). Das ist kein Abo: Es verlängert sich nicht, es wird nichts weiter
     berechnet, und es endet automatisch 5 Jahre nach dem Kauf. Danach gilt StudiNow Free, bis du wieder kaufst; deine
     Daten bleiben.
-- **StudiNow Pro AI** ist ein Jahresabo (Stand: 39,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und dazu
-  **120 Credits je Kalendermonat** für die KI von StudiNow, die am Monatsersten neu aufgeladen werden (auch beim
-  Jahresabo). Nicht verbrauchte Monats-Credits verfallen am Monatsende. Für die KI von StudiNow brauchst du ein
+- **StudiNow Pro AI** gibt es als Monatsabo (Stand: 3,99 € im Monat inkl. USt) oder als Jahresabo
+  (Stand: 39,99 € pro Jahr inkl. USt). Es enthält alles aus Plus und dazu **120 Credits je Kalendermonat** für die KI
+  von StudiNow, die am Monatsersten neu aufgeladen werden (auch beim Jahresabo). Nicht verbrauchte Monats-Credits verfallen am Monatsende. Für die KI von StudiNow brauchst du ein
   StudiNow-Konto.
 - **KI-Credits:** Die KI von StudiNow funktioniert nur, solange du Credits hast; ohne Credits steht sie nicht zur
   Verfügung, alle anderen Funktionen bleiben. Mit Plus oder Pro AI kannst du in der App Credit-Pakete dazukaufen (den

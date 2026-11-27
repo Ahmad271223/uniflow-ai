@@ -177,7 +177,15 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     # 39,99 € einmalig fuer 5 Jahre, Pro AI 39,99 € im Jahr mit 120 Credits je Monat, KI nur mit Credits
     for key, price in (("free", "0 €"), ("plus", "1,99 €"), ("pro_ai", "39,99 €")):
         assert plans.PLANS[key]["name"] in html and f'<span class="amount">{price}</span>' in html, key
-    assert "39,99 € für 5 Jahre" in flat and "kein Abo, endet von selbst" in flat
+    # 27.11.2026 (Inhaber): monatlich Free -> Plus 1,99 -> Pro AI 3,99, jaehrlich Pro AI 39,99, stark hervorgehoben das
+    # Bachelor+Master-Paket mit der Ersparnis gegenueber normalem Plus (Werte aus plans.savings)
+    preise = flat.split('id="preise"')[1].split("</section>")[0]
+    assert preise.index("Monatlich") < preise.index("1,99 €") < preise.index("3,99 €") < preise.index("Jährlich") \
+        < preise.index("39,99 €") < preise.index("Bachelor+Master-Paket"), "Reihenfolge wie bestellt"
+    assert '<article class="plan plan-special"' in html and "Unser Special" in preise
+    assert "Du sparst 79,41 € (67 %)" in preise and "60 × 1,99 € = 119,40 €" in preise and "0,67 € im Monat" in preise
+    assert "Du sparst 7,89 € (16 %) gegenüber 12 × 3,99 € = 47,88 €" in preise
+    assert "kein Abo, verlängert sich nicht, endet von selbst" in preise
     assert "120 Credits jeden Monat neu" in flat and "funktioniert nur mit Credits" in flat and "in Free nicht" in flat
     assert "um einen Monat" in flat and "um ein Jahr" in flat
     assert "7 Tage alles wie StudiNow Plus, dazu 25 Credits" in flat and "deine Daten bleiben" in flat
