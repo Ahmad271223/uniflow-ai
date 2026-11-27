@@ -155,7 +155,7 @@ struct UniMailIMAPLoginForm: View {
                     Text("Uni-Kennung").ufFont(13, 600).foregroundStyle(UF.text2)
                     UFTextField("vorname.nachname", text: $username)
                         .textContentType(.username).textInputAutocapitalization(.never).autocorrectionDisabled()
-                        .accessibilityIdentifier("unimail.imap.user")
+                        .accessibilityIdentifier("unimail.imap.account-field")
                     if let imap = connection.site.imap, !username.trimmingCharacters(in: .whitespaces).isEmpty {
                         Text("Adresse: \(imap.address(username))").ufFont(12.5).foregroundStyle(UF.muted)
                             .accessibilityIdentifier("unimail.imap.address")
@@ -165,7 +165,7 @@ struct UniMailIMAPLoginForm: View {
                     Text("Passwort").ufFont(13, 600).foregroundStyle(UF.text2)
                     UFTextField("Passwort", text: $password, secure: true)
                         .textContentType(.password)
-                        .accessibilityIdentifier("unimail.imap.password")
+                        .accessibilityIdentifier("unimail.imap.secret-field")
                 }
                 Toggle(isOn: $remember) {
                     VStack(alignment: .leading, spacing: 2) {

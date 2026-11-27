@@ -41,7 +41,7 @@ StudiNow nimmt `email.gwdg.de` wie die iPhone/iPad-Anleitung (der andere Name st
 
 | Datei | Inhalt |
 |---|---|
-| `IMAPMailSite.swift` | Rechner, Ports, `ug-student\`, Adresse; `SOGoSite.goettingen` (`isIMAP`), `SOGoSite.mailSites`. `SOGoSite.all` bleibt nur LUH + Hildesheim (Cookies/Webansicht). `SOGoSite.for(.goettingen)` liefert jetzt die Göttinger Uni-Mail. |
+| `IMAPMailSite.swift` | Rechner, Ports, `ug-student\`, Adresse (Kennung immer klein geschrieben, iOS schreibt das erste Zeichen sonst gern groß); `SOGoSite.goettingen` (`isIMAP`), `SOGoSite.mailSites`. `SOGoSite.all` bleibt nur LUH + Hildesheim (Cookies/Webansicht). `SOGoSite.for(.goettingen)` liefert jetzt die Göttinger Uni-Mail. |
 | `MailStream.swift` | Byte-Strom und Zeilenleser. Echt: `NWConnection` mit TLS ≥ 1.2 und Rechnernamen-Prüfung für IMAP 993; `URLSessionStreamTask` für SMTP 587, weil Network.framework eine laufende Verbindung nicht nachträglich auf TLS heben kann. Verbindungen **nur** zu `email.gwdg.de` (`SystemMailStreamOpener`, andere Rechner → abgelehnt). |
 | `IMAP.swift` | Antworten zerlegen (Atome, Zeichenketten, Literale, Listen, `BODY[…]`), sichere Argumente (Anführungszeichen oder Literal, nie ein Zeilenumbruch), modifiziertes UTF-7 für Ordnernamen („Gel&APY-schte Elemente“), LIST/STATUS/SEARCH/FETCH, APPENDUID. |
 | `IMAPSession.swift` | Befehle nacheinander, Literale (LITERAL+ ohne Warten), Anmeldung **ein Versuch je Verbindung**: `AUTHENTICATE PLAIN` mit SASL-IR (so bietet es Exchange an), sonst `LOGIN`. Nie `CLOSE`, nie `EXPUNGE` ohne UID. |
@@ -94,7 +94,7 @@ StudiNow nimmt `email.gwdg.de` wie die iPhone/iPad-Anleitung (der andere Name st
 - Wie lange Exchange eine ruhende Verbindung offen hält (die App verbindet bei Bedarf neu; vor schreibenden Befehlen
   nach 60 s Ruhe erst ein NOOP).
 - Mitteilungen im Hintergrund mit echtem Postfach.
-- Mac („Designed for iPad“): gebaut wie iPad, nicht eigens gelaufen (siehe 7).
+- Mac („Designed for iPad“): die Göttingen-Klassen laufen dort grün (siehe 7), eine echte Verbindung vom Mac aus ist ungeprüft.
 
 ## 6. Was der echte Test braucht (Inhaber, am Gerät)
 
@@ -107,9 +107,23 @@ StudiNow nimmt `email.gwdg.de` wie die iPhone/iPad-Anleitung (der andere Name st
    Liegt sie **einmal** (nicht doppelt) in „Gesendete Elemente“?
 5. Bei „abgelehnt“: Bildschirmfoto der Meldung; dann klären, ob die Uni ein App-Passwort braucht.
 
-## 7. Läufe
+## 7. Läufe (27.11.2026)
 
-(wird nach den Simulator-Läufen ergänzt)
+Eigene Simulatoren „GoeMail iPad“ (862C0552-1544-4197-B5A2-927D663A8AED, iPad Pro 11 M5, iOS 27.2) und
+„GoeMail iPhone“ (44127EC2-94B2-4342-9E49-EAF083C884B9, iPhone 17 Pro, iOS 27.2); Bauordner
+`~/Studora-Builds/dd-goemail`, `dd-goemail-core`, `dd-goemail-mac`; Protokolle `~/Studora-Builds/goemail-*.log`.
+
+| Lauf | Ergebnis |
+|---|---|
+| Kern `swift test` (ganz) | **1970 Tests, 0 Fehler** (20 übersprungen) |
+| Kern nach der Kleinschreibung der Kennung: `IMAPMailTests` + `GoettingenTests` | 34 grün |
+| App: alle 56 Klassen, die Uni-Mail, Uni-Zugang, Sync-Knopf, Container, Hinweis oder Einstellungen berühren (+ Mensa, Hochschulwahl), iPad | 522 Tests: rot nur `StoreScreenshotTests.test01Uebersicht` und `UniversityLoginPolicyTests.testAppSourcesHaveNoPasswordStoreAndNoFormScripts` |
+| dasselbe, iPhone | 522 Tests: zusätzlich `BackArrowAppTests.testHomeHasNoArrowOtherPagesExactlyOne`, `UniversityLoginPolicyTests.testQISLoginPaneShowsTheHintAndKeepsNoPassword` |
+| Ursache Regel-Prüfung | Fehlalarm: die Prüfung sucht Schlüsselbund-Feldnamen `.password")`/`.user")` und traf die Bedienhilfe-Kennungen des neuen Formulars; Kennungen umbenannt (Prüfung unverändert) |
+| Nach der Korrektur, iPad und iPhone: `UniversityLoginPolicyTests`, `GoettingenMailAppTests`, `GoettingenAppTests`, `UniMailAppTests`, `IPhoneUniMailTests`, `BackArrowAppTests`, `StoreScreenshotTests.test01Uebersicht` | je 59 Tests; rot nur noch die drei unten |
+| Gegenprobe auf dem **unveränderten** Ausgangsstand 7db2302e (eigene Kopie `~/Studora-Builds/wt-goemail-basis`, gleiche Simulatoren) | **genauso rot**: `StoreScreenshotTests.test01Uebersicht` (iPad, iPhone), `BackArrowAppTests.testHomeHasNoArrowOtherPagesExactlyOne` und `UniversityLoginPolicyTests.testQISLoginPaneShowsTheHintAndKeepsNoPassword` (iPhone) – nicht von diesem Zweig |
+| Voller Lauf aller App-Tests | abgebrochen: nach 10 Minuten erst 6 Klassen (hochgerechnet viele Stunden); stattdessen die 56 Klassen oben |
+| Mac „Designed for iPad“ (`tools/mac-test.sh`, eigener Bauordner `dd-goemail-mac`): `MacTestIsolationTests`, `GoettingenMailAppTests`, `GoettingenAppTests` | **21 Tests, alle grün** |
 
 ## 8. Einbinden
 
