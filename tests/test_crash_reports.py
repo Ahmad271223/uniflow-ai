@@ -56,9 +56,12 @@ def hosted(app, monkeypatch):
     from app import accounts, config, vault
     monkeypatch.setattr(config, "MODE", "hosted")
 
+    from app import crash_reports
+
     def wipe():
-        for suffix in ("", "-wal", "-shm"):
-            accounts.db_path().with_name(accounts.db_path().name + suffix).unlink(missing_ok=True)
+        for p in (accounts.db_path(), crash_reports.db_path()):          # seit 27.11.2026 eigene Datei crash_reports.db
+            for suffix in ("", "-wal", "-shm"):
+                p.with_name(p.name + suffix).unlink(missing_ok=True)
     wipe()
     vault.reset_master()
     monkeypatch.setattr(accounts, "now", lambda: NOW)
@@ -229,7 +232,29 @@ def test_limit_for_all_devices_per_day(hosted, monkeypatch):
     from app import crash_reports
     monkeypatch.setattr(crash_reports, "DAY_TOTAL", 3)
     assert post(hosted, body(report(1), report(2)))[1]["stored"] == 2
-    assert post(hosted, body(report(3), report(4), install="c" * 32))[1] == {"ok": True, "stored": 1, "duplicates": 0, "dropped": 1}
+    # 27.11.2026 (Sicherheitspruefung): passt ein Paket nicht mehr in den Tag, heisst es "spaeter" (503 + Retry-After) statt
+    # still verwerfen - die App behaelt dann alle Meldungen und sendet spaeter (CrashReportClient: nur 200/400/413/422 sind endgueltig)
+    st, data, headers = post(hosted, body(report(3), report(4), install="c" * 32))
+    assert (st, data["code"]) == (503, "busy") and int(headers["retry-after"]) > 0
+    assert len(rows()) == 2, "nichts halb gespeichert"
+    assert post(hosted, body(report(3), install="c" * 32))[1]["stored"] == 1, "was noch passt, geht"
+
+
+def test_reports_live_in_their_own_file_and_move_over_once(hosted):
+    """27.11.2026: eigene Datei crash_reports.db (eine Flut haelt nie die Schreibsperre von accounts.db); Meldungen aus
+    der frueheren Tabelle in accounts.db kommen einmal herueber."""
+    import sqlite3
+    from app import accounts, crash_reports
+    with accounts.cursor() as conn:
+        crash_reports.ensure_schema(conn)
+        conn.execute("INSERT INTO crash_reports(id, received_at, received_day, device_day, kind, happened_at, day, app_version, device_class) "
+                     "VALUES ('alt-1', '2026-11-25T10:00:00+00:00', '2026-11-25', 'x', 'hang', '2026-11-25T09:00:00+00:00', '2026-11-25', '1.0.8', 'ipad')")
+    assert post(hosted, body(report(1)))[1]["stored"] == 1
+    assert crash_reports.db_path().exists() and crash_reports.db_path() != accounts.db_path()
+    ids = {r["id"] for r in rows()}
+    assert "alt-1" in ids and len(ids) == 2, ids
+    with sqlite3.connect(accounts.db_path()) as c:
+        assert c.execute("SELECT COUNT(*) FROM crash_reports").fetchone()[0] == 0, "in accounts.db nichts doppelt"
 
 
 def test_limit_per_ip(hosted, monkeypatch):

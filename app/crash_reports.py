@@ -46,7 +46,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Body, HTTPException, Request
 
-from . import account_api, accounts
+from . import account_api, accounts, config
 
 PATH = "/api/diagnose/crashes"
 # Ohne Sitzung erreichbar (hosted_guard); tests/test_rechte_alle_routen.py fuehrt die Liste der oeffentlichen Pfade
@@ -57,8 +57,8 @@ VERSION = 1
 KEEP_DAYS = 90                  # Aufbewahrung der Meldungen (app/retention.py)
 MAX_REPORTS = 20                # Meldungen je Anfrage; mehr -> 400
 DEVICE_DAY_LIMIT = 30           # gespeicherte Meldungen je Geraet und Eingangstag; weitere fallen weg
-DAY_TOTAL = 20_000              # gespeicherte Meldungen aller Geraete je Eingangstag (Schutz der Platte)
-IP_LIMIT = (120, 60)            # Anfragen je IP und Stunde (NAT im Hochschulnetz: viele Geraete hinter einer Adresse)
+DAY_TOTAL = 5_000               # gespeicherte Meldungen aller Geraete je Eingangstag (Schutz der Platte; 27.11.2026: 20 000 -> 5 000)
+IP_LIMIT = (60, 60)             # Anfragen je IP und Stunde (NAT im Hochschulnetz: viele Geraete hinter einer Adresse; 27.11.2026: 120 -> 60)
 MAX_AGE_DAYS = 30               # aeltere Meldungen nimmt der Dienst nicht mehr an
 MAX_FRAMES = 24
 KINDS = ("crash", "hang", "exit")
@@ -113,13 +113,51 @@ def ensure_schema(conn: sqlite3.Connection) -> None:
         db.add_column(conn, TABLE, col, decl)
 
 
+def db_path():
+    """Eigene Datei (Sicherheitspruefung 27.11.2026): eine Flut von Meldungen haelt nie die Schreibsperre von accounts.db,
+    hinter der Anmeldung und Sitzungen liegen."""
+    return config.BASE_DATA_DIR / "crash_reports.db"
+
+
+def _move_from_accounts(conn: sqlite3.Connection) -> None:
+    """Meldungen aus der frueheren Tabelle in accounts.db einmal hierher holen und dort loeschen (bis 27.11.2026)."""
+    old = accounts.db_path()
+    if not old.exists():
+        return
+    conn.execute("ATTACH DATABASE ? AS acc", (str(old),))
+    try:
+        if conn.execute("SELECT 1 FROM acc.sqlite_master WHERE type='table' AND name=?", (TABLE,)).fetchone():
+            cols = [r[1] for r in conn.execute(f"PRAGMA acc.table_info({TABLE})")]
+            mine = {r[1] for r in conn.execute(f"PRAGMA main.table_info({TABLE})")}
+            common = ", ".join(c for c in cols if c in mine)
+            conn.execute(f"INSERT OR IGNORE INTO main.{TABLE}({common}) SELECT {common} FROM acc.{TABLE}")
+            conn.execute(f"DELETE FROM acc.{TABLE}")
+        conn.commit()
+    finally:
+        conn.execute("DETACH DATABASE acc")
+
+
+def _schema(conn: sqlite3.Connection) -> None:
+    ensure_schema(conn)
+    _move_from_accounts(conn)
+
+
 @contextmanager
 def cursor():
-    """Verbindung zu accounts.db mit der Tabelle `crash_reports` (wird beim ersten Zugriff angelegt, wie push_tokens)."""
+    """Verbindung zur eigenen Datei crash_reports.db (wird beim ersten Zugriff angelegt)."""
     from . import db
-    with accounts.cursor() as conn:
-        db.schema_once(conn, "crash_reports", accounts.db_path(), ensure_schema)
+    p = db_path()
+    p.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(p, check_same_thread=False, timeout=15)
+    conn.row_factory = sqlite3.Row
+    db.wal_once(conn, p)
+    db.fast_commits(conn)
+    db.schema_once(conn, "crash_reports", p, _schema)
+    try:
         yield conn
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def device_day_key(install: str, day: str) -> str:
@@ -254,6 +292,12 @@ def accept(body, ip: str | None = None, now: datetime | None = None) -> dict:
         conn.execute("BEGIN IMMEDIATE")                     # Zaehlen und Einfuegen als eine Einheit (mehrere Prozesse)
         used = conn.execute("SELECT COUNT(*) FROM crash_reports WHERE received_day=? AND device_day=?", (day, key)).fetchone()[0]
         total = conn.execute("SELECT COUNT(*) FROM crash_reports WHERE received_day=?", (day,)).fetchone()[0]
+        # Tagesgrenze voll: "spaeter" (503 mit Retry-After) statt still verwerfen - die App behaelt die Meldungen dann
+        # und sendet sie spaeter (Sicherheitspruefung 27.11.2026: vorher gingen echte Meldungen nach einer Flut verloren)
+        if total + len(reports) > DAY_TOTAL:
+            conn.execute("ROLLBACK")
+            raise accounts.AccountError("busy", "Gerade nehmen wir keine Meldungen an. Bitte später erneut senden.", 503,
+                                        retry_after=3600)
         for raw in reports:
             row = clean(raw, t)
             if row is None:
