@@ -111,13 +111,16 @@ struct UFHint: Identifiable {
                           moduleID: x.i("module_id"), raw: x)
         }
         let studip = x.s("source") == "studip"
+        // Learnweb nur bei Fristen, die wirklich aus dem Learnweb-Kalender kommen (27.11.2026: nie als Rueckfall, z. B. an
+        // der Uni Goettingen, die nur Stud.IP hat)
+        let learnweb = x.s("source") == "learnweb"
         let full = x.s("full_title")
         return UFHint(id: "deadline|\(x.s("id") ?? "")", category: .deadline, kind: kind,
                       kindText: x.s("kind_label") ?? "Frist", icon: kind.hasPrefix("test") ? "exam" : "flag", tone: .bad,
                       title: x.s("title") ?? "Frist", date: date, time: time, course: x.s("course_title"),
                       snippet: full != nil && full != x.s("title") ? full : nil,
                       source: x.s("source") == DemoContent.source ? "Frist aus den Demo-Inhalten"
-                          : studip ? "Aufgabe aus Stud.IP Courseware" : "Frist aus dem Learnweb-Kalender",
+                          : studip ? "Aufgabe aus Stud.IP Courseware" : learnweb ? "Frist aus dem Learnweb-Kalender" : "Frist",
                       url: UFDayExtras.safeURL(x.s("url")), announcementID: nil, courseID: nil, moduleID: nil, raw: x)
     }
 

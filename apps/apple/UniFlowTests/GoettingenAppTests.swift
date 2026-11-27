@@ -276,6 +276,29 @@ final class GoettingenAppTests: XCTestCase {
         XCTAssertLessThan(height(.luh), 1, "kein Kasten an der LUH")
     }
 
+    /// Erinnerungen an Abgaben: „Fristen aus dem Learnweb-Kalender“ nur an der Universitaet Hildesheim (Inhaber
+    /// 27.11.2026 „Ja, korrigieren“: in Build 51 sahen Goettingen und LUH den Satz, weil der Build Hildesheim anbietet)
+    func testLearnwebOnlyAtHildesheim() {
+        UFReleaseUniversities.withShipped([.luh, .hildesheim, .goettingen]) {
+            XCTAssertFalse(DueTexts.reminderText(for: .goettingen).contains("Learnweb"), DueTexts.reminderText(for: .goettingen))
+            XCTAssertFalse(DueTexts.reminderText(for: .luh).contains("Learnweb"))
+            XCTAssertTrue(DueTexts.reminderText(for: .hildesheim).contains("Fristen aus dem Learnweb-Kalender"))
+            XCTAssertTrue(DueTexts.reminderText(for: .goettingen).contains("erkannten Termine und eingetragene Klausurtermine"))
+            XCTAssertTrue(DueTexts.reminderText(for: nil).contains("Learnweb"), "ohne Container (eigener Server) wie bisher")
+        }
+        UFReleaseUniversities.withShipped([.luh]) { XCTAssertFalse(DueTexts.reminderText(for: nil).contains("Learnweb")) }
+        // Herkunft einer Frist im Kalender: Learnweb nur bei Fristen aus dem Learnweb-Kalender, nie als Rueckfall
+        func source(_ src: String?) -> String {
+            var o: [String: JSONValue] = ["id": "f1", "title": "Abgabe 1", "kind": "abgabe", "date": "2026-12-01"]
+            if let src { o["source"] = .string(src) }
+            return UFHint.deadline(.object(o), date: "2026-12-01").source
+        }
+        XCTAssertEqual(source("studip"), "Aufgabe aus Stud.IP Courseware")
+        XCTAssertEqual(source("learnweb"), "Frist aus dem Learnweb-Kalender")
+        XCTAssertEqual(source(nil), "Frist")
+        XCTAssertEqual(source("moodle"), "Frist")
+    }
+
     func testNotOfferedAreasAreHidden() {
         XCTAssertFalse(UFUniversityScope.readsGrades(.goettingen))
         XCTAssertFalse(UFUniversityScope.offersStudyPlan(.goettingen))
