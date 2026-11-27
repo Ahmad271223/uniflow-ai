@@ -25,7 +25,9 @@ struct StudIPExtrasSync {
         guard let backend = try? await host.backend() else { return false }
         let clock = backend.context.clock
         let missing = (try? await backend.context.database.withConnection { try StudIPExtras.loadMissing($0) }) ?? [:]
-        let download = await StudIPExtras.fetch(client: client, userID: userID, missing: missing, clock: clock)
+        // Endpunkte, die heute schon mit einem Serverfehler antworteten (Goettingen: studip/news), nicht noch einmal
+        let failing = (try? await backend.context.database.withConnection { try StudIPExtras.loadFailing($0) }) ?? [:]
+        let download = await StudIPExtras.fetch(client: client, userID: userID, missing: missing, clock: clock, failing: failing)
         try? await backend.context.database.transaction { try StudIPExtras.store(download, in: $0, clock: clock) }
         if download.sessionExpired { return true }
         if await bulletin(client: client, backend: backend) { return true }

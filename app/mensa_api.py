@@ -38,7 +38,13 @@ def _university() -> str:
 
 @router.get("/canteens")
 def canteens(university: str | None = None):
-    return mensa.canteens_response(university or _university())
+    # Mensen von Hochschulen, die nur die Apps anbinden (Goettingen bis zur Freigabe), stehen hier nicht zur Wahl -
+    # ausser es ist die Hochschule des Kontos
+    from . import universities
+    out = mensa.canteens_response(university or _university())
+    hidden = universities.hidden_regions(out["university"])
+    out["canteens"] = [c for c in out["canteens"] if c["region"] not in hidden]
+    return out
 
 
 @router.get("/menu")

@@ -86,6 +86,13 @@ final class WakePush {
 
     /// zuletzt erfolgreich gemeldet (in diesem Prozess; ein neuer Start meldet immer)
     private(set) var reported: Registration?
+    /// wann zuletzt gemeldet (in diesem Prozess)
+    private(set) var reportedAt: Date?
+    /// Unveraendert meldet die App hoechstens so oft erneut, beim Oeffnen bzw. bei der Rueckkehr (26.11.2026, "Abruf
+    /// schonen"): der Dienst weckt je Konto nur das zuletzt benutzte Geraet und erkennt es an dieser Meldung
+    static let reportAgain: TimeInterval = 3600
+    /// Uhr (Tests)
+    var now: () -> Date = { Date() }
     private var accountWatch: AnyCancellable?
 
     /// Letztes Token von Apple (Hex). Kein Geheimnis (nur die Adresse des Geraets bei Apple), steht aber nie im Protokoll.
@@ -158,9 +165,9 @@ final class WakePush {
         guard enabled(), let token = deviceToken, let client = client() else { return false }
         let r = Registration(token: token, platform: Self.platform, appVersion: Self.appVersion, timeZone: timeZone().identifier,
                              environment: Self.environment)
-        if reported == r { return true }
+        if reported == r, let at = reportedAt, at <= now(), now().timeIntervalSince(at) < Self.reportAgain { return true }
         let ok = await client.register(r)
-        if ok { reported = r } else { Self.log.info("Weck-Signal: Meldung beim Dienst nicht angenommen") }
+        if ok { reported = r; reportedAt = now() } else { Self.log.info("Weck-Signal: Meldung beim Dienst nicht angenommen") }
         return ok
     }
 

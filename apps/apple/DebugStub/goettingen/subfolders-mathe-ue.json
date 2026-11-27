@@ -1,0 +1,45 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 1
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "folders",
+   "id": "e08391e5c79964e345adb0e099f6acc6",
+   "attributes": {
+    "folder-type": "StandardFolder",
+    "name": "Übungsblätter",
+    "description": "",
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "is-visible": true,
+    "is-readable": true,
+    "is-writable": false,
+    "is-editable": false,
+    "is-empty": false,
+    "is-subfolder-allowed": false,
+    "data-content": []
+   },
+   "relationships": {
+    "file-refs": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/e08391e5c79964e345adb0e099f6acc6/file-refs"
+     }
+    },
+    "folders": {
+     "links": {
+      "related": "/jsonapi.php/v1/folders/e08391e5c79964e345adb0e099f6acc6/folders"
+     }
+    }
+   }
+  }
+ ]
+}

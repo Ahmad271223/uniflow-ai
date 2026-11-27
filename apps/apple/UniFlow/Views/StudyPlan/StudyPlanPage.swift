@@ -401,11 +401,22 @@ struct StudyPlanPage: View {
     @ViewBuilder private func gapCard(_ p: StudyPlan) -> some View {
         switch p.gap ?? .other("") {
         case .noQIS:
+            if let u = UFUniversityScope.current, !UFUniversityScope.offersStudyPlan(u) {
+                // Hochschule ohne angebundenen Notenspiegel (Uni Goettingen): nicht "Verbinde QIS", sondern ehrlich,
+                // dass es den Studienverlauf dort noch nicht gibt (der Menuepunkt fehlt dort ohnehin)
+                StudyPlanNoticeCard(icon: "graduation", pair: CommunityPalette.sky, title: UFUniversityScope.studyPlanTitle(u),
+                                    text: UFUniversityScope.studyPlanText(u)) {
+                    UFButton("Zu Uni & Noten", icon: "arrow-right") { router.go(.services) }
+                        .accessibilityIdentifier("studyplan.services")
+                }
+                .accessibilityIdentifier("studyplan.gap.notoffered")
+            } else {
             StudyPlanNoticeCard(icon: "graduation", pair: CommunityPalette.sky, title: StudyPlanText.noQIS(hildesheim: hildesheim != nil, hsh: hsh != nil), text: StudyPlanText.noQISSub) {
                 UFButton("Zu Uni & Noten", icon: "arrow-right", kind: .primary) { router.go(.services) }
                     .accessibilityIdentifier("studyplan.qis")
             }
             .accessibilityIdentifier("studyplan.gap.qis")
+            }
         case .catalogLoading:
             if catalog?.notFound == true {
                 noCatalogCard(p)

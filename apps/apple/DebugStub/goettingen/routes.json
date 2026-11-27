@@ -1,0 +1,324 @@
+[
+ {
+  "match": "jsonapi.php/v1/users/me",
+  "file": "me.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/155acb78c2e55f6f101677b5c478e8f4/memberships?filter[permission]=dozent",
+  "file": "members-mathe-dozent.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/18db79536ec05b0efaf518bb4dbff602/memberships?filter[permission]=dozent",
+  "file": "members-mathe-ue-dozent.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/05c992a8ae577ef1e61028c6aa474074/memberships?filter[permission]=dozent",
+  "file": "members-recht-dozent.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/f9bd2e4f6c0bd32e6173521e569f5f27/memberships?filter[permission]=dozent",
+  "file": "members-sem-dozent.json"
+ },
+ {
+  "match": "/memberships?filter[permission]=",
+  "file": "empty.json"
+ },
+ {
+  "match": "/institute-memberships",
+  "file": "empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/9fb9fa78ae8934283587f57b8b84a9e3",
+  "file": "user-dozentin.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/0140aed7ce29ed182aeb6342ffb185d6/courses",
+  "file": "courses.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/0140aed7ce29ed182aeb6342ffb185d6/schedule",
+  "file": "schedule.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/0140aed7ce29ed182aeb6342ffb185d6/events.ics",
+  "file": "events.ics",
+  "contentType": "text/calendar;charset=UTF-8"
+ },
+ {
+  "match": "jsonapi.php/v1/users/0140aed7ce29ed182aeb6342ffb185d6/inbox",
+  "file": "inbox.json"
+ },
+ {
+  "match": "jsonapi.php/v1/users/0140aed7ce29ed182aeb6342ffb185d6/activitystream",
+  "file": "activity.json"
+ },
+ {
+  "match": "jsonapi.php/v1/semesters",
+  "file": "semesters.json"
+ },
+ {
+  "match": "jsonapi.php/v1/holidays",
+  "file": "empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/studip/news",
+  "status": 500,
+  "body": "{\"errors\": [{\"status\": \"500\", \"title\": \"Internal Server Error\"}]}",
+  "contentType": "application/vnd.api+json"
+ },
+ {
+  "match": "/consultation-bookings",
+  "status": 404,
+  "body": "{\"errors\": [{\"status\": \"404\", \"title\": \"Not found.\"}]}",
+  "contentType": "application/vnd.api+json"
+ },
+ {
+  "match": "/wiki-pages",
+  "status": 404,
+  "body": "{\"errors\": [{\"status\": \"404\", \"title\": \"Not found.\"}]}",
+  "contentType": "application/vnd.api+json"
+ },
+ {
+  "match": "jsonapi.php/v1/courseware-tasks",
+  "status": 400,
+  "body": "{\"errors\": [{\"status\": \"400\", \"title\": \"Bad Request\"}]}",
+  "contentType": "application/vnd.api+json"
+ },
+ {
+  "match": "/courseware-task-groups",
+  "status": 404,
+  "body": "{\"errors\": [{\"status\": \"404\", \"title\": \"Not found.\"}]}",
+  "contentType": "application/vnd.api+json"
+ },
+ {
+  "match": "/courseware-units",
+  "file": "empty.json"
+ },
+ {
+  "match": "/forum-categories",
+  "file": "empty.json"
+ },
+ {
+  "match": "plugins.php/opencastpluginluh/",
+  "file": "denied.html",
+  "status": 403
+ },
+ {
+  "match": "plugins.php/opencast/",
+  "file": "denied.html",
+  "status": 403
+ },
+ {
+  "match": "plugins.php/opencastv3/api/courses/",
+  "body": "{\"videos\": [], \"count\": \"0\"}",
+  "contentType": "application/json"
+ },
+ {
+  "match": "plugins.php/opencastv3/course/index",
+  "status": 500,
+  "body": "<html><body>Fehler</body></html>"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/155acb78c2e55f6f101677b5c478e8f4/folders",
+  "file": "folders-mathe.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/9e5f4cb32707283d1279e4dd866780cb/file-refs",
+  "file": "files-mathe-root.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/9e5f4cb32707283d1279e4dd866780cb/folders",
+  "file": "subfolders-mathe.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/155acb78c2e55f6f101677b5c478e8f4/events",
+  "file": "events-mathe.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/155acb78c2e55f6f101677b5c478e8f4/news",
+  "file": "news-mathe.json"
+ },
+ {
+  "match": "dispatch.php/course/overview?cid=155acb78c2e55f6f101677b5c478e8f4",
+  "file": "overview-mathe.html"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/18db79536ec05b0efaf518bb4dbff602/folders",
+  "file": "folders-mathe-ue.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/e7c952f70eb5d76ebd8970e0e86c2834/file-refs",
+  "file": "files-mathe-ue-root.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/e7c952f70eb5d76ebd8970e0e86c2834/folders",
+  "file": "subfolders-mathe-ue.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/e08391e5c79964e345adb0e099f6acc6/file-refs",
+  "file": "files-mathe-ue-7d80dd.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/e08391e5c79964e345adb0e099f6acc6/folders",
+  "file": "empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/18db79536ec05b0efaf518bb4dbff602/events",
+  "file": "events-mathe-ue.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/18db79536ec05b0efaf518bb4dbff602/news",
+  "file": "news-mathe-ue.json"
+ },
+ {
+  "match": "dispatch.php/course/overview?cid=18db79536ec05b0efaf518bb4dbff602",
+  "file": "overview-mathe-ue.html"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/05c992a8ae577ef1e61028c6aa474074/folders",
+  "file": "folders-recht.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/0165bde43f117470700ac7761b0901ae/file-refs",
+  "file": "files-recht-root.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/0165bde43f117470700ac7761b0901ae/folders",
+  "file": "subfolders-recht.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/0d0c948ad3b37beef0f800760f3edd02/file-refs",
+  "file": "files-recht-25817f.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/0d0c948ad3b37beef0f800760f3edd02/folders",
+  "file": "empty.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/05c992a8ae577ef1e61028c6aa474074/events",
+  "file": "events-recht.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/05c992a8ae577ef1e61028c6aa474074/news",
+  "file": "news-recht.json"
+ },
+ {
+  "match": "dispatch.php/course/overview?cid=05c992a8ae577ef1e61028c6aa474074",
+  "file": "overview-recht.html"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/f9bd2e4f6c0bd32e6173521e569f5f27/folders",
+  "file": "folders-sem.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/3b91cf8f40622eba1098efdeba1f3f8c/file-refs",
+  "file": "files-sem-root.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/3b91cf8f40622eba1098efdeba1f3f8c/folders",
+  "file": "subfolders-sem.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/f9bd2e4f6c0bd32e6173521e569f5f27/events",
+  "file": "events-sem.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/f9bd2e4f6c0bd32e6173521e569f5f27/news",
+  "file": "news-sem.json"
+ },
+ {
+  "match": "dispatch.php/course/overview?cid=f9bd2e4f6c0bd32e6173521e569f5f27",
+  "file": "overview-sem.html"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/f02db6dbb98e67326737722d28a08920/folders",
+  "file": "folders-forum.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/d63fd9c0e7c01147ddd47dc911c7e25b/file-refs",
+  "file": "files-forum-root.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/d63fd9c0e7c01147ddd47dc911c7e25b/folders",
+  "file": "subfolders-forum.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/f02db6dbb98e67326737722d28a08920/events",
+  "file": "events-forum.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/f02db6dbb98e67326737722d28a08920/news",
+  "file": "news-forum.json"
+ },
+ {
+  "match": "dispatch.php/course/overview?cid=f02db6dbb98e67326737722d28a08920",
+  "file": "overview-forum.html"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/3975df4e6cd01e4d71d6573087d218a3/folders",
+  "file": "folders-alt.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/7558f5edc1ef85c85ae70ff577546018/file-refs",
+  "file": "files-alt-root.json"
+ },
+ {
+  "match": "jsonapi.php/v1/folders/7558f5edc1ef85c85ae70ff577546018/folders",
+  "file": "subfolders-alt.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/3975df4e6cd01e4d71d6573087d218a3/events",
+  "file": "events-alt.json"
+ },
+ {
+  "match": "jsonapi.php/v1/courses/3975df4e6cd01e4d71d6573087d218a3/news",
+  "file": "news-alt.json"
+ },
+ {
+  "match": "dispatch.php/course/overview?cid=3975df4e6cd01e4d71d6573087d218a3",
+  "file": "overview-alt.html"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/2e376dcfaaf0497d841e9498b722c3d6/content",
+  "file": "ma-vl1.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/9447a1aa6e977dc27991688684dda4c6/content",
+  "file": "ma-vl2.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/18ea8cb61ff27a58d16623664902a2b5/content",
+  "file": "ma-ue1.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/09b10159f0480feec2e15d6f0315a747/content",
+  "file": "prog-vl1.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/file-refs/0480ff994a58916da7844acb06f3c18b/content",
+  "file": "prog-ue1.pdf"
+ },
+ {
+  "match": "jsonapi.php/v1/terms-of-use",
+  "file": "empty.json"
+ },
+ {
+  "match": "plugins.php/schwarzesbrettplugin/category/list",
+  "file": "brett-list.html"
+ },
+ {
+  "match": "plugins.php/schwarzesbrettplugin/rss/804d64c36abb3b82d8b07cbd0a653418",
+  "file": "brett-biete.xml",
+  "contentType": "application/rss+xml;charset=utf-8"
+ },
+ {
+  "match": "plugins.php/schwarzesbrettplugin/rss/6b4f23fbbe0987d0864ef3af13f04337",
+  "file": "brett-suche.xml",
+  "contentType": "application/rss+xml;charset=utf-8"
+ },
+ {
+  "match": "plugins.php/schwarzesbrettplugin/rss/42b73a3c03db1b6ace41574f1fea8cf4",
+  "file": "brett-wohnen.xml",
+  "contentType": "application/rss+xml;charset=utf-8"
+ }
+]

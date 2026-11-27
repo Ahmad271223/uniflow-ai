@@ -29,13 +29,30 @@ struct CertificatesPage: View {
 
     private var isLocal: Bool { session.api?.isLocal == true }
 
+    /// Hochschule, deren Portal StudiNow nicht liest (Uni Goettingen: eCampus): keine Liste, kein Abruf - nur der Weg dorthin
+    private var notOffered: UniversityKey? {
+        guard isLocal, let u = UFUniversityScope.current, !UFUniversityScope.offersCertificates(u) else { return nil }
+        return u
+    }
+
     var body: some View {
         Group {
-            if let data { content(data) }
+            if let u = notOffered {
+                UFContent(maxWidth: 960) {
+                    UFPageHead("Bescheinigungen", sub: nil) {
+                        UFButton("Uni & Noten", icon: "graduation", size: .small) { router.go(.services) }
+                    }
+                    UFNotOfferedCard(icon: "file-text", title: "Bescheinigungen im \(CertificatePortal.name(u))", text: CertificatePortal.note(u),
+                                     link: UFUniversityScope.serviceURL("ecampus", u).map { ("\(CertificatePortal.name(u)) öffnen", $0) },
+                                     identifier: "certificates.notoffered")
+                }
+            }
+            else if let data { content(data) }
             else if let error { UFContent(maxWidth: 960) { UFEmpty(icon: "alert", text: error) } }
             else { UFContent(maxWidth: 960) { UFSkeleton().frame(width: 280, height: 28).padding(.bottom, 16); UFSkeleton().frame(height: 260) } }
         }
         .task {
+            guard notOffered == nil else { return }
             if center == nil, isLocal { center = CertificateCenter.make(qis: qis, hsh: hsh, hildesheim: hildesheim) }
             await load()
             await refreshIfStale()

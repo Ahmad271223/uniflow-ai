@@ -279,6 +279,6 @@ final class LecturersAppTests: XCTestCase {
         XCTAssertFalse(shows(w, "Alle Lehrenden"), texts(w).joined(separator: "\n"))
         w.isHidden = true
         let p = try show(LecturersPage(), api: api)
-        XCTAssertTrue(pump { self.shows(p, "vorerst für die Leibniz Universität Hannover") }, texts(p).joined(separator: "\n"))
+        XCTAssertTrue(pump { self.shows(p, "vorerst nur an Hochschulen mit Stud.IP") }, texts(p).joined(separator: "\n"))
     }
 }

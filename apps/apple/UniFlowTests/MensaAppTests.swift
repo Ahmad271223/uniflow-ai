@@ -52,7 +52,8 @@ final class MensaAppTests: XCTestCase {
         XCTAssertEqual(g.map(\.title), ["Favoriten", "Deine Hochschule", "Weitere in der Nähe", "Andere Orte"])
         XCTAssertEqual(g[0].items.compactMap { $0.s("id") }, ["hi-uni"])
         XCTAssertEqual(g[1].items.compactMap { $0.s("id") }, ["hauptmensa", "contine", "garbsen", "herrenhausen"])
-        XCTAssertEqual(g[3].items.compactMap { $0.s("id") }, ["hi-buehler", "hi-hohnsen"])
+        // seit 26.11.2026 auch die Mensen der Uni Goettingen (dort freigegeben) unter "Andere Orte"
+        XCTAssertEqual(g[3].items.compactMap { $0.s("id") }, ["hi-buehler", "hi-hohnsen", "goe-zentralmensa", "goe-cgin", "goe-turm"])
     }
 
     func testDashboardCardRules() async throws {

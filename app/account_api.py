@@ -114,11 +114,17 @@ def _with_device(out: dict, request: Request, user: dict, token: str | None, log
     return out
 
 
+def _offered_universities() -> list[str]:
+    """Hochschulen zur Wahl im Anmeldeformular der Web-App (ohne die nur in den Apps angebundenen)"""
+    from . import universities
+    return universities.offered()
+
+
 @router.get("/info")
 def info():
     """Oeffentlich: Betriebsart und Regeln, damit Clients das Formular passend bauen."""
     return {"mode": config.MODE, "hosted": config.is_hosted(), "password_min": accounts.PASSWORD_MIN,
-            "session_days": accounts.SESSION_DAYS, "universities": list(config.known_universities()),
+            "session_days": accounts.SESSION_DAYS, "universities": _offered_universities(),
             "providers": _providers()}
 
 

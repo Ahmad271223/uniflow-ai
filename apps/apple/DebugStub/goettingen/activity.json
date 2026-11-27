@@ -1,0 +1,46 @@
+{
+ "meta": {
+  "filter": {},
+  "page": {
+   "offset": 0,
+   "limit": 30
+  }
+ },
+ "links": {
+  "first": "x",
+  "last": "x"
+ },
+ "data": [
+  {
+   "type": "activities",
+   "id": "2c9a3e181be9522aa4293f77481ecc82",
+   "attributes": {
+    "title": "Datei hochgeladen",
+    "mkdate": "2026-11-25T10:00:00+01:00",
+    "content": "",
+    "verb": "created",
+    "activity-type": "documents"
+   },
+   "relationships": {
+    "actor": {
+     "data": {
+      "type": "users",
+      "id": "9fb9fa78ae8934283587f57b8b84a9e3"
+     }
+    },
+    "object": {
+     "data": {
+      "type": "file-refs",
+      "id": "9447a1aa6e977dc27991688684dda4c6"
+     }
+    },
+    "context": {
+     "data": {
+      "type": "courses",
+      "id": "155acb78c2e55f6f101677b5c478e8f4"
+     }
+    }
+   }
+  }
+ ]
+}

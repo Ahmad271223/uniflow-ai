@@ -352,7 +352,8 @@ struct UFNavItem: Identifiable {
     /// Schloesser wie bisher (Tests, eigener Server).
     static func visible(local: Bool, gradesOnDevice: Bool, community: Bool,
                         flashcards: Bool = UFFeatureMatrix.flashcardsOnDevice, ai: Bool = false, messages: Bool = false,
-                        uniMail: Bool = false, plan: UFPlan? = nil, proAIHidden: Bool = false) -> [UFNavItem] {
+                        uniMail: Bool = false, plan: UFPlan? = nil, proAIHidden: Bool = false,
+                        studyPlan: Bool = UFUniversityScope.offersStudyPlan(UFUniversityScope.current)) -> [UFNavItem] {
         func locked(_ item: UFNavItem, _ f: UFFeature) -> UFNavItem {
             var i = item
             i.lock = plan.flatMap { UFLock.plan(f, plan: $0) }
@@ -368,6 +369,8 @@ struct UFNavItem: Identifiable {
                 return (ai || examsLock != nil ? [exams] : []) + (flashcards ? [locked(cards, .flashcards)] : [])
             case "community": return community ? [locked(item, .communityRead)] : []
             case "services": return gradesOnDevice ? [item] : []
+            // Studienverlauf nur, wo StudiNow den Notenspiegel liest (nicht an der Uni Goettingen, `UFUniversityScope`)
+            case "studyplan": return studyPlan ? [item] : []
             default: return [item]
             }
         } : main

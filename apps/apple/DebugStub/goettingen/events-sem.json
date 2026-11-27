@@ -1,0 +1,365 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 14
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "course-events",
+   "id": "1ce58c99eb4e3c6bfd27997d0c8bf2d4",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-10-29T16:15:00+01:00",
+    "end": "2026-10-29T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "2b37d2b4a043b598e831bbaa3d5c668f",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-11-05T16:15:00+01:00",
+    "end": "2026-11-05T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "c53470027b65c0bc1d8866e8e99f6f65",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-11-12T16:15:00+01:00",
+    "end": "2026-11-12T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "de4a53cfe3fc193f9f304375a737dd31",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-11-19T16:15:00+01:00",
+    "end": "2026-11-19T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "528ba476ee97fa077a4d6efcf94e74d1",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-11-26T16:15:00+01:00",
+    "end": "2026-11-26T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "2edf48e2bb888031f694f955f1573635",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-12-03T16:15:00+01:00",
+    "end": "2026-12-03T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "0e2a01d3798394dfbd3f7a0d17b40705",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-12-10T16:15:00+01:00",
+    "end": "2026-12-10T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "c19d2e21a36d6bed803ee7bf5582970a",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-12-17T16:15:00+01:00",
+    "end": "2026-12-17T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "17b51df8504ca1ff39cad4c2de379c6c",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2026-12-24T16:15:00+01:00",
+    "end": "2026-12-24T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "19ae73d0cd9d2df6432b436c358f06fe",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2027-01-14T16:15:00+01:00",
+    "end": "2027-01-14T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "61ff3ca979bacaccc46a95a9fd7b7e92",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2027-01-21T16:15:00+01:00",
+    "end": "2027-01-21T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "25e2c624881bce96bfcff04dbc1689fa",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2027-01-28T16:15:00+01:00",
+    "end": "2027-01-28T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "a765f96536b69008e71b927dcd39d3b4",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2027-02-04T16:15:00+01:00",
+    "end": "2027-02-04T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  },
+  {
+   "type": "course-events",
+   "id": "71095cf31375693a0f90a7514c575bb9",
+   "attributes": {
+    "title": "",
+    "description": "",
+    "start": "2027-02-11T16:15:00+01:00",
+    "end": "2027-02-11T17:45:00+01:00",
+    "type": 1,
+    "categories": "Sitzung",
+    "location": "E-Prüfungsraum MZG 1.116 (MZG/Blauer Turm)",
+    "is-cancelled": false,
+    "mkdate": "2026-09-20T10:00:00+02:00",
+    "chdate": "2026-09-20T10:00:00+02:00",
+    "recurrence": ""
+   },
+   "relationships": {
+    "owner": {
+     "data": {
+      "type": "courses",
+      "id": "f9bd2e4f6c0bd32e6173521e569f5f27"
+     }
+    }
+   }
+  }
+ ]
+}

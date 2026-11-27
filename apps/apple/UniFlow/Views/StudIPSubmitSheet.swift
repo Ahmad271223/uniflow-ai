@@ -287,7 +287,7 @@ struct StudIPSubmitEntry: View {
                     return .init(data: try Data(contentsOf: r.url), pages: r.payload.pageCount)
                 }),
             login: { done in
-                AnyView(StudIPLoginView(base: StudIPSync.base, dataStore: studip.websiteDataStore) { cookies in
+                AnyView(StudIPLoginView(base: studip.base, dataStore: studip.websiteDataStore) { cookies in
                     studip.signedIn(cookies: cookies)
                     done()
                 })

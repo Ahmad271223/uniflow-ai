@@ -181,7 +181,8 @@ lit. b DSGVO); über Cookies von YouTube entscheidest du in der Einwilligungsabf
 ## 4b. Mensa
 
 Den Speiseplan und, in Hannover, die Fotos der Gerichte lädt die App direkt beim jeweiligen Studentenwerk
-(Studentenwerk Hannover über Studi|Futter, Studentenwerk OstNiedersachsen, ersatzweise OpenMensa). Dabei erhält der
+(Studentenwerk Hannover über Studi|Futter, Studentenwerk OstNiedersachsen, Studierendenwerk Göttingen, ersatzweise
+OpenMensa). Dabei erhält der
 Anbieter die bei jedem Abruf üblichen Angaben (IP-Adresse, Zeitpunkt, Gerätetyp). An StudiNow geht dabei nichts;
 deine Auswahl (Mensa, Preisgruppe, Allergene) bleibt auf dem Gerät. Rechtsgrundlage: Art. 6 Abs. 1 lit. b DSGVO.
 

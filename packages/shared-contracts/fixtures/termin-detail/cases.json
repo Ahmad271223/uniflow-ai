@@ -65,7 +65,7 @@
   "shows_lecturers": [
     {"university": "luh", "want": true},
     {"university": "hsh", "want": false},
-    {"university": "hildesheim", "want": false},
+    {"university": "hildesheim", "want": false}, {"university": "goettingen", "want": true},
     {"university": null, "want": false}
   ]
 }

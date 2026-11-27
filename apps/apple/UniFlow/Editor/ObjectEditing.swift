@@ -349,9 +349,10 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             guard controller?.richNotes == true else { controller?.onHint?(Self.coverLockedHint); return }
             // auf eine vorhandene Karte getippt: sie waehlen, statt eine zweite darueberzulegen (spaeter klappte nur
             // die obere auf - die Stelle "ging nicht auf")
+            // (das Werkzeug bleibt fuer die naechste Karte; ueberlappend anlegen geht mit Ziehen)
             if let hit = TopObjects.hit(v.objectsView.shownObjects, x: Double(p.x), y: Double(p.y)), FlipCover.isCover(hit), let id = hit["id"]?.string {
-                setTool(.select)
                 select(key: key, ids: [id], in: v.objectsView.shownObjects)
+                controller?.onHint?(Self.coverHereHint)
                 return
             }
             let o = newCover(id: PageOrder.uid(), on: v, at: p)

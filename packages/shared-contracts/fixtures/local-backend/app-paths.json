@@ -2458,21 +2458,7 @@
        "type": "string"
       },
       "source": {
-       "type": "object",
-       "keys": {
-        "attribution": {
-         "type": "string"
-        },
-        "key": {
-         "type": "string"
-        },
-        "name": {
-         "type": "string"
-        },
-        "url": {
-         "type": "string"
-        }
-       }
+       "type": "null"
       },
       "university": {
        "type": "string"

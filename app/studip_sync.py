@@ -748,6 +748,9 @@ def classify(title: str) -> tuple[str, str]:
     s = re.sub(r"\s*[-–]\s*(Fragestunden|Tutorium|Gruppenübung|Gruppenuebung|Hörsaalübung|Hoersaaluebung|Zentralübung|Übung|Uebung|Gruppe\s*\w+).*$", "", s, flags=re.I)
     s = re.sub(r"\s*\((Tranche[^)]*|für [^)]*|Elektrotechnische Grundlagen der Informationstechnik|Vorlesung[^)]*|Übung[^)]*|Uebung[^)]*|Tutorium[^)]*|Gruppe\s*\w+)\)", "", s, flags=re.I)
     s = re.sub(r",?\s*Tranche\s*\w+.*$", "", s, flags=re.I)
+    # Anfuehrungszeichen gehoeren nicht zum Fach: 'Übung zur Vorlesung "Jahresabschluss" B.WIWI-BWL.0111' und
+    # 'Jahresabschluss B.WIWI-BWL.0111' sind dasselbe Modul (echtes Konto Uni Goettingen, 27.11.2026)
+    s = re.sub(r"[\"„“”«»]", "", s)
     s = re.sub(r"\s+", " ", s).strip(" -:,(")
     return s, kind
 

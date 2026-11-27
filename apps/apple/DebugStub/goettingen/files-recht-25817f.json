@@ -1,0 +1,43 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 1
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "file-refs",
+   "id": "0480ff994a58916da7844acb06f3c18b",
+   "attributes": {
+    "name": "Fall_01_Kaufvertrag.pdf",
+    "description": "",
+    "mkdate": "2026-11-04T12:00:00+01:00",
+    "chdate": "2026-11-04T12:00:00+01:00",
+    "downloads": 12,
+    "filesize": 717,
+    "mime-type": "application/pdf",
+    "is-readable": true,
+    "is-downloadable": true,
+    "is-editable": false,
+    "is-writable": false
+   },
+   "relationships": {
+    "terms-of-use": {
+     "data": {
+      "type": "terms-of-use",
+      "id": "SELFMADE_NONPUB"
+     }
+    }
+   },
+   "meta": {
+    "download-url": "https://studip.uni-goettingen.de/sendfile.php?type=0&file_id=0480ff994a58916da7844acb06f3c18b&file_name=Fall_01_Kaufvertrag.pdf"
+   }
+  }
+ ]
+}

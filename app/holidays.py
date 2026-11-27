@@ -8,6 +8,8 @@ Weder Stud.IP noch Learnweb/LSF liefern eine Ferienliste (geprueft 26.10.2026). 
                (abgerufen 05.11.2026; Vorlesungszeiten ohne die abweichenden Termine der Fakultaet V)
    Hildesheim: https://www.uni-hildesheim.de/termine-fristen/ (Zeitplan-PDFs bis SoSe 2030, abgerufen 26.10.2026;
                im PDF SoSe 2028 steht als Beginn der Projektwoche "06.06.2027", gemeint ist 2028)
+   Goettingen: https://www.uni-goettingen.de/de/semestertermine+%28ohne+medizin%29/64720.html (abgerufen 26.11.2026,
+               ohne Medizin); SoSe 2026 aus Stud.IP Goettingen (start-of-lectures/end-of-lectures, gesehen 26.11.2026)
    Die Hochschulen geben die Angaben ohne Gewaehr an; neue Semester werden hier nachgetragen.
 Vorlesungsfreie Zeit = vom Tag nach dem Ende der Vorlesungen bis zum Tag vor dem Beginn der naechsten (wie bei der LUH).
 """
@@ -45,6 +47,13 @@ SEMESTERS: dict[str, list[tuple[str, str, str, list[tuple[str, str, str]]]]] = {
         ("SoSe 2029", "2029-03-01", "2029-07-10", [("2029-03-29", "2029-04-03", "Ostern"), ("2029-05-19", "2029-05-22", "Pfingsten")]),
         ("WiSe 2029/30", "2029-09-20", "2030-01-31", [("2029-12-23", "2030-01-02", "Weihnachten")]),
         ("SoSe 2030", "2030-03-04", "2030-07-10", [("2030-04-18", "2030-04-23", "Ostern"), ("2030-06-08", "2030-06-11", "Pfingsten")]),
+    ],
+    "goettingen": [
+        ("SoSe 2026", "2026-04-13", "2026-07-17", []),
+        ("WiSe 2026/27", "2026-10-26", "2027-02-12", [("2026-12-28", "2027-01-08", "Weihnachtspause")]),
+        ("SoSe 2027", "2027-04-12", "2027-07-16", []),
+        ("WiSe 2027/28", "2027-10-25", "2028-02-11", [("2027-12-27", "2028-01-07", "Weihnachtspause")]),
+        ("SoSe 2028", "2028-04-18", "2028-07-21", []),
     ],
 }
 

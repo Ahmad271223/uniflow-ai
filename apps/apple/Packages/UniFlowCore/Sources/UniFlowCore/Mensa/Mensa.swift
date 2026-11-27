@@ -55,7 +55,17 @@ public enum Mensa {
     public static func canteensResponse(university: String?) -> JSONValue {
         let uni = (university.flatMap { data["universities"]?[$0] } != nil) ? university! : "luh"
         let region = data["universities"]?[uni]?["region"]?.string ?? "hannover"
-        let all = data["canteens"]?.array ?? []
+        // Mensen einer Region, deren Hochschulen dieser Build (noch) nicht zur Wahl stellt, erscheinen nicht - ausser es
+        // ist die eigene Region (Goettingen bis zur Freigabe, `UFReleaseUniversities`; docs/GOETTINGEN-2026-11-26.md)
+        let shipped = UFReleaseUniversities.shipped
+        var hiddenRegions = Set<String>()
+        var regions: [String: [UniversityKey]] = [:]
+        for (key, u) in data["universities"]?.object ?? [:] {
+            guard let r = u["region"]?.string, let k = UniversityKey(rawValue: key) else { continue }
+            regions[r, default: []].append(k)
+        }
+        for (r, keys) in regions where r != region && !keys.contains(where: shipped.contains) { hiddenRegions.insert(r) }
+        let all = (data["canteens"]?.array ?? []).filter { !hiddenRegions.contains($0["region"]?.string ?? "") }
         let sorted = all.enumerated().sorted { a, b in
             func key(_ c: JSONValue, _ i: Int) -> (Int, Int, Int) {
                 let unis = c["universities"]?.array?.compactMap(\.string) ?? []
@@ -87,9 +97,33 @@ public enum Mensa {
             return api + "/items/foodoffers?" + q.joined(separator: "&")
         case "stwon":
             return api + "/locations/\(c["source"]?["id"]?.int ?? 0)/menu/\(start)/\(end)"
+        case "stwgoe":
+            return stwgoeURL(c, day: start)                 // erster Tag; alle Tage: `stwgoeURLs`
         default:
             return api + "/canteens/\(c["openmensa"]?.int ?? 0)/meals"
         }
+    }
+
+    /// HTML-Baustein eines Tages einer Mensa des Studierendenwerks Goettingen (wie `stwgoe_url` in Python)
+    public static func stwgoeURL(_ c: JSONValue, day: String) -> String {
+        "\(data["sources"]?["stwgoe"]?["api"]?.string ?? "")/de/\(day)/\(c["source"]?["id"]?.string ?? "").html"
+    }
+
+    /// (Tag, Adresse) der Tage, die das Studierendenwerk anbietet: ab `start` hoechstens `sources.stwgoe.days` Tage
+    public static func stwgoeURLs(_ c: JSONValue, start: String, end: String) -> [(day: String, url: String)] {
+        let n = data["sources"]?["stwgoe"]?["days"]?.int ?? 6
+        var out: [(day: String, url: String)] = []
+        for i in 0..<max(0, n) {
+            let d = addDays(start, i)
+            if d > end { break }
+            out.append((d, stwgoeURL(c, day: d)))
+        }
+        return out
+    }
+
+    /// Nennt die Quelle Preise je Gericht? (Studierendenwerk Goettingen: nein, `sources.stwgoe.prices` false)
+    public static func sourceHasPrices(_ kind: String?) -> Bool {
+        data["sources"]?[kind ?? ""]?["prices"]?.bool ?? true
     }
 
     // MARK: Vereinheitlichen
@@ -356,10 +390,193 @@ public enum Mensa {
         return result(days, closed: closed)
     }
 
+    // MARK: Studierendenwerk Goettingen (HTML-Baustein je Tag, wie `parse_stwgoe` in app/mensa.py)
+
+    private static let goeRow = PyRegex(#"(?si)<tr\b[^>]*>(.*?)</tr>"#)
+    private static let goeTyp = PyRegex(#"(?si)<td[^>]*class="sp_typ"[^>]*>(.*?)</td>"#)
+    private static let goeBez = PyRegex(#"(?si)<td[^>]*class="sp_bez"[^>]*>(.*?)</td>"#)
+    private static let goeHin = PyRegex(#"(?si)<td[^>]*class="sp_hin"[^>]*>(.*?)</td>"#)
+    private static let goeStrong = PyRegex(#"(?si)<strong\b[^>]*>(.*?)</strong>"#)
+    private static let goeSmall = PyRegex(#"(?si)<i[^>]*class="smaller"[^>]*>(.*?)</i>"#)
+    private static let goeBreak = PyRegex(#"(?i)<br\s*/?>|\r?\n"#)
+    private static let goeTag = PyRegex(#"<[^>]+>"#)
+    private static let goeIcon = PyRegex(#"(?i)/mensaspeiseplan/(?:png|jpg)/([A-Za-z_]+)\.(?:png|jpg)"#)
+    private static let goeGroup = PyRegex(#"\s*\(([^()]*)\)"#)
+    private static let goeCode = PyRegex(#"^(?:[a-n](?:\.[0-9])?|[0-9]{1,2})$"#)
+    private static let goeRange = PyRegex(#"^([a-n])-([a-n])$"#)
+    private static let goeDate = PyRegex(#"class="sp_date"[^>]*>\s*([0-9]{2})\.([0-9]{2})\.([0-9]{4})"#)
+    static let goeConnect: Set<String> = ["oder", "mit", "und", "dazu", "zusätzlich", "wahlweise"]
+    static let goeNameMax = 90
+
+    /// `" ".join(s.split())` wie Python (jeder Leerraum, auch geschuetzte Leerzeichen)
+    static func goeJoin(_ s: String) -> String {
+        var parts: [String] = []
+        var cur = String.UnicodeScalarView()
+        for u in s.unicodeScalars {
+            if PyText.isSpace(u) {
+                if !cur.isEmpty { parts.append(String(cur)); cur = String.UnicodeScalarView() }
+            } else {
+                cur.append(u)
+            }
+        }
+        if !cur.isEmpty { parts.append(String(cur)) }
+        return parts.joined(separator: " ")
+    }
+
+    /// HTML-Stueck als eine Zeile Text (Tags weg, Entities dekodiert, Leerraum zusammengezogen)
+    static func goeText(_ fragment: String) -> String {
+        goeJoin(QISParser.decodeEntities(goeTag.sub(fragment, " ")).replacingOccurrences(of: "\u{A0}", with: " "))
+    }
+
+    /// Klammern, die nur Kennzeichen enthalten ("(1,3,a.1,a)"), aus dem Text nehmen; Bereiche ("(a-m)") bleiben stehen
+    /// und melden ihre Buchstaben. Rueckgabe: Text ohne Kennzeichen-Klammern, Kennzeichen, Buchstaben aus Bereichen
+    static func goeCodes(_ text: String) -> (text: String, codes: [String], ranged: [String]) {
+        var codes: [String] = [], ranged: [String] = []
+        var out = ""
+        var last = text.startIndex
+        for m in goeGroup.regex.matches(in: text, range: NSRange(text.startIndex..., in: text)) {
+            guard let whole = Range(m.range, in: text), let inner = Range(m.range(at: 1), in: text) else { continue }
+            out += text[last..<whole.lowerBound]
+            last = whole.upperBound
+            let tokens = text[inner].split(separator: ",", omittingEmptySubsequences: false).map { PyText.lower(PyText.strip(String($0))) }
+            if tokens.isEmpty || tokens.contains(where: \.isEmpty) { out += text[whole]; continue }
+            if tokens.allSatisfy({ goeCode.match($0) != nil }) {
+                for t in tokens where !codes.contains(t) { codes.append(t) }
+                continue
+            }
+            if tokens.count == 1, let r = goeRange.match(tokens[0].replacingOccurrences(of: " ", with: "")),
+               let lo = r.group(1)?.unicodeScalars.first, let hi = r.group(2)?.unicodeScalars.first, lo.value <= hi.value {
+                for v in lo.value...hi.value {
+                    let letter = String(Character(Unicode.Scalar(v)!))
+                    if !ranged.contains(letter) { ranged.append(letter) }
+                }
+            }
+            out += text[whole]
+        }
+        out += text[last...]
+        return (goeJoin(out), codes, ranged)
+    }
+
+    /// Beilagen: an Kommas ausserhalb von Klammern trennen; Bindewoerter ("oder", "mit") gehoeren zum naechsten Teil
+    static func goeSplit(_ text: String) -> [String] {
+        var parts: [String] = []
+        var depth = 0, cur = ""
+        for ch in text {
+            if ch == "(" { depth += 1 } else if ch == ")" { depth = max(0, depth - 1) }
+            if ch == ",", depth == 0 { parts.append(cur); cur = "" } else { cur.append(ch) }
+        }
+        parts.append(cur)
+        var out: [String] = []
+        var lead = ""
+        for part in parts.map(goeJoin) where !part.isEmpty {
+            if goeConnect.contains(PyText.lower(part)) {
+                lead = PyText.strip(lead + " " + part)
+                continue
+            }
+            out.append(PyText.strip(lead + " " + part))
+            lead = ""
+        }
+        return out
+    }
+
+    static func goeUnknownAdditive(_ code: String) -> String {
+        "Kennzeichen \(code) (in der Legende des Studierendenwerks nicht erklärt)"
+    }
+
+    /// {"pages": [{"date": "JJJJ-MM-TT", "html": Baustein}]} -> {"days": {datum: [meal]}, "closed": [datum]}. Keine
+    /// Preise (der Baustein nennt keine): alle drei Preisgruppen bleiben null, nie ein Wert.
+    public static func parseStwgoe(_ raw: JSONValue) -> JSONValue {
+        let alls = data["stwgoe_allergens"]?.object ?? [:], adds = data["stwgoe_additives"]?.object ?? [:]
+        let icons = data["stwgoe_icons"]?.object ?? [:]
+        var days: [String: [JSONValue]] = [:], closed: [String] = []
+        for page in raw["pages"]?.array ?? [] {
+            let d = String((page["date"]?.string ?? "").prefix(10))
+            let text = page["html"]?.string ?? ""
+            guard d.count == 10 else { continue }
+            if let shown = goeDate.search(text), "\(shown.group(3) ?? "")-\(shown.group(2) ?? "")-\(shown.group(1) ?? "")" != d {
+                continue                                    // Baustein eines anderen Tages: nichts daraus lesen
+            }
+            var meals: [JSONValue] = []
+            for rowMatch in goeRow.matches(text) {
+                let row = rowMatch.group(1) ?? ""
+                guard let typ = goeTyp.search(row)?.group(1), let bez = goeBez.search(row)?.group(1) else { continue }
+                let category = goeText(typ)
+                var body = bez
+                let small = goeSmall.matches(body).map { PyText.strip(goeText($0.group(1) ?? ""), chars: "() ") }.filter { !$0.isEmpty }
+                body = goeSmall.sub(body, "")
+                var notes: [String] = [], components: [String] = []
+                var name: String, codes: [String], ranged: [String]
+                if let strong = goeStrong.search(body), let whole = Range(strong.result.range, in: body) {
+                    (name, codes, ranged) = goeCodes(goeText(strong.group(1) ?? ""))
+                    let rest = goeText(body.replacingCharacters(in: whole, with: ""))
+                    let more = goeCodes(rest)
+                    codes += more.codes.filter { !codes.contains($0) }
+                    ranged += more.ranged.filter { !ranged.contains($0) }
+                    components = goeSplit(rest)
+                } else {
+                    var lines: [String] = []
+                    var last = body.startIndex
+                    for m in goeBreak.regex.matches(in: body, range: NSRange(body.startIndex..., in: body)) {
+                        guard let r = Range(m.range, in: body) else { continue }
+                        lines.append(goeText(String(body[last..<r.lowerBound])))
+                        last = r.upperBound
+                    }
+                    lines.append(goeText(String(body[last...])))
+                    lines = lines.filter { !$0.isEmpty }
+                    let whole = lines.joined(separator: " ")
+                    (_, codes, ranged) = goeCodes(whole)
+                    if let first = lines.first, PyText.length(first) <= goeNameMax {
+                        name = goeCodes(first).text
+                        notes += lines.dropFirst()
+                    } else {
+                        name = category
+                        if !whole.isEmpty { notes.append(whole) }
+                    }
+                }
+                if name.isEmpty { name = category }
+                if name.isEmpty { continue }
+                var labels = Set<String>()
+                var meat = false
+                for icon in goeIcon.matches(goeHin.search(row)?.group(1) ?? "") {
+                    guard let t = icons[PyText.lower(icon.group(1) ?? "")] else { continue }
+                    labels.formUnion(t["labels"]?.array?.compactMap(\.string) ?? [])
+                    meat = meat || t["meat"]?.bool == true
+                    if let n = t["note"]?.string, !n.isEmpty, !notes.contains(n) { notes.append(n) }
+                }
+                let wholeLow = PyText.lower(name + " " + components.joined(separator: " "))
+                if meat, wholeLow.contains("schwein") { labels.insert("schwein") }
+                var time: String?
+                for s in small {
+                    if PyText.lower(s).hasPrefix("mittagsangebot") { time = "mittag" } else if !notes.contains(s) { notes.append(s) }
+                }
+                var allergens: [JSONValue] = [], additives: [JSONValue] = []
+                for code in codes + ranged.filter({ !codes.contains($0) }) {
+                    if code.first?.isNumber == true {
+                        additives.append(["code": .string(code), "name": .string(adds[code]?.string ?? goeUnknownAdditive(code))])
+                        continue
+                    }
+                    // "a" (glutenhaltiges Getreide) entfaellt, wenn die Getreideart ("a.1 Weizen") dabei ist
+                    guard let t = alls[code], code.contains(".") || !codes.contains(where: { $0.hasPrefix(code + ".") }) else { continue }
+                    addAllergen(&allergens, code: code, key: t["key"]?.string ?? "", name: t["name"]?.string ?? "")
+                }
+                let m = meal(id: "\(d)-\(meals.count)", name: name, category: prettyCategory(category), time: time,
+                             prices: ["student": .null, "employee": .null, "guest": .null], allergens: allergens,
+                             additives: additives, notes: notes, labels: labels, components: components)
+                guard var o = m.object else { continue }
+                // Fleischart steht nicht im Plan: "ohne Schwein" blendet das Gericht aus (`matches`)
+                if meat, !(o["labels"]?.array ?? []).contains(.string("schwein")) { o["pork_unknown"] = true }
+                meals.append(.object(o))
+            }
+            if !meals.isEmpty { days[d] = meals } else if text.contains("kein Angebot") { closed.append(d) }
+        }
+        return result(days, closed: closed)
+    }
+
     public static func parse(kind: String, raw: JSONValue) -> JSONValue {
         switch kind {
         case "studifutter": return parseStudifutter(raw)
         case "stwon": return parseStwon(raw)
+        case "stwgoe": return parseStwgoe(raw)
         default: return parseOpenMensa(raw)
         }
     }
@@ -413,7 +630,8 @@ public enum Mensa {
         let l = labels(meal)
         if f.vegan && !l.contains("vegan") { return false }
         if f.vegetarian && !l.contains("vegetarisch") { return false }
-        if f.noPork && l.contains("schwein") { return false }
+        // "ohne Schwein": auch Gerichte, deren Fleischart die Quelle nicht nennt (Goettingen, `pork_unknown`)
+        if f.noPork && (l.contains("schwein") || meal["pork_unknown"]?.bool == true) { return false }
         if f.allergens.isEmpty { return true }
         return !(meal["allergens"]?.array ?? []).contains { f.allergens.contains($0["key"]?.string ?? "") }
     }

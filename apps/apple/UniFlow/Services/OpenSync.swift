@@ -44,9 +44,10 @@ enum OpenSync {
     static var last: [DataContainerKey: Date] = [:]
     /// Container, deren Abgleich aller Portale (Knopf oder Oeffnen) gerade laeuft: nie ein zweiter zugleich
     static var running: Set<DataContainerKey> = []
-    /// Verbinden mit dem gespeicherten Uni-Zugang vor dem Abgleich (Tests ersetzen es durch eine Nachbildung)
-    static var storedLoginConnect: @MainActor (ContainerManager, Bool) async -> StoredLoginReport = { m, userAction in
-        await m.connectWithStoredLogin(userAction: userAction)
+    /// Verbinden mit dem gespeicherten Uni-Zugang vor dem Abgleich (Tests ersetzen es durch eine Nachbildung).
+    /// Parameter: Handlung des Menschen, nur diese Portale (nil: alle; der Abgleich von selbst: die faelligen)
+    static var storedLoginConnect: @MainActor (ContainerManager, Bool, Set<String>?) async -> StoredLoginReport = { m, userAction, only in
+        await m.connectWithStoredLogin(userAction: userAction, only: only)
     }
 
     /// Namen der Portale wie in `StoredLoginReport`
@@ -202,7 +203,7 @@ extension ContainerManager {
                                only: Set<String>? = nil, now: Date = Date()) async -> UniversitySyncReport {
         var report = UniversitySyncReport()
         if hasStoredLogin {
-            let r = await OpenSync.storedLoginConnect(self, userAction)
+            let r = await OpenSync.storedLoginConnect(self, userAction, only)
             report.rejected = r.rejected
         } else if studip.offersStudIP, studip.phase == .needsLogin, only?.contains(OpenSync.studIP) ?? true {
             // ohne gespeicherten Zugang: die abgelaufene Stud.IP-Sitzung ueber die noch gueltige Uni-Anmeldung (WebSSO)
@@ -213,8 +214,9 @@ extension ContainerManager {
         guard active === c else { return report }
         func wanted(_ name: String) -> Bool { only?.contains(name) ?? true }
         let studip = studip, qis = wanted(OpenSync.qis) ? qis : nil, mail = wanted(OpenSync.uniMail) ? uniMail : nil
-        // Liste der Bescheinigungen: beim Knopf immer; von selbst hoechstens alle `AutoSync.certificatesInterval`
-        let certificatesWanted = userAction || autoCertificatesDue(c, now: now)
+        // Liste der Bescheinigungen: beim Knopf immer; von selbst hoechstens alle `AutoSync.certificatesInterval` und
+        // nur, wenn QIS mitlaeuft (sonst verbrauchte ein reiner Mail-Abruf den Termin der Liste, 27.11.2026)
+        let certificatesWanted = userAction || (qis != nil && autoCertificatesDue(c, now: now))
         // Uni-Mail, Stud.IP und QIS nebeneinander (11.11.2026; vorher wartete alles auf den Posteingang). Die
         // unsichtbaren Anmeldungen bleiben je Datenspeicher nacheinander (`UniAutoLogin`, `Entry.tail`)
         async let m: Void = Self.syncMail(mail)
@@ -245,16 +247,18 @@ extension ContainerManager {
                               forceGrades: Bool, only: Set<String>? = nil, now: Date = Date()) async -> UniversitySyncReport {
         var report = UniversitySyncReport()
         if hasStoredLogin {
-            let r = await OpenSync.storedLoginConnect(self, userAction)
+            let r = await OpenSync.storedLoginConnect(self, userAction, only)
             report.rejected = r.rejected
-        } else if !hildesheim.expiredSources.isEmpty {
+        } else if !hildesheim.expiredSources.isEmpty,
+                  HildesheimConnection.Source.allCases.contains(where: { only?.contains($0.rawValue) ?? true }) {
+            // nur, wenn Learnweb oder LSF in diesem Lauf dran sind (27.11.2026: ein reiner Mail-Abruf meldet sie nicht an)
             _ = await hildesheim.renewSilently(trigger: userAction ? .userAction : .foreground)
         }
         guard active === c else { return report }
         func wanted(_ name: String) -> Bool { only?.contains(name) ?? true }
         let files = HildesheimConnection.Source.allCases.contains { wanted($0.rawValue) }
         let mail = wanted(OpenSync.uniMail) ? uniMail : nil
-        let certificatesWanted = userAction || autoCertificatesDue(c, now: now)
+        let certificatesWanted = userAction || (files && autoCertificatesDue(c, now: now))
         // eine schon vorhandene SOGo-Sitzung uebernehmen (ohne Passwort), bevor der Posteingang gelesen wird
         if let mail, !mail.isConnected, OpenSync.allowed() { _ = await mail.adoptExistingSession() }
         async let m: Void = Self.syncMail(mail)
@@ -427,7 +431,7 @@ enum UniversitySyncStart: Equatable {
         switch u {
         case .hsh?: return "Zuerst Moodle oder Campusmanagement verbinden"
         case .hildesheim?: return "Zuerst Learnweb oder LSF verbinden"
-        case .luh?: return "Zuerst den Uni-Zugang in den Einstellungen speichern"
+        case .luh?, .goettingen?: return "Zuerst den Uni-Zugang in den Einstellungen speichern"
         default: return "Zuerst die Hochschule verbinden"
         }
     }

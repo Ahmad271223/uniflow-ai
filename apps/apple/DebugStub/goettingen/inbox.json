@@ -1,0 +1,90 @@
+{
+ "meta": {
+  "page": {
+   "offset": 0,
+   "limit": 100,
+   "total": 2
+  }
+ },
+ "links": {
+  "first": "/jsonapi.php/v1/x?page[offset]=0",
+  "last": "/jsonapi.php/v1/x?page[offset]=0"
+ },
+ "data": [
+  {
+   "type": "messages",
+   "id": "72669d6c3c25caa32825b09168e46e60",
+   "attributes": {
+    "subject": "Raumänderung Übung",
+    "message": "<p>Die Übung am 02.12. findet im ZHG006 statt.</p>",
+    "mkdate": "2026-11-24T08:15:00+01:00",
+    "is-read": false,
+    "priority": "normal",
+    "tags": []
+   },
+   "relationships": {
+    "sender": {
+     "data": {
+      "type": "users",
+      "id": "9fb9fa78ae8934283587f57b8b84a9e3"
+     }
+    },
+    "recipients": {
+     "data": [
+      {
+       "type": "users",
+       "id": "0140aed7ce29ed182aeb6342ffb185d6"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "type": "messages",
+   "id": "8ea29c6af28a4c62038047f12034746f",
+   "attributes": {
+    "subject": "Willkommen im Wintersemester",
+    "message": "Viel Erfolg im neuen Semester!",
+    "mkdate": "2026-10-26T09:00:00+01:00",
+    "is-read": true,
+    "priority": "normal",
+    "tags": []
+   },
+   "relationships": {
+    "sender": {
+     "data": {
+      "type": "users",
+      "id": "____%system%____"
+     }
+    },
+    "recipients": {
+     "data": [
+      {
+       "type": "users",
+       "id": "0140aed7ce29ed182aeb6342ffb185d6"
+      }
+     ]
+    }
+   }
+  }
+ ],
+ "included": [
+  {
+   "type": "users",
+   "id": "9fb9fa78ae8934283587f57b8b84a9e3",
+   "attributes": {
+    "username": "b.dozentin",
+    "formatted-name": "Prof. Dr. Beispiel Dozentin",
+    "family-name": "Dr. Beispiel Dozentin",
+    "given-name": "Prof.",
+    "name-prefix": "",
+    "name-suffix": "",
+    "permission": "dozent",
+    "email": null
+   },
+   "links": {
+    "self": "/jsonapi.php/v1/users/9fb9fa78ae8934283587f57b8b84a9e3"
+   }
+  }
+ ]
+}

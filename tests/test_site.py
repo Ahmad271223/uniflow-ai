@@ -144,9 +144,16 @@ def test_start_page_is_a_learning_platform_landing_page_with_honest_content():
     # Entscheidung 07.11.2026: 1.0 nur die LUH, Hochschule Hannover und Uni Hildesheim "in Kürze" (1.0.1).
     # 16.11.2026: mit 1.0.4 ist die Universitaet Hildesheim angebunden; die Hochschule Hannover bleibt "in Kürze"
     assert '<p class="eyebrow">Lernmanagementsystem für Hochschulen in ganz Deutschland</p>' in html
+    # 26.11.2026 (Inhaber): Universitaet Goettingen neu, mit Hinweis, was schon geht und was noch fehlt (kein Datum)
     assert re.search(r"Heute angebunden: <strong>Leibniz Universität Hannover</strong> und <strong>Universität Hildesheim</strong>\. "
+                     r"Neu: <strong>Universität Göttingen</strong> mit Stud\.IP und Mensa\. "
                      r"In Kürze: Hochschule Hannover\. Weitere Hochschulen folgen\.", flat)
-    assert "Heute für die Leibniz Universität Hannover und die Universität Hildesheim." in flat
+    assert "Heute für die Leibniz Universität Hannover und die Universität Hildesheim, neu auch für die Universität Göttingen." in flat
+    goe = flat.split('id="goettingen">')[1].split("</p>")[0]
+    for s in ("neu in StudiNow", "Schon dabei: Stud.IP", "Lehrenden", "Schwarze Brett", "noch ohne Preise", "Noch nicht dabei",
+              "FlexNow", "eCampus", "Uni-Mail", "Vorlesungsaufzeichnungen", "sobald das möglich ist"):
+        assert s in goe, s
+    assert not re.search(r"\b20\d\d\b|Sommersemester|Wintersemester|in wenigen Wochen", goe), "kein Datum versprechen"
     assert "In Kürze Hochschule Hannover, weitere Hochschulen" in flat and "In Kürze Hochschule Hannover und Uni Hildesheim" not in flat
     assert "Deine fehlt?" in flat and 'href="mailto:support@studinow.app">Schreib uns</a>' in flat
     assert not re.search(r"alle(n)? (deutschen )?Hochschulen|jede(r)? Hochschule|alle(n)? Unis", flat), "nicht alle Hochschulen angebunden"

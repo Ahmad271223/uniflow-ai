@@ -77,6 +77,7 @@ struct UniAutoLoginCard: View {
         case .luh: return "Stud.IP, QIS und Uni-Mail"
         case .hildesheim: return "Learnweb, LSF, PLuS und Uni-Mail"
         case .hsh: return "Moodle und im Campusmanagement"
+        case .goettingen: return "Stud.IP"
         }
     }
 

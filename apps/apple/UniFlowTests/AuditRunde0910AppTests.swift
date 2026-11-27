@@ -248,6 +248,37 @@ final class AuditRunde0910AppTests: XCTestCase {
         XCTAssertNil(fresh.reloadError)
     }
 
+    /// 27.11.2026 (Test mit echtem Konto Uni Goettingen): die Uebersicht zeigte beim Oeffnen kurz "Offline – Stand vor
+    /// 8 Minuten", obwohl das Geraet online war und nur lud. Der letzte Stand erscheint sofort, "Offline" erst nach
+    /// einem Netzfehler.
+    func testCachedStateIsNotOfflineWhileLoading() async throws {
+        let base = URL(string: "http://erfunden.test/")!
+        let cache = ResponseCache(root: try tempDir())
+        let t = FakeTransport()
+        t.answer("/api/dashboard", ["stand": "eins"])
+        await RemoteData(path: "/api/dashboard", api: APIClient(base: base, transport: t), cache: cache).load()
+
+        t.answer("/api/dashboard", ["stand": "zwei"])
+        t.delayFirst("/api/dashboard", ms: 600)
+        let data = RemoteData(path: "/api/dashboard", api: APIClient(base: base, transport: t), cache: cache)
+        let job = Task { await data.load() }
+        try await Task.sleep(nanoseconds: 150_000_000)
+        if case .loaded(let v, let off) = data.state {
+            XCTAssertEqual(v["stand"], "eins", "letzter Stand sofort zu sehen")
+            XCTAssertNil(off, "beim Laden nicht \"Offline\"")
+        } else { XCTFail("beim Laden: letzter Stand erwartet, \(data.state)") }
+        await job.value
+        if case .loaded(let v, let off) = data.state { XCTAssertEqual(v["stand"], "zwei"); XCTAssertNil(off) } else { XCTFail("\(data.state)") }
+
+        // Netzfehler (keine Antwort): jetzt "Offline" mit dem letzten Stand
+        let offline = RemoteData(path: "/api/dashboard", api: APIClient(base: base, transport: FakeTransport()), cache: cache)
+        await offline.load()
+        if case .loaded(let v, let off) = offline.state {
+            XCTAssertEqual(v["stand"], "zwei")
+            XCTAssertNotNil(off, "nach einem Netzfehler: Offline")
+        } else { XCTFail("Netzfehler mit Stand: Offline-Stand erwartet, \(offline.state)") }
+    }
+
     // MARK: 251, 254, 256 – Uebersicht
 
     /// 251: "Gesehen" scheitert -> Meldung mit Grund (vorher try?, nichts sichtbar). 256: Tageswechsel laedt die

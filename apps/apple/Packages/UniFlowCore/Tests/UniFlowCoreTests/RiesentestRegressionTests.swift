@@ -19,6 +19,9 @@ final class RiesentestRegressionTests: XCTestCase {
             ("Übung Vorlesungsbegleitende Statistik", "Vorlesungsbegleitende Statistik", "uebung"),
             ("Übung zu Grundlagen der Elektrotechnik I", "Grundlagen der Elektrotechnik I", "uebung"),
             ("Tutorium Physik", "Physik", "tutorium"),
+            // echtes Konto Uni Goettingen (27.11.2026): Anfuehrungszeichen gehoeren nicht zum Fach
+            ("Übung zur Vorlesung \"Jahresabschluss\" B.WIWI-BWL.0111", "Jahresabschluss B.WIWI-BWL.0111", "uebung"),
+            ("Seminar „Recht der Digitalisierung“", "Seminar Recht der Digitalisierung", "vorlesung"),
         ]
         for (title, subject, kind) in cases {
             let r = UniRules.classify(title)
