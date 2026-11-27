@@ -14,12 +14,12 @@ from test_subscriptions import FakeAI, apple, ent, hosted, user, verify  # noqa:
 FUENF = "de.uniflow.plus.fuenfjahre"
 
 
-def once_tx(signer, user_id, bought: datetime, otid="9100000000000001", revoked=False):
+def once_tx(signer, user_id, bought: datetime, otid="9100000000000001", revoked=False, environment="Production"):
     """Signierte Transaktion des 5-Jahres-Kaufs wie von StoreKit 2: nicht verlaengernd, ohne expiresDate."""
     signer.seq += 1
     ms = lambda d: int(d.timestamp() * 1000)
     p = {"transactionId": otid, "originalTransactionId": otid, "productId": FUENF, "bundleId": "de.uniflow.ai",
-         "type": "Non-Renewing Subscription", "purchaseDate": ms(bought), "environment": "Sandbox",
+         "type": "Non-Renewing Subscription", "purchaseDate": ms(bought), "environment": environment,
          "signedDate": ms(dt.datetime.now(UTC)) + signer.seq, "appAccountToken": str(uuid.UUID(hex=user_id))}
     if revoked:
         p["revocationDate"] = ms(dt.datetime.now(UTC))
@@ -135,6 +135,25 @@ def test_five_year_purchase_counts_five_years_then_ends(hosted, apple):
     assert src == "app_store_once"
 
 
+def test_five_year_test_purchase_lasts_one_day_only(hosted, apple):
+    """Sicherheitspruefung 27.11.2026: ein Testkauf (Sandbox: TestFlight, Pruefung durch Apple) des Pakets kostet kein
+    Geld und gab trotzdem Plus fuer 5 Jahre. Jetzt hoechstens ein Tag ab dem Kauf; der echte Kauf bleibt bei 5 Jahren."""
+    from app import billing
+    u, h = user(hosted, "testkauf@beispiel.de")
+    bought = datetime.now(UTC) - dt.timedelta(hours=2)
+    st, d = verify(hosted, h, once_tx(apple, u["id"], bought, otid="9100000000000077", environment="Sandbox"))
+    assert st == 200, d
+    me = ent(hosted, h)
+    assert me["plan"] == "plus", "Pruefer und TestFlight sehen, dass der Kauf Plus freischaltet"
+    end = datetime.fromisoformat(me["expires_at"])
+    assert abs((end - (bought + dt.timedelta(days=1))).total_seconds()) < 5, me["expires_at"]
+    conn = billing.connect()
+    try:
+        assert billing.current_plan(conn, u["id"], now=bought + dt.timedelta(days=2)) == "free"
+    finally:
+        conn.close()
+
+
 def test_trial_is_plus_with_25_credits(hosted):
     import json
     from conftest import asgi_call
@@ -235,3 +254,11 @@ def test_pro_ai_on_top_of_the_package_and_plus_stays_after_pro_ai_ends(hosted, a
                                                                    otid="9400000000000002")))
     assert st == 200, d
     assert ent(hosted, h)["plan"] == "plus"
+
+
+def test_grading_and_mail_rewrite_cost_credits():
+    """Sicherheitspruefung 27.11.2026, Regel des Inhabers "KI nur mit Credits": Test-Bewertung (`test_grading`) und
+    Uni-Mail "Mit KI verbessern" (`mail_rewrite`) liefen vorher ohne Abzug - mit Plus und 0 Credits nutzbar."""
+    from app import ai_backend
+    for purpose in ("test_grading", "mail_rewrite", "weekly_test", "test_generation", "tutor:ask"):
+        assert ai_backend.charges_credits(purpose), purpose

@@ -172,7 +172,10 @@ MAX_OUTPUT = {"tutor": 6000, "flashcards": 8000, "doc_index_page": 3000, "week_t
 # Zwecke, die das Konto Credits kosten (app/credits.py); alles mit "tutor:" am Anfang auch
 # 26.11.2026 (neues Modell, "KI nur mit Credits"): auch die automatischen Wochentests (weekly_test) und das Erzeugen fuer
 # den Fragenpool der Bibliothek (test_generation) kosten Credits; vorher zaehlten sie nur gegen das Kontingent des Tarifs
-CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test", "study_plan", "weekly_test", "test_generation")
+# 27.11.2026 (Sicherheitspruefung, Regel des Inhabers "KI nur mit Credits"): auch Test-Bewertung und Uni-Mail
+# "Mit KI verbessern" kosten Credits; vorher liefen sie ohne Abzug (mit Plus und 0 Credits nutzbar)
+CREDIT_PURPOSES = ("flashcards", "doc_index_page", "week_test", "study_plan", "weekly_test", "test_generation",
+                   "test_grading", "mail_rewrite")
 
 
 class AIUnavailable(Exception):

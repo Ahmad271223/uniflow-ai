@@ -30,7 +30,7 @@ import json
 import os
 import sqlite3
 import uuid
-from datetime import datetime, timezone
+from datetime import timedelta, datetime, timezone
 from pathlib import Path
 
 from cryptography import x509
@@ -82,6 +82,15 @@ TEST_ENVIRONMENTS = ("Sandbox", "Xcode")
 
 
 # ---------------------------------------------------------------- Konfiguration
+
+def sandbox_once_days() -> int:
+    """Laufzeit eines nicht verlaengernden Kaufs (Bachelor+Master-Paket) aus der Testumgebung in Tagen
+    (LERNAPP_SANDBOX_ONCE_DAYS, Standard 1): genug, damit Apples Pruefer und TestFlight sehen, dass er Plus freischaltet."""
+    try:
+        return max(0, int(os.environ.get("LERNAPP_SANDBOX_ONCE_DAYS") or 1))
+    except ValueError:
+        return 1
+
 
 def sandbox_credit_limit() -> int:
     """Grenze fuer Credit-Pakete aus der Testumgebung (Sandbox: TestFlight und Apples Pruefung kaufen dort ohne Geld) je
@@ -277,6 +286,11 @@ def apply_transaction(conn: sqlite3.Connection, user_id: str | None, tx: dict, r
         end = plans.offer_end(tx.get("productId"), billing._parse_utc(bought)) if bought else None
         if end is None:
             raise AppleError("jws_invalid", "Die Kaufdaten nennen keine Kaufzeit.")
+        # Testkauf (TestFlight, Pruefung durch Apple, Xcode) ohne echtes Geld: hoechstens ein Tag statt 5 Jahre
+        # (Sicherheitspruefung 27.11.2026: sonst gab ein kostenloser Testkauf Plus bis 2031; Abos haben in der Sandbox
+        # ohnehin kurze Laufzeiten, Credit-Pakete eine Grenze, sandbox_credit_limit)
+        if tx.get("environment") in TEST_ENVIRONMENTS:
+            end = min(end, billing._parse_utc(bought) + timedelta(days=sandbox_once_days()))
         expires, renewal = end.isoformat(), None
     ntype, subtype = notification or (None, None)
     if tx.get("revocationDate") or ntype in REVOKING:
