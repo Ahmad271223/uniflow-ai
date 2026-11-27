@@ -32,6 +32,8 @@ const POSITION = {
 };
 // Einmal bezahlte Angebote eines Tarifs (contract.offers, kind non_renewing), z. B. "39,99 € einmalig für 5 Jahre"
 const onceOffers = (contract, key) => (contract.offers || []).filter(o => o.plan === key && o.kind === "non_renewing");
+// Weitere Abos desselben Tarifs (27.11.2026: Pro AI auch 3,99 € im Monat), abgeschlossen in der Apple-App
+const otherSubs = (contract, key, mainId) => (contract.offers || []).filter(o => o.plan === key && o.kind === "auto_renewable" && o.product_id !== mainId);
 
 // Funktionen der StudiNow-KI: als enthalten nur, wenn der Dienst die KI eingerichtet hat (studora_ai_configured)
 const AI_FEATURES = new Set(["can_generate_studora_ai_tests", "can_use_ai_chat", "can_use_ai_explanations", "can_use_ai_generated_questions", "can_use_ai_summaries", "can_use_ai_recommendations", "can_use_prepared_week_sets"]);
@@ -113,7 +115,8 @@ export async function viewAbo(_, params, view) {
       <header><h2>${esc(p.name)}</h2></header>
       ${soon ? `<div class="plan-price"><b class="plan-soon" style="font-size:1.1rem;line-height:1.4">kommt mit dem StudiNow-Dienst</b></div>`
         : `<div class="plan-price"><b>${euro(p.price_cents)}</b><span>${p.price_cents ? (p.period === "month" ? " / Monat" : " / Jahr") : ""}</span></div>`}
-      ${onceOffers(contract, key).map(o => `<p class="small muted">oder einmalig <b>${euro(o.price_cents)}</b> für ${o.years} Jahre – kein Abo, endet von selbst (in der Apple-App)</p>`).join("")}
+      ${soon ? "" : otherSubs(contract, key, p.apple_product_id).map(o => `<p class="small muted">oder <b>${esc(o.label)}</b>${o.savings ? ` – ${esc(o.savings.text)}` : ""} (in der Apple-App)</p>`).join("")}
+      ${onceOffers(contract, key).map(o => `<p class="small muted">${o.name ? `<b>${esc(o.name)}</b>: ` : "oder "}einmalig <b>${euro(o.price_cents)}</b> für ${o.years} Jahre – kein Abo, endet von selbst${o.savings ? ` · ${esc(o.savings.text)}` : ""} (in der Apple-App)</p>`).join("")}
       ${key === "pro_ai" ? `<div class="plan-tag"><span class="badge info">${p.credits} Credits jeden Monat</span></div>` : ""}
       ${action ? `<div class="plan-act">${action}</div>` : ""}
       <p class="plan-pos">${esc(POSITION[key] || p.tagline)}</p>
