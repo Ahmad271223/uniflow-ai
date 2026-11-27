@@ -297,6 +297,8 @@ final class WhisperModelStore: ObservableObject {
                 })
                 try Task.checkCancellation()
                 self?.states[choice.id] = .preparing
+                // Pruefsummen, bevor CoreML die Dateien oeffnet (Sicherheitspruefung 27.11.2026)
+                try await WhisperModelStore.verify(variant: choice.variant, folder: folder)
                 try await WhisperEngine.shared.load(variant: choice.variant, folder: folder, base: base)
                 try Task.checkCancellation()
                 try Data().write(to: folder.appendingPathComponent(Self.marker))
@@ -340,6 +342,20 @@ final class WhisperModelStore: ObservableObject {
     }
 
     /// Meldung in einfachen Worten
+    /// Marke "Pruefsummen dieses Modellordners passen" (mit dem Stand der Liste im Namen: neue Liste = neu pruefen)
+    nonisolated static var verifiedMarker: String { ".geprueft-\(WhisperModelIntegrity.revision.prefix(12))" }
+
+    /// Modellordner gegen `WhisperModelIntegrity` pruefen (im Hintergrund, mehrere hundert MB). Passt etwas nicht, wird
+    /// der Ordner geloescht und nichts davon benutzt; passt alles, kommt die Marke `verifiedMarker` dazu.
+    nonisolated static func verify(variant: String, folder: URL) async throws {
+        let problems = await Task.detached(priority: .utility) { WhisperModelIntegrity.problems(variant: variant, folder: folder) }.value
+        guard problems.isEmpty else {
+            try? FileManager.default.removeItem(at: folder)
+            throw WhisperFailure("Das Sprachmodell ließ sich nicht prüfen und wurde gelöscht. Bitte lade es erneut; hilft das nicht, schreib uns an support@studinow.app.")
+        }
+        try? Data().write(to: folder.appendingPathComponent(verifiedMarker))
+    }
+
     nonisolated static func message(_ error: Error) -> String {
         if let f = error as? WhisperFailure { return f.message }
         let ns = error as NSError
@@ -500,7 +516,12 @@ final class WhisperJobs: ObservableObject {
                            cooling: (@MainActor (Bool) -> Void)? = nil,
                            step: @MainActor (_ fraction: Double, _ duration: Double, _ sections: [TranscriptSection]) async -> Void) async throws -> [TranscriptSection] {
         guard let choice = store.active else { throw WhisperFailure("Kein Sprachmodell geladen.") }
-        try await WhisperEngine.shared.load(variant: choice.variant, folder: store.folder(choice), base: store.base)
+        // vor dieser Pruefung geladene Modelle: einmal nachpruefen (Marke `verifiedMarker`), dann nicht mehr
+        let folder = store.folder(choice)
+        if !FileManager.default.fileExists(atPath: folder.appendingPathComponent(WhisperModelStore.verifiedMarker).path) {
+            try await WhisperModelStore.verify(variant: choice.variant, folder: folder)
+        }
+        try await WhisperEngine.shared.load(variant: choice.variant, folder: folder, base: store.base)
         guard let duration = await WhisperAudio.duration(of: url) else { throw WhisperFailure("Die Datei hat keine lesbare Tonspur.") }
         var sections = resume
         var segments: [TranscriptSegment] = []
