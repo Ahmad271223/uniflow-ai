@@ -380,6 +380,7 @@ final class PageObjectsView: UIView {
         }
         for o in others { add(o, images: images) }
         for id in hiddenIDs { placed[id]?.forEach { $0.view?.isHidden = true; $0.layer?.isHidden = true } }
+        reusableSheets = [:]                     // Kaesten geloeschter Tabellen nicht festhalten
         applyRenderScale()
     }
 
@@ -549,15 +550,16 @@ final class PageObjectsView: UIView {
         }
         switch o["type"]?.string {
         case "text" where SheetObject.isSheet(o):
-            let reuse = reusableSheets.removeValue(forKey: id)
-            let box = reuse.flatMap { $0.object == o ? $0 : nil } ?? SheetBoxView(object: o)
+            let reuse = reusableSheets.removeValue(forKey: id).flatMap { $0.object == o ? $0 : nil }
+            let box = reuse ?? SheetBoxView(object: o)
             box.transform = .identity
             let size = box.bounds.size
             box.layer.anchorPoint = .zero
             box.alpha = CGFloat(alpha)
             addSubview(box)
             box.frame = CGRect(origin: .zero, size: size)
-            box.contentScaleFactor = UIScreen.main.scale * 2
+            // wiederverwendet: die Aufloesung stimmt schon (`applyRenderScale`), neu setzen hiesse neu zeichnen
+            if reuse == nil { box.contentScaleFactor = UIScreen.main.scale * 2 }
             box.transform = t
             placed[id, default: []].append(Placed(view: box, layer: nil, base: t))
         case "text" where TextBlock.isBlock(o):

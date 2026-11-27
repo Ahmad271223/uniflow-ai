@@ -3738,9 +3738,9 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.aiErrorText = { error in
             let text = error.localizedDescription
             switch StudoraAccountLink.errorAction(error, account: account) {
-            case .credits?: return text + " Neue Credits gibt es in den Einstellungen unter „Konto“."
-            case .plans?: return text + " Die Tarife findest du in den Einstellungen unter „Konto“."
-            case .signIn?: return text + " Bitte melde dich in den Einstellungen mit deinem StudiNow-Konto an."
+            case .credits?: return text + " Neue Credits gibt es in den Einstellungen unter „Konto & Tarif“."
+            case .plans?: return text + " Die Tarife findest du in den Einstellungen unter „Konto & Tarif“."
+            case .signIn?: return "Bitte melde dich in den Einstellungen unter „Konto & Tarif“ mit deinem StudiNow-Konto an."
             case nil: return text
             }
         }

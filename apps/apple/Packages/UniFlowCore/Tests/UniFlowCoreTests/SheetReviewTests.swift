@@ -347,6 +347,13 @@ final class SheetReviewTests: XCTestCase {
         XCTAssertEqual(value("=SUMMEWENN(A1:A4;0;C1)", cells), .number(50))
         XCTAssertEqual(value("=SUMMEWENN(A1:A4;0;C1:C2)", cells), .number(50))
         XCTAssertEqual(value("=SUMMEWENN(A1:A4;0;B1:C4)", cells), .number(5), "breiter: nur die erste Spalte gilt")
+        // gleich, in welcher Reihenfolge gerechnet wird: der Summenbereich enthaelt eine Formel (Fund der Durchsicht)
+        let t = sheet(["A1": "0", "A2": "5", "A4": "0", "C1": "10", "C4": "=40", "D1": "=SUMMEWENN(A1:A4;0;C1)"])
+        let c = t.calc()
+        XCTAssertEqual(c.value(SheetRef("D1")!), .number(50), "D1 vor C4 gefragt")
+        let d = t.calc()
+        _ = d.value(SheetRef("C4")!)
+        XCTAssertEqual(d.value(SheetRef("D1")!), .number(50))
     }
 
     func testFilterGreiftAuchNachAnderemZahlenformat() {

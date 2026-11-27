@@ -331,12 +331,13 @@ final class TextBlockBilderAppTests: XCTestCase {
         editor.objects.endTextEditing()
         env.pump(0.5)
 
-        // Plus (ohne Pro AI): dieselbe Auswahl zeigt die Knoepfe wie bisher und die Leiste mit Schloss
-        Entitlements.shared.setPlanForTesting(.plus)
+        // ohne die Editor-Neuheiten (seit dem Tarifmodell vom 26.11.2026: Free): dieselbe Auswahl zeigt die Knoepfe wie
+        // bisher und die Leiste mit Schloss
+        Entitlements.shared.setPlanForTesting(.free)
         env.pump(0.5)
         XCTAssertFalse(editor.richNotes)
-        XCTAssertTrue(env.wait(timeout: 10) { self.button(UFRichNotes.title, in: env.window) }, "Schloss-Leiste in Plus")
-        XCTAssertFalse(button("Durchgestrichen", in: env.window), "keine Formatknoepfe in Plus")
+        XCTAssertTrue(env.wait(timeout: 10) { self.button(UFRichNotes.title, in: env.window) }, "Schloss-Leiste ohne Plus")
+        XCTAssertFalse(button("Durchgestrichen", in: env.window), "keine Formatknoepfe ohne Plus")
         env.pump(0.5)
         shot(env.window, "9-ipad-plus-leiste-mit-schloss")
         Entitlements.shared.setPlanForTesting(.proAI)

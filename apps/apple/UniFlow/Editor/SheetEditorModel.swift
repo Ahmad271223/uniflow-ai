@@ -32,6 +32,8 @@ final class SheetEditorModel: ObservableObject {
     let title: String
     /// Nur ansehen (ohne Plus): rollen, zoomen, auswaehlen und kopieren gehen, aendern nicht
     let readOnly: Bool
+    /// Warum nur ansehen (Zeile oben)
+    var readOnlyReason = ""
     /// Ein Dialog (KI-Wunsch, Titel eines Diagramms) hat die Tastatur: Das Gitter holt sie sich nicht zurueck
     var dialogOpen = false
     private(set) var calc: SheetCalc

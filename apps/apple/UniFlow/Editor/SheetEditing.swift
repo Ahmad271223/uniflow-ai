@@ -7,6 +7,7 @@ import UniFlowCore
 /// (`UFRichNotes`), ansehen kann sie jeder - auch in geteilten Loesungen.
 extension ObjectEditing {
     static let sheetLockedHint = "Tabellen mit Formeln und Diagrammen gibt es mit Plus."
+    static let sheetViewOnlyText = "Nur ansehen. Bearbeiten, Formeln und Diagramme gibt es mit Plus."
 
     /// Neue Tabelle mit der linken oberen Ecke am Tippunkt
     func newSheet(id: String, on overlay: PageInkView, at p: CGPoint, isDocument: Bool = false) -> JSONValue {
@@ -38,7 +39,10 @@ extension ObjectEditing {
             guard let o = await objects(key).first(where: { $0["id"]?.string == id }), let sheet = SheetObject.table(o) else { return }
             guard c.presentedViewController == nil else { return }
             let model = SheetEditorModel(sheet: sheet, title: title, readOnly: readOnly)
-            if !readOnly {
+            if readOnly { model.readOnlyReason = c.writable ? Self.sheetViewOnlyText : "Nur ansehen. Dieses Dokument lässt sich hier nicht ändern." }
+            // KI-Hilfe nur, wenn eine KI antwortet (StudiNow-Konto, eigenes ChatGPT oder eigener Schluessel) - wie die
+            // KI-Hilfe neben dem Dokument (`aiAvailable`); sonst kein Knopf statt einer irrefuehrenden Meldung
+            if !readOnly, c.aiAvailable {
                 // KI-Hilfe ueber den vorhandenen Weg der KI-Hilfe (Einwilligung und Credits regelt er selbst)
                 let api = c.store.api
                 model.askAI = { [weak c] body in
@@ -53,7 +57,8 @@ extension ObjectEditing {
             let host = UIHostingController(rootView: SheetEditorView(model: model, onSave: { [weak self] s in
                 await self?.saveSheet(s, key: key, id: id, original: o) ?? false
             }, onClose: { [weak self] in
-                if isNew, model.sheet.cells.isEmpty, model.sheet.charts.isEmpty {
+                // nur, wenn sich gar nichts getan hat (auch kein Format, keine Spaltenbreite)
+                if isNew, model.sheet == sheet {
                     self?.clearSelection()
                     Task { await self?.commit(key, undoable: false) { PageObjectEdit.delete($0, ids: [id]) } }
                 }

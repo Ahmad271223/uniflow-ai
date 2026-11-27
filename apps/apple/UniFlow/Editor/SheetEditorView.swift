@@ -111,7 +111,8 @@ struct SheetEditorView: View {
     /// "Fertig": erst sichern, dann schliessen - schlaegt das Sichern fehl, bleibt die Tabelle offen
     private func finish() {
         guard !saving else { return }
-        model.cancelAI()
+        // eine bezahlte Antwort nicht wegwerfen: erst warten oder bewusst abbrechen
+        if model.aiBusy { model.notice = "Die KI arbeitet noch an deiner Tabelle. Warte kurz oder tippe auf „Abbrechen“."; return }
         model.commitEditing()
         guard model.changed else { onClose(); return }
         saving = true
@@ -126,7 +127,7 @@ struct SheetEditorView: View {
     private var readOnlyRow: some View {
         HStack(spacing: 8) {
             Image(systemName: "lock.fill").font(.system(size: 12)).foregroundStyle(UF.muted)
-            Text("Nur ansehen. Bearbeiten, Formeln und Diagramme gibt es mit Plus.").ufFont(12.5).foregroundStyle(UF.text2)
+            Text(model.readOnlyReason.isEmpty ? ObjectEditing.sheetViewOnlyText : model.readOnlyReason).ufFont(12.5).foregroundStyle(UF.text2)
             Spacer()
         }
         .padding(.horizontal, 14).padding(.vertical, 8)
@@ -378,7 +379,7 @@ struct SheetEditorView: View {
                     .accessibilityIdentifier("sheet.ai.error")
             }
             HStack(alignment: .center, spacing: 10) {
-                Text("Deine Tabelle und dein Wunsch gehen an die StudiNow-KI. Das kostet Credits wie eine Frage an die KI.")
+                Text("Deine Tabelle und dein Wunsch gehen an die KI – wie eine Frage an die KI-Hilfe. Mit der StudiNow-KI kostet das Credits.")
                     .ufFont(11.5, lh: 1.35).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 4)
                 if model.aiBusy {

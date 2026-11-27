@@ -53,8 +53,8 @@ struct LibraryNewDialog: View {
                         .ufRequires(NotebookDialog.feature)
                     UFMenuButton(text: "Whiteboard", icon: "square") { close(); overlay.learnModal(sheets) { NotebookDialog(kind: "whiteboard", lib: lib, moduleID: moduleID, folderID: folderID) } }
                         .ufRequires(NotebookDialog.feature)
-                    // Tabelle als eigene Datei (26.11.2026, ab Pro AI): ein Notizbuch, das sich als Tabelle oeffnet
-                    UFMenuButton(text: UFRichNotes.allowed(plan: Entitlements.shared.plan) ? "Tabelle" : "Tabelle (mit Pro AI)", icon: "grid") {
+                    // Tabelle als eigene Datei (26.11.2026, ab Plus wie alle Editor-Neuheiten): ein Notizbuch, das sich als Tabelle oeffnet
+                    UFMenuButton(text: UFRichNotes.allowed(plan: Entitlements.shared.plan) ? "Tabelle" : "Tabelle (mit \(UFRichNotes.minimumPlan.name))", icon: "grid") {
                         close(); Task { await newSheetDocument() }
                     }
                     .accessibilityIdentifier("library.new.sheet")
@@ -134,7 +134,8 @@ struct LibraryNewDialog: View {
     private func newSheetDocument() async {
         guard UFRichNotes.allowed(plan: Entitlements.shared.plan) else { toast.show(ObjectEditing.sheetLockedHint); return }
         guard let name = await overlay.prompt("Name der Tabelle:", value: SheetDocuments.defaultTitle), let api = session.api else { return }
-        let title = name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? SheetDocuments.defaultTitle : name
+        let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        let title = trimmed.isEmpty ? SheetDocuments.defaultTitle : trimmed
         var fields = NotebookDialog.fields(kind: "notebook", title: title, template: "blank",
                                            format: PageFormats.defaultNotebook, orientation: .landscape)
         if let moduleID { fields["module_id"] = "\(moduleID)" }

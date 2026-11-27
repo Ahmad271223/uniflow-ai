@@ -537,8 +537,23 @@ public enum SheetFormula {
             var cur = node
             while case .binary(_, let l, let r) = cur { ranges(in: r, visit); cur = l }
             ranges(in: cur, visit)
-        case .call(_, let args): for a in args { ranges(in: a, visit) }
+        case .call(let name, let args):
+            for a in args { ranges(in: a, visit) }
+            // SUMMEWENN/MITTELWERTWENN lesen den Summenbereich in der Form des Pruefbereichs (`call`): auch diese Zellen
+            // gehoeren zu den Bezuegen, sonst haengt das Ergebnis von der Reihenfolge des Rechnens ab
+            let n = german[name] ?? name
+            if n == "SUMIF" || n == "AVERAGEIF", args.count == 3, let r0 = asRange(args[0]), let r2 = asRange(args[2]) {
+                visit(SheetRange(r2.from, SheetRef(col: r2.from.col + r0.cols.count - 1, row: r2.from.row + r0.rows.count - 1)))
+            }
         default: break
+        }
+    }
+
+    private static func asRange(_ n: Node) -> SheetRange? {
+        switch n {
+        case .ref(let r): return SheetRange(r)
+        case .range(let r): return r
+        default: return nil
         }
     }
 

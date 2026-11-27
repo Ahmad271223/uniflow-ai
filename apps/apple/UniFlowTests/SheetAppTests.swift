@@ -68,6 +68,7 @@ final class SheetAppTests: XCTestCase {
         editor.ownNotesVisible = true
         editor.canEdit = true
         editor.richNotesOverride = proAI
+        editor.aiAvailable = true                       // eine KI antwortet (StudiNow-Konto oder eigenes ChatGPT)
         let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
         let frame = CGRect(origin: .zero, size: size)
         let window = scene.map { UIWindow(windowScene: $0) } ?? UIWindow(frame: frame)
@@ -696,6 +697,7 @@ final class SheetAppTests: XCTestCase {
         let host = try XCTUnwrap(s.editor.presentedViewController as? UIHostingController<SheetEditorView>)
         XCTAssertTrue(host.rootView.model.readOnly, "auch mit Pro AI nur ansehen")
         XCTAssertNil(host.rootView.model.askAI)
+        XCTAssertEqual(host.rootView.model.readOnlyReason, "Nur ansehen. Dieses Dokument lässt sich hier nicht ändern.", "nicht: gibt es mit Plus")
         s.editor.dismiss(animated: false)
         try await BildProbe.wait("zu") { s.editor.presentedViewController == nil }
     }
@@ -720,12 +722,15 @@ final class SheetAppTests: XCTestCase {
 
     func testLeereNeueTabelleVerschwindetNachFertigUndUnveraenderteBleibtAlsBild() async throws {
         let s = try await open()
+        // ohne erreichbare KI kein Knopf "KI" (statt einer irrefuehrenden Meldung)
+        s.editor.aiAvailable = false
         let page = try await overlay(s, key: s.blank)
         s.editor.choose(.select)
         s.editor.tools.select(.sheet)
         try await BildProbe.tap(CGPoint(x: 120, y: 200), on: page, in: s.window)
         try await BildProbe.wait("grosse Ansicht offen") { s.editor.presentedViewController is UIHostingController<SheetEditorView> }
         let host = try XCTUnwrap(s.editor.presentedViewController as? UIHostingController<SheetEditorView>)
+        XCTAssertNil(host.rootView.model.askAI, "keine KI erreichbar: kein Knopf")
         host.rootView.onClose()                                    // "Fertig" ohne Eingabe
         try await BildProbe.wait("zu") { s.editor.presentedViewController == nil }
         try await BildProbe.wait("leere Tabelle wieder weg") { await s.store.objects(forPageKey: s.blank).isEmpty }
