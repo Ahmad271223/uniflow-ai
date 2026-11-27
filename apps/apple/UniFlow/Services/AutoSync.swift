@@ -113,6 +113,12 @@ extension ContainerManager {
         let times = autoSyncPortals.map { p -> Date in
             // wartende Arbeit (unterbrochen, Dateien noch nicht geladen) darf frueher weitergehen
             if p.pending, ledger.isDue(p.name, lastSuccess: p.lastSuccess, pending: true, now: now, timeZone: tz) { return now }
+            // noch nicht faellig, aber wartend: nach `retryGap` (5 Minuten) weiter, nicht erst nach 30 Minuten (27.11.2026:
+            // "lädt gleich weiter" stand sonst bis zu einer halben Stunde)
+            if p.pending, ledger.pausedUntil(p.name, now: now) == nil, let attempt = ledger.lastAttempt(p.name) {
+                let soon = max(now, attempt.addingTimeInterval(AutoSyncLedger.retryGap))
+                if AutoSync.schedule.isInWindow(soon, timeZone: tz) { return soon }
+            }
             return ledger.nextRun(p.name, lastSuccess: p.lastSuccess, now: now, timeZone: tz, interval: AutoSync.portalIntervals[p.name])
         }
         return times.min() ?? AutoSync.schedule.nextRun(last: nil, now: now, timeZone: tz)
