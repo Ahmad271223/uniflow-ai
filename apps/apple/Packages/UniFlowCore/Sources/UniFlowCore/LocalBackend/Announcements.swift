@@ -73,6 +73,9 @@ public enum Announcements {
     private static let spacesRE = PyRegex(#"[ \t]+"#)
     private static let newlineRE = PyRegex(#"\s*\n\s*"#)
     private static let whitespaceRE = PyRegex(#"\s+"#)
+    /// Leeres Element als Text ("<div></div>", "<p> </p>", auch "<div><br></div>")
+    private static let escapedEmptyRE = PyRegex(#"<(div|p|span)(?:\s[^<>]*)?>(?:\s|<br\s*/?>)*</\1>"#, ignoreCase: true)
+    private static let escapedBreakRE = PyRegex(#"<br\s*/?>"#, ignoreCase: true)
     private static let discussionRE = HText.regex(#"data-discussionid="(\d+)"|/mod/forum/discuss\.php\?d=(\d+)"#)
 
     // MARK: Text aus HTML
@@ -94,6 +97,9 @@ public enum Announcements {
         }
         // html.unescape noch einmal auf dem Ganzen (wie in Python: die Parserdaten sind schon aufgeloest)
         var text = QISParser.decodeEntities(parts.joined()).replacingOccurrences(of: "\u{A0}", with: " ")
+        // Maskierte Reste aus dem Mailprogramm der Absender ("&lt;div&gt;&lt;/div&gt;" am Ende von Stud.IP-Nachrichten,
+        // echtes Konto Uni Goettingen 27.11.2026): leere Elemente fallen weg, "<br>" wird ein Zeilenumbruch
+        text = escapedBreakRE.sub(escapedEmptyRE.sub(text, ""), "\n")
         text = spacesRE.sub(text, " ")
         return PyText.strip(newlineRE.sub(text, "\n"))
     }
