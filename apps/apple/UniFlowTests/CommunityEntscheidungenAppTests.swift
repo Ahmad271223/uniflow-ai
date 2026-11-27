@@ -259,10 +259,14 @@ final class CommunityEntscheidungenAppTests: XCTestCase {
         try await super.setUp()
         planBefore = Entitlements.shared.plan
         Entitlements.shared.setPlanForTesting(.plus)
+        // seit 26.11.2026 hat Plus keine feste Grenze mehr (plans.json card_stacks_adopted null); die Zaehlung je Konto
+        // (iCloud, Dienst) wird mit der frueheren Grenze 4 weiter geprueft
+        UFAdoptQuota.testLimits = [.plus: 4]
         XCTAssertTrue(Self.accessibilityAutomation(true), "Bedienungshilfen-Automation nicht verfügbar")
     }
 
     override func tearDown() async throws {
+        UFAdoptQuota.testLimits = nil
         Self.accessibilityAutomation(false)
         Entitlements.shared.setPlanForTesting(planBefore)
         try await super.tearDown()

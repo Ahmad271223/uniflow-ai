@@ -39,9 +39,12 @@ final class CardStackShareAppTests: XCTestCase {
         try await super.setUp()
         planBefore = Entitlements.shared.plan
         Entitlements.shared.setPlanForTesting(.plus)
+        // seit 26.11.2026 hat Plus keine feste Grenze mehr; die Zaehlung wird mit der frueheren Grenze 4 weiter geprueft
+        UFAdoptQuota.testLimits = [.plus: 4]
     }
 
     override func tearDown() async throws {
+        UFAdoptQuota.testLimits = nil
         Entitlements.shared.setPlanForTesting(planBefore)
         try await super.tearDown()
     }
@@ -393,8 +396,11 @@ final class CardStackShareAppTests: XCTestCase {
     func testAdoptQuotaCountsPlusFourPerMonth() throws {
         let q = try quota()
         XCTAssertEqual(UFAdoptQuota.limit(.free), 0)
-        XCTAssertEqual(UFAdoptQuota.limit(.plus), 4)
+        XCTAssertEqual(UFAdoptQuota.limit(.plus), 4, "Testgrenze (frueher Plus 4)")
         XCTAssertNil(UFAdoptQuota.limit(.proAI))
+        UFAdoptQuota.testLimits = nil
+        XCTAssertNil(UFAdoptQuota.limit(.plus), "seit 26.11.2026: Plus unbegrenzt wie Pro AI")
+        UFAdoptQuota.testLimits = [.plus: 4]
         XCTAssertFalse(q.allows("a", plan: .free))
         for id in ["a", "b", "c", "d"] {
             XCTAssertTrue(q.allows(id, plan: .plus), id)

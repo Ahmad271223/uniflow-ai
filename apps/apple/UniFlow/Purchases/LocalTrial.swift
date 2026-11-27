@@ -3,7 +3,8 @@ import UniFlowCore
 
 // Probe auf dem iPad ohne Dienst (Entscheidung des Inhabers vom 04.11.2026, docs/ABO-SYSTEM.md Abschnitt 3b; ersetzt
 // das Apple-Einfuehrungsangebot "1 Woche gratis" vom 25.10.2026): jede Person bekommt ab dem ersten Start 7 Tage alles
-// wie StudiNow Pro AI, ohne Zahlungsdaten, einmal je Apple-ID; danach gilt Free, es sei denn StoreKit meldet Plus oder
+// wie StudiNow Plus (seit 26.11.2026; vorher wie Pro AI), die StudiNow-KI darin mit den 25 Credits der Probe des
+// StudiNow-Kontos, ohne Zahlungsdaten, einmal je Apple-ID; danach gilt Free, es sei denn StoreKit meldet Plus oder
 // Pro AI. Alles, was in der Probe entsteht, bleibt; gesperrte Funktionen zeigen danach das Schloss mit dem Weg zur
 // Tarifwahl. Werte wie plans.TRIAL im Dienst (packages/shared-contracts/fixtures/plans/plans.json, PlanContractTests).
 //
@@ -23,7 +24,7 @@ import UniFlowCore
 enum UFLocalTrial {
     /// Dauer in Tagen und Tarif waehrend der Probe, wie `plans.TRIAL` im Dienst
     static let days = 7
-    static let plan: UFPlan = .proAI
+    static let plan: UFPlan = .plus
     static var length: TimeInterval { TimeInterval(days * 86_400) }
 
     /// Stand der Probe zu einem Zeitpunkt

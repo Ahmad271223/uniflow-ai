@@ -190,11 +190,11 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertEqual(AICost.line(chatgpt: true, plan: .free, credits: 10, calls: 2), "2 Anfragen über dein ChatGPT")
         XCTAssertEqual(AICost.line(chatgpt: false, plan: .proAI, credits: 10), "≈ 10 Credits")
         XCTAssertEqual(AICost.line(chatgpt: true, plan: .proAI, credits: 10, adopted: true), "0 Credits (gemeinsamer Test)")
-        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 10), "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)",
-                       "ohne KI: Pro AI oder der eigene OpenAI-Schluessel (07.11.2026)")
+        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 10), "Kommt mit StudiNow Plus und Credits, Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)",
+                       "ohne KI: Plus mit Credits, Pro AI oder der eigene OpenAI-Schluessel (26.11.2026)")
         XCTAssertEqual(AICost.status(chatgpt: true, model: "gpt-x", plan: .plus, requestsThisMonth: 1), "1 Anfrage diesen Monat · über dein ChatGPT · gpt-x")
         // ChatGPT ausgeschaltet (`ChatGPTLink.isEnabled`, 05.11.2026): kein "Noch kein ChatGPT verbunden", der Tarif-Hinweis
-        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0), "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · 0 Anfragen diesen Monat")
+        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .plus, requestsThisMonth: 0), "KI kommt mit StudiNow Plus und Credits, Pro AI oder deinem eigenen ChatGPT · 0 Anfragen diesen Monat")
         XCTAssertEqual(AICost.status(chatgpt: true, model: nil, plan: .proAI, requestsThisMonth: 3, usage: (87, 100)), "87 von 100 Credits")
         // Zuletzt: hoechstens drei, neueste zuerst, je Container, Anfragen des Monats gezaehlt
         let d = try suite()
@@ -510,12 +510,12 @@ final class AIViewsAppTests: XCTestCase {
         XCTAssertTrue(env.wait { self.shows(env.view, "Die KI-Hilfe kommt mit der StudiNow-KI") }, texts(env.view).joined(separator: "\n"))
         XCTAssertNotNil(button("Tarife ansehen", in: env.view), "statt ChatGPT verbinden")
         XCTAssertNil(button("ChatGPT verbinden", in: env.view))
-        XCTAssertTrue(shows(env.view, "KI kommt mit StudiNow Pro AI"))
+        XCTAssertTrue(shows(env.view, "KI kommt mit StudiNow Plus und Credits"))
         XCTAssertEqual(enabled("Frage senden", in: env.view), false, "Senden ohne KI gesperrt")
         XCTAssertNotNil(button("Karteikarten.", in: env.view, exact: false), "die Aktionen bleiben sichtbar")
-        // Auftrag des Inhabers 12.11.2026: ohne KI und ohne Pro AI tragen die KI-Aktionen das Schloss "ab Pro AI" und
-        // oeffnen die Tarifwahl mit Pro AI (vorher oeffnete die Wochentest-Pille den Dialog mit gesperrtem "Test erstellen")
-        XCTAssertEqual(button("Wochentest.", in: env.view, exact: false)?.accessibilityValue, UFLock.accessibilityValue(.proAI))
+        // Auftrag des Inhabers 12.11.2026: ohne KI tragen die KI-Aktionen in Free das Schloss (seit 26.11.2026 "ab Plus",
+        // vorher "ab Pro AI") und oeffnen die Tarifwahl (vorher oeffnete die Wochentest-Pille den Dialog mit gesperrtem "Test erstellen")
+        XCTAssertEqual(button("Wochentest.", in: env.view, exact: false)?.accessibilityValue, UFLock.accessibilityValue(.plus))
         XCTAssertTrue(tap("Wochentest.", in: env.view, exact: false))
         XCTAssertTrue(env.wait { env.hosting.presentedViewController != nil }, "Tarifwahl offen")
         XCTAssertFalse(shows(env.view, "Wochentest erstellen"), "kein Dialog ohne Tarif")

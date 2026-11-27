@@ -95,7 +95,8 @@ final class StudiNowAIAppTests: XCTestCase {
         XCTAssertEqual(StudoraAccountLink.resolveServiceURL(info: nil, override: "http://x"), "https://app.studinow.app")
     }
 
-    /// Pro AI ohne Anmeldung -> Anmeldung; Pro AI mit Token -> bereit; Plus -> Tarif-Hinweis (nichts wird gesendet)
+    /// Pro AI ohne Anmeldung -> Anmeldung; Pro AI mit Token -> bereit; seit 26.11.2026 Plus mit Token ebenso bereit (die
+    /// Credits prueft `StudiNowCreditGate`); Free -> Tarif-Hinweis (nichts wird gesendet)
     func testAccessFollowsPlanAndSignIn() async throws {
         let pro = StudoraAccountLink(entitlements: Entitlements(observe: false, plan: .proAI))
         pro.use(userScope: "test-proai-\(UUID().uuidString)")
@@ -106,11 +107,11 @@ final class StudiNowAIAppTests: XCTestCase {
 
         let plus = StudoraAccountLink(entitlements: Entitlements(observe: false, plan: .plus))
         plus.attachAI(base: "https://dienst.example", http: URLSessionServiceTransport(session: StubProtocol.session()), tokens: Tokens("tok"))
-        XCTAssertEqual(plus.aiAccess, .planRequired)
+        XCTAssertEqual(plus.aiAccess, .ready, "Plus: StudiNow-KI mit Credits")
         let free = StudoraAccountLink(entitlements: Entitlements(observe: false, plan: .free))
         free.use(userScope: "test-free-\(UUID().uuidString)")
         XCTAssertEqual(free.aiAccess, .planRequired)
-        XCTAssertTrue(StubProtocol.requests.isEmpty, "ohne Pro AI und ohne Anmeldung keine Anfrage")
+        XCTAssertTrue(StubProtocol.requests.isEmpty, "ohne Anfrage der KI keine Anfrage an den Dienst")
         XCTAssertNil(Entitlements.shared.verifyOnServer, "ohne Anmeldung kein Melden von Kaeufen")
         XCTAssertEqual(StudoraAccountLink.errorButton(.signIn), "Mit StudiNow-Konto anmelden")
         XCTAssertEqual(StudoraAccountLink.errorButton(.plans), "Tarif ansehen")
@@ -124,11 +125,12 @@ final class StudiNowAIAppTests: XCTestCase {
         XCTAssertFalse(ProAISignInHint.shows(.planRequired))
         XCTAssertFalse(ProAISignInHint.shows(.unavailable))
         XCTAssertTrue(ProAISignInHint.text.contains("StudiNow-Konto") && ProAISignInHint.text.contains("Tests & Wiederholung"))
-        // direkt nach dem Kauf (Inhaber 10.11.2026): nur Pro AI, nur mit Dienst, nur ohne Anmeldung
+        // direkt nach dem Kauf (Inhaber 10.11.2026; seit 26.11.2026 auch Plus): nur mit Dienst, nur ohne Anmeldung
         XCTAssertTrue(ProAISignInHint.asksAfterPurchase(plan: .proAI, serviceAvailable: true, signedIn: false, accountOpen: true))
         XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .proAI, serviceAvailable: true, signedIn: true, accountOpen: true))
         XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .proAI, serviceAvailable: false, signedIn: false, accountOpen: true))
-        XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .plus, serviceAvailable: true, signedIn: false, accountOpen: true))
+        XCTAssertTrue(ProAISignInHint.asksAfterPurchase(plan: .plus, serviceAvailable: true, signedIn: false, accountOpen: true))
+        XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .free, serviceAvailable: true, signedIn: false, accountOpen: true))
         // erster Start: Tarifwahl vor der Hochschulwahl, kein Datenbereich offen -> keine Karte (sie lief ins Leere)
         XCTAssertFalse(ProAISignInHint.asksAfterPurchase(plan: .proAI, serviceAvailable: true, signedIn: false, accountOpen: false))
     }
@@ -246,7 +248,7 @@ final class StudiNowAIAppTests: XCTestCase {
             .environment(\.ufAIEnabled, true).environment(\.ufStudiNowAI, true).environment(\.ufAIAccess, .ready)
             .environment(\.ufStudoraAccount, link)
         let env = try hostWithEnvironment(view, api: api(t))
-        XCTAssertTrue(env.wait { self.shows(env.view, "StudiNow-KI (Pro AI)") }, texts(env.view).joined(separator: "\n"))
+        XCTAssertTrue(env.wait { self.shows(env.view, "StudiNow-KI mit Credits") || self.shows(env.view, "Credits diesen Monat") }, texts(env.view).joined(separator: "\n"))
         XCTAssertFalse(shows(env.view, "über dein ChatGPT"))
         XCTAssertTrue(env.wait { self.elements(in: env.view).contains { $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel?.hasPrefix("Erklären / PDF analysieren") == true } })
         XCTAssertTrue(elements(in: env.view).contains { $0.accessibilityTraits.contains(.button) && $0.accessibilityLabel?.hasPrefix("Erklären / PDF analysieren") == true && $0.accessibilityActivate() })

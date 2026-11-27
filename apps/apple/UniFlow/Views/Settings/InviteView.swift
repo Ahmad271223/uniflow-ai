@@ -5,13 +5,14 @@ import UniFlowCore
 import UniformTypeIdentifiers
 
 /// "Freunde einladen" (docs/EINLADUNGEN.md, Entscheidung des Inhabers 04.11.2026): in der Probewoche bis zu 20
+/// Seit 27.11.2026 ohne Belohnungen (Inhaber), die Stufen-Karte bleibt verborgen (`InviteRewards.hasRewards`).
 /// Einladungslinks `https://studinow.app/i/<CODE>`; gezaehlt wird, wer darueber neu bei StudiNow anfaengt. Belohnungen
 /// in Stufen (5/10/20) als Angebotscodes aus App Store Connect, eingeloest in Apples Dialog – die App schaltet nie
 /// selbst einen Tarif frei und draengt nicht zum Teilen. Braucht das StudiNow-Konto (`StudoraAccountLink`).
 enum InviteTexts {
     static let title = "Freunde einladen"
     static let noAccount = "Einladungen brauchen dein StudiNow-Konto"
-    static let noAccountText = UFDevice.adapt("Melde dich beim StudiNow-Konto an. Deine Einladungslinks und Belohnungen hängen am Konto, nicht an diesem iPad.")
+    static let noAccountText = UFDevice.adapt("Melde dich beim StudiNow-Konto an. Deine Einladungslinks hängen am Konto, nicht an diesem iPad.")
     static let intro = "Lade in deiner Probewoche bis zu 20 Leute ein. Es zählt, wer über deinen Link neu bei StudiNow anfängt und sich anmeldet – jede Person einmal, innerhalb von 30 Tagen nach dem Link."
     static let rewards = "Belohnungen sind Angebotscodes für den App Store: du löst sie in Apples Dialog ein. Niemand muss etwas kaufen oder teilen."
     static let newLink = "Neuer Einladungslink"
@@ -41,13 +42,14 @@ enum InviteTexts {
     static let claimNoURL = "Einlösen: App Store öffnen → dein Profilbild → „Code einlösen“ und den Code eingeben."
     static func counter(_ o: InviteOverview) -> String { InviteRewards.counterText(arrived: o.arrived, max: o.maxLinks) }
     static func nextTier(_ o: InviteOverview) -> String {
+        guard InviteRewards.hasRewards else { return "" }
         guard let next = InviteRewards.next(after: o.arrived) else { return "Alle Stufen erreicht." }
         let missing = next.count - o.arrived
         return "Noch \(missing) \(missing == 1 ? "Person" : "Personen") bis \(next.count): \(next.rewards[.plus] ?? "")"
     }
     static func redemptions(_ n: Int) -> String { n == 1 ? "1 angekommen" : "\(n) angekommen" }
     static func tierTitle(_ t: InviteOverview.TierState) -> String { "\(t.count) Personen" }
-    static func choiceLabel(_ c: InviteRewards.Choice) -> String { c == .plus ? "Plus gratis" : "Pro AI zum Plus-Preis" }
+    static func choiceLabel(_ c: InviteRewards.Choice) -> String { c == .plus ? "Plus" : "Pro AI" }
 }
 
 /// Die drei Aufrufe der Einladungsseite (App: `StudoraAccount`, Tests: Attrappe)
@@ -259,7 +261,8 @@ struct InviteView: View {
                     }
                 case .loaded(let o):
                     progress(o)
-                    tiers(o)
+                    // seit 27.11.2026 keine Belohnungen: die Karte nur, wenn App UND Dienst Stufen kennen
+                    if InviteRewards.hasRewards && !o.tiers.isEmpty { tiers(o) }
                     links(o)
                 }
                 if let m = model.message {
@@ -280,10 +283,12 @@ struct InviteView: View {
     private func progress(_ o: InviteOverview) -> some View {
         UFCard {
             UFCardHead(InviteTexts.counter(o), icon: "users") {
-                if let t = o.tier { UFBadge("Stufe \(t)", tone: .ok) }
+                if InviteRewards.hasRewards, let t = o.tier { UFBadge("Stufe \(t)", tone: .ok) }
             }
-            UFProgress(value: Double(o.arrived) / Double(max(1, InviteRewards.tiers.last?.count ?? 20)), ok: o.tier != nil)
-            Text(InviteTexts.nextTier(o)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            if InviteRewards.hasRewards {
+                UFProgress(value: Double(o.arrived) / Double(max(1, InviteRewards.tiers.last?.count ?? 20)), ok: o.tier != nil)
+                Text(InviteTexts.nextTier(o)).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
+            }
             Text(InviteTexts.intro).ufFont(13.12).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
         }
         .accessibilityIdentifier("invite.progress")

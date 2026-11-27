@@ -123,8 +123,8 @@ enum AICost {
         if adopted { return "0 Credits (gemeinsamer Test)" }
         if chatgpt { return calls == 1 ? "1 Anfrage über dein ChatGPT" : "\(calls) Anfragen über dein ChatGPT" }
         if plan == .proAI { return "≈ \(credits) Credits" }
-        // ohne KI: der Weg dahin - StudiNow Pro AI oder der eigene OpenAI-Schluessel (07.11.2026)
-        return OpenAIKeyLink.isOffered ? "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)" : "Kommt mit StudiNow Pro AI"
+        // ohne KI: der Weg dahin - StudiNow Plus mit Credits bzw. Pro AI oder der eigene OpenAI-Schluessel (26.11.2026)
+        return OpenAIKeyLink.isOffered ? "Kommt mit StudiNow Plus und Credits, Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)" : "Kommt mit StudiNow Plus und Credits oder Pro AI"
     }
 
     /// Statuszeile auf KI-Start: Anfragen des Monats und der Weg der KI; mit Credits-Stand vom Dienst (`credits`)
@@ -139,11 +139,11 @@ enum AICost {
             return "\(count) · \(line)\(m)"
         }
         if chatgpt { return "\(count) · \(ownWay)\(m)" }
-        if plan == .proAI { return "\(count) · StudiNow-KI (Pro AI)" }
+        if plan == .proAI { return "\(count) · StudiNow-KI mit Credits" }
         // Plus mit dem KI-Chat, Stand noch nicht geladen
         if chatOnly { return "\(count) · \(UFFeature.aiChat.title)" }
         return (ChatGPTLink.isEnabled ? "Noch kein ChatGPT verbunden · "
-                : OpenAIKeyLink.isOffered ? "KI kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT · " : "KI kommt mit StudiNow Pro AI · ") + count
+                : OpenAIKeyLink.isOffered ? "KI kommt mit StudiNow Plus und Credits, Pro AI oder deinem eigenen ChatGPT · " : "KI kommt mit StudiNow Plus und Credits oder Pro AI · ") + count
     }
 
     // MARK: Echter Stand vom Dienst (Credits, docs/ABO-SYSTEM.md Abschnitt 6a)

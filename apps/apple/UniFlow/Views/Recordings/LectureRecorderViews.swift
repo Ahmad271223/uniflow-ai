@@ -551,7 +551,7 @@ struct OwnRecordingDetail: View {
                         transcriptView(r)
                         if aiEnabled, !sections.isEmpty { aiView } else if !sections.isEmpty {
                             Text(ChatGPTLink.isEnabled ? "Zusammenfassung, Kernpunkte und Karteikarten aus der Mitschrift gibt es, sobald ChatGPT in den Einstellungen verbunden ist."
-                                                       : "Zusammenfassung, Kernpunkte und Karteikarten aus der Mitschrift kommen mit der StudiNow-KI in StudiNow Pro AI.")
+                                                       : "Zusammenfassung, Kernpunkte und Karteikarten aus der Mitschrift kommen mit der StudiNow-KI ab StudiNow Plus (mit Credits).")
                                 .ufFont(12.16).foregroundStyle(UF.muted).fixedSize(horizontal: false, vertical: true)
                         }
                         if let error { Text(error).ufFont(12.8).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true) }

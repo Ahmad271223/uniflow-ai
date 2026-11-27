@@ -1,20 +1,20 @@
 import StoreKit
 import SwiftUI
 
-/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. Angeboten werden StudiNow Plus und Pro AI
-/// (`UFPlanCatalog.sellable`, Entscheidung des Inhabers vom 04.11.2026), seit 09.11.2026 nur als Jahresabo
-/// (de.uniflow.plus.yearly, de.uniflow.proai.yearly), in einer Abo-Gruppe; die Pro-AI-Karte erscheint
-/// nur, wenn StoreKit das Produkt liefert (vor dem StudiNow-Dienst steht es nicht im Store). Kein Apple-
-/// Einfuehrungsangebot: die 7 Tage Probe laufen auf dem iPad ohne Zahlungsdaten (LocalTrial.swift). Upgrade und
-/// Downgrade innerhalb der Gruppe regelt Apple: hoeher gilt sofort, kleiner ab der naechsten Verlaengerung (Logik in
-/// PurchaseV2PlanSwitchTests geprueft).
+/// Abo ueber StoreKit 2: Produkte laden, kaufen, wiederherstellen. Angeboten werden seit 26.11.2026 (Entscheidung des
+/// Inhabers, `UFOffer`): StudiNow Plus monatlich (de.uniflow.plus.monthly) und Pro AI jaehrlich (de.uniflow.proai.yearly)
+/// in einer Abo-Gruppe, dazu Plus einmalig fuer 5 Jahre (de.uniflow.plus.fuenfjahre, nicht verlaengerndes Abo ausserhalb
+/// der Gruppe: Apple nennt kein Ende, `UFOffer.end` rechnet es). Die Pro-AI-Karte erscheint nur, wenn StoreKit das
+/// Produkt liefert. Kein Apple-Einfuehrungsangebot: die 7 Tage Probe laufen auf dem iPad ohne Zahlungsdaten
+/// (LocalTrial.swift). Upgrade und Downgrade innerhalb der Gruppe regelt Apple: hoeher gilt sofort, kleiner ab der
+/// naechsten Verlaengerung (Logik in PurchaseV2PlanSwitchTests geprueft).
 ///
 /// NUR TESTKONFIGURATION: Die Produkte existieren ausschliesslich in `UniFlow.storekit` (lokales StoreKit-Testen in
 /// Xcode/Simulator). Echte Produkte in App Store Connect werden erst nach ausdruecklicher Freigabe angelegt.
 /// Den Tarif fuehrt `Entitlements` (Transaction.currentEntitlements, Transaction.updates).
 @MainActor
 final class PurchaseStore: ObservableObject {
-    /// Jahresabos von Plus und Pro AI (`UFPlanCatalog.sellableProductIDs`); Free hat kein Produkt
+    /// angebotene Produkte (`UFPlanCatalog.sellableProductIDs`: Plus monatlich, Plus 5 Jahre, Pro AI jaehrlich)
     static let productIDs = UFPlanCatalog.sellableProductIDs
 
     /// Ergebnis eines Kaufs; nur bei `.success` geht die Tarifwahl weiter
@@ -36,10 +36,15 @@ final class PurchaseStore: ObservableObject {
         requestedProductIDs = productIDs
     }
 
-    /// angebotenes Produkt des Tarifs (das Jahresabo); nil, wenn StoreKit es nicht geliefert hat
+    /// Hauptprodukt des Tarifs (Plus monatlich, Pro AI jaehrlich); nil, wenn StoreKit es nicht geliefert hat
     func product(for plan: UFPlan) -> Product? {
         guard let id = plan.productID else { return nil }
         return products.first { $0.id == id }
+    }
+
+    /// Produkt eines Angebots; nil, wenn StoreKit es nicht geliefert hat
+    func product(for offer: UFOffer) -> Product? {
+        products.first { $0.id == offer.productID }
     }
 
     /// Produkt-IDs, die der Store geliefert hat (Tarifkarten: Pro AI nur mit Produkt, `UFPlanCatalog.cards`)
@@ -74,8 +79,10 @@ final class PurchaseStore: ObservableObject {
                 return .failed
             }
             // Downgrade (kleinerer Tarif der Gruppe): gilt erst ab der naechsten Verlaengerung; die Tarifseite soll
-            // gleich "ab der nächsten Verlängerung …" zeigen (Entitlements.awaitPendingPlan)
-            if let target = UFPlan(productID: product.id), target < entitlements.purchasedPlan {
+            // gleich "ab der nächsten Verlängerung …" zeigen (Entitlements.awaitPendingPlan). Der einmalige Kauf ueber
+            // 5 Jahre gehoert zu keiner Gruppe und wird nie vorgemerkt.
+            if UFOffer(productID: product.id)?.kind != .nonRenewing,
+               let target = UFPlan(productID: product.id), target < entitlements.purchasedPlan {
                 await entitlements.awaitPendingPlan(target)
             }
             return .success
@@ -149,36 +156,56 @@ enum UFOfferText {
         }
     }
 
-    /// Laufzeit und Kuendigung: beim Jahresabo "verlängert sich jährlich, jederzeit zum Laufzeitende kündbar" (Apple:
-    /// Kuendigen jederzeit, wirksam zum Ende des bezahlten Jahres), sonst "jederzeit kündbar"
+    /// Laufzeit und Kuendigung: beim Jahresabo "verlängert sich jährlich, jederzeit zum Laufzeitende kündbar", beim
+    /// Monatsabo "verlängert sich monatlich, jederzeit zum Laufzeitende kündbar" (Apple: Kuendigen jederzeit, wirksam zum
+    /// Ende des bezahlten Zeitraums), sonst "jederzeit kündbar"
     static func cancelNote(value: Int, unit: Product.SubscriptionPeriod.Unit) -> String {
         if value == 1 && unit == .year { return "verlängert sich jährlich, jederzeit zum Laufzeitende kündbar" }
+        if value == 1 && unit == .month { return "verlängert sich monatlich, jederzeit zum Laufzeitende kündbar" }
         return "jederzeit kündbar"
     }
 
-    /// Text unter dem Preis: "19,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar". Kein
+    /// Text unter dem Preis: "39,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar". Kein
     /// Einfuehrungsangebot (Entscheidung 04.11.2026): die Probe laeuft ohne Kauf auf dem iPad (UFTrialTexts.offer).
     static func summary(price: String, period: (Int, Product.SubscriptionPeriod.Unit)) -> String {
         "\(price)\(per(value: period.0, unit: period.1)), \(cancelNote(value: period.0, unit: period.1))"
     }
 
-    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "StudiNow Plus fuer 19,99 €/Jahr"
+    /// Beschriftung des Kaufknopfs ohne laufendes Abo: "StudiNow Plus für 1,99 €/Monat"
     static func button(plan: UFPlan, price: String, period: (Int, Product.SubscriptionPeriod.Unit)) -> String {
         "\(plan.name) für \(price)\(per(value: period.0, unit: period.1))"
     }
 
-    /// Zeile unter dem Jahrespreis: "entspricht 1,67 € im Monat" (Jahrespreis aus StoreKit durch 12, im Format des
-    /// Stores). Kein Vergleich mit einem Monatsabo, das es nicht mehr gibt (09.11.2026).
+    /// Zeile unter dem Jahrespreis: "entspricht 3,33 € im Monat" (Jahrespreis aus StoreKit durch 12, im Format des Stores)
     static func yearlyNote(perMonth: String) -> String {
         "entspricht \(perMonth) im Monat"
     }
 
-    /// Knopf auf der Karte des laufenden Tarifs, wenn noch ein frueheres Monatsabo laeuft (nur Sandbox/Test, 09.11.2026):
-    /// Wechsel zum Jahresabo desselben Tarifs
-    static let billingSwitchButton = "Zum Jahresabo wechseln"
+    // Einmaliger Kauf ueber Jahre (26.11.2026, `UFOffer.plusFiveYears`, nicht verlaengerndes Abo)
 
-    /// Hinweis dazu: Apple stellt die Zahlweise erst zur naechsten Verlaengerung um
-    static let billingSwitchNote = "Gilt ab der nächsten Verlängerung, bis dahin läuft deine bisherige Zahlweise weiter."
+    /// Text unter dem Preis: "39,99 € einmalig, gilt 5 Jahre ab dem Kauf, verlängert sich nicht"
+    static func onceSummary(price: String, years: Int) -> String {
+        "\(price) einmalig, gilt \(years) Jahre ab dem Kauf, verlängert sich nicht"
+    }
+
+    /// Kaufknopf: "5 Jahre für 39,99 € einmalig"
+    static func onceButton(price: String, years: Int) -> String {
+        "\(years) Jahre für \(price) einmalig"
+    }
+
+    /// Hinweis auf der Karte, solange der einmalige Kauf gilt: "Einmal bezahlt – StudiNow Plus gilt bis 26. November 2031."
+    static func onceNote(_ plan: UFPlan, until date: Date?) -> String {
+        guard let date else { return "Einmal bezahlt – \(plan.name) verlängert sich nicht." }
+        return "Einmal bezahlt – \(plan.name) gilt bis \(dayYear(date)), verlängert sich nicht."
+    }
+
+    /// Hinweis am 5-Jahres-Knopf bei laufendem Monatsabo: das Abo laeuft daneben weiter, bis es gekuendigt ist
+    static let onceWithSubscriptionNote = "Dein Monatsabo läuft daneben weiter. Kündige es danach unter „Abo verwalten“."
+
+    /// "26. November 2031"
+    static func dayYear(_ d: Date) -> String {
+        d.formatted(.dateTime.day().month(.wide).year().locale(Locale(identifier: "de_DE")))
+    }
 
     /// Kaufknopf bei laufendem Abo (Wechsel innerhalb der Abo-Gruppe); der Preis steht darueber auf der Karte
     static func switchButton(to plan: UFPlan) -> String { "Zu \(plan.name) wechseln" }
@@ -209,7 +236,7 @@ enum UFOfferText {
 }
 
 extension Product {
-    /// Abrechnungszeitraum, Standard ein Jahr (es gibt nur Jahresabos, 09.11.2026)
+    /// Abrechnungszeitraum eines Abos; ohne Abo-Angaben ein Jahr (nur Rueckfall, der einmalige Kauf hat eigene Texte)
     var ufPeriod: (Int, Product.SubscriptionPeriod.Unit) {
         guard let p = subscription?.subscriptionPeriod else { return (1, .year) }
         return (p.value, p.unit)
@@ -223,4 +250,34 @@ struct SubscriptionView: View {
         PlanPickerView(context: .settings, onDone: {})
             .navigationBarTitleDisplayMode(.inline)
     }
+}
+
+// MARK: - Hinweis vor dem Kauf (§ 327h BGB, Entscheidung des Inhabers vom 26.11.2026)
+
+/// Deutlich und gesondert vor jedem Kauf von Plus und Pro AI (auch dem 5-Jahres-Kauf): StudiNow ist unabhaengig, die
+/// Verbindung zu den Hochschulsystemen ist nicht zugesichert. Der Kaufknopf geht erst, wenn der Haken gesetzt ist
+/// (einmal bestaetigt reicht, gemerkt in den UserDefaults des aktiven Datenbereichs, sonst der App).
+enum UFPurchaseNotice {
+    static let title = "Bitte vor dem Kauf lesen"
+    static let text = "StudiNow ist ein unabhängiges Angebot und arbeitet nicht mit der LUH oder einer anderen Hochschule zusammen. "
+        + "Die Verbindung zu Stud.IP, QIS und anderen Hochschulsystemen ist nicht zugesichert: Sperrt oder ändert eine Hochschule "
+        + "ihre Systeme, kann sie wegfallen. Die Funktionen der App bleiben nutzbar; eine Sperre durch die Hochschule ist kein "
+        + "Grund für eine Rückerstattung, soweit das Gesetz nichts anderes vorschreibt."
+    static let confirm = "Gelesen und verstanden"
+    /// Zeile unter gesperrten Kaufknoepfen
+    static let needsConfirm = "Bitte bestätige zuerst den Hinweis oben."
+
+    /// Schluessel in den UserDefaults
+    static let key = "uniflow.purchase.notice.confirmed"
+
+    /// Ablage: Datenbereich des Nutzers (`ActiveContainer`), vor der Hochschulwahl die der App
+    @MainActor
+    static var defaults: UserDefaults { ActiveContainer.current?.defaults ?? .standard }
+
+    static func isConfirmed(in d: UserDefaults) -> Bool { d.bool(forKey: key) }
+
+    static func confirm(in d: UserDefaults, _ on: Bool = true) { d.set(on, forKey: key) }
+
+    /// Darf ein Kaufknopf von Plus bzw. Pro AI angetippt werden? Nur mit bestaetigtem Hinweis
+    static func allowsPurchase(confirmed: Bool) -> Bool { confirmed }
 }

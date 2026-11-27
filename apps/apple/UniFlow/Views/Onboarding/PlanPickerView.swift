@@ -2,23 +2,24 @@ import StoreKit
 import SwiftUI
 
 // Tarifwahl (docs/AUFTRAG-APPSTORE-V1.md, Abschnitt 2a Schritt 2, Abschnitt 4 und 5; docs/ABO-SYSTEM.md): Karten fuer
-// die Tarife aus `UFPlanCatalog` – StudiNow Free, Plus und Pro AI (Entscheidung des Inhabers vom 04.11.2026); die
+// die Tarife aus `UFPlanCatalog` – StudiNow Free, Plus und Pro AI (neues Tarifmodell des Inhabers vom 26.11.2026); die
 // Pro-AI-Karte nur, wenn StoreKit das Produkt liefert, sonst ein nicht anklickbarer Hinweis ohne Preis. Inhalt der
 // Karten aus `UFPlanCard`: nur, was auf dem iPad wirklich geht (auf dem Geraet oder mit StudiNow-Konto), nichts
-// "in Vorbereitung"; die Pro-AI-Karte nennt das StudiNow-Konto und die Credits. Preise nur aus Product.displayPrice.
-// Kein Einfuehrungsangebot: die 7 Tage Probe laufen ohne Kauf auf dem iPad (LocalTrial.swift, alles wie Pro AI). Waehrend
-// sie laeuft, steht oben "Probe aktiv: alle Funktionen von StudiNow Pro AI bis … (noch n Tage)", keine Karte traegt
-// "Aktueller Tarif" (auch Free nicht, 07.11.2026), die Pro-AI-Karte traegt "Probe". Sonst richtet sich "Aktueller Tarif"
+// "in Vorbereitung"; Plus nennt die KI mit Credits, Pro AI die 120 Credits im Monat. Preise nur aus Product.displayPrice.
+// Plus hat zwei Knoepfe: Monatsabo und 5 Jahre einmalig (`UFOffer`). Vor jedem Kauf steht der Hinweis zur
+// Unabhaengigkeit von den Hochschulen (§ 327h BGB, `UFPurchaseNotice`): ohne Haken geht kein Kaufknopf.
+// Kein Einfuehrungsangebot: die 7 Tage Probe laufen ohne Kauf auf dem iPad (LocalTrial.swift, alles wie Plus). Waehrend
+// sie laeuft, steht oben "Probe aktiv: alle Funktionen von StudiNow Plus bis … (noch n Tage)", keine Karte traegt
+// "Aktueller Tarif" (auch Free nicht, 07.11.2026), die Plus-Karte traegt "Probe". Sonst richtet sich "Aktueller Tarif"
 // nach dem Kauf (`purchasedPlan`). Wechsel zwischen Abo-Tarifen regelt Apple in der Gruppe.
 // Geschenkter Tarif (18.11.2026, `UFServiceGift`): oben "Geschenkt: alle Funktionen von StudiNow Pro AI, unbefristet"
 // (bzw. "bis …"), seine Karte traegt "Aktueller Tarif" ohne "Abo verwalten", er und die Tarife darunter haben keinen
 // Kaufknopf ("Im Geschenk enthalten"); ein hoeherer Tarif bleibt kaufbar.
 // Dieselbe Ansicht dient beim ersten Start, in den Einstellungen ("Tarif wechseln", "Abo verwalten") und hinter
 // gesperrten Funktionen (UFPlanSheet).
-// Zahlweise (Entscheidung des Inhabers vom 09.11.2026, ersetzt "monatlich oder jaehrlich" vom 07.11.2026): nur noch das
-// Jahresabo, kein Umschalter; die Karte zeigt den Jahrespreis und den Monatsbetrag daraus ("entspricht 1,67 € im Monat"),
-// beides aus Product.price. Laeuft noch ein frueheres Monatsabo (nur Sandbox/Test), bietet die Karte des Tarifs den
-// Wechsel zum Jahresabo an (Apple: ab der naechsten Verlaengerung).
+// Zahlweise (26.11.2026): Plus monatlich oder einmalig 5 Jahre, Pro AI jaehrlich (mit Monatsbetrag daraus, "entspricht
+// 3,33 € im Monat"). Fruehere Produkte (Plus-Jahresabo 19,99 EUR, Pro-AI-Monatsabo) gelten weiter, ihre Karte zeigt
+// "Abo verwalten".
 
 struct PlanPickerView: View {
     enum Context: Equatable {
@@ -44,6 +45,8 @@ struct PlanPickerView: View {
     /// StudiNow-Konto (nil ohne Dienst): nach dem Kauf von Pro AI gleich zur Anmeldung bitten
     @Environment(\.ufStudoraAccount) private var studoraAccount
     @State private var signInAfterPurchase = false
+    /// Hinweis vor dem Kauf bestaetigt (`UFPurchaseNotice`, einmal reicht)
+    @State private var noticeConfirmed = UFPurchaseNotice.isConfirmed(in: UFPurchaseNotice.defaults)
 
     /// `entitlements: nil` = `Entitlements.shared` (erst im MainActor-Kontext aufgeloest, Swift 6)
     @MainActor
@@ -74,6 +77,12 @@ struct PlanPickerView: View {
             }
             if let e = store.lastError { errorCard(e).padding(.bottom, 16) }
             if let info { infoCard(info).padding(.bottom, 16) }
+            // vor jedem Kauf deutlich und gesondert (§ 327h BGB): der Hinweis mit Haken
+            PurchaseNoticeCard(confirmed: Binding(get: { noticeConfirmed }, set: { on in
+                noticeConfirmed = on
+                UFPurchaseNotice.confirm(in: UFPurchaseNotice.defaults, on)
+            }))
+            .padding(.bottom, 16)
             UFGridLayout(spacing: 16, minWidth: 280) {
                 ForEach(UFPlanCatalog.cards(current: ent.ownedPlan, loaded: store.loadedProductIDs)) { planCard($0) }
             }
@@ -127,18 +136,15 @@ struct PlanPickerView: View {
 
     private var proAIOffered: Bool { UFPlan.proAI.productID.map(store.loadedProductIDs.contains) == true }
 
-    /// laeuft noch ein frueheres Monatsabo (nur Sandbox/Test)? Dann bietet die Karte des Tarifs das Jahresabo an
-    private var onOldBilling: Bool { !ent.loading && ent.purchasedBilling.map { $0 != UFBilling.offered } == true }
-
     private var subtitle: String { Self.subtitle(proAI: proAIOffered) }
 
     /// Untertitel: die angebotenen Tarife (Pro AI nur mit Produkt aus dem Store); die laufende Probe steht in eigener
     /// Zeile darunter (`trialStatus`)
     static func subtitle(proAI: Bool) -> String {
         var s = "Mit \(UFPlan.free.name) \(LearnCalendar.text("planst du dein Lernen", off: "siehst du deinen Stundenplan")), öffnest deine Dokumente und siehst deine Fächer geordnet – dauerhaft kostenlos. "
-        s += UFEditorAvailability.available ? UFDevice.adapt("\(UFPlan.plus.name) fügt das Schreiben mit Apple Pencil hinzu")
-            : "\(UFPlan.plus.name) fügt Karteikarten, Community und in der iPad-App das Schreiben mit Apple Pencil hinzu"
-        s += proAI ? ", \(UFPlan.proAI.name) die KI von StudiNow über den StudiNow-Dienst. " : ". "
+        s += UFEditorAvailability.available ? UFDevice.adapt("\(UFPlan.plus.name) hat alle Funktionen, vom Schreiben mit Apple Pencil bis zum Abgleich, die StudiNow-KI mit Credits")
+            : "\(UFPlan.plus.name) hat alle Funktionen, in der iPad-App auch das Schreiben mit Apple Pencil, die StudiNow-KI mit Credits"
+        s += proAI ? "; \(UFPlan.proAI.name) bringt dazu \(UFPlan.proAI.monthlyCredits) Credits jeden Monat über den StudiNow-Dienst. " : ". "
         s += "Du kannst den Tarif jederzeit wechseln."
         return s
     }
@@ -157,7 +163,7 @@ struct PlanPickerView: View {
             " bis " + $0.formatted(Date.FormatStyle(date: .numeric, time: .omitted).locale(Locale(identifier: "de_DE")))
         } ?? ""
         let left = "noch \(t.daysLeft) \(t.daysLeft == 1 ? "Tag" : "Tage")"
-        let title = proAI ? "Probe aktiv: alle Funktionen von \(UFPlan.proAI.name)\(until) (\(left))"
+        let title = proAI ? "Probe aktiv: alle Funktionen von \(UFLocalTrial.plan.name)\(until) (\(left))"
             : "Probe aktiv: alle Funktionen\(until) (\(left))"
         var note = ""
         if proAI && t.source == .service {
@@ -222,7 +228,7 @@ struct PlanPickerView: View {
 
     private func planCard(_ plan: UFPlan) -> some View {
         // "Aktueller Tarif" ist der gekaufte (bzw. Free ohne Kauf); waehrend der Probe ohne Kauf keiner, die Karte des
-        // Probe-Tarifs (Pro AI) traegt "Probe"
+        // Probe-Tarifs (Plus) traegt "Probe"
         let trial = ent.runningTrial != nil
         // "Aktueller Tarif": gekauft oder geschenkt, der hoehere (`ownedPlan`)
         let current = Self.isCurrent(plan, purchased: ent.ownedPlan, loading: ent.loading, trial: trial)
@@ -244,7 +250,7 @@ struct PlanPickerView: View {
                 Text(t).ufFont(13.12).foregroundStyle(UF.text2).padding(.top, 3.2)
             }
             if let s = UFPlanCatalog.serviceNote(plan) {
-                // Pro AI: StudiNow-Konto und Credits
+                // Plus: KI mit Credits; Pro AI: StudiNow-Konto und Monats-Credits
                 Text(s).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true).padding(.top, 3.2)
             }
             priceBlock(plan).padding(.top, 6.4)
@@ -260,6 +266,8 @@ struct PlanPickerView: View {
             if let n = buttonNote(plan, current: current) {
                 Text(n).ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
             }
+            // Plus einmalig fuer 5 Jahre (26.11.2026): zweiter Knopf unter dem Monatsabo
+            if plan == .plus { onceButton(current: current) }
         }
     }
 
@@ -307,6 +315,12 @@ struct PlanPickerView: View {
                         .ufFont(13.12, 600).foregroundStyle(UF.text2)
                 }
                 Text(UFOfferText.summary(price: p.displayPrice, period: p.ufPeriod)).ufFont(13.12).foregroundStyle(UF.muted)
+                if plan == .plus, let once = store.product(for: .plusFiveYears), let years = UFOffer.plusFiveYears.years {
+                    // zweites Angebot: einmalig fuer 5 Jahre (Preis aus StoreKit)
+                    Text("oder " + UFOfferText.onceSummary(price: once.displayPrice, years: years)).ufFont(13.12, 600).foregroundStyle(UF.text2)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityIdentifier("plans.plus.once.price")
+                }
             }
         } else if store.loadingProducts {
             HStack(spacing: 8) {
@@ -321,8 +335,42 @@ struct PlanPickerView: View {
         }
     }
 
-    /// laeuft gerade ein gekauftes Abo (nicht Free)? Dann sind die anderen Abo-Tarife ein Wechsel in der Gruppe.
-    private var hasSubscription: Bool { !ent.loading && ent.purchasedPlan != .free }
+    /// laeuft gerade ein gekauftes Abo der Gruppe (nicht Free, nicht der einmalige Kauf)? Dann sind die anderen
+    /// Abo-Tarife ein Wechsel in der Gruppe.
+    private var hasSubscription: Bool { Self.hasSubscription(purchased: ent.purchasedPlan, offer: ent.purchasedOffer, loading: ent.loading) }
+
+    /// Regel zu `hasSubscription` (testbar): gekauft, aber nicht einmalig ueber Jahre
+    static func hasSubscription(purchased: UFPlan, offer: UFOffer?, loading: Bool) -> Bool {
+        !loading && purchased != .free && offer?.kind != .nonRenewing
+    }
+
+    /// Kaufknopf antippbar? Nur mit bestaetigtem Hinweis (§ 327h BGB) und nicht waehrend eines Kaufs
+    static func canTapBuy(confirmed: Bool, busy: Bool) -> Bool { UFPurchaseNotice.allowsPurchase(confirmed: confirmed) && !busy }
+
+    /// Zweiter Knopf auf der Plus-Karte: 5 Jahre einmalig. Nicht, solange der einmalige Kauf schon gilt, nicht mit
+    /// gekauftem Pro AI (das enthaelt Plus), nicht im Geschenk; ohne Produkt aus dem Store gar nicht.
+    static func showsOnceButton(purchased: UFPlan, offer: UFOffer?, giftCovers: Bool, loaded: Bool) -> Bool {
+        loaded && !giftCovers && offer != .plusFiveYears && purchased < .proAI
+    }
+
+    @ViewBuilder
+    private func onceButton(current: Bool) -> some View {
+        if !ent.loading, let p = store.product(for: .plusFiveYears), let years = UFOffer.plusFiveYears.years,
+           Self.showsOnceButton(purchased: ent.purchasedPlan, offer: ent.purchasedOffer,
+                                giftCovers: Self.coveredByGift(.plus, gift: ent.carryingGift), loaded: true) {
+            fullButton(UFOfferText.onceButton(price: p.displayPrice, years: years), kind: .normal,
+                       enabled: Self.canTapBuy(confirmed: noticeConfirmed, busy: store.busy)) {
+                Task { await buy(p, plan: .plus) }
+            }
+            .padding(.top, 8)
+            .accessibilityIdentifier("plans.plus.once")
+            if hasSubscription {
+                Text(UFOfferText.onceWithSubscriptionNote).ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
+            } else if !noticeConfirmed {
+                Text(UFPurchaseNotice.needsConfirm).ufFont(11.84).foregroundStyle(UF.muted).padding(.top, 6.4)
+            }
+        }
+    }
 
     @ViewBuilder
     private func actionButton(_ plan: UFPlan, current: Bool, trial: Bool) -> some View {
@@ -350,14 +398,11 @@ struct PlanPickerView: View {
             } else {
                 fullButton(current ? "Aktueller Tarif" : "Im Geschenk enthalten", kind: .normal, enabled: false) {}
             }
-        } else if current, onOldBilling, let p = store.product(for: plan) {
-            // laufender Tarif mit frueherem Monatsabo (nur Sandbox/Test): Wechsel zum Jahresabo (Apple: ab der naechsten
-            // Verlaengerung)
-            fullButton(UFOfferText.billingSwitchButton, kind: .primary, enabled: !store.busy) {
-                Task { await buy(p, plan: plan) }
-            }
         } else if current {
-            if context == .settings {
+            if context == .settings && ent.purchasedOffer?.kind == .nonRenewing {
+                // einmal bezahlt (5 Jahre): kein Abo zu verwalten
+                fullButton("Aktueller Tarif", kind: .normal, enabled: false) {}
+            } else if context == .settings {
                 fullButton("Abo verwalten", icon: "settings", kind: .normal) { manage = true }
             } else {
                 fullButton("Weiter mit \(plan.name)", kind: .primary) { onDone() }
@@ -369,7 +414,8 @@ struct PlanPickerView: View {
             let label = hasSubscription
                 ? UFOfferText.switchButton(to: plan)
                 : UFOfferText.button(plan: plan, price: p.displayPrice, period: p.ufPeriod)
-            fullButton(label, kind: .primary, enabled: !store.busy) { Task { await buy(p, plan: plan) } }
+            fullButton(label, kind: .primary, enabled: Self.canTapBuy(confirmed: noticeConfirmed, busy: store.busy)) { Task { await buy(p, plan: plan) } }
+                .accessibilityIdentifier("plans.buy.\(plan.rawValue)")
         } else {
             fullButton("\(plan.name) wählen", kind: .primary, enabled: false) {}
         }
@@ -380,13 +426,14 @@ struct PlanPickerView: View {
         guard plan != .free, !ent.loading else { return nil }
         if Self.coveredByGift(plan, gift: ent.carryingGift) { return nil }      // Geschenk: keine Kuendigung, kein Wechsel
         if current {
-            if onOldBilling, store.product(for: plan) != nil { return UFOfferText.billingSwitchNote }
+            if ent.purchasedOffer?.kind == .nonRenewing { return UFOfferText.onceNote(plan, until: ent.expiresAt) }
             if let next = ent.pendingPlan { return UFOfferText.pendingNote(next, at: ent.expiresAt) }
             if ent.willRenew == false { return UFOfferText.cancelledNote(plan, endsAt: ent.expiresAt) }
             return nil
         }
         if ent.pendingPlan == plan { return UFOfferText.pendingNote(plan, at: ent.expiresAt) }
         if hasSubscription && store.product(for: plan) != nil { return UFOfferText.switchNote(to: plan, from: ent.purchasedPlan) }
+        if store.product(for: plan) != nil && !noticeConfirmed { return UFPurchaseNotice.needsConfirm }
         return nil
     }
 
@@ -404,20 +451,18 @@ struct PlanPickerView: View {
     }
 
     private func buy(_ p: Product, plan: UFPlan) async {
+        // nie ohne bestaetigten Hinweis (§ 327h BGB), auch wenn ein Knopf doch erreichbar war
+        guard UFPurchaseNotice.allowsPurchase(confirmed: noticeConfirmed) else { info = UFPurchaseNotice.needsConfirm; return }
         info = nil
         let before = ent.purchasedPlan
-        let beforeBilling = ent.purchasedBilling
         switch await store.purchase(p) {
         case .success:
-            if before == plan, let b = beforeBilling, UFBilling(productID: p.id) != b {
-                // nur die Zahlweise gewechselt: Apple stellt zur naechsten Verlaengerung um
-                info = UFOfferText.billingSwitchNote
-            } else if ent.purchasedPlan != plan, ent.pendingPlan == plan {
+            if ent.purchasedPlan != plan, ent.pendingPlan == plan {
                 // Downgrade: Apple stellt erst zur naechsten Verlaengerung um, die Seite bleibt offen und sagt es
                 info = UFOfferText.pendingNote(plan, at: ent.expiresAt) + " Bis dahin bleibt \(before.name)."
             } else if ProAISignInHint.asksAfterPurchase(plan: plan, serviceAvailable: studoraAccount != nil && StudoraAccountLink.available,
                                                         signedIn: studoraAccount?.user != nil, accountOpen: studoraAccount?.canSignIn == true) {
-                signInAfterPurchase = true               // Karte "Pro AI ist aktiv" mit "Mit Apple anmelden"
+                signInAfterPurchase = true               // Karte "Dein Tarif ist aktiv" mit "Mit Apple anmelden"
             } else {
                 onDone()
             }
@@ -481,12 +526,13 @@ struct PlanPickerView: View {
 
     /// Pflichtangaben unter den Karten (Richtlinie 3.1.2)
     static var legalText: String {
-        var s = "Die Zahlung läuft über deine Apple-ID. Die Abos sind Jahresabos und verlängern sich automatisch um ein Jahr, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID; der Zugang bleibt bis zum Ende des bezahlten Jahres. "
+        var s = "Die Zahlung läuft über deine Apple-ID. StudiNow Plus im Monat und StudiNow Pro AI im Jahr sind Abos und verlängern sich automatisch um ihren Zeitraum, wenn sie nicht spätestens 24 Stunden vor Ablauf gekündigt werden. Kündigen kannst du jederzeit unter „Abo verwalten“ oder in den Einstellungen deiner Apple-ID; der Zugang bleibt bis zum Ende des bezahlten Zeitraums. "
+        s += "StudiNow Plus für 5 Jahre bezahlst du einmal; es gilt 5 Jahre ab dem Kauf und verlängert sich nicht. "
         // Wechsel zwischen Abo-Tarifen gibt es erst, wenn mehr als ein Abo angeboten wird (ab V2)
         if UFPlanCatalog.sellable.filter({ $0.productID != nil }).count > 1 {
             s += "Die Abo-Tarife gehören zu einem Abo: Ein Wechsel zu einem höheren Tarif gilt sofort, zu einem kleineren ab der nächsten Verlängerung. "
         }
-        return s + "Deine Notizen bleiben in jedem Tarif erhalten."
+        return s + "Die StudiNow-KI braucht Credits. Deine Notizen bleiben in jedem Tarif erhalten."
     }
 }
 
@@ -527,5 +573,44 @@ private struct PlanCardFrame<Content: View>: View {
             .background(RoundedRectangle(cornerRadius: UF.r).fill(UF.surface))
             .overlay(RoundedRectangle(cornerRadius: UF.r).strokeBorder(highlight ? UF.accent : UF.line, lineWidth: highlight ? 2 : 1))
             .ufShadow(.sm)
+    }
+}
+
+/// Hinweis vor dem Kauf (§ 327h BGB, `UFPurchaseNotice`): deutlich und gesondert ueber den Karten, mit Haken. Ohne Haken
+/// gehen die Kaufknoepfe nicht; der Haken wird gemerkt (einmal bestaetigt reicht).
+struct PurchaseNoticeCard: View {
+    @Binding var confirmed: Bool
+
+    var body: some View {
+        UFCard(flat: true) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
+                    UFIcon("info", size: 18).foregroundStyle(UF.warn).padding(.top, 1).accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(UFPurchaseNotice.title).ufFont(14.5, 650).foregroundStyle(UF.text)
+                            .accessibilityAddTraits(.isHeader)
+                        Text(UFPurchaseNotice.text).ufFont(13.6).foregroundStyle(UF.text)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityIdentifier("plans.notice.text")
+                    }
+                }
+                Button { confirmed.toggle() } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: confirmed ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 22, weight: .semibold))
+                            .foregroundStyle(confirmed ? UF.accentFill : UF.muted)
+                        Text(UFPurchaseNotice.confirm).ufFont(14.5, 600).foregroundStyle(UF.text)
+                        Spacer(minLength: 0)
+                    }
+                    .frame(minHeight: 44)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(UFPurchaseNotice.confirm)
+                .accessibilityValue(confirmed ? "ausgewählt" : "nicht ausgewählt")
+                .accessibilityAddTraits(confirmed ? [.isButton, .isSelected] : .isButton)
+                .accessibilityIdentifier("plans.notice.confirm")
+            }
+        }
     }
 }

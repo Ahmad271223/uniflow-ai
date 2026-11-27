@@ -457,7 +457,7 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         // Probe und Tarife: Preise aus StoreKit, nur Jahresabos, Pflichtangaben
         XCTAssertTrue(env.wait { self.account.stage == .planPicker }, "zum Schluss Probe und Tarife")
         expect(env, UFPlan.plus.name)
-        expect(env, "19,99")
+        expect(env, "1,99")
         station(env, "06-tarife", back: false, markers: [UFPlan.free.name, UFPlan.plus.name, "/Jahr", PlanPickerView.LegalPage.terms.rawValue,
                                                          PlanPickerView.LegalPage.privacy.rawValue, "Käufe wiederherstellen"])
         XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos (09.11.2026):\n" + dump(env))
@@ -526,7 +526,7 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
         station(env, "17-ki-start", markers: ["Wochentest", "Karteikarten"])
 
         env.router.go(.exams)
-        station(env, "18-tests-ohne-ki", markers: ["Tests & Wiederholung", "Zu den Karteikarten", UFPlan.proAI.name])
+        station(env, "18-tests-ohne-ki", markers: ["Tests & Wiederholung", "Zu den Karteikarten", UFPlan.plus.name])   // seit 26.11.2026 nennt der Text Plus mit Credits
 
         env.router.go(.cards)
         station(env, "19-karteikarten-free", markers: ["Karteikarten"])
@@ -606,9 +606,9 @@ final class AbnahmeV1LUHReleaseAppTests: XCTestCase {
 
         // Tarif wechseln: Blatt mit den Jahresabos (09.11.2026, kein Umschalter Monatlich/Jaehrlich)
         XCTAssertTrue(tap("Tarif wechseln", in: env), "Tarif wechseln:\n" + dump(env))
-        XCTAssertTrue(env.wait(timeout: 15) { env.hosting.presentedViewController != nil && self.shows(env, UFPlan.plus.name + " für 19,99") },
+        XCTAssertTrue(env.wait(timeout: 15) { env.hosting.presentedViewController != nil && self.shows(env, UFPlan.plus.name + " für 1,99") },
                       "Tarifblatt mit Preisen:\n" + dump(env))
-        station(env, "31-tarif-jaehrlich", markers: [PlanPickerView.title(.settings), UFPlan.plus.name + " für 19,99", UFPlan.proAI.name + " für 39,99", "/Jahr", "Käufe wiederherstellen"])
+        station(env, "31-tarif-jaehrlich", markers: [PlanPickerView.title(.settings), UFPlan.plus.name + " für 1,99", UFPlan.proAI.name + " für 39,99", "/Jahr", "/Monat", "Käufe wiederherstellen"])
         XCTAssertNil(segmented(env), "kein Umschalter der Zahlweise")
         XCTAssertFalse(shows(env, "Monatlich"), "nur Jahresabos:\n" + dump(env))
         if !tap("Schließen", in: env) { dismissPresented(env) }

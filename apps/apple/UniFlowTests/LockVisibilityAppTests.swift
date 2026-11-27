@@ -54,11 +54,13 @@ final class LockVisibilityAppTests: XCTestCase {
             }
             XCTAssertNil(UFLock.plan(f, plan: .proAI), "Pro AI: kein Schloss (\(f.title))")
         }
-        // Free: alles aus Plus und Pro AI mit Schloss; Plus: genau das, was nur Pro AI hat
+        // Free: alles aus Plus mit Schloss "ab Plus"; Plus hat seit 26.11.2026 alle Funktionen (kein Schloss, die KI nur mit
+        // Credits); vorher trug Plus die Schloesser "ab Pro AI"
         let freeLocks = UFFeature.allCases.filter { !$0.isV2 && UFLock.plan($0, plan: .free) != nil }
         XCTAssertEqual(Set(freeLocks), Set(UFFeature.allCases.filter { !$0.isV2 && $0.minimumPlan > .free }))
+        XCTAssertTrue(freeLocks.allSatisfy { UFLock.plan($0, plan: .free) == .plus }, "Free: alle Schloesser ab Plus")
         let plusLocks = UFFeature.allCases.filter { !$0.isV2 && UFLock.plan($0, plan: .plus) != nil }
-        XCTAssertEqual(Set(plusLocks), Set(UFFeature.allCases.filter { $0.minimumPlan == .proAI }))
+        XCTAssertTrue(plusLocks.isEmpty, "Plus: kein Schloss \(plusLocks)")
         // V2 (StudiNow-Editor) bleibt unsichtbar statt "kaufbar" (App Review 3.1.2)
         XCTAssertEqual(UFFeatureMatrix.access(.uniflowEditor, plan: .free), .comingSoon)
         XCTAssertNil(UFLock.plan(.uniflowEditor, plan: .free))
@@ -76,30 +78,32 @@ final class LockVisibilityAppTests: XCTestCase {
         XCTAssertEqual(DocumentView.lockedLabel("Geteilt", .locked(.plus)), UFLock.label("Geteilt", .plus))
         XCTAssertEqual(UFLock.hint, "Öffnet die Tarifwahl.")
         XCTAssertEqual(EditorLockedToolbar.title(.plus), "Schreiben mit Plus")
-        // KI-Stellen: mit verbundener KI frei (eigenes ChatGPT in jedem Tarif), sonst bis Plus "ab Pro AI"
-        XCTAssertEqual(UFLock.ai(plan: .free, aiEnabled: false), .proAI)
-        XCTAssertEqual(UFLock.ai(plan: .plus, aiEnabled: false), .proAI)
+        // KI-Stellen: mit verbundener KI frei (eigenes ChatGPT in jedem Tarif), sonst in Free "ab Plus"; Plus und Pro AI
+        // ohne Anmeldung bzw. ohne Credits: kein Tarif-Schloss (Anmeldung bzw. Credit-Pakete, 26.11.2026)
+        XCTAssertEqual(UFLock.ai(plan: .free, aiEnabled: false), .plus)
+        XCTAssertNil(UFLock.ai(plan: .plus, aiEnabled: false), "Plus: kein Tarif-Schloss")
         XCTAssertNil(UFLock.ai(plan: .proAI, aiEnabled: false), "Pro AI ohne Anmeldung: kein Tarif-Schloss")
         XCTAssertNil(UFLock.ai(plan: .free, aiEnabled: true))
-        XCTAssertNil(UFLock.ai(plan: .plus, aiEnabled: false, offerHidden: true), "Pro AI nicht zu kaufen: kein Schloss")
-        XCTAssertEqual(UFLock.ai(.weeklyTests, plan: .plus, aiEnabled: false), .proAI)
+        XCTAssertNil(UFLock.ai(plan: .free, aiEnabled: false, offerHidden: true), "Angebot verborgen: kein Schloss")
+        XCTAssertEqual(UFLock.ai(.weeklyTests, plan: .free, aiEnabled: false), .plus)
     }
 
-    /// Menue: Free sieht "Tests & Wiederholung" (ab Pro AI), "Karteikarten" und "Community" (ab Plus) mit Schloss, Plus nur
-    /// "Tests & Wiederholung", Pro AI keines. Ohne iCloud-Container bleibt die Community weg (technisch, kein Tarif).
+    /// Menue: Free sieht "Tests & Wiederholung", "Karteikarten" und "Community" mit Schloss "ab Plus" (seit 26.11.2026;
+    /// vorher Tests "ab Pro AI"), Plus und Pro AI keines. Ohne iCloud-Container bleibt die Community weg (technisch, kein Tarif).
     func testNavigationShowsLockedAreasPerPlan() {
         func items(_ plan: UFPlan, ai: Bool = false, community: Bool = true, proAIHidden: Bool = false) -> [String: UFPlan?] {
             Dictionary(uniqueKeysWithValues: UFNavItem.visible(local: true, gradesOnDevice: true, community: community, ai: ai,
                                                                plan: plan, proAIHidden: proAIHidden).map { ($0.id, $0.lock) })
         }
         let free = items(.free)
-        XCTAssertEqual(free["exams"], .some(.proAI))
+        XCTAssertEqual(free["exams"], .some(.plus))
         XCTAssertEqual(free["cards"], .some(.plus))
         XCTAssertEqual(free["community"], .some(.plus))
         XCTAssertNil(free["plan"], "Lernkalender ausgeblendet (17.11.2026)")
         XCTAssertEqual(free["timetable"], .some(nil), "Stundenplan ist Free")
         let plus = items(.plus)
-        XCTAssertEqual(plus["exams"], .some(.proAI))
+        XCTAssertNil(plus["exams"], "Plus ohne KI-Verbindung (Anmeldung fehlt): kein Schloss, kein Eintrag")
+        XCTAssertEqual(items(.plus, ai: true)["exams"], .some(nil), "Plus mit StudiNow-KI: Tests ohne Schloss")
         XCTAssertEqual(plus["cards"], .some(nil))
         XCTAssertEqual(plus["community"], .some(nil))
         let pro = items(.proAI, ai: true)
@@ -107,7 +111,7 @@ final class LockVisibilityAppTests: XCTestCase {
         XCTAssertNotNil(pro["exams"])
         XCTAssertNil(items(.proAI)["exams"], "Pro AI ohne KI-Verbindung (Anmeldung fehlt): kein Schloss, kein Eintrag")
         XCTAssertNil(items(.free, community: false)["community"], "ohne iCloud-Container keine Community")
-        XCTAssertNil(items(.free, proAIHidden: true)["exams"], "Pro AI nicht zu kaufen: kein Schloss ab Pro AI")
+        XCTAssertEqual(items(.free, proAIHidden: true)["exams"], .some(.plus), "Pro AI nicht zu kaufen: das Schloss heisst ab Plus und bleibt")
         XCTAssertEqual(items(.free, ai: true)["exams"], .some(nil), "eigenes ChatGPT: Wochentests ohne Schloss")
         // ohne Tarif (eigener Server, alte Aufrufer): wie bisher ohne Schloesser
         XCTAssertTrue(UFNavItem.visible(local: true, gradesOnDevice: true, community: true).allSatisfy { $0.lock == nil })
@@ -133,19 +137,19 @@ final class LockVisibilityAppTests: XCTestCase {
             case .free:
                 XCTAssertEqual(cards.accessibilityValue, "gesperrt, ab Plus")
                 XCTAssertEqual(cards.accessibilityHint, UFLock.hint)
-                XCTAssertEqual(exams?.accessibilityValue, "gesperrt, ab Pro AI")
+                XCTAssertEqual(exams?.accessibilityValue, "gesperrt, ab Plus")
             case .plus:
                 XCTAssertEqual(cards.accessibilityValue ?? "", "", "Plus: Karteikarten frei")
-                XCTAssertEqual(exams?.accessibilityValue, "gesperrt, ab Pro AI")
+                XCTAssertFalse(Self.all(in: env.view).contains { ($0.accessibilityValue ?? "").hasPrefix("gesperrt") }, "Plus: kein Schloss")
             case .proAI:
                 XCTAssertFalse(Self.all(in: env.view).contains { ($0.accessibilityValue ?? "").hasPrefix("gesperrt") }, "Pro AI: kein Schloss")
             }
             try shoot(env, "seitenleiste-\(plan.rawValue)")
             // Antippen eines Schlosses: Seite und Tarifwahl mit dem noetigen Tarif
-            if plan != .proAI, let exams {
+            if plan == .free, let exams {
                 XCTAssertTrue(exams.accessibilityActivate())
-                XCTAssertTrue(env.wait(timeout: 10) { self.presentedLabels(env).contains("Mehr mit \(UFPlan.proAI.name)") },
-                              "Tarifwahl mit Pro AI:\n" + presentedLabels(env).joined(separator: "\n"))
+                XCTAssertTrue(env.wait(timeout: 10) { self.presentedLabels(env).contains("Mehr mit \(UFPlan.plus.name)") },
+                              "Tarifwahl mit Plus:\n" + presentedLabels(env).joined(separator: "\n"))
                 XCTAssertEqual(env.router.route, .exams)
                 try shoot(env, "seitenleiste-\(plan.rawValue)-tarifwahl", presented: true)
                 dismiss(env)
@@ -177,7 +181,7 @@ final class LockVisibilityAppTests: XCTestCase {
                 XCTAssertEqual(bar.accessibilityLabel, "Schreiben mit Plus")
                 XCTAssertEqual(bar.accessibilityValue, "gesperrt, ab Plus")
                 XCTAssertFalse(ids.contains("toolbar.tool.pen"), "Free: keine benutzbaren Werkzeuge")
-                XCTAssertEqual(Self.element("toolbar.askAI.locked", in: env.view)?.accessibilityValue, "gesperrt, ab Pro AI")
+                XCTAssertEqual(Self.element("toolbar.askAI.locked", in: env.view)?.accessibilityValue, "gesperrt, ab Plus")
                 try shoot(env, "editor-free")
                 XCTAssertTrue(bar.accessibilityActivate())
                 XCTAssertTrue(env.wait(timeout: 10) { self.presentedLabels(env).contains("Mehr mit \(UFPlan.plus.name)") },
@@ -185,15 +189,12 @@ final class LockVisibilityAppTests: XCTestCase {
                 try shoot(env, "editor-free-tarifwahl", presented: true)
                 dismiss(env)
             case .plus:
+                // seit 26.11.2026 hat Plus die KI (mit Credits): kein Schloss "ab Pro AI" mehr an "KI fragen"
                 XCTAssertTrue(ids.contains("toolbar.tool.pen"), "Plus: Werkzeuge da")
                 XCTAssertFalse(ids.contains("editor.toolbar.locked"))
-                let ask = try XCTUnwrap(Self.element("toolbar.askAI.locked", in: env.view), "Plus: KI fragen mit Schloss")
-                XCTAssertEqual(ask.accessibilityValue, "gesperrt, ab Pro AI")
+                XCTAssertNil(Self.element("toolbar.askAI.locked", in: env.view), "Plus: KI fragen ohne Schloss")
+                XCTAssertFalse(Self.all(in: env.view).contains { ($0.accessibilityValue ?? "").hasPrefix("gesperrt") }, "Plus: kein Schloss")
                 try shoot(env, "editor-plus")
-                XCTAssertTrue(ask.accessibilityActivate())
-                XCTAssertTrue(env.wait(timeout: 10) { self.presentedLabels(env).contains("Mehr mit \(UFPlan.proAI.name)") },
-                              presentedLabels(env).joined(separator: "\n"))
-                dismiss(env)
             case .proAI:
                 XCTAssertTrue(ids.contains("toolbar.tool.pen"))
                 XCTAssertFalse(Self.all(in: env.view).contains { ($0.accessibilityValue ?? "").hasPrefix("gesperrt") }, "Pro AI: kein Schloss")

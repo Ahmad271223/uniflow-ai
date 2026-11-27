@@ -45,12 +45,12 @@ final class TrialDisplayAppTests: XCTestCase {
         XCTAssertEqual(shown(e, service: account),
                        Shown(settings: "Probe: noch 2 Tage alles frei", sidebar: "Probe · noch 2 Tage",
                              banner: .running(daysLeft: 2, source: .service),
-                             planPage: "Probe aktiv: alle Funktionen von StudiNow Pro AI bis 11.11.2026 (noch 2 Tage)"))
+                             planPage: "Probe aktiv: alle Funktionen von StudiNow Plus bis 11.11.2026 (noch 2 Tage)"))
         XCTAssertEqual(e.shownTrial, UFShownTrial(source: .service, daysLeft: 2, endsAt: try date("2026-11-11T10:00:00Z")))
         // Konto-Probe ohne gemeldetes Ende: Resttage trotzdem die des Kontos, kein Datum der iPad-Probe
         e.useServiceStatus(StudoraAccount.PlanStatus(plan: "pro_ai", trialActive: true, trialDaysLeft: 2, trialPlan: "pro_ai"))
         XCTAssertEqual(e.runningTrial.map { PlanPickerView.trialStatus($0, proAI: true).title },
-                       "Probe aktiv: alle Funktionen von StudiNow Pro AI (noch 2 Tage)")
+                       "Probe aktiv: alle Funktionen von StudiNow Plus (noch 2 Tage)")
         XCTAssertEqual(UFSidebarProfile.make(e).planLabel, "Probe · noch 2 Tage")
     }
 
@@ -59,7 +59,7 @@ final class TrialDisplayAppTests: XCTestCase {
         let e = try entitlementsWithDeviceTrial(now: now)
         let expected = Shown(settings: "Probe: noch 5 Tage alles frei", sidebar: "Probe · noch 5 Tage",
                              banner: .running(daysLeft: 5, source: .device),
-                             planPage: "Probe aktiv: alle Funktionen von StudiNow Pro AI bis 14.11.2026 (noch 5 Tage)")
+                             planPage: "Probe aktiv: alle Funktionen von StudiNow Plus bis 14.11.2026 (noch 5 Tage)")
         XCTAssertEqual(shown(e, service: nil), expected, "ohne Konto")
         // Konto ohne Probe (nie gewaehrt): iPad-Probe
         let plain = StudoraAccount.PlanStatus(plan: "free")
@@ -72,10 +72,10 @@ final class TrialDisplayAppTests: XCTestCase {
         let e = try entitlementsWithDeviceTrial(now: now)
         let expected = Shown(settings: "Probe: noch 5 Tage alles frei", sidebar: "Probe · noch 5 Tage",
                              banner: .running(daysLeft: 5, source: .device),
-                             planPage: "Probe aktiv: alle Funktionen von StudiNow Pro AI bis 14.11.2026 (noch 5 Tage)")
+                             planPage: "Probe aktiv: alle Funktionen von StudiNow Plus bis 14.11.2026 (noch 5 Tage)")
         for over in [StudoraAccount.PlanStatus(plan: "free", needsPlanChoice: true), StudoraAccount.PlanStatus(plan: "free")] {
             e.useServiceStatus(over)
-            XCTAssertEqual(e.plan, .proAI, "die iPad-Probe schaltet frei")
+            XCTAssertEqual(e.plan, .plus, "die iPad-Probe schaltet frei (wie Plus, 26.11.2026)")
             XCTAssertEqual(shown(e, service: over), expected, "Konto-Probe vorbei: \(over)")
         }
         // beide vorbei: kein Probe-Text, der Hinweis nach der Probe des Kontos bleibt

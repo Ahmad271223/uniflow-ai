@@ -7,8 +7,10 @@ import UniFlowCore
 /// Eintrag "Credits kaufen" auf der Tarif-Karte. Zeigt den Stand beider Toepfe, die Pakete (Zahl der Credits vom
 /// Dienst, Preis aus dem Store), den Satz "Gekaufte Credits verfallen nicht. ..." und "Nicht jetzt".
 ///
-/// Wer kaufen darf, sagt der Dienst (`credits.can_buy`); ohne dieses Recht stehen hier keine Pakete, sondern ehrlich,
-/// was gilt (ruhende Credits bleiben beim Konto). Oeffnen nur ueber `ufCreditShop` (das Blatt laeuft ueber `ufSheet`).
+/// Wer kaufen darf, sagt der Dienst (`credits.can_buy`) und der Tarif auf dem Geraet (26.11.2026: nur Plus und Pro AI,
+/// nie Free und nie die Probe allein, `StudoraAccountLink.mayBuyCredits`); ohne dieses Recht stehen hier keine Pakete,
+/// sondern ehrlich, was gilt (ruhende Credits bleiben beim Konto, sonst der Weg zu Plus oder Pro AI). Oeffnen nur ueber
+/// `ufCreditShop` (das Blatt laeuft ueber `ufSheet`).
 struct CreditShopSheet: View {
     enum Reason: Equatable {
         /// die Credits reichten nicht fuer eine Anfrage
@@ -21,6 +23,8 @@ struct CreditShopSheet: View {
     @ObservedObject var link: StudoraAccountLink
     @ObservedObject var store: CreditStore
     let close: () -> Void
+    /// Tarifwahl aus dem Blatt (ohne Kaufrecht: Free bzw. nur Probe)
+    @State private var plans: UFPlan?
 
     /// Hinweis unter den Paketen: einmaliger Kauf, kein Abo (Pflichtangabe vor dem Kauf)
     static let payNote = "Einmaliger Kauf über deine Apple-ID, kein Abo. Die Credits gehören zu deinem StudiNow-Konto und gelten auf allen deinen Geräten."
@@ -40,7 +44,7 @@ struct CreditShopSheet: View {
     static func packIdentifier(_ productID: String) -> String { "credits.pack." + (productID.split(separator: ".").last.map(String.init) ?? productID) }
 
     private var balance: CreditPacks.Balance? { link.credits?.balance }
-    private var canBuy: Bool { CreditPacks.offersShop(balance) }
+    private var canBuy: Bool { link.mayBuyCredits }
     private var bought: Bool { store.notice != nil && store.message == nil }
 
     var body: some View {
@@ -58,7 +62,7 @@ struct CreditShopSheet: View {
                         .accessibilityIdentifier("credits.shop.balance")
                 }
                 if canBuy {
-                    // Plus: was die Credits dort koennen (nur der KI-Chat), ehrlich vor dem Kauf
+                    // nur bei einem Dienst, der Plus noch auf den KI-Chat beschraenkt: was die Credits dort koennen
                     if let scope = CreditText.scopeNote(balance) {
                         Text(scope).ufFont(13.6, 600).foregroundStyle(UF.text).fixedSize(horizontal: false, vertical: true)
                             .accessibilityIdentifier("credits.shop.scope")
@@ -73,6 +77,9 @@ struct CreditShopSheet: View {
                     Text(CreditText.dormantNote(balance) ?? CreditText.buyNeedsProAI).ufFont(14.5).foregroundStyle(UF.text)
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("credits.shop.blocked")
+                    // Free (und die Probe allein): der Weg zu Plus oder Pro AI statt einer Sackgasse (26.11.2026)
+                    UFButton(UFTrialTexts.plans, icon: "star", kind: .primary, size: .small) { plans = .plus }
+                        .accessibilityIdentifier("credits.shop.plans")
                 }
                 if let m = store.message {
                     Text(m).ufFont(13.12).foregroundStyle(UF.bad).fixedSize(horizontal: false, vertical: true)
@@ -93,6 +100,7 @@ struct CreditShopSheet: View {
             .frame(maxWidth: .infinity)
         }
         .background(UF.surface)
+        .ufPlanSheet($plans)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task {
@@ -174,7 +182,7 @@ struct CreditShopEntry: View {
 
     var body: some View {
         let balance = link.credits?.balance
-        if CreditPacks.offersShop(balance) {
+        if link.mayBuyCredits {
             UFButton(Self.button, icon: "sparkles", size: .small) { shop = true }
                 .accessibilityIdentifier("credits.buy")
                 .ufCreditShop(isPresented: $shop, reason: .shop)
@@ -220,7 +228,7 @@ struct CreditShopCard: View {
     }
 }
 
-/// Schloss "ab Pro AI" ueber einer Gruppe von KI-Knoepfen (Plus mit dem KI-Chat, 15.11.2026): die Knoepfe bleiben
+/// Schloss "ab <Tarif>" ueber einer Gruppe von KI-Knoepfen (15.-26.11.2026 Plus mit dem KI-Chat): die Knoepfe bleiben
 /// sichtbar, sind gedimmt und nicht antippbar; Antippen der Gruppe oeffnet die Tarifwahl mit Pro AI (kein toter Knopf).
 /// Ohne `plan` unveraendert.
 private struct UFPlanLockGroup: ViewModifier {

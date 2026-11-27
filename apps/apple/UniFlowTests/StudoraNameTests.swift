@@ -13,7 +13,7 @@ final class StudoraNameTests: XCTestCase {
         XCTAssertEqual(Bundle.main.bundleIdentifier, onMac ? "de.uniflow.ai.mactest" : "de.uniflow.ai", "Bundle-ID bleibt")
         let docTypes = Bundle.main.object(forInfoDictionaryKey: "CFBundleDocumentTypes") as? [[String: Any]]
         XCTAssertEqual(docTypes?.first?["CFBundleTypeName"] as? String, "StudiNow-Lösung")
-        XCTAssertEqual(UFPlan.plus.productID, "de.uniflow.plus.yearly", "Produkt-ID bleibt bei de.uniflow (nur Jahresabo, 09.11.2026)")
+        XCTAssertEqual(UFPlan.plus.productID, "de.uniflow.plus.monthly", "Produkt-ID bleibt bei de.uniflow (Plus monatlich seit 26.11.2026)")
         XCTAssertEqual(UFLockedCard.message(.uniflowEditor, access: .comingSoon), "Kommt mit der nächsten Version von StudiNow.")
     }
 

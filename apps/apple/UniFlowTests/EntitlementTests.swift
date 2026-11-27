@@ -20,7 +20,8 @@ final class EntitlementTests: XCTestCase {
         XCTAssertNil(UFPlan.free.productID)
         // das iPad bietet Plus und Pro AI an (UFPlanCatalog.sellable, Entscheidung 04.11.2026), seit 09.11.2026 nur als
         // Jahresabo; die frueheren Monatsprodukte oben gelten weiter wie ihr Tarif
-        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.yearly", "de.uniflow.proai.yearly"])
+        XCTAssertEqual(PurchaseStore.productIDs, ["de.uniflow.plus.monthly", "de.uniflow.plus.fuenfjahre", "de.uniflow.proai.yearly"],
+                       "26.11.2026: Plus monatlich oder 5 Jahre, Pro AI jaehrlich")
         XCTAssertEqual(UFPlan.paid, [.plus, .proAI])
         XCTAssertLessThan(UFPlan.free, .plus)
         XCTAssertLessThan(UFPlan.plus, .proAI)
@@ -70,8 +71,8 @@ final class EntitlementTests: XCTestCase {
         for p in UFPlan.allCases {
             XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: p), .allowed, p.rawValue)
             XCTAssertEqual(UFFeatureMatrix.access(.uniflowEditor, plan: p), .comingSoon)
-            // Notizen-Abgleich: mit StudiNow-Konto ab Pro AI (07.11.2026, vorher "bald")
-            XCTAssertEqual(UFFeatureMatrix.access(.deviceSync, plan: p), p == .proAI ? .allowed : .locked(.proAI))
+            // Notizen-Abgleich: mit StudiNow-Konto ab Plus (26.11.2026; 07.-26.11.2026 ab Pro AI, vorher "bald")
+            XCTAssertEqual(UFFeatureMatrix.access(.deviceSync, plan: p), p >= .plus ? .allowed : .locked(.plus))
         }
         // ohne Geraete-Funktion wieder "bald" (Schalter bleibt pruefbar)
         XCTAssertEqual(UFFeatureMatrix.access(.uniGrades, plan: .free, uniGrades: false), .comingSoon)
@@ -96,8 +97,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertFalse(SolutionShareSheet.showsCommunityPublish(plan: .free))
     }
 
-    /// Plus bietet mehr als Free (Schreiben, Uebung und Skript, Loesung teilen), Pro AI mehr als Plus (StudiNow-KI und
-    /// Notizen-Abgleich mit StudiNow-Konto, 07.11.2026)
+    /// Plus bietet mehr als Free (alle Funktionen), Pro AI mehr als Plus (seit 26.11.2026 nur die 120 Monats-Credits)
     func testEveryPlanHasExtras() {
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .free))
         XCTAssertTrue(UFFeatureMatrix.hasAvailableExtras(in: .plus))
@@ -109,7 +109,8 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .plus), UFNoteAccess(canView: true, canExport: true, canEdit: true))
     }
 
-    /// Funktionen der Tarifkarten (Abschnitt 4): KI nur bei Pro AI (StudiNow-KI mit Konto, PlanContractTests)
+    /// Funktionen der Tarifkarten (Abschnitt 4): seit 26.11.2026 alles auf der Plus-Karte, die KI mit Credits; Pro AI
+    /// bringt nur die Monats-Credits (PlanContractTests)
     func testPlanCards() {
         // ohne Lernkalender (`LearnCalendar`, 17.11.2026) nennen die Karten ihn nicht; mit Schalter an wie bisher
         XCTAssertEqual(UFFeatureMatrix.added(in: .free), [.studipSync, .readDocuments, .modulesTimetable, .viewNotes, .uniGrades])
@@ -117,21 +118,26 @@ final class EntitlementTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.added(in: .free),
                        [.studipSync, .readDocuments, .modulesTimetable, .studyCalendar, .studyPlanning, .viewNotes, .uniGrades])
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
-                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan, .aiChat])
+                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .autoPlan, .aiChat,
+                        .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders])
         LearnCalendar.enabled = false
                        // „Eigenes ChatGPT“ aus (OpenAIKeyLink.isOffered, Vorgabe 11.11.2026): nicht auf der Free-Karte
                        // Zeitmesser ausgeblendet (StudyTimer.isEnabled, 05.11.2026); Community ab Plus (05.11.2026);
                        // eigenes ChatGPT ueber den eigenen OpenAI-Schluessel in jedem Tarif (07.11.2026)
         XCTAssertEqual(UFFeatureMatrix.added(in: .plus).filter { !$0.isV2 },
-                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .aiChat])
-                       // KI-Chat mit gekauften Credits ab Plus (Entscheidung des Inhabers 15.11.2026)
-        // Erinnerungen an Abgaben und Klausuren ab Pro AI (Inhaber 18.11.2026 "Alles ab Pro AI"; 11.-17.11.2026 ab Plus)
-        XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [.aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders])
-        // unter Pro AI nennt nur der KI-Chat (Plus, mit gekauften Credits) die KI; die KI-Lernhilfe bleibt Pro AI
+                       [.pencilWriting, .communityRead, .shareSolutions, .splitView, .flashcards, .aiChat,
+                        .aiHelp, .aiFlashcards, .weeklyTests, .deviceSync, .dueReminders])
+        // Pro AI: keine eigene Funktion mehr, nur die Monats-Credits (UFPlanCard.creditsRow)
+        XCTAssertEqual(UFFeatureMatrix.added(in: .proAI), [])
+        XCTAssertNotNil(UFPlanCard.creditsRow(.proAI))
+        XCTAssertNil(UFPlanCard.creditsRow(.plus))
         XCTAssertEqual(UFFeature.aiChat.minimumPlan, .plus)
-        XCTAssertEqual(UFFeature.aiChat.title, "KI-Chat mit gekauften Credits")
-        XCTAssertTrue(UFFeature.aiChat.detail?.contains("Erklären, Karteikarten und Tests gibt es mit Pro AI") == true)
-        for f in UFFeature.allCases where f.minimumPlan < .proAI && f != .aiChat {
+        XCTAssertEqual(UFFeature.aiChat.title, "KI-Chat mit Credits")
+        // jede KI-Funktion sagt ehrlich, dass sie Credits braucht; Free nennt keine KI
+        for f: UFFeature in [.aiChat, .aiHelp, .aiFlashcards, .weeklyTests] {
+            XCTAssertTrue((f.detail ?? "").contains("Credits"), f.rawValue)
+        }
+        for f in UFFeature.allCases where f.minimumPlan == .free && f != .ownChatGPT {
             XCTAssertFalse(f.title.contains("KI"), f.rawValue)
             XCTAssertFalse((f.detail ?? "").contains("KI"), f.rawValue)
         }
@@ -208,7 +214,7 @@ final class EntitlementTests: XCTestCase {
         XCTAssertFalse(ent.loading)
         XCTAssertEqual(ent.access(.splitView), .locked(.plus))
         XCTAssertEqual(ent.access(.flashcards), .locked(.plus))
-        XCTAssertEqual(ent.access(.weeklyTests), .locked(.proAI), "Wochentest erstellen ohne PC: braucht die StudiNow-KI (Pro AI)")
+        XCTAssertEqual(ent.access(.weeklyTests), .locked(.plus), "Wochentest erstellen ohne PC: braucht die StudiNow-KI (ab Plus mit Credits)")
         XCTAssertTrue(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Enthalten ab StudiNow Plus."))
         XCTAssertFalse(UFLockedCard.message(.flashcards, access: ent.access(.flashcards)).contains("Bald"))
         XCTAssertTrue(ent.allows(.studyPlanning), "Lernplanung gehoert zu Free")
@@ -245,7 +251,7 @@ final class EntitlementTests: XCTestCase {
         // Menuepunkte gesperrter Funktionen im Editor: einheitlich "(ab Plus)" wie das Schloss (Auftrag des Inhabers
         // 12.11.2026, vorher "(StudiNow Plus)")
         XCTAssertEqual(DocumentView.lockedLabel("Lösung teilen …", .locked(.plus)), "Lösung teilen … (ab Plus)")
-        XCTAssertEqual(DocumentView.lockedLabel("KI-Hilfe", .locked(.proAI)), "KI-Hilfe (ab Pro AI)")
+        XCTAssertEqual(DocumentView.lockedLabel("KI-Hilfe", .locked(.plus)), "KI-Hilfe (ab Plus)")
         XCTAssertEqual(DocumentView.lockedLabel("Lösungen anderer ansehen", .comingSoon), "Lösungen anderer ansehen (bald)")
         XCTAssertEqual(DocumentView.lockedLabel("Lösung teilen …", .allowed), "Lösung teilen …")
     }
@@ -253,16 +259,18 @@ final class EntitlementTests: XCTestCase {
     // MARK: Angebotstexte (Richtlinie 3.1.2)
 
     func testOfferTexts() {
-        let year = (1, Product.SubscriptionPeriod.Unit.year)
-        // kein "1 Woche gratis, danach …" mehr (Entscheidung 04.11.2026): nur Preis, Zeitraum, Kuendigung; nur
-        // Jahresabos (09.11.2026)
-        XCTAssertEqual(UFOfferText.summary(price: "19,99 €", period: year),
-                       "19,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar")
-        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "19,99 €", period: year), "StudiNow Plus für 19,99 €/Jahr")
+        let year = (1, Product.SubscriptionPeriod.Unit.year), month = (1, Product.SubscriptionPeriod.Unit.month)
+        // kein "1 Woche gratis, danach …" mehr (Entscheidung 04.11.2026): nur Preis, Zeitraum, Kuendigung; seit 26.11.2026
+        // Plus im Monat und Pro AI im Jahr
+        XCTAssertEqual(UFOfferText.summary(price: "39,99 €", period: year),
+                       "39,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar")
+        XCTAssertEqual(UFOfferText.summary(price: "1,99 €", period: month),
+                       "1,99 €/Monat, verlängert sich monatlich, jederzeit zum Laufzeitende kündbar")
+        XCTAssertEqual(UFOfferText.button(plan: .plus, price: "1,99 €", period: month), "StudiNow Plus für 1,99 €/Monat")
         XCTAssertEqual(UFOfferText.button(plan: .proAI, price: "39,99 €", period: year), "StudiNow Pro AI für 39,99 €/Jahr")
-        XCTAssertFalse(UFOfferText.summary(price: "19,99 €", period: year).contains("gratis"))
+        XCTAssertFalse(UFOfferText.summary(price: "1,99 €", period: month).contains("gratis"))
         XCTAssertEqual(UFTrialTexts.offer, "7 Tage Probe mit allem, danach Free – ohne Zahlungsdaten")
-        XCTAssertEqual(UFTrialTexts.offerProAI, "7 Tage Probe: alles wie StudiNow Pro AI, mit 25 Credits für die StudiNow-KI, danach Free – ohne Zahlungsdaten")
+        XCTAssertEqual(UFTrialTexts.offerProAI, "7 Tage Probe: alles wie StudiNow Plus, mit 25 Credits für die StudiNow-KI, danach Free – ohne Zahlungsdaten")
         // Wechsel in der Abo-Gruppe: hoeher sofort, kleiner ab der naechsten Verlaengerung (regelt Apple)
         XCTAssertEqual(UFOfferText.switchButton(to: .proAI), "Zu StudiNow Pro AI wechseln")
         XCTAssertEqual(UFOfferText.switchNote(to: .proAI, from: .plus), "Gilt sofort. Apple verrechnet den bisherigen Tarif anteilig.")

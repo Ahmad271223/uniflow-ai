@@ -186,7 +186,7 @@ final class CreditsDisplayAppTests: XCTestCase {
         let c = StudoraCredits.parse(balance())
         // ohne Stand wie bisher
         XCTAssertEqual(AICost.status(chatgpt: true, model: "gpt-x", plan: .plus, requestsThisMonth: 1), "1 Anfrage diesen Monat · über dein ChatGPT · gpt-x")
-        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2), "2 Anfragen diesen Monat · StudiNow-KI (Pro AI)")
+        XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2), "2 Anfragen diesen Monat · StudiNow-KI mit Credits")
         // mit Stand: der echte Rest statt der Schaetzung
         XCTAssertEqual(AICost.status(chatgpt: false, model: nil, plan: .proAI, requestsThisMonth: 2, credits: c),
                        "2 Anfragen diesen Monat · Credits diesen Monat: 37 von 100 (neu am 1. Dezember) · Gekauft: 0")
@@ -228,11 +228,13 @@ final class CreditsDisplayAppTests: XCTestCase {
         let t = StudoraCreditsRow.explanation
         XCTAssertFalse(t.contains("Cent"), "kein Centbetrag fuer Nutzer (Entscheidung 11.11.2026)")
         XCTAssertFalse(t.contains("1 Credit ist 1 Cent"))
-        XCTAssertTrue(t.contains("80"), "Pro AI 80 Credits im Monat (24.11.2026)")
+        XCTAssertTrue(t.contains("120"), "Pro AI 120 Credits im Monat (26.11.2026)")
+        XCTAssertFalse(t.contains("80 Credits"))
         XCTAssertTrue(t.contains("25"))
         XCTAssertTrue(t.contains("Tarif wechseln"))
         XCTAssertTrue(t.contains("Gekaufte Credits verfallen nicht"), "zwei Toepfe (15.11.2026)")
-        XCTAssertTrue(t.contains("mit Plus reichen sie für Fragen an die KI"), "Plus: nur der KI-Chat")
+        XCTAssertTrue(t.contains("kaufen kannst du sie mit Plus und Pro AI"), "kaufen: Plus und Pro AI (26.11.2026)")
+        XCTAssertTrue(t.contains("nur mit Credits"))
         XCTAssertLessThanOrEqual(t.filter { $0 == "." }.count, 3, "kurz: hoechstens drei Saetze")
     }
 }

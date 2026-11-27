@@ -148,7 +148,7 @@ final class OpenAIKeyLinkAppTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.access(.autoPlan, plan: .free, ownChatGPT: true), .allowed)
         XCTAssertEqual(UFFeatureMatrix.access(.autoPlan, plan: .free, ownChatGPT: false), .locked(.plus))
         XCTAssertTrue(ChatGPTLink.planHint.contains("Eigenes ChatGPT"), "die KI-Stellen nennen den Weg zum Schluessel")
-        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 5), "Kommt mit StudiNow Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)")
+        XCTAssertEqual(AICost.line(chatgpt: false, plan: .plus, credits: 5), "Kommt mit StudiNow Plus und Credits, Pro AI oder deinem eigenen ChatGPT (Einstellungen → Erweitert)")
         XCTAssertEqual(AIPlanSuggestDialog.sourceLine(studinowAI: false, charged: nil), "Vorschlag über dein eigenes ChatGPT · 1 Anfrage")
         XCTAssertEqual(AIPlanSuggestDialog.sourceLine(studinowAI: true, charged: 7), "Vorschlag der StudiNow-KI · 7 Credits")
     }
@@ -181,10 +181,11 @@ final class OpenAIKeyLinkAppTests: XCTestCase {
         addTeardownBlock { @MainActor in Entitlements.shared.setPlanForTesting(before) }
         let off = try hostWithEnvironment(GeneratePlanDialog(api: nil, start: "2026-11-09") {})
         XCTAssertTrue(off.wait { off.labels().contains { $0 == "Erstellen" } }, off.labels().joined(separator: " | "))
-        // ohne KI: "KI-Vorschlag" nur mit Schloss "ab Pro AI" (Auftrag des Inhabers 12.11.2026), nicht der echte Knopf
+        // ohne KI: kein echter Knopf "KI-Vorschlag"; seit 26.11.2026 hat Plus die KI (mit Credits), darum auch kein
+        // Schloss "ab Pro AI" mehr (vorher Auftrag des Inhabers 12.11.2026: Schloss); es fehlt nur die Verbindung
         let offIDs = EditorToolbarTests.identifiers(in: off.view)
         XCTAssertFalse(offIDs.contains("plan.aiSuggest"), offIDs.sorted().joined(separator: ", "))
-        XCTAssertTrue(offIDs.contains("plan.aiSuggest.locked"), "ohne KI mit Schloss")
+        XCTAssertFalse(offIDs.contains("plan.aiSuggest.locked"), "Plus: kein Tarif-Schloss")
         XCTAssertTrue(off.labels().contains { $0.contains("KI-Vorschlag: mit deinem eigenen ChatGPT") }, "ohne KI der Weg dahin")
         let on = try hostWithEnvironment(GeneratePlanDialog(api: nil, start: "2026-11-09") {}.environment(\.ufAIEnabled, true))
         XCTAssertTrue(on.wait { on.labels().contains { $0 == "KI-Vorschlag" } }, on.labels().joined(separator: " | "))

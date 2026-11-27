@@ -1,11 +1,13 @@
 import StoreKit
 import SwiftUI
 
-// Probe und Tarife (neuer Einstieg, vorletzter Schritt): oben auf der Buehne die laufende 7-Tage-Probe ("alles wie Pro AI,
+// Probe und Tarife (neuer Einstieg, vorletzter Schritt): oben auf der Buehne die laufende 7-Tage-Probe ("alles wie Plus,
 // ohne Zahlungsdaten", `UFLocalTrial` startet sie mit der Anmeldung von selbst) und was sie freischaltet
 // (`UFPlanCard.included`, nur was auf dem iPad wirklich geht). Darunter "Und nach der Probe?": Free, Plus, Pro AI als
-// Kacheln, Preise nur aus StoreKit (`Product.displayPrice`, Jahresabo), Pro AI nur mit Produkt aus dem Store. Hauptknopf:
-// mit Free/der Probe weiter oder das gewaehlte Abo kaufen. Darunter die Pflichtangaben (Richtlinie 3.1.2): Laufzeit,
+// Kacheln, Preise nur aus StoreKit (`Product.displayPrice`, Hauptprodukt: Plus monatlich, Pro AI jaehrlich; die 5 Jahre
+// Plus stehen unter "Alle Details vergleichen"), Pro AI nur mit Produkt aus dem Store. Hauptknopf: mit Free/der Probe
+// weiter oder das gewaehlte Abo kaufen, vorher der Hinweis mit Haken (§ 327h BGB, `UFPurchaseNotice`; ohne Haken geht
+// der Kauf nicht). Darunter die Pflichtangaben (Richtlinie 3.1.2): Laufzeit,
 // Verlaengerung, Kuendigung, Kaeufe wiederherstellen, Nutzungsbedingungen, Datenschutzerklaerung. "Alle Details
 // vergleichen" oeffnet die bisherige Tarifseite (`PlanPickerView`). Keine erfundenen Preise oder Versprechen.
 
@@ -14,7 +16,7 @@ enum IntroPlanText {
     static let badge = "Probe aktiv"
     static func days(_ n: Int) -> String { "noch \(n) \(n == 1 ? "Tag" : "Tage")" }
     static func headline(proAI: Bool) -> String {
-        proAI ? "7 Tage alles von \(UFPlan.proAI.name) – ohne Zahlungsdaten" : "7 Tage alles von StudiNow – ohne Zahlungsdaten"
+        proAI ? "7 Tage alles von \(UFLocalTrial.plan.name) – ohne Zahlungsdaten" : "7 Tage alles von StudiNow – ohne Zahlungsdaten"
     }
     static let sub = "Danach gilt \(UFPlan.free.name), wenn du nichts wählst. Alles, was du anlegst, bleibt erhalten."
     static let usedHeadline = "Wähle, wie du StudiNow nutzt"
@@ -34,6 +36,8 @@ struct IntroPlanView: View {
     @State private var details = false
     @State private var info: String?
     @Environment(\.openURL) private var openURL
+    /// Hinweis vor dem Kauf bestaetigt (einmal reicht, `UFPurchaseNotice`)
+    @State private var noticeConfirmed = UFPurchaseNotice.isConfirmed(in: UFPurchaseNotice.defaults)
 
     @MainActor
     init(entitlements: Entitlements? = nil, onDone: @escaping () -> Void) {
@@ -47,7 +51,11 @@ struct IntroPlanView: View {
         IntroPlanLayout(trialDays: ent.runningTrial?.daysLeft, proAIOffered: offered.contains(.proAI), plans: offered,
                         selected: $selected, price: price, loading: store.loadingProducts, busy: store.busy,
                         message: info ?? store.lastError, onPrimary: primary, onCompare: { details = true },
-                        onRestore: { Task { await store.restore() } }, onLegal: { openURL($0) })
+                        onRestore: { Task { await store.restore() } }, onLegal: { openURL($0) },
+                        notice: Binding(get: { noticeConfirmed }, set: { on in
+                            noticeConfirmed = on
+                            UFPurchaseNotice.confirm(in: UFPurchaseNotice.defaults, on)
+                        }))
             .task {
                 await store.loadProducts()
                 await store.refreshEntitlements()
@@ -70,6 +78,8 @@ struct IntroPlanView: View {
 
     private func primary() {
         guard selected != .free, let p = store.product(for: selected) else { onDone(); return }
+        // nie ohne bestaetigten Hinweis (§ 327h BGB)
+        guard UFPurchaseNotice.allowsPurchase(confirmed: noticeConfirmed) else { info = UFPurchaseNotice.needsConfirm; return }
         Task {
             info = nil
             switch await store.purchase(p) {
@@ -104,6 +114,13 @@ struct IntroPlanLayout: View {
     let onCompare: () -> Void
     let onRestore: () -> Void
     let onLegal: (URL) -> Void
+    /// Hinweis vor dem Kauf (§ 327h BGB); nil nur in Bildern ohne Kauf
+    var notice: Binding<Bool>? = nil
+
+    /// Hauptknopf antippbar? Free bzw. die Probe immer, ein Kauf erst mit bestaetigtem Hinweis
+    static func primaryEnabled(selected: UFPlan, busy: Bool, confirmed: Bool?) -> Bool {
+        !busy && (selected == .free || confirmed != false)
+    }
 
     var body: some View {
         GeometryReader { geo in
@@ -119,8 +136,12 @@ struct IntroPlanLayout: View {
                         if let message {
                             Text(message).ufFont(13.12).foregroundStyle(UF.text2).fixedSize(horizontal: false, vertical: true)
                         }
+                        if selected != .free, let notice {
+                            PurchaseNoticeCard(confirmed: notice)
+                        }
                         VStack(spacing: 10) {
-                            IntroCTA(title: ctaTitle, icon: selected == .free ? "arrow-right" : nil, enabled: !busy, action: onPrimary)
+                            IntroCTA(title: ctaTitle, icon: selected == .free ? "arrow-right" : nil,
+                                     enabled: Self.primaryEnabled(selected: selected, busy: busy, confirmed: notice?.wrappedValue), action: onPrimary)
                                 .accessibilityIdentifier("intro.plan.primary")
                             if selected != .free, let p = price(selected) {
                                 Text(p.summary).ufFont(12.8).foregroundStyle(UF.muted).multilineTextAlignment(.center)

@@ -44,7 +44,7 @@ public enum MailRewrite {
     public static func message(code: String?, fallback: String) -> String {
         switch code {
         case "quota_exhausted": return "Du hast diesen Monat alle 50 KI-Mails genutzt. Am 1. gibt es neue."
-        case "plan_required", "payment_required": return "E-Mails mit KI verbessern gibt es mit StudiNow Pro AI."
+        case "plan_required", "payment_required": return "E-Mails mit KI verbessern gibt es mit StudiNow Plus oder Pro AI und Credits."
         default: return fallback
         }
     }

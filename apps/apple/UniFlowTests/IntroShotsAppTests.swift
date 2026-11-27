@@ -5,7 +5,7 @@ import XCTest
 
 /// Bilder des neuen Einstiegs (Inhaber 13.11.2026) fuer Entwurf und Abnahme: mit UF_SCREENSHOT_DIR
 /// (xcodebuild: TEST_RUNNER_UF_SCREENSHOT_DIR) je Seite hell und dunkel, grosses iPad quer (13") und kleines hoch (11").
-/// Nur erfundene Inhalte, keine Anfrage ans Netz. Preise wie im App Store (Plus 19,99 €, Pro AI 39,99 € im Jahr).
+/// Nur erfundene Inhalte, keine Anfrage ans Netz. Preise wie im App Store (Plus 1,99 € im Monat, Pro AI 39,99 € im Jahr).
 @MainActor
 final class IntroShotsAppTests: XCTestCase {
 
@@ -29,8 +29,8 @@ final class IntroShotsAppTests: XCTestCase {
     static func price(_ p: UFPlan) -> IntroPlanPrice? {
         switch p {
         case .free: return nil
-        case .plus: return IntroPlanPrice(display: "19,99 €", per: "/Jahr", summary: "19,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar",
-                                          button: "StudiNow Plus für 19,99 €/Jahr")
+        case .plus: return IntroPlanPrice(display: "1,99 €", per: "/Monat", summary: "1,99 €/Monat, verlängert sich monatlich, jederzeit zum Laufzeitende kündbar",
+                                          button: "StudiNow Plus für 1,99 €/Monat")
         case .proAI: return IntroPlanPrice(display: "39,99 €", per: "/Jahr", summary: "39,99 €/Jahr, verlängert sich jährlich, jederzeit zum Laufzeitende kündbar",
                                            button: "StudiNow Pro AI für 39,99 €/Jahr")
         }

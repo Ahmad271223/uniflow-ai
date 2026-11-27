@@ -33,8 +33,9 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         var plan: UFPlan {
             switch self {
             case .free, .trialOver: return .free
-            case .plus: return .plus
-            case .proAI, .trialRunning: return .proAI
+            // seit 26.11.2026 ist die Probe Plus (alles), Pro AI hat dieselben Funktionen plus Monats-Credits
+            case .plus, .trialRunning: return .plus
+            case .proAI: return .proAI
             }
         }
     }
@@ -377,14 +378,14 @@ final class AbnahmeTarifeAppTests: XCTestCase {
             .studipSync: .free, .readDocuments: .free, .modulesTimetable: .free, .studyCalendar: .free, .studyPlanning: .free,
             .timer: .free, .viewNotes: .free, .uniGrades: .free, .ownChatGPT: .free,
             .pencilWriting: .plus, .communityRead: .plus, .shareSolutions: .plus, .splitView: .plus, .flashcards: .plus, .autoPlan: .plus, .aiChat: .plus,
-            .aiHelp: .proAI, .aiFlashcards: .proAI, .weeklyTests: .proAI, .deviceSync: .proAI,
-            .dueReminders: .proAI,                        // Erinnerungen ab Pro AI (Inhaber 18.11.2026 "Alles ab Pro AI")
+            // seit 26.11.2026 (neues Tarifmodell): alles ab Plus, die KI nur mit Credits; vorher ab Pro AI
+            .aiHelp: .plus, .aiFlashcards: .plus, .weeklyTests: .plus, .deviceSync: .plus, .dueReminders: .plus,
         ]
         var table = ["Funktion | Free | Plus | Pro AI | Probe läuft | Probe vorbei"]
         let running = UFPlanPrecedence.effective(service: nil, purchased: .free, localTrial: UFLocalTrial.state(startedAt: Date(), now: Date()))
         let over = UFPlanPrecedence.effective(service: nil, purchased: .free,
                                               localTrial: UFLocalTrial.state(startedAt: Date().addingTimeInterval(-8 * 86_400), now: Date()))
-        XCTAssertEqual(running, .proAI, "Probe = Pro-AI-Umfang")
+        XCTAssertEqual(running, .plus, "Probe = Plus-Umfang (26.11.2026)")
         XCTAssertEqual(over, .free, "nach der Probe Free")
         for f in UFFeature.allCases where !f.isV2 {
             guard let min = expected[f] else { XCTFail("\(f) ohne Soll"); continue }
@@ -407,9 +408,9 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         XCTAssertEqual(UFFeatureMatrix.notes(plan: .plus), UFNoteAccess(canView: true, canExport: true, canEdit: true))
         XCTAssertEqual(UFFeatureMatrix.flashcards(plan: .free), UFFlashcardAccess(canView: true, canEdit: false))
         XCTAssertEqual(UFFeatureMatrix.flashcards(plan: .plus), UFFlashcardAccess(canView: true, canEdit: true))
-        // Stapel von StudiNow: Free 0, Plus 4, Pro AI unbegrenzt
+        // Stapel von StudiNow: Free 0, Plus und Pro AI unbegrenzt (26.11.2026; vorher Plus 4)
         XCTAssertEqual(UFAdoptQuota.limit(.free), 0)
-        XCTAssertEqual(UFAdoptQuota.limit(.plus), 4)
+        XCTAssertNil(UFAdoptQuota.limit(.plus))
         XCTAssertNil(UFAdoptQuota.limit(.proAI))
         findings.append(contentsOf: table)
     }
@@ -502,11 +503,11 @@ final class AbnahmeTarifeAppTests: XCTestCase {
             }
         }
 
-        // Tests & Wiederholung (Wochentests ab Pro AI)
+        // Tests & Wiederholung (Wochentests ab Plus mit Credits, 26.11.2026)
         env.router.go(.exams)
         // Demo: die Seite ist ohne Tarif-Unterschied ein Hinweis mit dem Weg zu den Karteikarten (UFNoServerContent.examsText);
         // die Sperre der Wochentests selbst pruefen WeeklyAppTests/PlanMatrixAppTests
-        station(env, "\(p)-06-tests", markers: ["Tests & Wiederholung", "Zu den Karteikarten", UFPlan.proAI.name])
+        station(env, "\(p)-06-tests", markers: ["Tests & Wiederholung", "Zu den Karteikarten", UFPlan.plus.name])
 
         // KI-Start
         env.router.go(.aiStart)
@@ -547,7 +548,7 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         let cardsLock = allElements(env).first { EditorToolbarTests.identifier($0) == "nav.cards" }?.accessibilityValue ?? ""
         XCTAssertEqual(cardsLock, plan >= .plus ? "" : UFLock.accessibilityValue(.plus), "\(p): Karteikarten in der Seitenleiste")
         let examsLock = allElements(env).first { EditorToolbarTests.identifier($0) == "nav.exams" }?.accessibilityValue
-        if plan < .proAI { XCTAssertEqual(examsLock, UFLock.accessibilityValue(.proAI), "\(p): Tests & Wiederholung mit Schloss") }
+        if plan < .plus { XCTAssertEqual(examsLock, UFLock.accessibilityValue(.plus), "\(p): Tests & Wiederholung mit Schloss (ab Plus)") }
         env.router.go(.timetable())
         station(env, "\(p)-10-stundenplan", markers: ["Stundenplan", "Grundlagen der Informatik"])
 
@@ -567,7 +568,7 @@ final class AbnahmeTarifeAppTests: XCTestCase {
 
     // MARK: - 2 Entscheidung nach der Probe
 
-    /// Tag 7 + 1 Minute: Bildschirm ueber der ganzen App mit Free/Plus/Pro AI (nur Jahresabos), nicht wegzuwischen;
+    /// Tag 7 + 1 Minute: Bildschirm ueber der ganzen App mit Free/Plus/Pro AI (Plus 1,99 € im Monat, Pro AI 39,99 € im Jahr), nicht wegzuwischen;
     /// "Bei Free bleiben" beendet ihn, beim naechsten Start (neue Wurzel) kommt er nicht wieder
     func test20EntscheidungNachDerProbe() throws {
         try storeKit()
@@ -577,23 +578,24 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         let t0 = Date().addingTimeInterval(-(7 * 86_400 + 60))
         Entitlements.shared.setPlanForTesting(.free)
         Entitlements.shared.beginLocalTrial(userID: bed.user, records: records, now: t0)
-        XCTAssertEqual(Entitlements.shared.plan, .proAI, "Tag 0: Probe")
+        XCTAssertEqual(Entitlements.shared.plan, .plus, "Tag 0: Probe (wie Plus)")
         Entitlements.shared.refreshLocalTrial()                                 // jetzt = Tag 7 + 1 Minute
         XCTAssertEqual(Entitlements.shared.plan, .free)
         let env = try host()
         XCTAssertTrue(env.wait(timeout: 15) { env.hosting.presentedViewController != nil && self.shows(env, UFTrialTexts.overTitle) },
                       "Entscheidungs-Bildschirm erscheint\n" + dump(env))
-        XCTAssertTrue(env.wait(timeout: 15) { self.shows(env, UFPlan.plus.name + " für 19,99") }, "Preise\n" + dump(env))
+        XCTAssertTrue(env.wait(timeout: 15) { self.shows(env, UFPlan.plus.name + " für 1,99") }, "Preise\n" + dump(env))
         station(env, "20-probe-vorbei-entscheidung", markers: [UFTrialTexts.overTitle, UFTrialTexts.overText, UFTrialTexts.stayFree,
                                                              UFPlan.free.name, UFPlan.plus.name, UFPlan.proAI.name,
-                                                             UFPlan.plus.name + " für 19,99", UFPlan.proAI.name + " für 39,99", "/Jahr"])
+                                                             UFPlan.plus.name + " für 1,99", UFPlan.proAI.name + " für 39,99", "/Jahr", "/Monat",
+                                                             UFPurchaseNotice.title])
         let presented = try XCTUnwrap(env.hosting.presentedViewController)
         XCTAssertTrue([.fullScreen, .overFullScreen].contains(presented.modalPresentationStyle), "ganzer Bildschirm")
         XCTAssertTrue(presented.isModalInPresentation || presented.modalPresentationStyle != .pageSheet, "nicht wegzuwischen")
         XCTAssertFalse(shows(env, "Schließen"), "kein Schließen ohne Entscheidung")
-        // nur Jahresabos (09.11.2026): kein Umschalter Monatlich/Jaehrlich
+        // keine Umschaltung der Zahlweise: Plus monatlich und 5 Jahre sind eigene Knoepfe (26.11.2026)
         XCTAssertNil(segmented(env), "kein Umschalter der Zahlweise")
-        XCTAssertFalse(shows(env, "Monatlich"), "kein Monatsabo:\n" + dump(env))
+        XCTAssertFalse(shows(env, "Monatlich · Jährlich"), "kein Umschalter:\n" + dump(env))
         XCTAssertTrue(tap(UFTrialTexts.stayFree, in: env), "Bei Free bleiben:\n" + dump(env))
         XCTAssertTrue(env.wait(timeout: 10) { env.hosting.presentedViewController == nil }, "Bildschirm nach der Wahl weg")
         XCTAssertTrue(records.load(UFLocalTrial.scope(userID: bed.user)).choiceMade, "Wahl gemerkt")
@@ -642,13 +644,13 @@ final class AbnahmeTarifeAppTests: XCTestCase {
         // Tag 0
         let e = Entitlements(observe: false)
         e.beginLocalTrial(userID: ada, records: store1, now: t0)
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus, "Probe wie Plus (26.11.2026)")
         XCTAssertEqual(e.localTrial?.daysLeft, 7)
         XCTAssertFalse(needs(e))
         XCTAssertNotNil(store1.deviceTrialStart(), "Gerätemarke gesetzt")
         // Tag 6
         e.refreshLocalTrial(now: day(6))
-        XCTAssertEqual(e.plan, .proAI)
+        XCTAssertEqual(e.plan, .plus)
         XCTAssertEqual(e.localTrial?.daysLeft, 1)
         XCTAssertFalse(needs(e))
         // Tag 7 + 1 Minute

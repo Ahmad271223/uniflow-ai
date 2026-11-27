@@ -18,7 +18,7 @@ struct StudoraAccountCard: View {
     @State private var exportURL: URL?
 
     /// Wofuer das StudiNow-Konto da ist (12.11.2026)
-    static let purpose = "Mit derselben Apple-ID bist du auch beim StudiNow-Dienst angemeldet. Darüber laufen die StudiNow-KI mit deinen Credits (Pro AI und Probe), dein Tarif auf allen Geräten und der Abgleich von Modulen, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten; Notizen ab Pro AI. Hochschuldateien lädt jedes Gerät selbst, Hochschul-Passwörter gehen nie an StudiNow."
+    static let purpose = "Mit derselben Apple-ID bist du auch beim StudiNow-Dienst angemeldet. Darüber laufen die StudiNow-KI mit deinen Credits (Plus, Pro AI und Probe), dein Tarif auf allen Geräten und der Abgleich von Modulen, Stundenplan, Lernplan, Karteikarten und Einstellungen zwischen deinen Geräten; Notizen ab Plus. Hochschuldateien lädt jedes Gerät selbst, Hochschul-Passwörter gehen nie an StudiNow."
     /// Rueckfall: die Anmeldung beim Dienst hat (noch) nicht geklappt
     static let fallback = "Die Anmeldung beim StudiNow-Dienst fehlt auf diesem Gerät noch (z. B. weil du beim Start offline warst). Tippe auf „Mit Apple anmelden“ – mit derselben Apple-ID wie oben. Noch kein Konto? „Mit Apple anmelden“ legt es an (7 Tage Probe mit 25 Credits für die StudiNow-KI). Hast du dein Konto in der Windows-App mit E-Mail angelegt, melde dich mit E-Mail und Passwort an."
 
@@ -59,13 +59,13 @@ struct StudoraAccountCard: View {
         .ufSheet(item: Binding(get: { exportURL.map(ExportItem.init) }, set: { exportURL = $0?.url })) { item in ActivityView(items: [item.url]) }
     }
 
-    /// Zeile zur StudiNow-KI: bereit mit Credits-Stand, bzw. was fehlt (Anmeldung); nil ohne Pro AI und ohne Probe
+    /// Zeile zur StudiNow-KI: bereit mit Credits-Stand, bzw. was fehlt (Anmeldung); nil ohne Plus, Pro AI und Probe
     static func aiLine(_ access: StudiNowAIAccess, credits: StudoraCredits?, trial: Bool) -> String? {
         switch access {
         case .ready:
             return "StudiNow-KI bereit" + (AICost.balanceLine(credits, trial: trial, labelled: false).map { " · \($0)" } ?? "")
         case .signInRequired:
-            return "Du hast StudiNow Pro AI: melde dich hier an, dann antwortet die StudiNow-KI."
+            return "Melde dich hier an, dann antwortet die StudiNow-KI mit deinen Credits."
         case .planRequired, .unavailable:
             return nil
         }
@@ -226,15 +226,15 @@ struct AIConsentRow: View {
     }
 }
 
-// MARK: - Hinweis auf der Uebersicht: Pro AI ohne Anmeldung
+// MARK: - Hinweis auf der Uebersicht: Plus oder Pro AI ohne Anmeldung
 
-/// Pro AI (oder Probe) ist auf dem iPad aktiv, aber das StudiNow-Konto ist nicht angemeldet: die StudiNow-KI laeuft
+/// Plus, Pro AI (oder Probe) ist auf dem iPad aktiv, aber das StudiNow-Konto ist nicht angemeldet: die StudiNow-KI laeuft
 /// ueber den Dienst, der Tarif und Credits kennen muss. Die Anmeldung beim ersten Start (Apple-ID) bleibt nur auf dem
 /// Geraet und reicht dafuer nicht. Rueckmeldung des Inhabers 10.11.2026 ("gib wenigstens eine Nachricht davor"):
 /// vorher stand der Hinweis nur in den Einstellungen und auf den KI-Seiten, "Tests & Wiederholung" fehlte ohne Erklaerung.
 enum ProAISignInHint {
     static let title = "Noch ein Schritt für die KI"
-    static let text = "Du hast StudiNow Pro AI. Damit die StudiNow-KI antwortet, melde dich einmal mit deinem StudiNow-Konto an. "
+    static let text = "Damit die StudiNow-KI mit deinen Credits antwortet, melde dich einmal mit deinem StudiNow-Konto an. "
         + "Danach erscheint „Tests & Wiederholung“ in der Leiste."
     static let otherLogin = "Mit E-Mail anmelden"
 
@@ -281,21 +281,22 @@ struct ProAISignInBanner: View {
     }
 }
 
-// MARK: - Direkt nach dem Kauf von Pro AI
+// MARK: - Direkt nach dem Kauf von Plus oder Pro AI
 
 extension ProAISignInHint {
-    static let purchasedTitle = "Pro AI ist aktiv"
+    static let purchasedTitle = "Dein Tarif ist aktiv"
     static let purchasedText = "Noch ein Tippen: Melde dich mit deiner Apple-ID beim StudiNow-Konto an, dann antwortet die StudiNow-KI "
         + "und „Tests & Wiederholung“ erscheint in der Leiste."
     static let later = "Später"
 
-    /// Nach einem Kauf gleich zur Anmeldung bitten? Nur fuer Pro AI, nur mit StudiNow-Dienst und nur ohne Anmeldung
+    /// Nach einem Kauf gleich zur Anmeldung bitten? Fuer Plus und Pro AI (seit 26.11.2026 braucht die KI beider Credits
+    /// beim Konto; vorher nur Pro AI), nur mit StudiNow-Dienst und nur ohne Anmeldung
     /// (Inhaber 10.11.2026: "ja" zur Anmeldung direkt nach dem Kauf). Seit 12.11.2026 nur noch als Rueckfall und nur mit
     /// offenem Datenbereich (`accountOpen`): beim ersten Start liegt die Tarifwahl VOR der Hochschulwahl, dort lief
     /// "Mit Apple anmelden" ins Leere und die Karte schloss nie. Dort meldet die Anmeldung vom Start nach der
     /// Hochschulwahl beim Dienst an (`StudoraAccountLink.adoptFirstLogin`), sonst zeigt die Uebersicht den Hinweis.
     static func asksAfterPurchase(plan: UFPlan, serviceAvailable: Bool, signedIn: Bool, accountOpen: Bool) -> Bool {
-        plan == .proAI && serviceAvailable && !signedIn && accountOpen
+        plan >= .plus && serviceAvailable && !signedIn && accountOpen
     }
 }
 

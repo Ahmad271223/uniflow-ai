@@ -1,6 +1,22 @@
 {
   "identifier": "5F1D2C3C",
-  "nonRenewingSubscriptions": [],
+  "nonRenewingSubscriptions": [
+    {
+      "displayPrice": "39.99",
+      "familyShareable": false,
+      "internalID": "6500000031",
+      "localizations": [
+        {
+          "description": "Alle Funktionen, 5 Jahre ab dem Kauf",
+          "displayName": "StudiNow Plus 5 Jahre",
+          "locale": "de"
+        }
+      ],
+      "productID": "de.uniflow.plus.fuenfjahre",
+      "referenceName": "StudiNow Plus 5 Jahre",
+      "type": "NonRenewingSubscription"
+    }
+  ],
   "products": [
     {
       "displayPrice": "1.99",
@@ -39,8 +55,8 @@
     },
     "_failTransactionsEnabled": false,
     "_locale": "de_DE",
-    "_storefront": "DEU",
-    "_storeKitErrors": []
+    "_storeKitErrors": [],
+    "_storefront": "DEU"
   },
   "subscriptionGroups": [
     {
@@ -51,20 +67,20 @@
         {
           "adHocOffers": [],
           "codeOffers": [],
-          "displayPrice": "19.99",
+          "displayPrice": "1.99",
           "familyShareable": false,
           "groupNumber": 2,
-          "internalID": "6500000011",
+          "internalID": "6500000012",
           "localizations": [
             {
-              "description": "Stift, Karteikarten, Lösungen teilen",
+              "description": "Alle Funktionen, KI mit Credits",
               "displayName": "StudiNow Plus",
               "locale": "de"
             }
           ],
-          "productID": "de.uniflow.plus.yearly",
-          "recurringSubscriptionPeriod": "P1Y",
-          "referenceName": "StudiNow Plus jährlich",
+          "productID": "de.uniflow.plus.monthly",
+          "recurringSubscriptionPeriod": "P1M",
+          "referenceName": "StudiNow Plus monatlich",
           "subscriptionGroupID": "21500001",
           "type": "RecurringSubscription"
         },
@@ -77,7 +93,7 @@
           "internalID": "6500000013",
           "localizations": [
             {
-              "description": "Alles aus Plus und die StudiNow-KI",
+              "description": "Alles aus Plus und 120 Credits im Monat",
               "displayName": "StudiNow Pro AI",
               "locale": "de"
             }

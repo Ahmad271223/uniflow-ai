@@ -271,7 +271,7 @@ struct CoverOptions: View {
 }
 
 extension ObjectEditing {
-    static let coverLockedHint = "Klappkarten zum Abfragen gibt es mit Pro AI."
+    static let coverLockedHint = "Klappkarten zum Abfragen gibt es mit Plus."
 
     /// Neue Klappkarte: gezogenes Rechteck (`rect`) oder, beim Antippen, die gewaehlte Groesse um den Punkt
     func newCover(id: String, on overlay: PageInkView, rect: CGRect? = nil, at p: CGPoint) -> JSONValue {

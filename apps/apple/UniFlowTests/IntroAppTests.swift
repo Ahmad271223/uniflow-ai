@@ -94,6 +94,6 @@ final class IntroAppTests: XCTestCase {
                 XCTAssertFalse(t.contains(word), "„\(word)“ in „\(t)“")
             }
         }
-        XCTAssertTrue(IntroTourPage.notes.text.contains("mit Pro AI"), "KI-Karteikarten nur mit Pro AI")
+        XCTAssertTrue(IntroTourPage.notes.text.contains("mit Plus und Credits"), "KI-Karteikarten ab Plus mit Credits (26.11.2026; vorher Pro AI)")
     }
 }

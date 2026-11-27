@@ -32,9 +32,11 @@ extension ChatGPTSession: AIProvider {
 
 /// KI-Anschluss des lokalen Backends mit drei Plaetzen in der Reihenfolge der Bezahlung: das eigene ChatGPT-Abo
 /// (`set`, Sign in with ChatGPT, sobald verbunden, eingeschaltet und freigegeben), der eigene OpenAI-Schluessel
-/// (`setKey`, OpenAIKeySession.swift, 07.11.2026) und die StudiNow-KI (`setService`, angemeldet mit Pro AI oder Probe,
-/// StudiNowAI.swift). `provider` nimmt das eigene ChatGPT zuerst, dann den Schluessel. Ohne alles antworten die
+/// (`setKey`, OpenAIKeySession.swift, 07.11.2026) und die StudiNow-KI (`setService`, angemeldet mit Plus, Pro AI oder
+/// Probe, StudiNowAI.swift). `provider` nimmt das eigene ChatGPT zuerst, dann den Schluessel. Ohne alles antworten die
 /// KI-Endpunkte wie bisher "gibt es in dieser Version nicht" (nichts wird vorgetaeuscht, nichts gesendet).
+/// Seit 26.11.2026 braucht nur die StudiNow-KI Credits (`StudiNowCreditGate`); der eigene Schluessel kostet StudiNow
+/// nichts und geht in jedem Tarif ohne Credits, er steht darum vor der StudiNow-KI.
 public final class LocalAI: @unchecked Sendable {
     private let lock = NSLock()
     private var own: AIProvider?
@@ -49,7 +51,7 @@ public final class LocalAI: @unchecked Sendable {
     /// KI fuer Arbeit im Hintergrund (Vorab einordnen, Erklaerungen vorab): nie eine, die Credits oder Geld kostet
     public var backgroundProvider: AIProvider? { lock.withLock { [own, key, service].compactMap { $0 }.first { !$0.isMetered } } }
 
-    /// StudiNow-KI des Kontos (nil ohne Anmeldung, ohne Pro AI/Probe)
+    /// StudiNow-KI des Kontos (nil ohne Anmeldung, ohne Plus/Pro AI/Probe)
     public var serviceProvider: AIProvider? { lock.withLock { service } }
 
     /// KI ueber den eigenen OpenAI-Schluessel (nil ohne Schluessel oder ausgeschaltet)
