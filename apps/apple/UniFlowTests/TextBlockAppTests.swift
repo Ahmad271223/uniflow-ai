@@ -521,6 +521,8 @@ final class TextBlockAppTests: XCTestCase {
     /// ausgewaehlt mit Rahmen und Anfassern, Werkzeug "Auswählen", Leiste "Text" - und folgt dem Finger. Daneben
     /// gedrueckt passiert nichts. Bestellt sind 3 Sekunden; der Test stellt die Zeit kuerzer.
     func testLangesDrueckenGreiftDenBlock() async throws {
+        // am Mac gibt es das Halten zum Greifen nicht (dort zieht die Maus, Rechtsklick fuer das Menue: `holdAccepts`)
+        try XCTSkipIf(PDFEditorController.isMac, "Halten zum Greifen gibt es am Mac nicht")
         XCTAssertEqual(ObjectEditing.holdSeconds, 3, "bestellt: 3 Sekunden")
         let s = try await open()
         let page = try await overlay(s, key: s.blank)
@@ -575,6 +577,8 @@ final class TextBlockAppTests: XCTestCase {
     /// Wann das lange Druecken greifen darf: mit Objektwerkzeug immer, beim Schreiben nur der Finger, wenn er nicht
     /// selbst schreibt; der Stift nie (er schreibt).
     func testLangesDrueckenRegeln() async throws {
+        // am Mac gibt es das Halten zum Greifen nicht (dort zieht die Maus, Rechtsklick fuer das Menue: `holdAccepts`)
+        try XCTSkipIf(PDFEditorController.isMac, "Halten zum Greifen gibt es am Mac nicht")
         let s = try await open()
         _ = try await overlay(s, key: s.blank)
         let o = s.editor.objects
@@ -648,6 +652,8 @@ final class TextBlockAppTests: XCTestCase {
     /// Verschieben drumherum verzögert stark und Notizzettel geht nicht mit". Ein gewaehlter Zettel folgt dem Finger in
     /// jedem Schritt zusammen mit seinem Rahmen und steht nach dem Loslassen an der neuen Stelle.
     func testNotizzettelFolgtDemFingerBeimVerschieben() async throws {
+        // am Mac gibt es das Halten zum Greifen nicht (dort zieht die Maus, Rechtsklick fuer das Menue: `holdAccepts`)
+        try XCTSkipIf(PDFEditorController.isMac, "Halten zum Greifen gibt es am Mac nicht")
         let s = try await open()
         let page = try await overlay(s, key: s.blank)
         let o = StickyNote.note(id: "z", x: 250, y: 150, choice: StickyNote.Choice(color: "#ffd3e0", look: "tape", paper: "lined", size: "m"), page: (595, 842))
@@ -1452,8 +1458,11 @@ final class TextBlockAppTests: XCTestCase {
         var hints: [String] = []
         plus.editor.onHint = { hints.append($0) }
         let text = PageObjectEdit.text(id: "t", x: 40, y: 40, text: "einfach")
+        var doc = Sheet()
+        doc.isDocument = true
+        let sheet = SheetObject.object(id: "s", x: 60, y: 100, sheet: doc, page: (595, 842))
         let card = FlipCover.cover(id: "k", x: 70, y: 300, width: 240, height: 50)
-        XCTAssertEqual(plus.editor.objects.copyable([text, card]).compactMap { $0["id"]?.string }, ["t"])
+        XCTAssertEqual(plus.editor.objects.copyable([text, sheet, card]).compactMap { $0["id"]?.string }, ["t"])
         XCTAssertEqual(hints.last, ObjectEditing.copyLockedHint)
 
         // der Stift hat eben geschrieben: Die ruhende Hand greift keinen Block
@@ -1470,8 +1479,9 @@ final class TextBlockAppTests: XCTestCase {
         XCTAssertEqual(left.first?["id"], "k", "die Klappkarte bleibt, der Text ist ausgeschnitten")
 
         let pro = try await open(proAI: true)
-        let copies = pro.editor.objects.copyable([text, card])
-        XCTAssertEqual(copies.count, 2)
+        let copies = pro.editor.objects.copyable([text, sheet, card])
+        XCTAssertEqual(copies.count, 3)
+        XCTAssertEqual(SheetObject.table(copies[1])?.isDocument, false, "eine Kopie ist nie die Tabelle als eigene Datei")
     }
 
 }

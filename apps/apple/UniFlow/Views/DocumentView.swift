@@ -18,7 +18,7 @@ final class EditorBridge: ObservableObject {
     @Published var objectMode = false
     @Published var objectTool: ObjectEditing.Tool = .select
     @Published var objectSelection = 0
-    /// Zaehlt bei jeder neuen Auswahl hoch - auch wenn die Anzahl gleich bleibt (Form gewaehlt, dann eine Klappkarte):
+    /// Zaehlt bei jeder neuen Auswahl hoch - auch wenn die Anzahl gleich bleibt (Form gewaehlt, dann eine Tabelle):
     /// Die Objektleiste zeigt sonst weiter die Knoepfe der vorigen Auswahl
     @Published var objectSelectionStamp = 0
     /// Formatierung des gewaehlten bzw. gerade getippten Texts (Leiste "Text", `TextFormatBar`); nil = kein Text
@@ -3455,16 +3455,26 @@ struct ObjectToolbar: View {
 
     private var selectionActions: some View {
         HStack(spacing: 6) {
-            Menu {
-                ForEach(colors, id: \.0) { c in
-                    Button(c.1) { bridge.selectionObjects?.recolorSelection(c.0) }
+            // Tabelle gewaehlt: Farbe und Schriftgroesse stellt man in der grossen Ansicht je Zelle ein
+            if bridge.selectionObjects?.selectedSheet == nil {
+                Menu {
+                    ForEach(colors, id: \.0) { c in
+                        Button(c.1) { bridge.selectionObjects?.recolorSelection(c.0) }
+                    }
+                } label: { Image(systemName: "paintpalette").frame(width: 30, height: 30) }
+                    .accessibilityLabel("Farbe")
+                Button { bridge.selectionObjects?.resizeText(by: -2) } label: { Image(systemName: "textformat.size.smaller").frame(width: 30, height: 30) }
+                    .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
+                Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
+                    .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+            }
+            if let table = bridge.selectionObjects?.selectedSheet {
+                Button { bridge.selectionObjects?.openSheet(key: table.key, id: table.id) } label: {
+                    Label("Bearbeiten", systemImage: "tablecells").labelStyle(.titleAndIcon).ufFont(13, 600).padding(.horizontal, 6).frame(height: 30)
                 }
-            } label: { Image(systemName: "paintpalette").frame(width: 30, height: 30) }
-                .accessibilityLabel("Farbe")
-            Button { bridge.selectionObjects?.resizeText(by: -2) } label: { Image(systemName: "textformat.size.smaller").frame(width: 30, height: 30) }
-                .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift kleiner")
-            Button { bridge.selectionObjects?.resizeText(by: 2) } label: { Image(systemName: "textformat.size.larger").frame(width: 30, height: 30) }
-                .disabled(bridge.objectSelection == 0).accessibilityLabel("Schrift größer")
+                .accessibilityLabel("Tabelle bearbeiten")
+                .accessibilityIdentifier("objects.sheet")
+            }
             if let cover = bridge.selectionObjects?.selectedCovers {
                 // Klappkarten gewaehlt: Farbe, Muster, Groesse
                 Menu {
@@ -3682,6 +3692,7 @@ struct StatusLabel: View {
 }
 
 struct PDFEditorView: UIViewControllerRepresentable {
+    @Environment(\.ufStudoraAccount) private var studoraAccount
     let store: DocumentStore
     let bridge: EditorBridge
     let pencilOnly: Bool
@@ -3721,6 +3732,18 @@ struct PDFEditorView: UIViewControllerRepresentable {
         vc.correction = correction
         vc.shownCorrection = shownCorrection
         vc.onZoomChange = { [weak bridge] z in bridge?.zoomPercent = Int((z * 100).rounded()) }
+        // KI-Hilfe in der Tabelle: Credits-Stand uebernehmen wie die KI-Hilfe daneben; Fehler mit dem Weg zur Loesung
+        let account = studoraAccount
+        vc.onAIResponse = { r in account?.noteAIResponse(r) }
+        vc.aiErrorText = { error in
+            let text = error.localizedDescription
+            switch StudoraAccountLink.errorAction(error, account: account) {
+            case .credits?: return text + " Neue Credits gibt es in den Einstellungen unter „Konto“."
+            case .plans?: return text + " Die Tarife findest du in den Einstellungen unter „Konto“."
+            case .signIn?: return text + " Bitte melde dich in den Einstellungen mit deinem StudiNow-Konto an."
+            case nil: return text
+            }
+        }
         vc.onPageChange = { [weak bridge] i, key in
             bridge?.pageIndex = i
             bridge?.pageKey = key

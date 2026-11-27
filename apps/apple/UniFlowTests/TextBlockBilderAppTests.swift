@@ -256,6 +256,23 @@ final class TextBlockBilderAppTests: XCTestCase {
         return out
     }
 
+    /// Knopf mit dieser Beschriftung ausloesen (SwiftUI-Knoepfe in rollenden Leisten nehmen den Test-Finger nicht an)
+    private func press(_ label: String, in root: UIView) -> Bool {
+        var done = false
+        func visit(_ e: Any, _ depth: Int) {
+            guard depth < 60, !done else { return }
+            if let o = e as? NSObject {
+                if o.accessibilityLabel == label, o.accessibilityTraits.contains(.button) { done = o.accessibilityActivate(); return }
+                for x in o.accessibilityElements ?? [] { visit(x, depth + 1) }
+                let n = o.accessibilityElementCount()
+                if n != NSNotFound, n > 0 { for i in 0..<min(n, 500) { if let x = o.accessibilityElement(at: i) { visit(x, depth + 1) } } }
+            }
+            if let v = e as? UIView { for s in v.subviews { visit(s, depth + 1) } }
+        }
+        visit(root, 0)
+        return done
+    }
+
     private func editor(in env: HostedEnvironment) -> PDFEditorController? {
         guard let pdf = find(PDFView.self, in: env.window) else { return nil }
         var r: UIResponder? = pdf
@@ -591,6 +608,163 @@ final class TextBlockBilderAppTests: XCTestCase {
         finger.lift()
         env.pump(0.6)
         XCTAssertTrue(q.coversView.revealed.isEmpty, "und wieder zu")
+    }
+
+    // MARK: Tabelle ("Excel", 26.11.2026)
+
+    /// Notenuebersicht mit Formeln, Farben, Rahmen und einem Balkendiagramm
+    private func gradeSheet() -> Sheet {
+        var t = Sheet(rows: 7, cols: 5)
+        let cells: [String: String] = [
+            "A1": "Fach", "B1": "Note", "C1": "LP", "D1": "Note × LP", "E1": "Bestanden",
+            "A2": "Mathe 2", "B2": "1,7", "C2": "10", "A3": "Physik", "B3": "2,3", "C3": "5",
+            "A4": "Informatik", "B4": "1,3", "C4": "10", "A5": "Chemie", "B5": "3,7", "C5": "5",
+            "A6": "Statistik", "B6": "5,0", "C6": "5",
+            "A7": "Schnitt / Summe", "B7": "=RUNDEN(SUMME(D2:D6)/SUMME(C2:C6);2)", "C7": "=SUMME(C2:C6)", "D7": "=SUMME(D2:D6)",
+            "E7": "=ZÄHLENWENN(E2:E6;\"ja\")&\" von 5\"",
+        ]
+        for (k, v) in cells { t.set(v, at: SheetRef(k)!) }
+        for r in 2...6 {
+            t.set("=B\(r)*C\(r)", at: SheetRef("D\(r)")!)
+            t.set("=WENN(B\(r)<=4;\"ja\";\"nein\")", at: SheetRef("E\(r)")!)
+        }
+        t.setWidth(120, col: 0)
+        t.restyle(SheetRange("A1:E1")!) { $0.fill = "#cfe8ff" }
+        t.restyle(SheetRange("B2:B7")!) { $0.format = "n"; $0.decimals = 1 }
+        t.restyle(SheetRange("B7")!) { $0.decimals = 2 }
+        t.restyle(SheetRange("A7:E7")!) { $0.bold = true; $0.fill = "#fff7a8" }
+        t.restyle(SheetRange("E6")!) { $0.color = "#d7263d"; $0.bold = true }
+        t.restyle(SheetRange("E2:E7")!) { $0.align = "c" }
+        t.setBorder(SheetRange("A1:E7")!, "outer")
+        t.setBorder(SheetRange("A6:E6")!, "bottom")
+        t.charts = [SheetChart(id: "d1", kind: "bar", range: SheetRange("A1:B6")!, title: "Noten in diesem Semester")]
+        return t
+    }
+
+    private func sheetScene() async throws -> (api: APIClient, file: LibFile, page: String) {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("tabelle-bilder-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+        let host = LocalBackendHost(directory: root.appendingPathComponent("db", isDirectory: true), clock: .fixed(berlin: "2026-11-26T10:00:00")!,
+                                    files: LocalFiles(container: root, dataDirectory: "Library/Application Support/UniFlow", tools: AppDocumentTools()))
+        let api = APIClient(base: APIClient.localBase, transport: LocalTransport(host: host))
+        let fields = NotebookDialog.fields(kind: "notebook", title: "Noten – Übersicht", template: "blank",
+                                           format: PageFormats.defaultNotebook, orientation: .portrait)
+        let created = try await api.form("/api/notebooks", fields: fields)
+        let id = try XCTUnwrap(created.s("id"))
+        let file = try await api.json("/api/files/\(id)", as: LibFile.self)
+        let store = DocumentStore(file: file, api: api)
+        await store.load()
+        let page = try XCTUnwrap(store.pageKey(forPageIndex: 0))
+        let title = TextBlock.saving([run("Meine Noten im 3. Semester") { $0.fontSize = 24; $0.bold = true; $0.fontFamily = "Georgia" }],
+                                     in: TextBlock.block(id: "titel", x: 48, y: 50, template: "blank", pageWidth: 560))
+        var table = SheetObject.object(id: "tabelle", x: 48, y: 110, sheet: gradeSheet(), page: (595, 842))
+        table["width"] = 500
+        await store.editObjects(pageKey: page) { $0 + [title, table] }
+        await store.flush()
+        try await Task.sleep(nanoseconds: 300_000_000)
+        await store.close()
+        return (api, file, page)
+    }
+
+    /// iPad: Tabelle mit Diagramm auf der Seite (gewaehlt: Knopf "Bearbeiten"), dann die grosse Ansicht
+    func test8IPadTabelle() throws {
+        let s = try run { try await self.sheetScene() }
+        let env = try hostWithEnvironment(NavigationStack { DocumentView(file: s.file, api: s.api) }, api: s.api, size: CGSize(width: 1180, height: 820))
+        env.pump(1.0)
+        Entitlements.shared.setPlanForTesting(.proAI)
+        var found: PDFEditorController?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            found = self.editor(in: env)
+            return found?.allOverlays.contains { $0.pageKey == s.page && $0.loaded && $0.window != nil } == true
+        })
+        let editor = try XCTUnwrap(found)
+        XCTAssertTrue(env.wait(timeout: 10) { editor.allOverlays.contains { $0.objectsView.subviews.contains { $0 is SheetBoxView } } }, "Tabelle auf der Seite")
+        editor.choose(.select)
+        try run { await editor.objects.selectForTesting(key: s.page, ids: ["tabelle"]) }
+        env.pump(0.8)
+        XCTAssertTrue(button("Tabelle bearbeiten", in: env.window), "Objektleiste: Bearbeiten")
+        shot(env.window, "23-ipad-tabelle-auf-der-seite")
+
+        editor.objects.openSheet(key: s.page, id: "tabelle", title: "Noten – Übersicht")
+        XCTAssertTrue(env.wait(timeout: 10) { editor.presentedViewController is UIHostingController<SheetEditorView> }, "grosse Ansicht")
+        env.pump(1.2)
+        let big = try XCTUnwrap(editor.presentedViewController?.view)
+        XCTAssertNotNil(find(SheetGridView.self, in: big))
+        shot(big, "24-ipad-tabelle-grosse-ansicht")
+        editor.dismiss(animated: false)
+        env.pump(0.5)
+
+        // Formel beim Tippen (die gelesenen Zellen sind farbig), Filter und Kreisdiagramm
+        let model = SheetEditorModel(sheet: gradeSheet(), title: "Noten – Übersicht")
+        model.select(SheetRef("A2")!)
+        model.toggleFilter("Statistik")
+        model.select(SheetRange("A1:C5")!)
+        model.addChart("pie")
+        if let id = model.sheet.charts.last?.id { model.updateChart(id) { $0.title = "Leistungspunkte je Fach"; $0.range = SheetRange("A1:C5")! } }
+        model.select(SheetRef("D7")!)
+        let view = SheetEditorView(model: model, onSave: { _ in true }, onClose: {})
+        let env2 = try hostWithEnvironment(view, api: s.api, size: CGSize(width: 1180, height: 820))
+        env2.pump(1.0)
+        model.beginEditing()
+        env2.pump(1.2)
+        XCTAssertEqual(model.editing, "=SUMME(D2:D6)")
+        shot(env2.window, "25-ipad-tabelle-formel-filter-kreis")
+        model.cancelEditing()
+        env2.pump(0.3)
+
+        // KI-Hilfe: Knopf "KI" antippen (Fenster mit dem Wunsch), dann das Ergebnis. Die Antwort ist hier vorgegeben -
+        // im Simulator gibt es keine KI.
+        let ai = SheetEditorModel(sheet: Sheet(rows: 8, cols: 4), title: "Lernplan")
+        ai.askAI = { _ in
+            #"{"neu":true,"zellen":{"A1":"Woche","B1":"Thema","C1":"Stunden","D1":"Erledigt","A2":"1","B2":"Folgen und Reihen","C2":"6","D2":"ja","A3":"2","B3":"Differentialrechnung","C3":"8","D3":"ja","A4":"3","B4":"Integralrechnung","C4":"8","D4":"nein","A5":"4","B5":"Altklausuren","C5":"10","D5":"nein","A6":"Summe","C6":"=SUMME(C2:C5)","D6":"=ZÄHLENWENN(D2:D5;\"ja\")&\" von 4\""},"diagramme":[{"art":"balken","bereich":"B1:C5","titel":"Stunden je Thema"}],"hinweis":"In C6 steht die Summe der Stunden."}"#
+        }
+        let env3 = try hostWithEnvironment(SheetEditorView(model: ai, onSave: { _ in true }, onClose: {}), api: s.api, size: CGSize(width: 1180, height: 820))
+        env3.pump(1.0)
+        XCTAssertTrue(button("KI hilft bei der Tabelle", in: env3.window), "Knopf KI in der Leiste")
+        XCTAssertTrue(press("KI hilft bei der Tabelle", in: env3.window))
+        XCTAssertTrue(env3.wait(timeout: 5) { env3.hosting.presentedViewController != nil }, "der Knopf oeffnet das Fenster der KI-Hilfe")
+        env3.pump(1.0)
+        if let panel = env3.hosting.presentedViewController?.view {
+            XCTAssertTrue(button("KI starten", in: panel))
+            shot(panel, "27-ipad-tabelle-ki-wunsch")
+        }
+        env3.hosting.dismiss(animated: false)
+        env3.pump(0.5)
+        try run { await ai.runAI(wish: "Lernplan für die nächsten 4 Wochen") }
+        ai.setWidth(170, col: 1)
+        env3.pump(1.0)
+        XCTAssertEqual(ai.calc.value(SheetRef("C6")!), .number(32))
+        shot(env3.window, "28-ipad-tabelle-ki-ergebnis")
+    }
+
+    /// iPhone: Tabelle und Diagramm in der Leseansicht
+    func test9IPhoneTabelle() throws {
+        let s = try run { try await self.sheetScene() }
+        let size = CGSize(width: 402, height: 874)
+        let before = UFEditorAvailability.forcedReaderOnlyForTesting
+        UFEditorAvailability.forcedReaderOnlyForTesting = true
+        addTeardownBlock { @MainActor in UFEditorAvailability.forcedReaderOnlyForTesting = before }
+        let view = NavigationStack { PhoneDocumentReader(file: s.file, api: s.api) }
+            .environment(\.ufWindowWidth, size.width).environment(\.ufCompact, true)
+        let env = try hostWithEnvironment(view, api: s.api, size: size)
+        env.hosting.traitOverrides.horizontalSizeClass = .compact
+        var pdf: PDFView?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            pdf = self.find(PDFView.self, in: env.window)
+            return (pdf?.document?.pageCount ?? 0) == 1
+        }, "Leseansicht geladen")
+        let pdfView = try XCTUnwrap(pdf)
+        var overlay: PageInkView?
+        XCTAssertTrue(env.wait(timeout: 20) {
+            guard let p = pdfView.document?.page(at: 0) else { return false }
+            overlay = pdfView.pageOverlayViewProvider?.pdfView(pdfView, overlayViewFor: p) as? PageInkView
+            return overlay?.loaded == true && overlay?.objectsView.subviews.contains { $0 is SheetBoxView } == true
+        }, "Tabelle in der Leseansicht")
+        let box = try XCTUnwrap(overlay?.objectsView.subviews.compactMap { $0 as? SheetBoxView }.first)
+        XCTAssertEqual(box.bounds.width, 500, accuracy: 0.5)
+        env.pump(1.0)
+        shot(env.window, "26-iphone-tabelle-lesen")
     }
 
     /// Exportierte Seiten (wie PDF-Export und Drucken) als Bild

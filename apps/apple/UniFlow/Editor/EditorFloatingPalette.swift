@@ -282,6 +282,7 @@ final class EditorFloatingPalette: NSObject, PKToolPickerObserver {
             .sticky: item(.sticky),
             .cover: item(.cover),
             .link: item(.link),
+            .sheet: item(.sheet),
             .select: item(.select),
             .markup: item(.markup),
             .area: item(.area),

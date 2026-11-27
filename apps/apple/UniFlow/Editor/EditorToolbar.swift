@@ -40,13 +40,15 @@ final class EditorToolState: ObservableObject {
         case cover
         /// Verweis auf Dokument + Seite (25.11.2026, ab Pro AI)
         case link
+        /// Tabelle ("Excel", 26.11.2026, ab Pro AI)
+        case sheet
 
         var id: String { rawValue }
 
         /// Werkzeuge der Zeichenflaeche (PencilKit) in der Reihenfolge der Leiste
         static let canvasTools: [Tool] = [.pen, .fineliner, .fountain, .marker, .eraser, .lasso]
         /// Objektwerkzeuge in der Reihenfolge der Leiste ("Bereich an KI" vorn wie in der Palette, Wunsch des Inhabers)
-        static let objectTools: [Tool] = [.area, .select, .text, .sticky, .cover, .link, .shape, .markup]
+        static let objectTools: [Tool] = [.area, .select, .text, .sticky, .cover, .link, .sheet, .shape, .markup]
 
         var isInk: Bool { self == .pen || self == .fineliner || self == .fountain || self == .marker }
         /// Schreibstift (ohne Textmarker): seine Farbe und Staerke gelten auch fuer Objekte (`lastPen`)
@@ -105,6 +107,7 @@ final class EditorToolState: ObservableObject {
             case .sticky: return "Haftnotiz"
             case .cover: return "Klappkarte"
             case .link: return "Verweis"
+            case .sheet: return "Tabelle"
             case .shape: return "Form"
             case .markup: return "Text markieren"
             case .area: return EditorPalette.areaTitle
@@ -125,6 +128,7 @@ final class EditorToolState: ObservableObject {
             case .sticky: return "note.text"
             case .cover: return ObjectEditing.Tool.cover.systemImage
             case .link: return ObjectEditing.Tool.link.systemImage
+            case .sheet: return ObjectEditing.Tool.sheet.systemImage
             case .shape: return EditorPalette.shapeTool.systemImage
             case .markup: return "underline"
             case .area: return ObjectEditing.Tool.area.systemImage
@@ -139,6 +143,7 @@ final class EditorToolState: ObservableObject {
             case .sticky: return EditorPalette.stickyID
             case .cover: return EditorPalette.coverID
             case .link: return EditorPalette.linkID
+            case .sheet: return EditorPalette.sheetID
             case .shape: return EditorPalette.shapeID
             case .markup: return EditorPalette.markupID
             case .area: return EditorPalette.areaID
@@ -159,6 +164,7 @@ final class EditorToolState: ObservableObject {
             case .sticky: return .sticky
             case .cover: return .cover
             case .link: return .link
+            case .sheet: return .sheet
             case .rect, .ellipse, .line, .arrow: return .shape
             case .markup: return .markup
             case .area: return .area

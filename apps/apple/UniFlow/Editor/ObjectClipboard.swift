@@ -227,11 +227,11 @@ extension ObjectEditing {
     }
 
     func cutSelection(to pasteboard: UIPasteboard = .general) async {
-        // ohne Pro AI liessen sich Klappkarten und Verweise nicht wieder einfuegen: Sie bleiben liegen, statt beim
-        // Ausschneiden verloren zu gehen (zweite Durchsicht 26.11.2026)
+        // ohne Plus liessen sich Tabellen, Klappkarten und Verweise nicht wieder einfuegen: Sie bleiben liegen,
+        // statt beim Ausschneiden verloren zu gehen (zweite Durchsicht 26.11.2026)
         if !richAllowed, let sel = selection, let key = selectedKey {
             let picked = await objects(key).filter { ($0["id"]?.string).map(sel.ids.contains) == true }
-            let locked = Set(picked.filter { FlipCover.isCover($0) || PageLink.isLink($0) }.compactMap { $0["id"]?.string })
+            let locked = Set(picked.filter { SheetObject.isSheet($0) || FlipCover.isCover($0) || PageLink.isLink($0) }.compactMap { $0["id"]?.string })
             if !locked.isEmpty {
                 controller?.onHint?(Self.copyLockedHint)
                 let rest = sel.ids.subtracting(locked)
@@ -259,14 +259,21 @@ extension ObjectEditing {
         await place(objects: copies, ink: inkCopies, inkOffset: CGPoint(x: Self.pasteOffset, y: Self.pasteOffset), on: key)
     }
 
-    static let copyLockedHint = "Klappkarten und Verweise vervielfältigen geht mit Plus."
+    static let copyLockedHint = "Tabellen, Klappkarten und Verweise vervielfältigen geht mit Plus."
 
-    /// Was sich vervielfaeltigen laesst: Ohne Pro AI keine Klappkarten und Verweise (anlegen geht dann auch nicht -
-    /// Duplizieren und Einfuegen waeren sonst der Weg daran vorbei).
+    /// Was sich vervielfaeltigen laesst: Ohne Plus keine Tabellen, Klappkarten und Verweise (anlegen geht dann auch
+    /// nicht - Duplizieren und Einfuegen waeren sonst der Weg daran vorbei). Eine kopierte Tabelle ist nie die
+    /// "Tabelle als eigene Datei": Sonst oeffnete das Dokument, in das sie eingefuegt wird, kuenftig gleich gross.
     func copyable(_ list: [JSONValue]) -> [JSONValue] {
-        guard !richAllowed else { return list }
-        let kept = list.filter { !(FlipCover.isCover($0) || PageLink.isLink($0)) }
-        if kept.count != list.count { controller?.onHint?(Self.copyLockedHint) }
+        let cleaned = list.map { o -> JSONValue in
+            guard SheetObject.isSheet(o), o["sheet"]?["doc"] != nil, var obj = o.object, var sheet = obj["sheet"]?.object else { return o }
+            sheet["doc"] = nil
+            obj["sheet"] = .object(sheet)
+            return .object(obj)
+        }
+        guard !richAllowed else { return cleaned }
+        let kept = cleaned.filter { !(SheetObject.isSheet($0) || FlipCover.isCover($0) || PageLink.isLink($0)) }
+        if kept.count != cleaned.count { controller?.onHint?(Self.copyLockedHint) }
         return kept
     }
 

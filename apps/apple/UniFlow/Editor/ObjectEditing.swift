@@ -23,6 +23,8 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         case cover
         /// Verweis auf Dokument + Seite (25.11.2026): Stelle antippen oder ueber ein Wort ziehen, dann das Ziel antippen
         case link
+        /// Tabelle ("Excel", 26.11.2026): Antippen legt eine an und oeffnet die grosse Ansicht
+        case sheet
         /// "Bereich an KI" (05.11.2026): Rahmen ziehen oder Bereich einkreisen, der Ausschnitt geht als Bild an die KI-Hilfe
         case area
 
@@ -40,6 +42,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .area: return "Bereich an KI"
             case .cover: return "Klappkarte"
             case .link: return "Verweis"
+            case .sheet: return "Tabelle"
             }
         }
         var systemImage: String {
@@ -57,6 +60,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             case .area: return "rectangle.dashed"
             case .cover: return "eye.slash"
             case .link: return "link"
+            case .sheet: return "tablecells"
             }
         }
         /// Form, die beim Ziehen entsteht (Klappkarte: ein Rechteck ueber der Stelle)
@@ -357,6 +361,25 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
             }
             let o = newCover(id: PageOrder.uid(), on: v, at: p)
             Task { await commit(key) { $0 + [o] } }
+        case .sheet:
+            guard controller?.richNotes == true else { controller?.onHint?(Self.sheetLockedHint); return }
+            Task {
+                // vorhandene Tabelle oeffnen statt eine weitere darueberzulegen
+                let list = await objects(key)
+                if let hit = PageObjectEdit.hit(list, x: Double(p.x), y: Double(p.y), textHeight: Self.textHeight),
+                   let o = list.first(where: { $0["id"]?.string == hit }), SheetObject.isSheet(o) {
+                    setTool(.select)
+                    select(key: key, ids: [hit], in: list)
+                    openSheet(key: key, id: hit)
+                    return
+                }
+                let id = PageOrder.uid()
+                let o = newSheet(id: id, on: v, at: p)
+                guard await commit(key, { $0 + [o] }) else { return }
+                setTool(.select)
+                select(key: key, ids: [id], in: await objects(key))
+                openSheet(key: key, id: id)
+            }
         case .text, .sticky:
             let kind = tool
             Task {
@@ -937,7 +960,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         inOrder {
             await $0.commit(sel.key) { list in
                 list.map { o in
-                    guard let id = o["id"]?.string, sel.ids.contains(id), var obj = o.object else { return o }
+                    guard let id = o["id"]?.string, sel.ids.contains(id), var obj = o.object, !SheetObject.isSheet(o) else { return o }
                     if o["type"]?.string == "text" {
                         let key = (o["bg"]?.string ?? "").isEmpty ? "fill" : "bg"
                         // Textblock: die Schriftfarbe gilt fuer alle Abschnitte
@@ -957,7 +980,7 @@ final class ObjectEditing: NSObject, UIGestureRecognizerDelegate, UITextViewDele
         inOrder {
             await $0.commit(sel.key) { list in
                 list.map { o in
-                    guard let id = o["id"]?.string, sel.ids.contains(id), o["type"]?.string == "text", var obj = o.object else { return o }
+                    guard let id = o["id"]?.string, sel.ids.contains(id), o["type"]?.string == "text", var obj = o.object, !SheetObject.isSheet(o) else { return o }
                     if TextBlock.isBlock(o) { return TextBlock.applying(.sizeDelta(delta), to: o) }
                     obj["fontSize"] = .number(min(200, max(6, (o["fontSize"]?.double ?? 14) + delta)))
                     return .object(obj)

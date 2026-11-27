@@ -225,17 +225,143 @@ Zweig `editor/klappkarten` (auf Teil 2).
   `testKlappkarteAnlegenWaehlenUmgestalten`, `testKlappkartenAnlegenAbProAIAufklappenImmer`,
   `testKlappkarteImExportUndInDerCommunity`. Bilder 14–19.
 
-## 6. Teil 4: Tabelle – offene Fragen an den Inhaber
+## 6. Teil 4: Tabelle („Excel“) – gebaut am 26.11.2026
 
-Vor dem Bauen zu klären (siehe Fragen im Bericht der Sitzung):
+**Antworten des Inhabers (26.11.2026):** Ort: *beides* (Kasten auf der Seite und eigene Datei). Umfang: *Formeln,
+Sortieren und Filtern, Diagramme, Farben und Rahmen*. Excel-Dateien (.xlsx): *gar nicht*. Bausteine: „suche offene
+repos und opensource projekte dazu checke die lizenz will kein veröffentliche und das für 39.99 anbieten“.
+Auf Nachfrage (26.11.): „nein das zu pro ai mit rein“ – die Tabelle wird nicht einzeln verkauft, sie gehört zu
+Pro AI. So ist es gebaut. Es wurde kein Preis geändert und nichts zum Kaufen gebaut.
 
-1. **Wo lebt die Tabelle?** (a) Als Kasten auf einer Seite (wie ein Textblock, verschieben/Größe) oder (b) als eigene
-   Datei in der Bibliothek (eigener Bildschirm wie Excel) oder beides?
-2. **Was heißt „sehr gut“?** Formeln (SUMME, MITTELWERT, WENN …)? Zahlenformate, Sortieren, Diagramme?
-3. **Excel-Dateien (.xlsx) öffnen und speichern?** Das ist der größte Brocken.
-4. **Community:** Soll eine Tabelle auf einer Seite beim Teilen mitgehen (als Bild der Tabelle bei älteren Apps)?
-5. **Fremdbaustein erlaubt?** Für Formeln/xlsx gibt es Bausteine mit MIT/Apache-Lizenz; sie müssten geprüft und im
-   Lizenz-Dialog (kommt mit `app/whisper-mitschrift`) eingetragen werden.
+### 6.1 Lizenzprüfung (26.11.2026, an den Quellen geprüft: LICENSE-Dateien bzw. GitHub)
+
+Bedingung: geschlossener Quelltext, Verkauf im App Store, nichts veröffentlichen. Also nur MIT, BSD, Apache-2.0 u. ä.
+
+| Baustein | Lizenz | Urteil |
+|---|---|---|
+| SimpleSpread / SpreadsheetCore (Swift) | MIT | erlaubt; verlangt aber iOS 26, ein einzelner Pfleger, erst seit 09/2026 |
+| IronCalc (Rust) | MIT oder Apache-2.0 | erlaubt; kein Anschluss für Swift, Rust im Bau nötig, noch vor Version 1 |
+| Formula.js, fast-formula-parser (JavaScript) | MIT | erlaubt; nur über eine JavaScript-Brücke, kein Neuberechnen |
+| nicklockwood/Expression (Swift) | MIT | erlaubt; rechnet nur Ausdrücke, keine Zellen und Bereiche |
+| bannzai/SpreadsheetView (Swift, Gitter) | MIT | erlaubt; nur Anzeige, seit 2020 nicht gepflegt |
+| DGCharts (Diagramme) | Apache-2.0 | erlaubt; nicht nötig |
+| Swift Charts (Apple) | Teil von iOS | erlaubt, keine Pflicht |
+| HyperFormula | GPL-3.0 oder gekauft | **nicht erlaubt** (GPL verlangt Offenlegung) |
+| Handsontable | nur nicht-kommerziell frei | **nicht erlaubt** |
+| o-spreadsheet (Odoo) | LGPL-3.0 | **nicht erlaubt** |
+| EtherCalc / SocialCalc | CPAL | **nicht erlaubt** |
+| AAChartKit-Swift | MIT-Hülle um Highcharts (Kauf-Lizenz) | **nicht erlaubt** |
+| LibreOffice Calc | MPL/LGPL, riesig | praktisch nicht nutzbar |
+
+**Entscheidung (Claude):** Alles selbst geschrieben, **kein Fremdbaustein eingebaut**. Rechenwerk, Gitter und Diagramme
+sind eigener Code auf Apples Bordmitteln. Damit gibt es keine Lizenzpflicht, keinen Eintrag im Lizenz-Dialog, nichts
+zu veröffentlichen, und die Tabelle passt in das eigene Notizformat (Abgleich, Community, Export). Die erlaubten
+Projekte wären nur dann einen zweiten Blick wert, wenn einmal echte Excel-Dateien gelesen werden sollen.
+
+### 6.2 Was gebaut ist
+
+- **Kasten auf der Seite:** Werkzeug „Tabelle“ (Objektleiste) → Stelle antippen → Tabelle liegt auf der Seite, die
+  große Ansicht geht auf. Wie jedes Objekt verschieben, größer/kleiner ziehen, kopieren, löschen. Doppeltipp oder
+  „Bearbeiten“ in der Leiste öffnet die große Ansicht wieder. Auf Wunsch zeigt der Kasten Tabelle + Diagramm, nur die
+  Tabelle oder nur das Diagramm.
+- **Eigene Datei:** Bibliothek → Neu → „Tabelle“. Das ist ein Notizbuch (A4 quer), dessen erste Seite die Tabelle
+  trägt; beim Öffnen erscheint gleich die große Ansicht. „Fertig“ zeigt die Seite mit der Tabelle – dort kann man
+  daneben schreiben und zeichnen. In der Bibliothek steht die Datei als Notizbuch mit dem Namen „Tabelle“.
+- **Große Ansicht:** Eingabezeile wie in Excel (Zelle, **fx** mit 43 Funktionen samt Erklärung, Text/Formel), Gitter
+  mit A B C / 1 2 3. Antippen wählt, Doppeltipp tippt, die zwei Punkte an der Auswahl ziehen sie größer, Kopf antippen
+  wählt Spalte/Zeile, am Rand im Kopf ziehen ändert Breite/Höhe, zwei Finger zoomen. Beim Tippen einer Formel setzt
+  Antippen einer Zelle ihren Namen ein; die gelesenen Zellen sind farbig umrandet. Eingabe = nächste Zeile (am Ende
+  wächst die Tabelle), Tab = nächste Spalte. Mit Tastatur: Pfeile, einfach lostippen, Entf, ⌘C/X/V/Z/B/I/D/A.
+  Widerrufen/Wiederholen (80 Schritte).
+- **Formeln:** deutsch wie in Excel (`=SUMME(A1:A5)`, `;` zwischen Angaben, Komma als Dezimalzeichen); englische Namen
+  und der Punkt gehen genauso. Rechnen + − × ÷ ^ %, Vergleiche, Text verketten mit `&`, feste Bezüge mit `$`.
+  Funktionen: SUMME, MITTELWERT, MIN, MAX, ANZAHL, ANZAHL2, ANZAHLLEEREZELLEN, PRODUKT, MEDIAN, STABW, STABWN,
+  VARIANZ, WENN, WENNFEHLER, UND, ODER, NICHT, RUNDEN, ABRUNDEN, AUFRUNDEN, GANZZAHL, ABS, WURZEL, POTENZ, REST, EXP,
+  LN, LOG, LOG10, PI, SIN, COS, TAN, SUMMEWENN, ZÄHLENWENN, MITTELWERTWENN, SUMMENPRODUKT, SVERWEIS, KGRÖSSTE,
+  KKLEINSTE, RANG, VERKETTEN, LÄNGE, LINKS, RECHTS, TEIL, GROSS, KLEIN, GLÄTTEN, WERT, ISTLEER, ISTZAHL, ISTTEXT,
+  ISTFEHLER. Fehler erklären sich in einfachen Worten (`#DIV/0!`, `#WERT!`, `#NAME?`, `#BEZUG!`, `#ZIRKEL!` …).
+  Zeilen/Spalten einfügen oder löschen und Kopieren passen die Formeln an.
+- **Sortieren und Filtern:** nach der Spalte der aktiven Zelle auf- oder absteigend (Kopfzeile bleibt, Leeres unten,
+  Formeln der Zeile gehen mit). Filter je Spalte: Werte an- und abwählen; gefilterte Zeilen fehlen auch auf der Seite
+  und im Diagramm.
+- **Farben und Rahmen:** fett, kursiv, Textfarbe, Zellfarbe, Ausrichtung, Zahlenformat (Zahl, Prozent, Euro, Text,
+  Nachkommastellen), Rahmen außen / alle Linien / unten / keiner, Kopfzeile an/aus.
+- **Diagramme:** Balken, Linien, Kreis aus der Auswahl; Titel, Art und Bereich änderbar; bis zu 6 je Tabelle.
+- **Tarif:** anlegen und bearbeiten ab Pro AI (`UFRichNotes`, wie alles Neue); ansehen kann jeder, auch am iPhone und
+  in geteilten Lösungen.
+
+### 6.3 Technik
+
+- **Format:** Objekt `type: "text"` mit Zusatzfeld `sheet` (kein neuer Objekttyp – `SolutionValidator`). `text` trägt
+  die angezeigten Werte als Ersatztext (Tabulator/Zeilen): ältere Apps, Web und Windows zeigen die Zahlen als Text.
+  `packages/shared-contracts/annotations.schema.json` beschreibt das Feld.
+- **Kern** (`UniFlowCore`): `Sheet.swift` (Zellen, Aussehen, Zeilen/Spalten, Kopieren, Sortieren, Filtern, Speichern,
+  `SheetObject`), `SheetFormula.swift` (Zerlegen, Baum, Rechnen, Funktionen, Bezüge umschreiben), `SheetChart.swift`.
+- **App:** `SheetRender.swift` (Zellen und Diagramme zeichnen – derselbe Code für Seite, Export, große Ansicht;
+  `SheetBoxView`), `SheetEditing.swift` (Werkzeug, Öffnen, Sichern, eigene Datei), `SheetEditorModel.swift`,
+  `SheetGridView.swift` (zeichnet nur den sichtbaren Ausschnitt), `SheetEditorView.swift`.
+- **Flüssig bleiben:** Gerechnet wird nur beim Anzeigen einer Tabelle. Der Kasten zeichnet nur den sichtbaren Teil;
+  seine Auflösung ist begrenzt (`SheetBoxView.pixelBudget`), damit eine riesige Tabelle keinen Speicher frisst.
+- **Grenzen der ersten Fassung:** 500 Zeilen × 52 Spalten. Kein Datum als Rechenwert (ein Datum ist Text), keine
+  verbundenen Zellen, kein Zeilenumbruch in der Zelle, keine .xlsx-Dateien, keine Matrixformeln. Tippen direkt auf
+  der Seite gibt es nicht – bearbeitet wird in der großen Ansicht. Am iPhone nur ansehen (wie alle Notizen dort).
+  Web und Windows zeigen den Ersatztext; ändert dort jemand den Text, gewinnt beim nächsten Bearbeiten am iPad die
+  Tabelle.
+
+### 6.4 Tests und Bilder (26.11.2026)
+
+- Kern: `SheetTests` 20 grün (Formeln, Bezüge umschreiben, Zeilen/Spalten, Sortieren, Filtern, Diagramm, Speichern,
+  Community-Prüfung). Ganze Kern-Sammlung: 1857 Tests, 0 Fehler, 16 übersprungen.
+- App, iPad-Simulator: `SheetAppTests` 7 grün (Seite und Export per Bildpunkt geprüft, Werkzeug + große Ansicht +
+  Sichern + ein Schritt zurück, Sperre ohne Pro AI, eigene Datei, Gitter mit echten Berührungen: antippen, Doppeltipp,
+  Zelle in die Formel tippen, Auswahl ziehen, mit dem Finger rollen). Zusammen mit elf benachbarten Editor-Klassen
+  (TextBlock, StickyNote, EditorPalette, EditorStepEFHK, EditorToolbarLayout, AuditRunde0910, IPhoneReader, EditorStep6,
+  BildGroesse, HardeningSolutionEditor, SolutionSideViewer): 142 grün (Lauf vor dem siebten Tabellen-Test).
+- App, iPhone-Simulator: 51 grün (SheetAppTests, TextBlockAppTests, StickyNoteAppTests, IPhoneReaderTests).
+- **Nicht gelaufen:** die ganze App-Testsammlung, die Mac-Tests (`tools/mac-test.sh`), nichts am echten Gerät.
+  Bildschirmtastatur, Stift und das Gefühl beim Tippen kann nur der Inhaber am iPad beurteilen.
+- Bilder: `~/Studora-Builds/textbloecke/bilder/23-ipad-tabelle-auf-der-seite.png`, `24-ipad-tabelle-grosse-ansicht.png`,
+  `25-ipad-tabelle-formel-filter-kreis.png`, `26-iphone-tabelle-lesen.png`.
+
+### 6.5 Testfassung fürs iPad (vorbereitet, NICHT aufgespielt)
+
+- Eigener Zweig `test/ipad-editor-whisper-tabelle` @ `a7eecb3c` (mit KI-Hilfe, Stand 26.11.2026 09:12) = Stand auf dem iPad (`test/ipad-editor-whisper` @
+  `88e732c1`: Editor-Neuheiten, Whisper, Handballen-Abwehr, Korrektur „Schreiben zittert“) + `editor/tabelle`.
+  Ordner `~/Studora-Builds/wt-kombi-tabelle`, ohne Konflikte gemischt. `test/ipad-editor-whisper` selbst ist unberührt.
+- Im Simulator 65 Tests grün (Sheet, TextBlock, EditorHandballen, EditorAusschnittRundung, EditorPalette); Kern 1860 grün.
+- Gerätefassung gebaut: `~/Studora-Builds/dd-kombi-tabelle-geraet/Build/Products/Release-iphoneos/UniFlow.app`, 1.0.7 (49).
+- Aufspielen nur mit dem Okay des Inhabers; danach der Handballen-Sitzung Bescheid geben, damit ihre nächste Fassung
+  von diesem Zweig ausgeht.
+
+### 6.6 KI-Hilfe für Tabellen und Diagramme (26.11.2026)
+
+Auftrag des Inhabers (26.11.2026): „soll auch Diagramme durch KI und Tabellen mit Hilfe KI machen können … für Pro AI
+Nutzer“.
+
+- **Bedienung:** In der großen Ansicht steht vorn in der Leiste der Knopf **KI**. Antippen → Wunsch in eigenen Worten
+  tippen (oder einen der vier Vorschläge antippen) → „Los“. Die KI bekommt die Tabelle und den Wunsch und baut Zellen
+  (Text, Zahlen, Formeln) und Diagramme hinein. Unter der Eingabezeile steht danach, was sie getan hat. Alles
+  zusammen ist **ein** Schritt: „Widerrufen“ nimmt es zurück.
+- **Beispiele:** „Notenübersicht mit Schnitt“, „Lernplan für 4 Wochen“, „Rechne in Spalte D Note mal LP aus“,
+  „Mach aus dieser Tabelle ein Kreisdiagramm“.
+- **Tarif:** Die große Ansicht gibt es nur mit Pro AI, damit auch die KI-Hilfe. Jede Anfrage zählt wie eine Frage an
+  die KI (Credits wie bisher, es werden keine Beträge gezeigt). Die Einwilligung zur KI fragt der vorhandene Weg ab.
+- **Technik:** Kein neuer Weg im Dienst, **kein Server-Update**: Die App schickt eine gewöhnliche Frage an die
+  KI-Hilfe (`POST /api/ai/tutor`, Modus `ask`; Tabelle im Seiteninhalt, Auftrag als Frage – beides in den Grenzen von
+  `AIPrompts.tutor`: Frage ≤ 1000 Zeichen, Inhalt ≤ 9000). Der Auftrag verlangt ein JSON-Objekt
+  `{neu, zellen, diagramme, hinweis}`. Gelesen wird großzügig (`SheetAI.parse`: JSON, auch in Markdown-Zäunen oder mit
+  Sätzen drumherum; Zeilenlisten; ersatzweise eine Markdown-Tabelle), eingesetzt streng (`SheetAI.apply`: nur Zellen in
+  den Grenzen, Formeln rechnet das eigene Rechenwerk, unbekannte Funktionen werden gezählt und gemeldet).
+  Dateien: `UniFlowCore/SheetAI.swift`, `SheetEditorModel.runAI`, `SheetEditorView.aiPanel`, `SheetEditing.openSheet`.
+- **Tests:** `SheetAITests` 3 (Auftrag passt in die Grenzen, sechs Arten von Antworten, Einsetzen), `SheetAppTests`
+  jetzt 8 (KI baut Tabelle + Diagramm in einem Schritt, Diagramm aus vorhandener Tabelle, unbrauchbare Antwort,
+  Fehler des Dienstes; die große Ansicht hängt am echten Weg der KI-Hilfe). Bilder `27-ipad-tabelle-ki-wunsch.png`,
+  `28-ipad-tabelle-ki-ergebnis.png`.
+- **Ehrlich:** Im Simulator gibt es keine KI. Die Tests und Bild 28 arbeiten mit einer **vorgegebenen** Antwort. Wie gut
+  die echte KI den Auftrag befolgt (sie ist als Tutor eingestellt und schreibt sonst Erklärungen), zeigt erst der Test
+  am iPad. Verlässlicher wäre eine eigene Aufgabe „Tabelle“ im Dienst mit festem Antwort-Format – das wäre ein
+  Server-Update und braucht das Okay des Inhabers. Der Credits-Stand in der App aktualisiert sich erst bei der
+  nächsten Anzeige (die große Ansicht hat keinen Zugriff auf die Kostenzeile).
 
 ## 7. Teil 5: Verweise auf Dokument + Seite
 
@@ -302,7 +428,8 @@ Zweig `editor/verweise` (auf Teil 3). Nachtrag des Inhabers vom 25.11.2026.
 | `editor/textbloecke` | Teil 1 + Tarif-Regel `UFRichNotes` |
 | `editor/notizzettel` | + Teil 2 |
 | `editor/klappkarten` | + Teil 3 |
-| `editor/verweise` | + Teil 5 (enthält alles) |
+| `editor/verweise` | + Teil 5 |
+| `editor/tabelle` | + Teil 4 Tabelle (enthält alles, 26.11.2026) |
 
 Nichts ist gepusht, nichts eingereicht, kein Server, keine Website. Arbeitsordner `~/Studora-Builds/wt-textbloecke`.
 
@@ -316,7 +443,7 @@ Nichts ist gepusht, nichts eingereicht, kein Server, keine Website. Arbeitsordne
 
 **Offen für den Inhaber:**
 - Text für die Tarifkarten (das Neue steht dort noch nicht).
-- Teil 4 (Tabelle): Antworten auf die Fragen in Abschnitt 6.
+- Teil 4 (Tabelle) ist gebaut (Abschnitt 6), aber noch nicht am iPad ausprobiert. Sie gehört zu Pro AI, kein Einzelverkauf (Antwort des Inhabers 26.11.).
 - Web-Editor/Windows zeigen alles nur in einfacher Form – soll das dort auch gebaut werden?
 
 ## 9. Prüfläufe am 25.11.2026 (Stand `editor/verweise`)
@@ -366,3 +493,151 @@ Notizzettel geht nicht mit“.
 - **Nicht nachstellbar:** das starke Nachlaufen des Rahmens selbst. Vermutung: die Textansicht hat die Berührung
   zuerst bekommen. Nach der Korrektur am iPad erneut prüfen; bleibt es, am Gerät messen.
 - Tests danach: `TextBlockAppTests` 26 grün (iPad und iPhone), dazu 84 weitere Editor-Tests am iPad grün.
+- Die korrigierte gemeinsame Fassung (`test/ipad-editor-whisper` @ `7c658ec5`) liegt seit 25.11.2026, 18:28 auf dem
+  iPad des Inhabers (sein Okay „Ja, aufspielen“). Seine Antwort zum Nachlaufen steht aus.
+
+## 12. Durchsicht am 26.11.2026 („teste das komplett einmal durch … ist etwas schlecht gelöst vllt“)
+
+Auftrag des Inhabers nach dem Bau der Tabelle. Vorgehen: alle Tests laufen lassen, dazu drei unabhängige Durchsichten
+des Codes (Rechenkern der Tabelle, Tabelle in der App, Textblöcke bis Verweise), jede Meldung am Code nachgeprüft,
+dann behoben und mit einem eigenen Test belegt. Antwort des Inhabers zur Preisfrage am selben Tag: „nein das zu pro ai
+mit rein“ – die Tabelle gehört zu Pro AI, kein Einzelverkauf.
+
+Commits auf `editor/tabelle`: `ee7e670b` (Rechenkern), `27a05dc3` (Tabelle in der App), danach Textblöcke/Karten/Verweise.
+
+### 12.1 Rechenkern der Tabelle – behoben
+
+- **Absturz:** `=KGRÖSSTE(A1:A5;1E20)`, `=SVERWEIS(1;A1:B2;1E20)` (riesige Zahl als Stelle) stürzten ab → jetzt `#ZAHL!`
+  bzw. `#BEZUG!`. „Unendlich“ ist `#ZAHL!`, keine Zahl mehr.
+- **Kleiner Stapel am iPad:** Formeln, die aufeinander aufbauen (laufende Summe über 500 Zeilen), wurden ineinander
+  gerechnet. Der Test auf einem Faden mit 512 KB (so groß wie Hintergrundfäden am iPad) ist vor der Korrektur
+  abgestürzt. Jetzt der Reihe nach (`SheetCalc.settle`, eigener Stapel); Klammern/Funktionen höchstens 40 tief
+  (`SheetFormula.maxNesting`), die große Rechenfunktion liegt nicht mehr im Verschachtelungsweg. Damit ist auch das
+  falsche `#ZIRKEL!` bei langen Ketten weg; `=WENNFEHLER(A1;0)` in A1 ist jetzt ein Kreis.
+- **Zahlen:** „1.500“ ist 1500, „1.000.000“ eine Million (vorher 1,5 bzw. Text). Was mit Punkt oder Exponent getippt
+  wird („14.30“, „1E3“), bleibt so stehen und rechnet trotzdem (vorher wurde aus „14.30“ in der Anzeige „14,3“).
+- **Prozent/Euro klebten an der Zelle:** „50 %“, danach „7“ ergab „700 %“ → jetzt „7 %“; „3,20 €“ wechselt das Format.
+- **Runden/Vergleichen:** `=AUFRUNDEN(0,1+0,2;1)` war 0,4, `=3*0,1=0,3` war FALSCH → richtig (auch SVERWEIS,
+  ZÄHLENWENN, RANG).
+- **Englische Schreibweise:** `=IF(A1>50,1,0)` und `=SUM(10,20,30)` rechneten still falsch → richtig; deutsch bleibt
+  deutsch (`=MAX(1,2)` ist 1,2). Anführungszeichen der iPad-Tastatur („…“) und `≤ ≥ ≠` gehen.
+- **Neu:** ZÄHLENWENNS, SUMMEWENNS, MITTELWERTWENNS, WENNS, WENNNV, ISTNV, INDEX, VERGLEICH.
+- **Sortieren** lässt Summen-/Schnitt-Zeilen am Ende unten stehen (vorher landete der Schnitt mitten in den Daten und
+  zeigte `#ZIRKEL!`). **Ausschneiden + Einfügen** lässt die Formel auf dieselben Zellen zeigen; Einfügen am Rand lässt
+  die Tabelle wachsen; Bezüge über Zeile 500 hinaus gehen beim Kopieren nicht mehr kaputt.
+- **Diagramm:** eine Zählung in der ersten Spalte (Semester 1, 2, 3; Jahre) ist die Beschriftung, keine Datenreihe.
+- **KI:** `"neu": true` ohne neue Zellen leert die Tabelle nicht mehr; ersetzt die KI den Inhalt, steht es in der
+  Meldung; alle Formelfehler der KI werden gezählt (auch `#ZIRKEL!`); eine fast gültige oder abgeschnittene Antwort
+  wird gerettet (Zellen einzeln gelesen); eine verirrte Zelle „AZ500“ bläht die Tabelle nicht mehr auf; Diagramme
+  neben der Tabelle entfallen. Der Auftrag an die KI verlangt jetzt jeden Wert in Anführungszeichen und höchstens
+  40 × 8 Zellen (60 × 12 passte nicht in die Antwortlänge des Dienstes).
+
+Bewusst offen: Kriterium aus einer leeren Zelle und Summenbereich anderer Form bei SUMMEWENN; der Filter merkt sich
+Anzeigetexte (nach Formatwechsel greift ein Eintrag nicht mehr – „Alles zeigen“ hilft).
+
+### 12.2 Tabelle in der App – behoben
+
+- **„Fertig“ sicherte in einem Fall nicht** (Zwischenstand beim Verlassen der App, dann alles widerrufen) → verglichen
+  wird jetzt mit dem Stand auf der Seite. „Fertig“ prüft, ob die Tabelle wirklich auf der Seite steht, und bleibt
+  sonst offen (Meldung mit „Noch einmal“ / „Ohne Sichern schließen“). Ist das Objekt von der Seite verschwunden,
+  legt „Fertig“ es wieder hin.
+- **Eingabe landete in der falschen Zelle:** tippen, dann Sortieren / Zeile einfügen / löschen → das Getippte wird
+  vorher übernommen. „Widerrufen“ beim Tippen verwirft nur das Getippte. Text + neue Zeile sind ein Schritt; ein
+  bloß angefasster Spaltenrand hinterlässt keinen Schritt; Widerrufen stellt die Auswahl wieder her.
+- **Filter:** Löschen, Aussehen, Ausfüllen, Kopieren und „Zeilen löschen“ treffen nur sichtbare Zeilen; die aktive
+  Zelle ist nie versteckt; „Filter in allen Spalten aufheben“.
+- **KI:** Antwort verfällt nicht mehr, wenn man inzwischen weitertippt (ein Schritt); „Abbrechen“; Anzeige „Die KI
+  arbeitet …“ auch bei geschlossenem Feld; gleiche Antwort verspricht kein „Widerrufen“; Credits-Stand wird
+  übernommen; Fehler nennen den Weg (Einstellungen → Konto); der Wunsch ist sichtbar auf 240 Zeichen begrenzt.
+- **Ohne Pro AI** öffnet sich die große Ansicht jetzt zum **Ansehen** (rollen, zoomen, kopieren) – vorher kam nur ein
+  Hinweis, und eine lange Tabelle war auf der Seite nicht ganz zu sehen. Ändern geht weiter nur mit Pro AI.
+- **Tabelle bleibt auf der Seite:** wächst sie, rückt sie nach oben/links und wird notfalls kleiner (bis Schrift 5 pt).
+- **Bedienung:** Tipp wirkt sofort (vorher 0,3 s Wartezeit); Kopf antippen springt nicht ans Ende; die Zelle, in der
+  getippt wird, bleibt über der Tastatur im Bild; Diagrammleiste klappt ein und weicht der Tastatur; Hinweise liegen
+  am unteren Rand über dem Gitter (es rutscht nicht mehr); Menü an der Zelle (langes Drücken, Rechtsklick);
+  Pfeiltasten wiederholen beim Halten, Tab bleibt im Gitter, ⌘⏎ = Fertig; VoiceOver liest die Zellen; die
+  Objektleiste zeigt „Bearbeiten“ auch, wenn vorher eine Form gewählt war.
+- **Schneller, weniger Speicher:** Textzeilen werden einmal gesetzt und beim Rollen nur gezeichnet; die Größe des
+  Kastens steht im Objekt (`sheet.box`) statt bei jedem Antippen gerechnet zu werden; der Seitenvergleich nutzt eine
+  Prüfsumme statt des ganzen Texts; höchstens 16 MB Bild je Tabelle (vorher 32), Grenze gilt auch nach dem Wachsen;
+  Rückgängig hält höchstens 300 000 Zellen.
+- **Tarif:** Tabellen, Klappkarten und Verweise lassen sich ohne Pro AI nicht mehr duplizieren oder einfügen; eine
+  kopierte Tabelle ist nie die „Tabelle als eigene Datei“.
+
+Bewusst offen: Wird dieselbe Tabelle auf zwei Geräten zugleich bearbeitet, gewinnt das letzte „Fertig“ (wie bei allen
+Objekten). Ändert sich irgendein Objekt der Seite, werden weiter alle Objekt-Bilder der Seite neu gebaut (bei sehr
+großen Tabellen spürbar). Eine neue Tabellen-Datei heißt „Tabelle“ (umbenennen in der Bibliothek).
+
+### 12.3 Textblöcke, Notizzettel, Klappkarten, Verweise – behoben
+
+- **Text ging verloren:** Doppeltipp auf ein Wort im Text, den man gerade tippt, begann das Tippen mit dem alten Text
+  neu. Tipp und Doppeltipp im Text gehören jetzt der Textansicht (Schreibmarke setzen, Wort markieren).
+- **Zwischenstand:** Geht die App beim Tippen in den Hintergrund, steht der Text schon auf der Seite.
+- **Text lief aus der Seite** (unten, rechts) und war dann unsichtbar → der Block rückt zurück auf die Seite.
+- **Aufliegende Hand:** Solange der Stift in den letzten 3 s geschrieben hat, greift das Halten keinen Block.
+- **Klappkarten:** Unter einer aufgedeckten Karte schreibt der Stift („Nur Stift“); das Werkzeug stapelt keine Karte
+  auf eine vorhandene; „Auswählen“ trifft die Karte, die man sieht; „Meine Notizen ausblenden“ blendet auch Karten
+  und Verweise aus.
+- **Verweise:** Notizbuch/Whiteboard als Ziel öffnet (vorher nie); fehlt die Zielseite, sagt die App es; ein
+  hängender Entwurf schluckt keine Tipps mehr; **geteilte Lösungen tragen keine Verweise** mehr (sie führten beim
+  Empfänger nirgends hin, und Datei-ID und Titel der eigenen Dokumente gingen mit).
+- **Listen:** „12. November“ ist keine Liste (vorher kam „13. “); Eingabetaste gleich hinter dem Listenzeichen löscht
+  es nicht mehr, wenn dahinter Text steht.
+- **Ältere Apps/Web:** große Schrift auf Linien bekam einen Zeilenabstand unter 1 (Zeilen ineinander) → ganze Linien.
+- **Speicher:** höchstens 32 MB Bild je Textblock/Zettel/Karte (ein seitengroßer Block belegte bei starkem Zoom über 100 MB).
+
+Bewusst offen bzw. am iPad zu prüfen:
+- Ob die Tastatur einen Block in der unteren Bildschirmhälfte verdeckt (im Simulator rollt die Seite nicht von selbst).
+- Ziehen im Text verschiebt den Block (so am 25.11. nach der Rückmeldung des Inhabers gebaut) – Text mit dem Finger
+  markieren durch Ziehen geht dadurch nicht, nur per Doppeltipp.
+- 3 Sekunden Halten ohne Rückmeldung währenddessen (die 3 s sind seine Vorgabe).
+- Namen: Werkzeug „Haftnotiz“, Einstellungen „Notizzettel“, Menü „Zettel“; Titel „Text wie in Word“ nennt eine
+  fremde Marke (Entscheidung des Inhabers).
+- Größe eines langen Blocks ziehen setzt den Text mehrfach je Bild; jeder Knopf der Leiste baut die Seite neu.
+- Verweis folgen: Free bekommt die Tarifwahl für die geteilte Ansicht; am iPhone öffnet ein fremdes Ziel nicht.
+- Farbe und Schriftgröße ganzer Textfelder gehen (wie in 1.0.7) ohne Pro AI.
+
+### 12.4 Prüfläufe nach den Korrekturen (26.11.2026)
+
+- Rechenkern komplett: 1882 Tests grün (Zweig ohne Tabelle) bzw. alle Tabellen-Tests grün (`editor/tabelle`).
+- Ganze App-Sammlung im iPad-Simulator (`editor/tabelle` @ 751a3bd0): 2264 Tests, 12 rot. Davon ein **echter Fund**:
+  KI-Feld und Filter der Tabelle öffneten sich an der Mac-Schranke vorbei (`.popover` statt `.ufPopover`, am Mac
+  Absturzgefahr) → behoben (`5087101c`). Die übrigen sind auf dem Ausgangsstand `9a5983d8` genauso rot:
+  StoreScreenshotTests.test01Uebersicht, ExamGeneratorUITests (2), WebSideUITests (2), MacTestIsolationTests (nur am
+  Mac sinnvoll), EditorScale/EditorStrichBleibt (Bild-für-Bild-Messungen, abhängig von Last und Reihenfolge).
+- EditorStrichBleibtTests.testNeuerStrichFehltInKeinemBildNachDemAbsetzen genauer: allein auf `editor/tabelle` grün;
+  auf dem Stand von Build 50 (`release/1.0.8-alles` @ b1682e3a) schon ohne meine Änderungen rot (4 von 4 Fällen mit
+  Lücke), mit meinem Paket 1 von 4. An die Sitzung gemeldet, die Build 50 baut.
+- Danach (`5087101c`): iPad-Simulator Tabelle 15, Schranke 7, Textblöcke 31, Notizzettel 4 grün; iPhone-Simulator 58 grün.
+- Zweig für Build 50 ohne Tabelle: `editor/befunde-ohne-tabelle` (`~/Studora-Builds/wt-befunde-108`, bbaf9570 +
+  f503f210 auf b1682e3a). iPad- und iPhone-Simulator: Textblöcke 31, Notizzettel 4, Schranke 7 grün.
+- Testfassung fürs iPad: `test/ipad-editor-whisper-tabelle` @ 3ce90118 (= Stand des iPads 88e732c1 + `editor/tabelle`),
+  57 Tests grün, Gerätefassung gebaut (`~/Studora-Builds/dd-kombi-tabelle-geraet`, 26.11. 16:21), **nicht aufgespielt**.
+- Nicht gelaufen: Mac (die Build-50-Sitzung fuhr gerade ihren Mac-Lauf), echtes Gerät, echte KI.
+
+### 12.5 „Teste bis zum geht nicht mehr“ (26./27.11.2026)
+
+- **Zufalls- und Lasttests** (`SheetFuzzTests`): 400 Zufallstabellen, 5000 Zeichen-Suppen, gleiche Ergebnisse in jeder
+  Reihenfolge, Speichern/Lesen, Zeilen einfügen und wieder löschen, Kopieren hin und zurück, Sortieren, Zahlen hin und
+  zurück, 3000 kaputte KI-Antworten, volle Tabelle 500 × 52. **Fund:** Bei Formeln, die über Umwege mit sich selbst
+  rechnen, hing das Ergebnis von der Reihenfolge ab → jetzt Kreis-Erkennung über alle Bezüge (Tarjan), jede Formel im
+  Kreis zeigt `#ZIRKEL!` (`9d272e1b`). Zeiten wie in der App gebaut (optimiert): volle Tabelle rechnen 0,1 s,
+  „Fertig“ 0,35 s, sichtbarer Ausschnitt 9 ms.
+- **Zweite Durchsicht** der eigenen Korrekturen (20 Punkte), Rückschritte behoben (`80472c0e`): Ausschneiden +
+  Einfügen wie Excel (Bezüge im Block wandern mit), ohne Pro AI bleiben Tabellen/Klappkarten/Verweise beim Ausschneiden
+  liegen, „7 → 7 %“ nur beim Tippen, geschützte Dokumente nur zum Ansehen, Einpassen nur bei Wachstum, KI darf eine
+  vorhandene Tabelle ganz füllen (Meldung nennt, was nicht passte), Gitter-Gesten, Bild je Objekt bis 64 MB und nie
+  unschärfer als der Bildschirm, Klappkarten-Werkzeug bleibt aktiv, späte Verweis-Antwort überschreibt nichts.
+  Bewusst gelassen: „3.142“ ist 3142 (deutsche Schreibweise), `=SQRT(2,25)` (englischer Name mit deutschem Komma).
+- **Ganzer App-Lauf** auf dem Stand des iPads (`3ce90118`, iPad-Simulator): 2298 Tests, 22 rot. Davon auch auf dem
+  früheren Stand rot: Store-Bilder, Klausur-Generator (2), Video daneben (2), Logo in der Seitenleiste (2), Mac-Test.
+  Editor-Messungen (Strich, Zoom, Lasso) einzeln wiederholt grün bzw. unter gleichen Bedingungen gleich schnell wie
+  vorher (Lasso 60–100 ms beide) – rot nur unter Rechnerlast (Lastwert bis 246).
+- **Mac** (erstmals für die Editor-Neuheiten, `tools/mac-test.sh`): 19 Fehler, alle auch auf dem Stand vor den
+  Korrekturen; Ursache Test-Annahmen (Halten zum Greifen gibt es am Mac nicht; Doppelklick-Zeit) → Tests angepasst
+  (`6ebdc008`), danach 49 grün, 9 bewusst übersprungen.
+- **Rundgang von Hand** im iPad-Simulator: Neu → Tabelle öffnet groß, Tippen erscheint sofort in der Zelle, Eingabe
+  in leeren Zellen lässt die Tabelle nicht wachsen, KI-Feld und Filter öffnen (über die Mac-Schranke), KI-Fehler
+  verständlich, „Fertig“ sichert auf die Seite, Reiter heißt „Tabelle“; mit Plus öffnet sie zum Ansehen (Schloss,
+  „Schließen“, Doppeltipp bearbeitet nicht). Kleinigkeit behoben: KI-Fehler stand nach dem Schließen des Felds doppelt.
+- Nicht prüfbar ohne den Inhaber: echte KI (im Simulator keine), echtes Gerät mit Stift.

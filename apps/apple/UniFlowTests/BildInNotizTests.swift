@@ -126,7 +126,9 @@ enum BildProbe {
         let finger = TestFinger(at: overlay.content.convert(p, to: nil), in: window)
         try await Task.sleep(nanoseconds: 50_000_000)
         finger.lift()
-        try await Task.sleep(nanoseconds: 450_000_000)                 // laenger als die Wartezeit auf einen Doppeltipp
+        // laenger als die Wartezeit auf einen Doppeltipp - am Mac gilt die Doppelklick-Zeit des Systems (Vorgabe rund
+        // 0,5 s): Zwei Tipps kurz hintereinander waeren dort ein Doppelklick
+        try await Task.sleep(nanoseconds: PDFEditorController.isMac ? 900_000_000 : 450_000_000)
     }
 
     static func wait(_ what: String, timeout: Double = 8, file: StaticString = #filePath, line: UInt = #line,
