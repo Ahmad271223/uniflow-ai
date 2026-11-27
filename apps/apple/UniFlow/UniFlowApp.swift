@@ -74,7 +74,7 @@ struct UniFlowApp: App {
         // Zeitgeber bei offener App (Auftrag des Inhabers 17.11.2026): fragt nur die Regel; vorn der Abgleich wie beim
         // Oeffnen, am Mac im Hintergrund der Hintergrundlauf (mit stiller Neuanmeldung ohne Fenster)
         let registry = SceneRegistry()
-        let ticker = AutoSyncTicker(next: { [weak c] now in c?.nextAutomaticSync(now: now) ?? now.addingTimeInterval(AutoSyncTicker.maxSleep) },
+        let ticker = AutoSyncTicker(next: { [weak c] now in c?.nextAutomaticSync(now: now, foreground: true) ?? now.addingTimeInterval(AutoSyncTicker.maxSleep) },
                                     tick: { [weak c, weak b] now in
                                         guard let c else { return }
                                         if AppActivity.isInBackground() {

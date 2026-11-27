@@ -47,19 +47,11 @@ struct UFSyncProgressBar: View {
         case running(SyncProgress)
         /// ein Lauf wurde unterbrochen und wird gleich fortgesetzt
         case interrupted
-        /// unterbrochen, aber ausserhalb von 8 bis 18 Uhr: von selbst geht es erst am Morgen weiter, jetzt nur mit "Sync"
-        /// (27.11.2026, Inhaber: "lädt gleich weiter" stand abends wie eine Dauerschleife)
-        case waiting
-
-        /// Unterbrochener Lauf zu dieser Uhrzeit: im Fenster des Abgleichs von selbst `interrupted`, sonst `waiting`
-        static func resumed(at now: Date, schedule: AutoSyncSchedule, timeZone: TimeZone) -> Content {
-            schedule.isInWindow(now, timeZone: timeZone) ? .interrupted : .waiting
-        }
 
         var title: String {
             switch self {
             case .running(let p): return p.title
-            case .interrupted, .waiting: return "Deine Kurse sind noch nicht vollständig geladen"
+            case .interrupted: return "Deine Kurse sind noch nicht vollständig geladen"
             }
         }
 
@@ -67,7 +59,6 @@ struct UFSyncProgressBar: View {
             switch self {
             case .running(let p): return p.detail
             case .interrupted: return "StudiNow lädt gleich weiter."
-            case .waiting: return "Tippe auf „Sync“, dann lädt StudiNow weiter. Von selbst geht es ab 8 Uhr weiter."
             }
         }
 
@@ -81,24 +72,9 @@ struct UFSyncProgressBar: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
-        if content == .interrupted {
-            // jede Minute neu: um 18 Uhr wird aus "gleich" der Hinweis auf "Sync", um 8 Uhr wieder "gleich"
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                bar(.resumed(at: context.date, schedule: AutoSync.schedule, timeZone: AutoSync.timeZone()))
-            }
-        } else {
-            bar(content)
-        }
-    }
-
-    private func bar(_ content: Content) -> some View {
         UFCard(flat: true) {
             HStack(alignment: .center, spacing: 12) {
-                if content == .waiting {
-                    UFIcon("clock", size: 18).foregroundStyle(UF.muted)
-                } else {
-                    ProgressView().tint(UF.accent)
-                }
+                ProgressView().tint(UF.accent)
                 VStack(alignment: .leading, spacing: 4.8) {
                     Text(content.title)
                         .ufFont(14.5, 600).foregroundStyle(UF.text)
@@ -107,8 +83,7 @@ struct UFSyncProgressBar: View {
                         .accessibilityIdentifier("sync.progress.title")
                     if let detail = content.detail {
                         Text(detail).ufFont(13.12).foregroundStyle(UF.muted)
-                            .lineLimit(content == .waiting ? nil : 1).truncationMode(.middle)
-                            .fixedSize(horizontal: false, vertical: content == .waiting)
+                            .lineLimit(1).truncationMode(.middle)
                             .accessibilityIdentifier("sync.progress.detail")
                     }
                     if let fraction = content.fraction {

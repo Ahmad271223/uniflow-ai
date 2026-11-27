@@ -106,4 +106,35 @@ final class AutoSyncAppTests: XCTestCase {
         XCTAssertEqual(AutoSync.schedule.offset, 0, "Tests rechnen mit 8:00 und 14:00")
         XCTAssertEqual(AutoSync.mailSchedule.offset, 0, "Tests rechnen mit 8:00, 8:30 …")
     }
+
+    /// Entscheidung des Inhabers 27.11.2026 („Ja, auch abends“): bei offener App setzt ein unterbrochener Abgleich auch
+    /// ausserhalb der Fenster fort - sofort bzw. 5 Minuten nach dem letzten Versuch, nie in einer Pause, nie fuer die
+    /// Uni-Mail, nie ohne wartende Arbeit. Im Fenster entscheidet weiter die Regel des Kerns.
+    func testInterruptedRunContinuesInTheEveningWhileTheAppIsOpen() throws {
+        let tz = try XCTUnwrap(TimeZone(identifier: "Europe/Berlin"))
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        func at(_ h: Int, _ m: Int = 0) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: 27, hour: h, minute: m))! }
+        let saved = AutoSync.schedule
+        defer { AutoSync.schedule = saved }
+        AutoSync.schedule = .twiceDaily
+        let suite = "abends-\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let ledger = AutoSyncLedger(defaults: defaults, schedule: .twiceDaily)
+        let waiting = AutoSyncPortalState(name: OpenSync.studIP, lastSuccess: nil, pending: true)
+
+        XCTAssertEqual(ContainerManager.eveningContinuation(waiting, ledger: ledger, now: at(20), timeZone: tz), at(20), "ohne Versuch: sofort")
+        ledger.recordAttempt(OpenSync.studIP, at: at(19, 58), timeZone: tz)
+        XCTAssertEqual(ContainerManager.eveningContinuation(waiting, ledger: ledger, now: at(20), timeZone: tz), at(20, 3), "5 Minuten nach dem Versuch")
+        XCTAssertEqual(ContainerManager.eveningContinuation(waiting, ledger: ledger, now: at(21), timeZone: tz), at(21))
+        XCTAssertEqual(ContainerManager.eveningContinuation(waiting, ledger: ledger, now: at(6, 30), timeZone: tz), at(6, 30), "auch frueh morgens")
+        XCTAssertNil(ContainerManager.eveningContinuation(waiting, ledger: ledger, now: at(10), timeZone: tz), "im Fenster: Regel des Kerns")
+        XCTAssertNil(ContainerManager.eveningContinuation(AutoSyncPortalState(name: OpenSync.studIP, lastSuccess: nil), ledger: ledger,
+                                                          now: at(20), timeZone: tz), "nichts wartet: kein neuer Abruf am Abend")
+        XCTAssertNil(ContainerManager.eveningContinuation(AutoSyncPortalState(name: OpenSync.uniMail, lastSuccess: nil, pending: true),
+                                                          ledger: ledger, now: at(20), timeZone: tz), "Uni-Mail: eigener Takt")
+        ledger.pause(OpenSync.studIP, from: at(19, 30))
+        XCTAssertNil(ContainerManager.eveningContinuation(waiting, ledger: ledger, now: at(20), timeZone: tz), "Pause nach ueberlastet")
+    }
 }

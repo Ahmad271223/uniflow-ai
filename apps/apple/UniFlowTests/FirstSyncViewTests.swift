@@ -108,32 +108,6 @@ final class FirstSyncViewTests: XCTestCase {
 
     // MARK: Texte und Zustaende (ohne Ansicht)
 
-    /// 27.11.2026 (Inhaber: "steht voll oft da wie eine Dauerschleife"): von selbst gleicht die App nur von 8 bis 18 Uhr
-    /// ab. Ausserhalb verspricht die Karte kein "gleich", sondern sagt, dass "Sync" weiterlaedt; im Fenster bleibt es.
-    func testInterruptedOutsideWindowPointsToSync() throws {
-        let tz = try XCTUnwrap(TimeZone(identifier: "Europe/Berlin"))
-        var cal = Calendar(identifier: .gregorian)
-        cal.timeZone = tz
-        func at(_ h: Int, _ m: Int = 0) -> Date { cal.date(from: DateComponents(year: 2026, month: 11, day: 27, hour: h, minute: m))! }
-        let s = AutoSyncSchedule.standard
-        XCTAssertEqual(UFSyncProgressBar.Content.resumed(at: at(10), schedule: s, timeZone: tz), .interrupted)
-        XCTAssertEqual(UFSyncProgressBar.Content.resumed(at: at(17, 59), schedule: s, timeZone: tz), .interrupted)
-        XCTAssertEqual(UFSyncProgressBar.Content.resumed(at: at(18), schedule: s, timeZone: tz), .waiting)
-        XCTAssertEqual(UFSyncProgressBar.Content.resumed(at: at(22, 30), schedule: s, timeZone: tz), .waiting)
-        XCTAssertEqual(UFSyncProgressBar.Content.resumed(at: at(6), schedule: s, timeZone: tz), .waiting)
-        let w = UFSyncProgressBar.Content.waiting
-        XCTAssertEqual(w.title, "Deine Kurse sind noch nicht vollständig geladen")
-        XCTAssertEqual(w.detail, "Tippe auf „Sync“, dann lädt StudiNow weiter. Von selbst geht es ab 8 Uhr weiter.")
-        XCTAssertNil(w.fraction)
-        for (size, phone) in [(CGSize(width: 1194, height: 600), false), (CGSize(width: 375, height: 600), true)] {
-            let hosting = show(w, size: size, phone: phone)
-            let texts = LayoutWidthAuditTests.texts(hosting.view)
-            XCTAssertTrue(texts.contains { $0.contains("Tippe auf „Sync“") }, "\(texts)")
-            XCTAssertTrue(LayoutWidthAuditTests.squeezed(in: window).isEmpty, "Hinweis abgeschnitten (\(size.width))")
-            window.isHidden = true
-        }
-    }
-
     func testTextsInPlainGerman() {
         XCTAssertEqual(running.title, "Deine Kurse werden geladen: 121 von 250 Dateien")
         XCTAssertEqual(running.detail, "Gerade: Einführung in die Erziehungswissenschaft")

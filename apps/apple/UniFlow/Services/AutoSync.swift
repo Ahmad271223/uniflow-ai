@@ -105,22 +105,39 @@ extension ContainerManager {
     /// Portale, die nach der Regel jetzt faellig sind (im Fenster, Abstand um, keine Pause nach "ueberlastet").
     /// `timeZone`: nil = `AutoSync.timeZone()`. `continueAtOnce`: wartende Arbeit ohne `AutoSyncLedger.retryGap` (der
     /// lange Hintergrundlauf laedt die Dateien eines eben gelaufenen kurzen Laufs; iOS bestimmt dort ohnehin den Takt)
-    func autoSyncDue(now: Date, timeZone: TimeZone? = nil, continueAtOnce: Bool = false) -> Set<String> {
+    /// `foreground`: bei offener App (Oeffnen, Rueckkehr, Zeitgeber) setzt ein unterbrochener Abgleich auch ausserhalb
+    /// der Fenster fort (`eveningContinuation`); der Hintergrund von iOS bleibt bei den Fenstern.
+    func autoSyncDue(now: Date, timeZone: TimeZone? = nil, continueAtOnce: Bool = false, foreground: Bool = false) -> Set<String> {
         guard let c = active else { return [] }
         let ledger = autoLedger(c), tz = timeZone ?? AutoSync.timeZone()
         return Set(autoSyncPortals.filter {
-            ledger.isDue($0.name, lastSuccess: $0.lastSuccess, pending: $0.pending, now: now, timeZone: tz,
-                         retryGap: continueAtOnce ? 0 : AutoSyncLedger.retryGap)
+            if foreground, let at = Self.eveningContinuation($0, ledger: ledger, now: now, timeZone: tz), at <= now { return true }
+            return ledger.isDue($0.name, lastSuccess: $0.lastSuccess, pending: $0.pending, now: now, timeZone: tz,
+                                retryGap: continueAtOnce ? 0 : AutoSyncLedger.retryGap)
         }.map(\.name))
+    }
+
+    /// Unterbrochener Abgleich ausserhalb der Fenster (Entscheidung des Inhabers 27.11.2026, „Ja, auch abends“: vorher
+    /// stand abends „StudiNow lädt gleich weiter.“, bis man „Sync“ tippte): bei offener App geht wartende Arbeit eines
+    /// Portals (nicht die Uni-Mail, die ihren eigenen Takt hat) auch abends und frueh morgens weiter - sofort bzw.
+    /// `retryGap` nach dem letzten Versuch, nie waehrend einer Pause nach "ueberlastet". Neue Abrufe ausserhalb der
+    /// Fenster gibt es weiter nicht. nil: keine solche Fortsetzung.
+    static func eveningContinuation(_ p: AutoSyncPortalState, ledger: AutoSyncLedger, now: Date, timeZone tz: TimeZone) -> Date? {
+        guard p.pending, p.name != OpenSync.uniMail, !AutoSync.schedule.isInWindow(now, timeZone: tz),
+              ledger.pausedUntil(p.name, now: now) == nil else { return nil }
+        guard let attempt = ledger.lastAttempt(p.name), attempt <= now else { return now }
+        return max(now, attempt.addingTimeInterval(AutoSyncLedger.retryGap))
     }
 
     /// Fruehester naechster Abgleich von selbst (fuer den Zeitgeber und den Wunschtermin an iOS). Ohne Portal: der
     /// naechste Zeitpunkt im Fenster, damit ein spaeter verbundenes Portal mitkommt.
-    func nextAutomaticSync(now: Date, timeZone: TimeZone? = nil) -> Date {
+    /// `foreground`: Zeitgeber der offenen App (dann auch die Fortsetzung ausserhalb der Fenster, `eveningContinuation`)
+    func nextAutomaticSync(now: Date, timeZone: TimeZone? = nil, foreground: Bool = false) -> Date {
         let tz = timeZone ?? AutoSync.timeZone()
         guard let c = active else { return AutoSync.schedule.nextRun(last: nil, now: now, timeZone: tz) }
         let ledger = autoLedger(c)
         let times = autoSyncPortals.map { p -> Date in
+            if foreground, let at = Self.eveningContinuation(p, ledger: ledger, now: now, timeZone: tz) { return at }
             // wartende Arbeit (unterbrochen, Dateien noch nicht geladen) darf frueher weitergehen
             if p.pending, ledger.isDue(p.name, lastSuccess: p.lastSuccess, pending: true, now: now, timeZone: tz) { return now }
             // noch nicht faellig, aber wartend: nach `retryGap` (5 Minuten) weiter, nicht erst beim naechsten Abstand
@@ -157,14 +174,15 @@ extension ContainerManager {
     }
 
     /// Der eine Einstieg fuer den Abgleich von selbst bei offener App: beim Oeffnen, bei der Rueckkehr und im Takt des
-    /// Zeitgebers. Gleicht genau die Portale ab, die nach der Regel faellig sind - nichts ausserhalb von 8 bis 18 Uhr,
+    /// Zeitgebers. Gleicht genau die Portale ab, die nach der Regel faellig sind - ausserhalb von 8 bis 18 Uhr nur die
+    /// Fortsetzung eines unterbrochenen Abgleichs (`eveningContinuation`),
     /// nichts ohne verbundenes Portal, nichts mit Demo-Inhalten, nie neben einem laufenden Abgleich aller Portale.
     /// Rueckgabe: die gestarteten Portale (leer: nichts gestartet).
     @discardableResult
     func runAutomaticSync(now: Date = Date()) -> Set<String> {
         guard OpenSync.allowed(), let c = active, problem == nil, !demoActive else { return [] }
         guard !OpenSync.running.contains(c.key), !isSyncing(c.key) else { return [] }
-        let due = autoSyncDue(now: now)
+        let due = autoSyncDue(now: now, foreground: true)
         guard !due.isEmpty else { return [] }
         // Versuch vermerken, BEVOR er beginnt: auch ein gescheiterter oder abgebrochener Lauf zaehlt fuer sein Fenster
         let ledger = autoLedger(c)
